@@ -646,7 +646,7 @@ function saveWorld() {
   const p = G.player;
   const ok = storageSet(G.online ? Net.saveKey() : SAVE_KEY, {
     net: G.online && Net.server ? Net.serializeTimes() : undefined,
-    v: 2, seed: G.world.seed, type: G.world.type, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
+    v: 2, gen: G.world.genVer, seed: G.world.seed, type: G.world.type, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
     dayTime: G.dayTime, mode: G.mode, difficulty: G.difficulty, rules: G.rules, worldSpawn: G.worldSpawn, spawnPoint: G.spawnPoint,
     player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, flying: p.flying }, inv: G.inv.serialize(), stats: G.stats.serialize(),
     vehicles: Vehicles.serialize(),
@@ -678,9 +678,12 @@ function newWorld(seed, save, opts = {}) {
   Wildlife.reset();
   if (G.vehicle) G.vehicle = null;
   Ents.clear();
+  if (typeof Villages !== 'undefined') Villages.reset();
   G.region = null;
   const type = save ? save.type : opts.type;
-  G.world = new World(seed, type);
+  // saves from before rivers and structures keep their original terrain (see WorldGen)
+  const ver = save ? (Number.isInteger(save.gen) ? save.gen : 1) : (opts.gen || GEN_LATEST);
+  G.world = new World(seed, type, ver);
   G.player = new Player(G.world);
   G.stats.reset();
   G.inv.clear();

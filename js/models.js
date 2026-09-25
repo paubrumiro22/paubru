@@ -2,7 +2,7 @@
 // Box models for mobs, their procedurally painted skins (one 2D atlas) and extruded 3D
 // meshes for item sprites. Model units are pixels (1/16 block); models face +Z.
 
-const ATLAS_W = 512, ATLAS_H = 512, SKIN_W = 128, SKIN_H = 64;
+const ATLAS_W = 512, ATLAS_H = 1024, SKIN_W = 128, SKIN_H = 64;
 
 // part: { id, box: [x0, y0, z0, x1, y1, z1], pivot, parent, uv: shared texture key, role }
 const MOB_MODELS = {

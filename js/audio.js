@@ -196,6 +196,15 @@ const SYNTH = {
   chicken_say(ctx, o, t, p) { for (let i = 0; i < 3; i++) Sound.tone(ctx, o, t + i * 0.09, 0.06, { wave: 'square', f0: (1000 + Math.random() * 300) * p, f1: 800 * p, filter: ['bandpass', 1500, 2], gain: 0.12 }); },
   chicken_hurt(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.15, { wave: 'square', f0: 1400 * p, f1: 900 * p, filter: ['bandpass', 1600, 2], gain: 0.18 }); },
   chicken_death(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.3, { wave: 'square', f0: 1300 * p, f1: 500 * p, filter: ['bandpass', 1400, 2], gain: 0.18 }); },
+  // villagers: a nasal "hmm" that rises or falls
+  villager_say(ctx, o, t, p) {
+    const up = Math.random() < 0.5;
+    Sound.tone(ctx, o, t, 0.42, { wave: 'sawtooth', f0: (up ? 150 : 200) * p, f1: (up ? 205 : 140) * p, vib: [6, 4], filter: ['bandpass', 760, 3], gain: 0.32, attack: 0.05 });
+  },
+  villager_hurt(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.3, { wave: 'sawtooth', f0: 260 * p, f1: 180 * p, filter: ['bandpass', 900, 3], gain: 0.35 }); },
+  villager_death(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.7, { wave: 'sawtooth', f0: 220 * p, f1: 90 * p, filter: ['bandpass', 700, 3], gain: 0.35 }); },
+  villager_yes(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.18, { wave: 'sawtooth', f0: 170 * p, f1: 230 * p, filter: ['bandpass', 800, 3], gain: 0.3 }); Sound.tone(ctx, o, t + 0.2, 0.2, { wave: 'sawtooth', f0: 230 * p, f1: 260 * p, filter: ['bandpass', 800, 3], gain: 0.3 }); },
+  villager_no(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.4, { wave: 'sawtooth', f0: 200 * p, f1: 120 * p, filter: ['bandpass', 700, 3], gain: 0.3 }); },
   zombie_say(ctx, o, t, p) {
     Sound.tone(ctx, o, t, 1.3, { wave: 'sawtooth', f0: 95 * p, f1: 70 * p, vib: [3, 6], filter: ['lowpass', 520, 3], gain: 0.4, attack: 0.15 });
     Sound.noise(ctx, o, t, 1.2, { type: 'bandpass', freq: 400, q: 2, gain: 0.12, attack: 0.2 });

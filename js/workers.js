@@ -11,11 +11,12 @@ function chunkWorkerMain() {
   self.onmessage = (e) => {
     const m = e.data;
     if (m.t === 'gen') {
-      const key = m.seed + ':' + m.type;
-      if (key !== genKey) { gen = new WorldGen(m.seed, m.type); genKey = key; }
+      const key = m.seed + ':' + m.type + ':' + m.ver;
+      if (key !== genKey) { gen = new WorldGen(m.seed, m.type, m.ver); genKey = key; }
       const c = new Chunk(m.cx, m.cz);
       gen.generate(c);
-      self.postMessage({ t: 'gen', epoch: m.epoch, cx: m.cx, cz: m.cz, blocks: c.blocks, heightmap: c.heightmap, grassTint: c.grassTint, foliageTint: c.foliageTint, waterTint: c.waterTint, maxY: c.maxY, springs: c.springs || null },
+      self.postMessage({ t: 'gen', epoch: m.epoch, cx: m.cx, cz: m.cz, blocks: c.blocks, heightmap: c.heightmap, grassTint: c.grassTint, foliageTint: c.foliageTint, waterTint: c.waterTint, maxY: c.maxY, springs: c.springs || null,
+        gfacing: c.gfacing ? [...c.gfacing] : null, gloot: c.gloot ? [...c.gloot] : null },
         [c.blocks.buffer, c.heightmap.buffer, c.grassTint.buffer, c.foliageTint.buffer, c.waterTint.buffer]);
     } else if (m.t === 'mesh') {
       const chunks = new Map();
@@ -115,7 +116,7 @@ const ChunkWorkers = {
     this.genPending.add(key);
     const w = this.pick();
     w.load++;
-    w.postMessage({ t: 'gen', epoch: this.epoch, seed: world.seed, type: world.type, cx, cz });
+    w.postMessage({ t: 'gen', epoch: this.epoch, seed: world.seed, type: world.type, ver: world.genVer || 1, cx, cz });
   },
 
   mesh(world, c) {
@@ -131,6 +132,8 @@ const ChunkWorkers = {
     }
     // orientation of blocks inside this chunk that face somewhere specific
     const facing = [];
+    // orientation of generated stairs, roofs and doors, unless the player changed them
+    if (c.gfacing) for (const [k, f] of c.gfacing) if (!world.facing.has(k)) facing.push([k, f]);
     if (world.facing.size) {
       const x0 = c.cx * CS, z0 = c.cz * CS;
       for (const [k, f] of world.facing) {
@@ -166,6 +169,8 @@ const ChunkWorkers = {
       const c = new Chunk(m.cx, m.cz);
       c.blocks = m.blocks; c.heightmap = m.heightmap; c.grassTint = m.grassTint; c.foliageTint = m.foliageTint; c.waterTint = m.waterTint; c.maxY = m.maxY;
       if (m.springs) c.springs = m.springs;
+      if (m.gfacing) c.gfacing = new Map(m.gfacing);
+      if (m.gloot) c.gloot = new Map(m.gloot);
       world.addChunk(c);
       this.stats.gen++;
     } else if (m.t === 'mesh') {

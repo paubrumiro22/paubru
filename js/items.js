@@ -12,6 +12,7 @@ const I = {
   TOOL0: 300,   // 300..324: material * 5 + type
   ARMOR0: 330,  // 330..345: material * 4 + slot
   JET: 350,
+  EMERALD: 351, RAW_FISH: 352, COOKED_FISH: 353, ENCHANTED_BOOK: 354,
 };
 
 const TOOL_MATS = [
@@ -108,6 +109,10 @@ defItem(I.SHEARS, 'Shears', { sprite: 'i_shears', stack: 1, dur: 238, tool: TOOL
 defItem(I.MELON_SLICE, 'Melon Slice', { sprite: 'i_melon_slice', food: [2, 1.2], cat: F });
 defItem(I.GOLDEN_APPLE, 'Golden Apple', { sprite: 'i_golden_apple', food: [4, 9.6], always: true, regen: 5, cat: F });
 defItem(I.JET, 'Fighter Jet', { sprite: 'i_jet', stack: 1, cat: 'transport' });
+defItem(I.EMERALD, 'Emerald', { sprite: 'i_emerald' });
+defItem(I.RAW_FISH, 'Raw Fish', { sprite: 'i_raw_fish', food: [2, 0.4], cat: F });
+defItem(I.COOKED_FISH, 'Cooked Fish', { sprite: 'i_cooked_fish', food: [5, 6], cat: F });
+defItem(I.ENCHANTED_BOOK, 'Enchanted Book', { sprite: 'i_enchanted_book', stack: 1, cat: M });
 
 TOOL_MATS.forEach((m, mi) => TOOL_KINDS.forEach((k, ki) => {
   defItem(I.TOOL0 + mi * 5 + ki, m.name + ' ' + k.name, {
@@ -142,7 +147,7 @@ const SMELT = {
   [B.SAND]: B.GLASS, [B.COBBLE]: B.STONE, [B.STONE]: B.SMOOTH_STONE, [B.CLAY]: B.TERRACOTTA,
   [B.LOG]: I.CHARCOAL, [B.BIRCH_LOG]: I.CHARCOAL, [B.SPRUCE_LOG]: I.CHARCOAL, [B.PALM_LOG]: I.CHARCOAL,
   [B.WHITE_SAND]: B.GLASS, [B.RED_SAND]: B.GLASS, [B.ASH]: B.BASALT,
-  [I.RAW_PORK]: I.COOKED_PORK, [I.RAW_BEEF]: I.STEAK, [I.RAW_CHICKEN]: I.COOKED_CHICKEN, [I.RAW_MUTTON]: I.COOKED_MUTTON,
+  [I.RAW_PORK]: I.COOKED_PORK, [I.RAW_FISH]: I.COOKED_FISH, [B.EMERALD_ORE]: I.EMERALD, [I.RAW_BEEF]: I.STEAK, [I.RAW_CHICKEN]: I.COOKED_CHICKEN, [I.RAW_MUTTON]: I.COOKED_MUTTON,
 };
 const SMELT_TIME = 8; // seconds per item
 
@@ -165,6 +170,9 @@ function blockDrops(id, toolItem, rnd) {
     case B.STONE: return [[B.COBBLE, 1]];
     case B.COAL_ORE: return [[I.COAL, 1]];
     case B.DIAMOND_ORE: return [[I.DIAMOND, 1]];
+    case B.EMERALD_ORE: return [[I.EMERALD, 1]];
+    case B.COBWEB: return [[I.STRING, 1]];
+    case B.DIRT_PATH: return [[B.DIRT, 1]];
     case B.FURNACE_LIT: return [[B.FURNACE, 1]];
     case B.WALL_TORCH: return [[B.TORCH, 1]];
     case B.DOOR: case B.DOOR_OPEN: return [[B.DOOR, 1]];
@@ -260,7 +268,7 @@ shapeless(B.JACK_O_LANTERN, 1, [B.PUMPKIN, B.TORCH]);
 shaped(B.HAY_BALE, 1, ['WWW', 'WWW', 'WWW'], { W: I.WHEAT });
 shapeless(I.WHEAT, 9, [B.HAY_BALE]);
 shaped(B.MELON, 1, ['MMM', 'MMM', 'MMM'], { M: I.MELON_SLICE });
-[[I.COAL, B.COAL_BLOCK], [I.IRON_INGOT, B.IRON_BLOCK], [I.GOLD_INGOT, B.GOLD_BLOCK], [I.DIAMOND, B.DIAMOND_BLOCK]].forEach(([it, blk]) => {
+[[I.EMERALD, B.EMERALD_BLOCK], [I.COAL, B.COAL_BLOCK], [I.IRON_INGOT, B.IRON_BLOCK], [I.GOLD_INGOT, B.GOLD_BLOCK], [I.DIAMOND, B.DIAMOND_BLOCK]].forEach(([it, blk]) => {
   shaped(blk, 1, ['XXX', 'XXX', 'XXX'], { X: it });
   shapeless(it, 9, [blk]);
 });

@@ -177,6 +177,13 @@
   .archmat { display: flex; align-items: center; gap: 6px; padding: 5px 9px 5px 5px; font-size: 12px; }
   .archmat i { width: 22px; height: 22px; background-size: contain; image-rendering: pixelated; }
   .archmat.on { border-color: var(--accent); background: rgba(242, 185, 75, 0.18); }
+  .tradebox { display: flex; flex-direction: column; gap: 8px; min-width: 320px; }
+  .traderow { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }
+  .traderow button { margin-left: auto; padding: 6px 14px; }
+  .tr-item { position: relative; width: 38px; height: 38px; }
+  .tr-item i { position: absolute; inset: 3px; background-size: contain; image-rendering: pixelated; }
+  .tr-item b { position: absolute; right: 0; bottom: -2px; font: 700 12px var(--body); text-shadow: 1px 1px 0 #000; }
+  .tr-arrow { color: var(--muted); font-size: 18px; }
   .archhint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
   .sgrid { display: grid; gap: 3px; }
   .sgrid.hotrow { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
@@ -589,6 +596,7 @@
 <script src="js/textures_arch.js"></script>
 <script src="js/world.js" data-w></script>
 <script src="js/presets.js" data-w></script>
+<script src="js/structures.js" data-w></script>
 <script src="js/mesher.js" data-w></script>
 <script src="js/workers.js"></script>
 <script src="js/atmosphere.js"></script>
@@ -611,6 +619,7 @@
 <script src="js/game.js"></script>
 <script src="js/net.js"></script>
 <script src="js/minimap.js"></script>
+<script src="js/villages.js"></script>
 <script src="js/interact.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>

@@ -31,6 +31,8 @@ class Chunk {
     this.mesh = null;         // GPU buffers, owned by the renderer
     this.needsMesh = true;
     this.meshVersion = 0;
+    this.gfacing = null;      // posKey -> facing of generated shaped blocks (structures)
+    this.gloot = null;        // posKey -> loot table of generated chests
   }
   get(x, y, z) { return this.blocks[(y * CS + z) * CS + x]; }
   recomputeHeight(x, z) {
@@ -69,8 +71,11 @@ function storeWater(chunk, i, w) {
 }
 
 class WorldGen {
-  constructor(seed, type) {
+  // ver: generator version. 1 = worlds from before rivers and structures (kept identical so
+  // saved builds do not end up inside a new village); 2 adds rivers, villages, castles, mines...
+  constructor(seed, type, ver = 1) {
     this.seed = seed | 0;
+    this.ver = ver;
     this.preset = WORLD_PRESETS[type] || null;
     this.type = this.preset || type === 'flat' ? type : 'default';
     const s = this.seed;
@@ -85,8 +90,19 @@ class WorldGen {
     this.nCaveB = new SimplexNoise(s + 101);
     this.nCaveC = new SimplexNoise(s + 113);
     this.nPatch = new SimplexNoise(s + 131);
+    this.nRiver = new SimplexNoise(s + 149);
     // themed places scattered through the regular world (see presets.js)
     this.regions = this.type === 'default' ? placeRegions(this.seed) : [];
+    this.structs = this.ver >= 2 && this.type === 'default' ? new Map() : null;   // cell -> plan (structures.js)
+  }
+
+  // 0..1: how much of a river channel this column is (rivers wind through the lowlands and fade
+  // out as the ground climbs into the mountains, where they start).
+  riverAt(x, z) {
+    if (this.ver < 2 || this.type !== 'default') return 0;
+    const n = this.nRiver.fbm2(x * 0.0019, z * 0.0019, 3);
+    const w = 0.026 + 0.012 * this.nRiver.noise2D(x * 0.004 + 50, z * 0.004);
+    return smoothstep(w * 2.6, w * 0.55, Math.abs(n));
   }
 
   height(x, z) {
@@ -120,6 +136,12 @@ class WorldGen {
     h += this.nHill.fbm2(x * 0.009, z * 0.009, 3) * 9 * land;
     const mountain = smoothstep(0.02, 0.42, c) * smoothstep(0.35, -0.25, e);
     h += Math.pow(ridge, 2.6) * 62 * mountain;
+    const rv = this.riverAt(x, z);
+    if (rv > 0 && h > SEA - 3) {
+      const lowland = 1 - smoothstep(SEA + 20, SEA + 44, h);
+      const bed = SEA - 1 - rv * 3.2;
+      h += (bed - h) * rv * lowland;
+    }
     return Math.max(6, Math.min(CH - 10, Math.floor(h)));
   }
 
@@ -272,6 +294,7 @@ class WorldGen {
     this.placeCaveDecor(chunk, heights, HW, P, ox, oz);
     this.placeTrees(chunk, ox, oz);
     this.placeSprings(chunk, heights, HW, P, ox, oz);
+    if (this.structs) placeStructures(this, chunk);
 
     chunk.maxY = 0;
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) chunk.recomputeHeight(x, z);
@@ -305,7 +328,7 @@ class WorldGen {
   waterFor(wx, wz, h, c) {
     const { temp, hum } = this.climate(wx, wz);
     const cold = smoothstep(-0.12, -0.32, temp);
-    if (c.level > SEA || h >= SEA) {
+    if (c.level > SEA || h >= SEA || (h > SEA - 8 && this.riverAt(wx, wz) > 0.15)) {
       let w = mixWater(WATER_STYLE.river, WATER_STYLE.forest, smoothstep(0.0, 0.4, hum) * 0.8);
       if (temp > 0.2 && hum < 0.05) w = mixWater(w, WATER_STYLE.oasis, 0.5);
       return mixWater(w, WATER_STYLE.glacier, cold * 0.7);
@@ -345,6 +368,7 @@ class WorldGen {
       [B.GRANITE, 2, 26, 90], [B.DIORITE, 2, 26, 90], [B.ANDESITE, 2, 26, 90], [B.GRAVEL, 2, 18, 80], [B.DIRT, 2, 18, 80],
       [B.COAL_ORE, 14, 9, 100], [B.IRON_ORE, 9, 7, 64], [B.GOLD_ORE, 3, 6, 32], [B.DIAMOND_ORE, 2, 5, 16],
     ];
+    if (this.ver >= 2) ores.push([B.EMERALD_ORE, 1, 3, 48]);   // appended so older worlds keep their ores
     const b = chunk.blocks;
     for (const [id, veins, size, maxY] of ores) {
       for (let v = 0; v < veins; v++) {
@@ -478,6 +502,7 @@ class WorldGen {
         continue;
       }
       if (h <= SEA + 1 || h > SEA + 44) continue;
+      if (this.structs && structZone(this, tx, tz)) continue;
       const { temp, hum } = this.climate(tx, tz);
       const biome = this.biome(h, temp, hum);
       const density = biome === BIOME.FOREST ? 0.82 : biome === BIOME.SNOWY ? 0.4 : biome === BIOME.PLAINS ? 0.06 : biome === BIOME.MOUNTAIN ? 0.12 : 0;
@@ -590,10 +615,11 @@ function buildTree(get, set, x, y, z, kind, r, seed, dir) {
 }
 
 class World {
-  constructor(seed, type) {
+  constructor(seed, type, ver = 1) {
     this.seed = seed;
     this.type = type === 'flat' || WORLD_PRESETS[type] ? type : 'default';
-    this.gen = new WorldGen(seed, this.type);
+    this.genVer = ver;
+    this.gen = new WorldGen(seed, this.type, ver);
     this.chunks = new Map();
     this.edits = new Map();   // chunkKey -> Map(blockIndex -> id)
     this.facing = new Map();  // posKey -> face index (0 +X, 1 -X, 4 +Z, 5 -Z)
@@ -624,8 +650,11 @@ class World {
   isLoaded(x, z) { return this.chunks.has(chunkKey(x >> 4, z >> 4)); }
 
   getFacing(x, y, z) {
-    const f = this.facing.get(posKey(x, y, z));
+    const k = posKey(x, y, z);
+    const f = this.facing.get(k);
     if (f !== undefined) return f;
+    const c = this.chunks.get(chunkKey(x >> 4, z >> 4));
+    if (c && c.gfacing) { const g = c.gfacing.get(k); if (g !== undefined) return g; }
     return [0, 1, 4, 5][Math.floor(hash3(x, y, z, 7) * 4)];
   }
 

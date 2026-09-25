@@ -153,7 +153,7 @@ const ER = {
 
   // ---------------------------------------------------------------- mobs ----
   mob(m0, mob, cp) {
-    const model = MOB_MODELS[mob.type];
+    const model = MOB_MODELS[mob.type === 'villager' ? 'avatar' : mob.type];
     this.lightAt(mob.pos[0], mob.pos[1] + mob.h * 0.6, mob.pos[2]);
     if (mob.fire > 0) this.light[1] = Math.max(this.light[1], 0.55);
     this.ov = mob.dead ? 0.8 : mob.hurtTime > 0 ? Math.min(1, mob.hurtTime / 0.25) : 0;
@@ -169,7 +169,7 @@ const ER = {
     while (headYaw < -Math.PI) headYaw += Math.PI * 2;
     headYaw = clamp(headYaw, -1.1, 1.1);
     const partM = {};
-    const skin = mob.type === 'avatar' && mob.skin > 0 && SKINS[mob.skin] ? mob.skin : 0;
+    const skin = (mob.type === 'avatar' || mob.type === 'villager') && mob.skin > 0 && SKINS[mob.skin] ? mob.skin : 0;
     const [sdx, sdy] = skinOffset(skin);
     for (const p of model) {
       if (p.role === 'wool' && mob.sheared) continue;

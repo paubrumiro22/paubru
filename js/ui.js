@@ -225,10 +225,16 @@ const UI = {
     try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { /* ignore */ }
     this.render();
   },
+  openTrade(m) {
+    m.trading = true;
+    sfx('villager_say', m.pos, 1, 1);
+    this.open({ kind: 'trade', mob: m });
+  },
   openInventory() { this.open(G.mode === 'creative' ? { kind: 'creative' } : { kind: 'inventory' }); },
   openCrafting() { this.open({ kind: 'crafting' }); },
   openFurnace(x, y, z) { blockEntity(x, y, z, 'furnace'); this.open({ kind: 'furnace', key: posKey(x, y, z), pos: [x, y, z] }); },
   openChest(x, y, z) {
+    fillGeneratedLoot(x, y, z);
     blockEntity(x, y, z, 'chest');
     sfx('chest_open', [x + 0.5, y + 0.5, z + 0.5], 1, 1);
     this.open({ kind: 'chest', key: posKey(x, y, z), pos: [x, y, z] });
@@ -237,6 +243,7 @@ const UI = {
   closeScreen(silent) {
     if (!this.screen) return;
     const s = this.screen;
+    if (s.mob) s.mob.trading = false;
     if (s.kind === 'chest') sfx('chest_close', [s.pos[0] + 0.5, s.pos[1] + 0.5, s.pos[2] + 0.5], 1, 1);
     for (const grid of [this.craft2, this.craft3]) {
       for (let i = 0; i < grid.length; i++) if (grid[i]) { this.giveBack(grid[i]); grid[i] = null; }
@@ -299,6 +306,7 @@ const UI = {
       else if (s.kind === 'furnace') this.renderFurnaceTop(top);
       else if (s.kind === 'chest') this.renderChestTop(top);
       else if (s.kind === 'arch') this.renderArchTop(top);
+      else if (s.kind === 'trade') this.renderTradeTop(top);
       root.append(this.label('Inventory'));
       root.append(this.grid(main, 9, 'main'));
       const hb = this.grid(hot, 9, 'hotbar');
@@ -617,6 +625,48 @@ const UI = {
     const left = G.inv.add(mkStack(id, n * yieldN));
     if (left > 0) this.giveBack(mkStack(id, left));
     sfx('place_0', null, 0.6, 1.3);
+    this.invDirty();
+    this.render();
+  },
+
+  // ---- trading with a villager ----
+  renderTradeTop(top) {
+    const m = this.screen.mob;
+    const box = document.createElement('div');
+    box.className = 'tradebox';
+    box.append(this.label(m.name + ' · ' + (PROF_NAMES[m.prof] || 'Villager')));
+    const icon = (id, n) => `<span class="tr-item"><i style="background-image:url(${iconURL(id)})"></i><b>${n}</b></span>`;
+    for (const [give, get] of villagerTrades(m)) {
+      const row = document.createElement('div');
+      row.className = 'traderow';
+      const have = G.mode === 'creative' || G.inv.count(give[0]) >= give[1];
+      row.innerHTML = icon(give[0], give[1]) + '<span class="tr-arrow">→</span>' + icon(get[0], get[1]);
+      row.title = itemName(give[0]) + ' ×' + give[1] + ' → ' + itemName(get[0]) + ' ×' + get[1];
+      const b = document.createElement('button');
+      b.textContent = 'Trade';
+      b.disabled = !have;
+      b.addEventListener('click', (e) => this.doTrade(m, give, get, e.shiftKey));
+      row.append(b);
+      box.append(row);
+    }
+    const p = document.createElement('p');
+    p.className = 'archhint';
+    p.textContent = 'Shift-click trades as many times as you can afford. Emeralds come from mountains, mines and chests.';
+    box.append(p);
+    top.append(box);
+  },
+
+  doTrade(m, give, get, many) {
+    let n = 0;
+    const creative = G.mode === 'creative';
+    do {
+      if (!creative && G.inv.count(give[0]) < give[1]) break;
+      if (!creative) G.inv.remove(give[0], give[1]);
+      const left = G.inv.add(mkStack(get[0], get[1]));
+      if (left > 0) this.giveBack(mkStack(get[0], left));
+      n++;
+    } while (many && n < 16);
+    sfx(n ? 'villager_yes' : 'villager_no', m.pos, 1, 1);
     this.invDirty();
     this.render();
   },

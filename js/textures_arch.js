@@ -202,3 +202,26 @@ sprite('i_lantern', (d, rng, ctx) => {
   sprRect(d, 9, 27, 23, 30, [44, 44, 50]);
   for (let y = 11; y < 25; y++) for (let x = 12; x < 20; x++) ctx.emit[y * TS + x] = 1;
 });
+
+sprite('i_emerald', (d) => {
+  sprPoly(d, [[16, 4], [25, 11], [25, 21], [16, 28], [7, 21], [7, 11]], [40, 200, 100]);
+  sprPoly(d, [[16, 8], [21, 12], [21, 20], [16, 24], [11, 20], [11, 12]], [90, 236, 150]);
+  sprPoly(d, [[16, 8], [21, 12], [16, 14], [11, 12]], [190, 255, 214]);
+});
+function drawFish(d, body, belly, fin) {
+  sprEllipse(d, 15, 16, 10, 5.5, -0.35, body);
+  sprEllipse(d, 14, 18, 8, 3, -0.35, belly);
+  sprPoly(d, [[24, 12], [31, 6], [29, 16], [31, 25]], fin);
+  sprPoly(d, [[12, 11], [17, 7], [19, 12]], fin);
+  sprDisc(d, 8.5, 15, 1.4, [20, 20, 24]);
+}
+sprite('i_raw_fish', (d) => drawFish(d, [110, 150, 170], [200, 214, 214], [90, 120, 140]));
+sprite('i_cooked_fish', (d) => drawFish(d, [176, 116, 58], [222, 176, 110], [140, 86, 40]));
+sprite('i_enchanted_book', (d, rng, ctx) => {
+  sprRect(d, 7, 5, 26, 28, [120, 40, 150]);
+  sprRect(d, 9, 7, 24, 26, [150, 60, 180]);
+  sprRect(d, 24, 6, 27, 27, [236, 226, 196]);
+  sprRect(d, 12, 11, 21, 13, [255, 214, 90]);
+  sprRect(d, 12, 15, 19, 16, [255, 214, 90]);
+  for (const [x, y] of [[10, 22], [20, 9], [22, 20], [14, 25]]) { sprRect(d, x, y, x + 2, y + 2, [255, 240, 170]); ctx.emit[y * TS + x] = 0.8; }
+});

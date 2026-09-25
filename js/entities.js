@@ -10,6 +10,7 @@ const MOB_TYPES = {
   zombie: { name: 'Zombie', hw: 0.3, h: 1.95, hp: 20, speed: 2.5, hostile: true, dmg: [2, 3, 4], drops: [[I.ROTTEN_FLESH, 0, 2]], undead: true },
   skeleton: { name: 'Skeleton', hw: 0.3, h: 1.95, hp: 20, speed: 2.5, hostile: true, ranged: true, drops: [[I.BONE, 0, 2], [I.ARROW, 0, 2]], undead: true },
   spider: { name: 'Spider', hw: 0.65, h: 0.9, hp: 16, speed: 3.3, hostile: true, dmg: [2, 2, 3], drops: [[I.STRING, 0, 2]], climbs: true },
+  villager: { name: 'Villager', hw: 0.3, h: 1.95, hp: 20, speed: 1.9, villager: true, drops: [] },
   fusecap: { name: 'Fusecap', hw: 0.3, h: 1.7, hp: 20, speed: 2.4, hostile: true, explodes: true, drops: [[I.GUNPOWDER, 0, 2]] },
 };
 const PASSIVE_TYPES = ['pig', 'cow', 'sheep', 'chicken'];
@@ -90,6 +91,11 @@ class Mob {
       if (IS_LIQUID(top) && !awayFrom) continue;
       if (Math.abs(h + 1 - this.pos[1]) > 6 && !awayFrom) continue;
       this.ai.tx = tx; this.ai.tz = tz;
+      // villagers keep to their village
+      if (this.home && !awayFrom && Math.hypot(tx - this.home[0], tz - this.home[1]) > this.homeR) {
+        const a2 = Math.random() * Math.PI * 2, d2 = Math.random() * this.homeR * 0.6;
+        this.ai.tx = this.home[0] + Math.cos(a2) * d2; this.ai.tz = this.home[1] + Math.sin(a2) * d2;
+      }
       return true;
     }
     this.ai.tx = this.pos[0]; this.ai.tz = this.pos[2];
@@ -199,7 +205,9 @@ class Mob {
         if (ai.timer <= 0) { ai.state = 'idle'; ai.timer = rand(1, 3); }
         else if (Math.hypot(ai.tx - this.pos[0], ai.tz - this.pos[2]) < 1) this.pickTarget(8, null);
       } else if (ai.timer <= 0) {
-        if (ai.state === 'walk' || Math.random() < 0.35) { ai.state = 'idle'; ai.timer = rand(2, 6); }
+        if (def.villager && this.trading) { ai.state = 'idle'; ai.timer = 1; }
+        else if (def.villager && !isDaytime() && Math.random() < 0.7) { ai.state = 'idle'; ai.timer = rand(4, 10); }
+        else if (ai.state === 'walk' || Math.random() < 0.35) { ai.state = 'idle'; ai.timer = rand(2, 6); }
         else { ai.state = 'walk'; ai.timer = rand(4, 9); this.pickTarget(def.hostile ? 6 : 9, null); }
       }
       if (ai.state === 'walk' || ai.state === 'panic') {
@@ -208,7 +216,8 @@ class Mob {
         else if (ai.state === 'walk') { ai.state = 'idle'; ai.timer = rand(2, 5); }
       }
       // passive mobs glance at a nearby player
-      if (!def.hostile && distP < 7 && ai.state === 'idle') {
+      if (this.trading) { this.headYaw = Math.atan2(dx, dz); this.headPitch = Math.atan2(dy + 1.5 - this.h, Math.hypot(dx, dz)); this.bodyYaw = this.headYaw; }
+      else if (!def.hostile && distP < 7 && ai.state === 'idle') {
         this.headYaw = Math.atan2(dx, dz);
         this.headPitch = Math.atan2(dy + 1.5 - this.h, Math.hypot(dx, dz));
       } else if (mx || mz) { this.headYaw = Math.atan2(mx, mz); this.headPitch *= 0.9; }
@@ -740,7 +749,7 @@ const Ents = {
         else if (d > 40) { m.farTime += dt; if (m.farTime > 30) m.removed = true; }
         else m.farTime = 0;
         // burned-out daylight stragglers
-      } else if (d > 120) m.removed = true;
+      } else if (d > (m.persistent ? 175 : 120)) m.removed = true;
     }
   },
 

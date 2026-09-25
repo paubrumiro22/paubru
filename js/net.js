@@ -150,7 +150,9 @@ const Net = {
     this.ops = []; this.seq = 0; this.peers.clear(); this.syncBuf.clear(); this.times.clear();
     const save = storageGet(this.saveKey());
     const ok = save && save.v === 2 ? save : null;
-    newWorld(server ? serverSeed(server.code) : ONLINE_SEED, ok, { mode: server ? server.mode : G.mode, type: 'default' });
+    // everyone on a server must generate the same terrain: servers always use the latest generator
+    if (ok && server) ok.gen = GEN_LATEST;
+    newWorld(server ? serverSeed(server.code) : ONLINE_SEED, ok, { mode: server ? server.mode : G.mode, type: 'default', gen: server ? GEN_LATEST : 1 });
     if (ok) this.loadTimes(ok.net);
     prepareArea(G.player.pos[0], G.player.pos[2], 2);
     liftOutOfBlocks(G.player);

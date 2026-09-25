@@ -295,6 +295,7 @@ function buildSkinPicker() {
   const grid = $('skinGrid');
   if (!grid || grid.childElementCount) return;
   SKINS.forEach((sk, i) => {
+    if (sk.hidden) return;
     const b = document.createElement('button');
     b.className = 'skin';
     b.title = sk.name;
@@ -686,6 +687,7 @@ function frame(now) {
       st.update(dt, p);
       Ents.update(dt);
       Vehicles.update(dt);
+      Villages.update(dt);
       tickFurnaces(dt);
       randomTicks(dt);
       updateSleep(dt);

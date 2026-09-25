@@ -385,6 +385,58 @@ const SKINS = [
   },
 ];
 
+// Villager clothes (not offered in the skin picker): one per profession, all with the big nose.
+function villagerSkin(key, name, robe, trim, extras, hat) {
+  const nose = { part: 'head', box: [-1, 24.6, 4, 1, 28.6, 6.2], color: 0xb07a58 };
+  return {
+    key: 'v_' + key, name, icon: '', hidden: true, villager: key,
+    extras: [nose, ...(extras || [])],
+    paint(P) {
+      const skinC = rgb(0xc08a64), brow = rgb(0x3a2818), r = rgb(robe), t = rgb(trim);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'front') {
+          if (y === 2 && x >= 1 && x <= 6) return brow;
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x2a7a3a);
+          if (y === 3 && (x === 1 || x === 6)) return rgb(0xf0f0ea);
+          if (y === 6 && x >= 3 && x <= 4) return rgb(0x7a4a34);
+          return skinC;
+        }
+        if (hat && (f === 'top' || y < 2)) return rgb(hat);
+        if (f === 'top' || (f === 'back' && y < 6) || ((f === 'left' || f === 'right') && y < 3)) return brow;
+        return skinC;
+      });
+      P.fill('body', (x, y, w, h, f) => (y === 8 ? t : f === 'front' && x >= 3 && x <= 4 && y < 8 ? shadec(r, 0.85) : r));
+      P.fill('arm', (x, y, w, h) => (y >= h - 3 ? skinC : y === h - 4 ? t : r));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x3a2a1c) : shadec(r, 0.92)));
+    },
+  };
+}
+SKINS.push(
+  villagerSkin('farmer', 'Farmer', 0x8a6a3a, 0xc8a050, [
+    { part: 'head', box: [-6, 31.6, -6, 6, 32.4, 6], color: 0xd8b860 }, { part: 'head', box: [-4.4, 32.4, -4.4, 4.4, 34.6, 4.4], color: 0xd0ae54 },
+  ]),
+  villagerSkin('fisher', 'Fisher', 0x3a5a7a, 0xe0c030, [
+    { part: 'head', box: [-5.2, 31.4, -6, 5.2, 33.2, 5.2], color: 0xf0c020 }, { part: 'body', box: [-4.2, 12.5, -2.3, 4.2, 20, 2.3], color: 0xf0c020 },
+  ]),
+  villagerSkin('smith', 'Blacksmith', 0x4a3a30, 0x707070, [
+    { part: 'body', box: [-3.4, 12.4, 2, 3.4, 23, 2.6], color: 0x26262a }, { part: 'head', box: [-4.4, 29, 4, 4.4, 29.6, 4.3], color: 0x303034 },
+  ], 0x2a2a2a),
+  villagerSkin('librarian', 'Librarian', 0xe8e4d8, 0xb03030, [
+    { part: 'head', box: [-3.4, 27.4, 4.1, 3.4, 28.1, 4.4], color: 0x2a2a2a }, { part: 'head', box: [-4.4, 31.4, -4.4, 4.4, 33, 4.4], color: 0xb03030 },
+  ]),
+  villagerSkin('cleric', 'Cleric', 0x6a3a8a, 0xe0c040, [
+    { part: 'head', box: [-4.5, 24.5, -4.6, 4.5, 32.5, -3.9], color: 0x6a3a8a }, { part: 'body', box: [-1, 18, 2, 1, 22, 2.4], color: 0xe0c040, glow: true },
+  ], 0x6a3a8a),
+  villagerSkin('mason', 'Mason', 0x3a4a8a, 0x9a9a9a, [
+    { part: 'head', box: [-4.6, 31.4, -4.6, 4.6, 32.6, 4.6], color: 0x8a8a8a }, { part: 'body', box: [-3.4, 14, 2, 3.4, 20, 2.6], color: 0x9a7040 },
+  ]),
+  villagerSkin('shepherd', 'Shepherd', 0x4a7a3a, 0xf0f0f0, [
+    { part: 'head', box: [-4.6, 31.4, -4.6, 4.6, 33.4, 4.6], color: 0xeeeeea },
+  ]),
+);
+const VILLAGER_SKIN = {};
+SKINS.forEach((sk, i) => { if (sk.villager) VILLAGER_SKIN[sk.villager] = i; });
+
 // atlas offset of skin i from the avatar's own slot
 function skinOffset(i) {
   if (!i) return [0, 0];
