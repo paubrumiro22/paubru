@@ -414,7 +414,7 @@
       <button id="tOnline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18.5 14.8c1.6.8 2.6 2.4 3 5.2"/></svg>Online</button>
       <button id="tJet"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 6 7.9 5.3v2L13.6 13l-.4 4.6 2.8 2.2V21l-4-1-4 1v-1.2l2.8-2.2-.4-4.6-7.9 2.3v-2L10.4 8z"/></svg>Fighter jet</button>
       <button id="tOptions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Options</button>
-      <button id="tCampNou" class="hidden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="13" rx="10" ry="6"/><ellipse cx="12" cy="13" rx="5.5" ry="2.8"/><path d="M2 13v-3c0-3.3 4.5-6 10-6s10 2.7 10 6v3"/></svg><span id="tCampNouLabel">Camp Nou</span></button>
+      <button id="tCampNou"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="13" rx="10" ry="6"/><ellipse cx="12" cy="13" rx="5.5" ry="2.8"/><path d="M2 13v-3c0-3.3 4.5-6 10-6s10 2.7 10 6v3"/></svg><span id="tCampNouLabel">Camp Nou</span></button>
       <button id="tCredits"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20.5s-8-4.6-8-10.4A4.4 4.4 0 0 1 12 7.6a4.4 4.4 0 0 1 8 2.5c0 5.8-8 10.4-8 10.4z"/></svg>Credits</button>
     </div>
     <div class="tworld" id="tWorld"></div>
@@ -16877,11 +16877,8 @@ function worldLabel() {
   return (G.mode === 'creative' ? 'Creative' : 'Survival') + ' world \u00b7 seed ' + G.world.seed;
 }
 
-// ---------- private showcase world ----------
-// The Camp Nou world is not listed anywhere: it shows on the title screen of a device that once
-// opened the game with #campnou in the address, and keeps its own save next to your world.
-const CAMPNOU_FLAG = 'blocklands.campnou';
-function campNouUnlocked() { return !!storageGet(CAMPNOU_FLAG); }
+// ---------- showcase world ----------
+// The Camp Nou has its own button on the title screen and keeps its own save next to your world.
 function enterCampNou() {
   if (Net.on) Net.leave();
   saveWorld();
@@ -16919,7 +16916,6 @@ function showTitle() {
   $('placesPanel').classList.add('hidden');
   $('title').classList.remove('hidden');
   $('tPlayLabel').textContent = G.started ? 'Continue' : 'Play';
-  $('tCampNou').classList.toggle('hidden', !campNouUnlocked());
   $('tCampNouLabel').textContent = G.slot === 'campnou' ? 'Back to my world' : 'Camp Nou';
   $('tWorld').textContent = worldLabel();
   G.titleYaw = G.player.yaw;
@@ -17558,10 +17554,6 @@ async function boot() {
   };
   try {
     loadSettings();
-    if (/campnou/i.test(location.hash)) {
-      storageSet(CAMPNOU_FLAG, 1);
-      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ }
-    }
     Sound.volume = G.settings.volume;
     setLoad(0.03, 'Painting textures and compiling shaders');
     await new Promise((r) => setTimeout(r, 30));

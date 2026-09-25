@@ -169,11 +169,8 @@ function worldLabel() {
   return (G.mode === 'creative' ? 'Creative' : 'Survival') + ' world · seed ' + G.world.seed;
 }
 
-// ---------- private showcase world ----------
-// The Camp Nou world is not listed anywhere: it shows on the title screen of a device that once
-// opened the game with #campnou in the address, and keeps its own save next to your world.
-const CAMPNOU_FLAG = 'blocklands.campnou';
-function campNouUnlocked() { return !!storageGet(CAMPNOU_FLAG); }
+// ---------- showcase world ----------
+// The Camp Nou has its own button on the title screen and keeps its own save next to your world.
 function enterCampNou() {
   if (Net.on) Net.leave();
   saveWorld();
@@ -211,7 +208,6 @@ function showTitle() {
   $('placesPanel').classList.add('hidden');
   $('title').classList.remove('hidden');
   $('tPlayLabel').textContent = G.started ? 'Continue' : 'Play';
-  $('tCampNou').classList.toggle('hidden', !campNouUnlocked());
   $('tCampNouLabel').textContent = G.slot === 'campnou' ? 'Back to my world' : 'Camp Nou';
   $('tWorld').textContent = worldLabel();
   G.titleYaw = G.player.yaw;
@@ -850,10 +846,6 @@ async function boot() {
   };
   try {
     loadSettings();
-    if (/campnou/i.test(location.hash)) {
-      storageSet(CAMPNOU_FLAG, 1);
-      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ }
-    }
     Sound.volume = G.settings.volume;
     setLoad(0.03, 'Painting textures and compiling shaders');
     await new Promise((r) => setTimeout(r, 30));
