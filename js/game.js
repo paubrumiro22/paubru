@@ -10,7 +10,7 @@ const DAY_LENGTH = 1200; // seconds per full day
 const DEFAULT_SETTINGS = {
   renderDistance: 8, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
   renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
-  weather: 'auto', events: true, wildlife: true, skin: 0, minimap: 'normal',
+  weather: 'auto', events: true, wildlife: true, skin: 0, minimap: 'normal', autoTuned: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -651,8 +651,10 @@ function saveWorld() {
     dayTime: G.dayTime, mode: G.mode, difficulty: G.difficulty, rules: G.rules, worldSpawn: G.worldSpawn, spawnPoint: G.spawnPoint,
     player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, flying: p.flying }, inv: G.inv.serialize(), stats: G.stats.serialize(),
     vehicles: Vehicles.serialize(),
+    markers: G.markers || [], deaths: G.deaths || [],
   });
   if (!ok && G.ui) G.ui.toast('Could not save: browser storage is full');
+  if (typeof MapStore !== 'undefined') MapStore.save();
   G.world.editsDirty = false;
 }
 
@@ -713,6 +715,8 @@ function newWorld(seed, save, opts = {}) {
     G.inv.load(save.inv);
     G.stats.load(save.stats);
     Vehicles.load(save.vehicles);
+    G.markers = Array.isArray(save.markers) ? save.markers.filter((m) => m && Number.isFinite(m.x) && Number.isFinite(m.z)).slice(0, 64) : [];
+    G.deaths = Array.isArray(save.deaths) ? save.deaths.filter((d) => Array.isArray(d) && d.length >= 3 && d.every(Number.isFinite)).slice(-5) : [];
   } else {
     G.player.pos = G.worldSpawn.slice();
     G.player.yaw = -0.6;
@@ -729,6 +733,8 @@ function newWorld(seed, save, opts = {}) {
   }
   G.player.creative = G.mode === 'creative';
   if (!G.player.creative) G.player.flying = false;
+  if (!save) { G.markers = []; G.deaths = []; }
   G.offsetsR = -1;
+  if (typeof MapStore !== 'undefined') MapStore.reset(mapKeyForWorld(), seed + ':' + G.world.type);
   if (G.ui) { G.ui.invDirty(); G.ui.closeScreen(true); }
 }

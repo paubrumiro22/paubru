@@ -161,6 +161,9 @@ class Stats {
 
   die(src) {
     this.dead = true;
+    // remembered on the world map (last five)
+    const pp = G.player.pos;
+    G.deaths = (G.deaths || []).concat([[Math.round(pp[0]), Math.round(pp[1]), Math.round(pp[2]), Date.now()]]).slice(-5);
     this.fire = 0;
     const who = src.mob ? (src.mob.def ? src.mob.def.name : 'something') : '';
     let msg = DEATH_TEXT[src.type] || DEATH_TEXT.generic;

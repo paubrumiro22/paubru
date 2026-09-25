@@ -19,7 +19,7 @@ const SETTINGS_UI = [
   { key: 'weather', label: 'Weather', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow'], ['fog', 'Fog']] },
   { key: 'events', label: 'World events (meteor showers, eruptions)', type: 'check' },
   { key: 'wildlife', label: 'Wildlife (birds, bees, butterflies, fish)', type: 'check' },
-  { key: 'minimap', label: 'Minimap (M)', type: 'select', options: [['normal', 'Close up'], ['large', 'Zoomed out'], ['off', 'Off']] },
+  { key: 'minimap', label: 'Minimap', type: 'select', options: [['normal', 'Close up'], ['large', 'Zoomed out'], ['off', 'Off']] },
 ];
 
 // ---------- errors ----------
@@ -128,7 +128,23 @@ function refreshGameUI() {
   const wt = G.world ? G.world.type : 'default';
   $('worldTypeVal').textContent = WORLD_PRESETS[wt] ? WORLD_PRESETS[wt].name : wt;
   buildPlaces($('placesGridMenu'));
+  $('upgradeRow').classList.toggle('hidden', !G.world || G.world.genVer >= GEN_LATEST || G.online || !!G.slot || G.world.type !== 'default');
   Net.refreshUI();
+}
+
+// Regenerate an old world with the current generator: its edits, chests and your inventory are
+// kept, the untouched terrain gains rivers and structures (it can shift a little near builds).
+function upgradeWorld() {
+  saveWorld();
+  const save = loadSave();
+  if (!save) return;
+  save.gen = GEN_LATEST;
+  newWorld(save.seed, save, {});
+  prepareArea(G.player.pos[0], G.player.pos[2], 2);
+  liftOutOfBlocks(G.player);
+  saveWorld();
+  refreshGameUI();
+  UI.toast('Rivers, villages, castles, mines and ports added. Explore!');
 }
 
 // Cards for the themed places of the current world, with distance and direction.
@@ -343,6 +359,11 @@ function buildSkinPicker() {
 
 function onKeyDown(e) {
   if (G.dead) return;
+  if (WorldMap.open) {
+    const typingName = e.target && e.target.tagName === 'INPUT';
+    if (e.code === 'Escape' || (e.code === 'KeyM' && !typingName)) { e.preventDefault(); WorldMap.close(); }
+    return;
+  }
   const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT');
   if (G.screenOpen) {
     if (e.code === 'Escape' || (e.code === 'KeyE' && !typing)) { e.preventDefault(); UI.closeScreen(false); return; }
@@ -366,7 +387,7 @@ function onKeyDown(e) {
   const p = G.player;
   const creative = G.mode === 'creative';
   if (e.code === 'Enter' && Net.on) { Net.openChat(); return; }
-  if (e.code === 'KeyM') { Minimap.cycle(); buildSettingsUI(); return; }
+  if (e.code === 'KeyM') { WorldMap.toggle(); return; }
   if (G.vehicle && vehicleKey(e.code)) return;
   switch (e.code) {
     case 'KeyW':
@@ -557,6 +578,23 @@ function bindInput() {
     requestLock();
   });
   $('tCredits').addEventListener('click', showCredits);
+  $('autoQualityBtn').addEventListener('click', () => { sfx('click', null, 1, 1); AutoQuality.start(true); requestLock(); });
+  if (!G.settings.autoTuned) AutoQuality.start(false);
+  // two-step confirmation (embedded viewers suppress window.confirm)
+  let upTimer = 0;
+  $('upgradeBtn').addEventListener('click', () => {
+    const b = $('upgradeBtn');
+    if (!b.dataset.armed) {
+      b.dataset.armed = '1';
+      b.textContent = 'Sure? Terrain near your builds may change';
+      upTimer = setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Add them to this world'; }, 5000);
+      return;
+    }
+    clearTimeout(upTimer);
+    b.dataset.armed = ''; b.textContent = 'Add them to this world';
+    upgradeWorld();
+    requestLock();
+  });
   $('tCampNou').addEventListener('click', () => {
     sfx('click', null, 1, 1);
     if (G.slot === 'campnou') { leaveCampNou(); showTitle(); return; }
@@ -624,6 +662,46 @@ function bindInput() {
     showError('The graphics context was lost (GPU reset or driver update).', 'Reload the page to continue. Your world is saved.');
   });
 }
+
+// Automatic quality: while you play (the first time, or when asked from the menu) frame times
+// are sampled for a few seconds and the graphics settings dropped to a level this device keeps
+// smooth. Dynamic resolution having already shrunk the view also counts as slow.
+const QUALITY_TIERS = [
+  { name: 'Low', ms: 33, set: { shadows: 'off', clouds: false, ssr: false, godrays: false, renderDistance: 5, renderScale: 0.75 } },
+  { name: 'Medium-low', ms: 24, set: { shadows: 'low', clouds: false, ssr: false, godrays: false, renderDistance: 6 } },
+  { name: 'Medium', ms: 18.5, set: { shadows: 'low', clouds: true, ssr: true, godrays: false, renderDistance: 7 } },
+];
+const AutoQuality = {
+  state: null,
+  start(manual) {
+    this.state = { wait: manual ? 1.5 : 5, samples: [], manual };
+    if (manual) $('autoQualityMsg').textContent = 'Play for a few seconds while it measures…';
+  },
+  update(dt) {
+    const s = this.state;
+    if (!s || !G.playing || G.screenOpen || G.onTitle) return;
+    if (s.wait > 0) { s.wait -= dt; return; }
+    s.samples.push(dt * 1000);
+    if (s.samples.length < 150) return;
+    this.state = null;
+    s.samples.sort((a, b) => a - b);
+    const med = s.samples[s.samples.length >> 1];
+    const shrunk = G.settings.dynamicRes && G.dynRes ? G.dynRes.scale : 1;
+    let tier = null;
+    for (const t of QUALITY_TIERS) if (med > t.ms || (t.ms >= 33 && shrunk <= 0.6) || (t.ms >= 24 && shrunk <= 0.8)) { tier = t; break; }
+    G.settings.autoTuned = true;
+    let msg;
+    if (tier) {
+      for (const [k, v] of Object.entries(tier.set)) setSetting(k, v);
+      if (G.dynRes) { G.dynRes.scale = 1; resize(); }
+      msg = 'Graphics set to ' + tier.name + ' for this device (' + Math.round(1000 / med) + ' fps measured)';
+    } else msg = 'This device runs the current settings smoothly (' + Math.round(1000 / med) + ' fps)';
+    saveSettings();
+    buildSettingsUI();
+    $('autoQualityMsg').textContent = msg;
+    UI.toast(msg, 4000);
+  },
+};
 
 // Dynamic resolution: when frames run long for a while the 3D view renders a little smaller,
 // and grows back once there is headroom again. The HUD stays sharp either way.
@@ -800,6 +878,7 @@ function frame(now) {
     Vehicles.drawHud();
     UI.update(dt);
     Minimap.update(dt);
+    AutoQuality.update(dt);
     adaptResolution(dt);
 
     // stats

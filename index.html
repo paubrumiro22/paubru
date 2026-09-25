@@ -184,6 +184,18 @@
   .tr-item i { position: absolute; inset: 3px; background-size: contain; image-rendering: pixelated; }
   .tr-item b { position: absolute; right: 0; bottom: -2px; font: 700 12px var(--body); text-shadow: 1px 1px 0 #000; }
   .tr-arrow { color: var(--muted); font-size: 18px; }
+  #worldMap { position: fixed; inset: 0; z-index: 6; background: #0e1219; }
+  #worldMapCanvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
+  .wm-top { position: absolute; left: 12px; right: 12px; top: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 12px; background: var(--glass-strong); border: 1px solid var(--line); }
+  .wm-top b { font: 700 16px var(--display); letter-spacing: 0.05em; margin-right: 6px; }
+  .wm-legend { flex: 1; min-width: 200px; color: var(--muted); font-size: 12px; }
+  .wm-sel { position: absolute; left: 12px; bottom: 56px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; max-width: min(560px, calc(100vw - 24px)); padding: 8px 12px; border-radius: 12px; background: var(--glass-strong); border: 1px solid var(--line); }
+  .wm-info { font-size: 13px; margin-right: 6px; }
+  .wm-name { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: 8px; padding: 14px; border-radius: 12px; background: var(--glass-strong); border: 1px solid var(--line); }
+  .autoq { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+  #autoQualityMsg { color: var(--muted); font-size: 13px; }
+  .upgrade { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(242, 185, 75, 0.1); border: 1px solid rgba(242, 185, 75, 0.4); font-size: 13px; }
+  .upgrade span { flex: 1; min-width: 200px; color: var(--muted); }
   .archhint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
   .sgrid { display: grid; gap: 3px; }
   .sgrid.hotrow { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
@@ -392,6 +404,18 @@
 <canvas id="flightHud" class="fx hidden"></canvas>
 <input type="text" id="chatInput" class="hidden" maxlength="120" placeholder="Say something… (Enter to send, Esc to cancel)">
 
+<div id="worldMap" class="hidden">
+  <canvas id="worldMapCanvas"></canvas>
+  <div class="wm-top">
+    <b>World map</b>
+    <button id="wmCenter">Centre on me</button>
+    <button id="wmMarkHere">Mark where I stand</button>
+    <span class="wm-legend">🏘️ village · 🏰 castle · ⛏️ mine · ⚓ port · 💀 where you died · 🛏️ bed</span>
+    <button id="wmClose">Close (M)</button>
+  </div>
+  <div id="wmSel" class="wm-sel"></div>
+  <div id="wmNameBox" class="wm-name hidden"><input type="text" id="wmNameInput" maxlength="24" placeholder="Marker name"><button id="wmNameOk" class="primary">Add</button></div>
+</div>
 <div id="screen" class="overlay hidden"><div id="screenPanel" class="panel invpanel"></div></div>
 
 <div id="death" class="overlay hidden">
@@ -518,6 +542,7 @@
     </div>
 
     <h2>Graphics &amp; sound</h2>
+    <div class="autoq"><button id="autoQualityBtn">Detect the best quality for this device</button><span id="autoQualityMsg"></span></div>
     <div class="grid" id="settingsGrid"></div>
 
     <h2>World</h2>
@@ -542,6 +567,10 @@
       <div class="presets">
         <span id="presetChip" class="chip"></span>
       </div>
+      <div id="upgradeRow" class="upgrade hidden">
+        <span>This world was made before rivers, villages, castles, mines and ports existed.</span>
+        <button id="upgradeBtn">Add them to this world</button>
+      </div>
     </div>
 
     <h2>Controls</h2>
@@ -562,7 +591,7 @@
       <div><kbd>F3</kbd>Debug info · <kbd>F1</kbd>Hide HUD</div>
       <div><kbd>F5</kbd>Third person / front view</div>
       <div><kbd>Enter</kbd>Chat (online)</div>
-      <div><kbd>M</kbd>Minimap: close up / zoomed out / off</div>
+      <div><kbd>M</kbd>World map (markers, places, where you died)</div>
     </div>
     <h2>Fighter jet</h2>
     <div class="keys">
