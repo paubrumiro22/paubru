@@ -153,6 +153,8 @@ const ER = {
     while (headYaw < -Math.PI) headYaw += Math.PI * 2;
     headYaw = clamp(headYaw, -1.1, 1.1);
     const partM = {};
+    const skin = mob.type === 'avatar' && mob.skin > 0 && SKINS[mob.skin] ? mob.skin : 0;
+    const [sdx, sdy] = skinOffset(skin);
     for (const p of model) {
       if (p.role === 'wool' && mob.sheared) continue;
       let r = XF.id();
@@ -188,23 +190,44 @@ const ER = {
       const faces = p.faces;
       const uvOf = (f) => {
         const r2 = faces[f.key];
-        return [-1, r2[0] / ATLAS_W, r2[1] / ATLAS_H, (r2[0] + r2[2]) / ATLAS_W, (r2[1] + r2[3]) / ATLAS_H];
+        return [-1, (r2[0] + sdx) / ATLAS_W, (r2[1] + sdy) / ATLAS_H, (r2[0] + sdx + r2[2]) / ATLAS_W, (r2[1] + sdy + r2[3]) / ATLAS_H];
       };
       const mm = XF.mul(base, m);
       if (p.role === 'wool') {
         const c = WOOL_COLORS[mob.woolColor][1];
         this.color = [c[0] / 234, c[1] / 236, c[2] / 237];
       }
-      if (p.tint && mob.tint) this.color = mob.tint;
+      if (p.tint && mob.tint && !skin) this.color = mob.tint;
       const b = p.box;
       this.box(mm, b[0], b[1], b[2], b[3], b[4], b[5], uvOf);
       this.color = [1, 1, 1];
+      if (skin && SKINS[skin].extras) this.skinExtras(mm, SKINS[skin].extras, p.id);
       // skeletons carry a bow
       if (mob.type === 'skeleton' && p.id === 'armR') {
         this.item(XF.chain(mm, XF.t(5, 12, 1), XF.ry(Math.PI / 2), XF.rz(0.8), XF.s(13)), I.BOW);
       }
     }
     this.ov = 0;
+  },
+
+  // hats, capes, antennae... of a skin, on the part they belong to
+  skinExtras(mm, extras, partId) {
+    const ov = this.ov;
+    const uv = () => Vehicles.swatchUV('white');
+    for (const e of extras) {
+      if (e.part !== partId) continue;
+      const b = e.box;
+      let m = mm;
+      if (e.rot) {
+        const cx = (b[0] + b[3]) / 2, cy = (b[1] + b[4]) / 2, cz = b[5];
+        m = XF.chain(mm, XF.t(cx, cy, cz), XF.rx(e.rot[0]), XF.ry(e.rot[1]), XF.rz(e.rot[2]), XF.t(-cx, -cy, -cz));
+      }
+      this.color = e.rgb;
+      if (e.glow) this.ov = 2.5;
+      this.box(m, b[0], b[1], b[2], b[3], b[4], b[5], uv);
+      this.ov = ov;
+    }
+    this.color = [1, 1, 1];
   },
 
   // -------------------------------------------------------- first person ----
@@ -234,8 +257,11 @@ const ER = {
     const posed = (p) => XF.chain(XF.t(p.t[0], p.t[1], p.t[2]), sw, XF.t(-p.t[0], -p.t[1], -p.t[2]), poseMatrix(p));
     if (!held || !def) {
       local = posed(HAND_POSE.arm);
-      const faces = MOB_MODELS.player[0].faces;
-      const uvOf = (f) => { const r2 = faces[f.key]; return [-1, r2[0] / ATLAS_W, r2[1] / ATLAS_H, (r2[0] + r2[2]) / ATLAS_W, (r2[1] + r2[3]) / ATLAS_H]; };
+      // your own skin's sleeve (the classic explorer keeps the rolled-up blue sleeve)
+      const skin = G.settings.skin > 0 && SKINS[G.settings.skin] ? G.settings.skin : 0;
+      const faces = skin ? MOB_MODELS.avatar.find((q) => q.id === 'armR').faces : MOB_MODELS.player[0].faces;
+      const [sdx, sdy] = skinOffset(skin);
+      const uvOf = (f) => { const r2 = faces[f.key]; return [-1, (r2[0] + sdx) / ATLAS_W, (r2[1] + sdy) / ATLAS_H, (r2[0] + sdx + r2[2]) / ATLAS_W, (r2[1] + sdy + r2[3]) / ATLAS_H]; };
       const b = MOB_MODELS.player[0].box;
       this.box(XF.chain(C, m, local), b[0], b[1], b[2], b[3], b[4], b[5], uvOf);
       return;
@@ -264,7 +290,9 @@ const ER = {
     for (const mob of Ents.mobs) if (near(mob.pos[0], mob.pos[2], Math.min(rd, 80))) this.mob(null, mob, cp);
     Vehicles.renderAll(cp, extra.cockpit);
     Net.render(cp);
+    if (extra.self) this.mob(null, extra.self, cp);
     Weather.render(cp);
+    Wildlife.render(cp);
     if (G.player.parachute) this.parachute(G.player.pos, cp);
 
     for (const it of Ents.items) {

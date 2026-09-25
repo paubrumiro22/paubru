@@ -33,6 +33,8 @@ uniform float uFar;
 uniform float uUnderwater;
 uniform float uSkyScale;
 uniform float uNight;
+uniform float uRain;
+uniform float uSnow;
 
 float hash12(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -119,6 +121,7 @@ out vec3 vUV;
 out vec3 vTint;
 out float vAO;
 out vec2 vLight;
+out vec2 vFlow;
 flat out int vNormal;
 flat out int vFlags;
 void main() {
@@ -139,6 +142,7 @@ void main() {
   }
   vRel = rel;
   vUV = vec3(uv, aPos.w);
+  vFlow = aUV.zw;
   vTint = aTint.rgb / 200.0;
   vAO = aData.y / 3.0;
   vLight = aData.zw / 255.0;
@@ -204,6 +208,29 @@ void main() {
   float blk = vLight.y;
   bool translucent = (vFlags & 8) != 0;
 
+  // weather on surfaces open to the sky: rain darkens and glosses them (puddles collect in the
+  // low spots of the texture), snow settles on top faces and leaves
+  float open = smoothstep(0.82, 0.97, sky);
+  float up = plant ? 0.0 : smoothstep(0.55, 0.9, N0.y);
+  float wet = uRain * open * (0.45 + 0.55 * up);
+  float puddle = 0.0;
+  if (wet > 0.01) {
+    float pn = texture(uNoise, world.xz * 0.11).r * 0.7 + texture(uNoise, world.xz * 0.37).g * 0.3;
+    puddle = up * smoothstep(0.52, 0.66, pn + (1.0 - nm.z) * 0.25) * uRain * open;
+    albedo *= 1.0 - 0.38 * wet;
+    smoothness = mix(smoothness, 0.97, max(puddle, wet * 0.55));
+    N = normalize(mix(N, N0, puddle));
+  }
+  float snowy = 0.0;
+  if (uSnow > 0.01 && !plant) {
+    float edge = texture(uNoise, world.xz * 0.23 + world.y * 0.05).r;
+    float leafy = (vFlags & 1) != 0 ? 0.75 : 1.0;
+    snowy = open * smoothstep(0.35, 0.8, N0.y) * smoothstep(edge * 0.9, edge * 0.9 + 0.25, uSnow) * leafy;
+    albedo = mix(albedo, vec3(0.86, 0.9, 0.96), snowy);
+    N = normalize(mix(N, N0, snowy * 0.7));
+    smoothness = mix(smoothness, 0.35, snowy);
+  }
+
   vec3 V = normalize(-vRel);
   vec3 L = uLightDir;
   float NdL = dot(N, L);
@@ -238,6 +265,12 @@ void main() {
     float G = (NdL / (NdL * (1.0 - k) + k)) * (NdV / (NdV * (1.0 - k) + k));
     float spec = D * F * G / (4.0 * NdL * NdV + 1e-4);
     col += uLightColor * min(spec, 30.0) * NdL * shadow * gate;
+  }
+  if (puddle > 0.01) {
+    // standing water mirrors the (overcast) sky
+    vec3 R = reflect(-V, N0);
+    float F = 0.02 + 0.98 * pow(1.0 - max(dot(N0, V), 0.0), 5.0);
+    col = mix(col, skyLUT(normalize(vec3(R.x, max(R.y, 0.02), R.z))), F * puddle * 0.85);
   }
 
   if (translucent) {
@@ -579,6 +612,7 @@ in vec3 vUV;
 in vec3 vTint;
 in float vAO;
 in vec2 vLight;
+in vec2 vFlow;
 flat in int vNormal;
 flat in int vFlags;
 layout(location = 0) out vec4 outColor;
@@ -595,14 +629,71 @@ float wHeight(vec2 p) {
        + texture(uNoise, p * 0.21 + vec2(t * 0.021, -t * 0.026)).b * 0.2;
 }
 
+// flowing water: two layers of ripples dragged along the stream, cross-faded so they never stretch
+float flowHeight(vec2 p, vec2 fl) {
+  float t = uTime * 0.6;
+  float a = fract(t), b = fract(t + 0.5);
+  float wa = 1.0 - abs(a - 0.5) * 2.0;
+  return mix(wHeight((p - fl * b * 3.0) * 1.8 + 13.7), wHeight((p - fl * a * 3.0) * 1.8), wa);
+}
+
+// expanding rings where raindrops hit the surface
+vec2 rainRipples(vec2 p) {
+  vec2 acc = vec2(0.0);
+  for (int l = 0; l < 2; l++) {
+    vec2 q = p * (l == 0 ? 1.7 : 2.9) + float(l) * 7.31;
+    vec2 cell = floor(q);
+    for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+      vec2 c = cell + vec2(i, j);
+      float h = hash12(c);
+      vec2 ctr = c + vec2(hash12(c + 3.1), hash12(c + 9.7));
+      float ph = fract(uTime * 1.3 + h);
+      vec2 d = q - ctr;
+      float r = length(d);
+      float ring = ph * 0.9;
+      float w = sin((r - ring) * 42.0) * smoothstep(0.12, 0.0, abs(r - ring)) * (1.0 - ph) * (1.0 - ph);
+      acc += d / max(r, 1e-3) * w;
+    }
+  }
+  return acc;
+}
+
+float gFoam = 0.0;
 vec3 waterNormal(vec3 world, vec3 N0, float dist) {
-  if (abs(N0.y) < 0.5) return N0;
+  if (abs(N0.y) < 0.5) {
+    if (vFlow.x > 0.0 && vFlow.x < 0.01) {
+      // a waterfall: streaks rushing down the face, white where it runs fast
+      vec2 sp = vec2(dot(world.xz, abs(N0.zx)), world.y);
+      float sp2 = vFlow.y > 0.9 ? 5.0 : 2.5;
+      float e = 0.05;
+      vec2 q = vec2(sp.x * 1.6, sp.y * 0.35 + uTime * sp2 * 0.35);
+      float h = wHeight(q * 4.0), hx = wHeight((q + vec2(e, 0.0)) * 4.0);
+      gFoam = vFlow.y > 0.9 ? 0.16 + smoothstep(0.55, 0.8, wHeight(q * 2.5 + 3.3)) * 0.4 : 0.06 + smoothstep(0.6, 0.8, wHeight(q * 2.5 + 3.3)) * 0.18;
+      vec3 T = vec3(abs(N0.z), 0.0, abs(N0.x));
+      return normalize(N0 + T * (hx - h) / e * 0.35);
+    }
+    return N0;
+  }
   float e = 0.06;
-  float h = wHeight(world.xz);
-  float hx = wHeight(world.xz + vec2(e, 0.0));
-  float hz = wHeight(world.xz + vec2(0.0, e));
   float s = 0.55 * mix(1.0, 0.25, clamp(dist / 140.0, 0.0, 1.0));
-  vec3 n = normalize(vec3(-(hx - h) / e * s, 1.0, -(hz - h) / e * s));
+  vec3 n;
+  if (vFlow.x > 0.02) {
+    vec2 fl = (vFlow * 255.0 - 128.0) / 126.0;
+    float sp = length(fl);
+    float h = flowHeight(world.xz, fl), hx = flowHeight(world.xz + vec2(e, 0.0), fl), hz = flowHeight(world.xz + vec2(0.0, e), fl);
+    s *= 1.0 + sp * 1.3;
+    n = normalize(vec3(-(hx - h) / e * s, 1.0, -(hz - h) / e * s));
+    gFoam = smoothstep(0.66, 0.86, flowHeight(world.xz * 0.7 + 5.0, fl)) * sp * 0.3;
+  } else {
+    float h = wHeight(world.xz);
+    float hx = wHeight(world.xz + vec2(e, 0.0));
+    float hz = wHeight(world.xz + vec2(0.0, e));
+    n = normalize(vec3(-(hx - h) / e * s, 1.0, -(hz - h) / e * s));
+  }
+  if (uRain > 0.01 && dist < 60.0) {
+    vec2 rr = rainRipples(world.xz) * uRain * (1.0 - dist / 60.0);
+    n = normalize(n + vec3(rr.x, 0.0, rr.y) * 0.5);
+  }
   return N0.y > 0.0 ? n : vec3(n.x, -n.y, n.z);
 }
 
@@ -699,6 +790,13 @@ void main() {
   float nh = max(dot(N, H), 0.0);
   float spec = pow(nh, 1400.0) * 90.0 + pow(nh, 160.0) * 1.2;
   col += uLightColor * spec * shadow * gate * step(0.0, uLightDir.y);
+
+  // foam: along shores and rocks where the water is shallow, on rapids and waterfalls
+  float shore = (1.0 - smoothstep(0.0, 0.7, thick)) * step(0.5, N0.y);
+  float fn = texture(uNoise, world.xz * 0.35 + vec2(uTime * 0.03, -uTime * 0.02)).r;
+  float foam = max(shore * smoothstep(0.35, 0.65, fn + shore * 0.3), gFoam);
+  vec3 foamCol = vec3(0.9, 0.95, 1.0) * (uAmbUp * 1.1 + uLightColor * max(uLightDir.y, 0.0) * shadow * gate * 0.9 + 0.01);
+  col = mix(col, foamCol, clamp(foam, 0.0, 1.0) * 0.85);
 
   col = applyFog(col, vRel);
   outColor = vec4(col * HDR_SCALE, 1.0);

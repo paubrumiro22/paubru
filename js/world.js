@@ -243,9 +243,33 @@ class WorldGen {
     this.placePlants(chunk, heights, HW, P, biomes, ox, oz, owners);
     this.placeCaveDecor(chunk, heights, HW, P, ox, oz);
     this.placeTrees(chunk, ox, oz);
+    this.placeSprings(chunk, heights, HW, P, ox, oz);
 
     chunk.maxY = 0;
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) chunk.recomputeHeight(x, z);
+  }
+
+  // Now and then a spring rises at the lip of a cliff: once the chunk loads, its water runs off
+  // the edge as a waterfall (fluids.js) and spreads out below.
+  placeSprings(chunk, heights, HW, P, ox, oz) {
+    if (hash3(chunk.cx, 7, chunk.cz, this.seed + 5501) > 0.2) return;
+    const b = chunk.blocks;
+    let best = null, bestDrop = 6;
+    for (let z = 2; z < CS - 2; z++) for (let x = 2; x < CS - 2; x++) {
+      const h = heights[(z + P) * HW + x + P];
+      if (h < SEA + 10 || h > CH - 4) continue;
+      const top = b[(h * CS + z) * CS + x];
+      if (IS_LIQUID(top) || top === B.ICE || !BLOCK_SOLID[top] || b[((h + 1) * CS + z) * CS + x] !== B.AIR) continue;
+      // lowest neighbour column a couple of blocks away: the drop the water will fall down
+      let low = h;
+      for (const [dx, dz] of [[3, 0], [-3, 0], [0, 3], [0, -3]]) low = Math.min(low, heights[(z + P + dz) * HW + x + P + dx]);
+      const drop = h - low;
+      if (drop > bestDrop + hash3(ox + x, h, oz + z, this.seed) * 3) { bestDrop = drop; best = [x, h, z]; }
+    }
+    if (!best) return;
+    const [x, y, z] = best;
+    b[(y * CS + z) * CS + x] = B.WATER;
+    chunk.springs = [ox + x, y, oz + z];
   }
 
   defaultColumn(wx, wz, h, slope) {
@@ -528,6 +552,7 @@ class World {
     this.chunks = new Map();
     this.edits = new Map();   // chunkKey -> Map(blockIndex -> id)
     this.facing = new Map();  // posKey -> face index (0 +X, 1 -X, 4 +Z, 5 -Z)
+    this.flow = new Map();    // posKey -> liquid level: 1..7 spreading (lava 2, 4, 6), 8 falling; absent = source
     this.blockEntities = new Map(); // posKey -> { type, ... }
     this.editsDirty = false;
   }
@@ -559,6 +584,8 @@ class World {
     return [0, 1, 4, 5][Math.floor(hash3(x, y, z, 7) * 4)];
   }
 
+  getFlow(x, y, z) { return this.flow.get(posKey(x, y, z)) || 0; }
+
   generateChunk(cx, cz) {
     const c = new Chunk(cx, cz);
     this.gen.generate(c);
@@ -574,6 +601,7 @@ class World {
       for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) c.recomputeHeight(x, z);
     }
     this.chunks.set(chunkKey(cx, cz), c);
+    if (typeof Fluids !== 'undefined' && this === G.world) Fluids.chunkAdded(c);
     // neighbours may now be meshable / need border faces refreshed
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
       if (!dx && !dz) continue;
@@ -595,6 +623,7 @@ class World {
     if (facing !== undefined) this.facing.set(pk, facing);
     else if (!(FACING_BLOCKS.has(id) && FACING_BLOCKS.has(c.blocks[idx]))) this.facing.delete(pk);
     if (c.blocks[idx] === id) return facing !== undefined ? [c] : null;
+    this.flow.delete(pk);
     c.blocks[idx] = id;
     c.recomputeHeight(lx, lz);
     const key = chunkKey(cx, cz);
@@ -647,16 +676,23 @@ class World {
     for (const [k, f] of this.facing) facing.push(k, f);
     const be = [];
     for (const [k, e] of this.blockEntities) be.push([k, e]);
-    return { facing, be };
+    const flow = [];
+    for (const [k, l] of this.flow) flow.push(k, l);
+    return { facing, be, flow };
   }
 
   loadExtras(obj) {
     this.facing.clear();
+    this.flow.clear();
     this.blockEntities.clear();
     if (!obj || typeof obj !== 'object') return;
     if (Array.isArray(obj.facing)) for (let i = 0; i + 1 < obj.facing.length; i += 2) {
       const k = Number(obj.facing[i]), f = obj.facing[i + 1] | 0;
       if (Number.isFinite(k) && [0, 1, 4, 5].includes(f)) this.facing.set(k, f);
+    }
+    if (Array.isArray(obj.flow)) for (let i = 0; i + 1 < obj.flow.length; i += 2) {
+      const k = Number(obj.flow[i]), l = obj.flow[i + 1] | 0;
+      if (Number.isFinite(k) && l >= 1 && l <= 8) this.flow.set(k, l);
     }
     if (Array.isArray(obj.be)) for (const pair of obj.be) {
       if (!Array.isArray(pair) || pair.length !== 2 || !Number.isFinite(Number(pair[0]))) continue;

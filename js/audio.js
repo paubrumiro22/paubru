@@ -232,6 +232,24 @@ const SYNTH = {
     Sound.noise(ctx, o, t + 0.05, 3.2, { type: 'lowpass', freq: 520 * p, freqEnd: 90, gain: 1.0, attack: 0.08, rate: 0.6 });
     Sound.tone(ctx, o, t + 0.05, 2.2, { f0: 55 * p, f1: 32, gain: 0.5, attack: 0.1 });
   },
+  // wildlife
+  chirp(ctx, o, t, p = 1) {
+    const n = 2 + (Math.random() * 4 | 0), base = (2600 + Math.random() * 1600) * p;
+    for (let i = 0; i < n; i++) {
+      const s = t + i * (0.09 + Math.random() * 0.05);
+      Sound.tone(ctx, o, s, 0.07, { f0: base * (1 + Math.random() * 0.3), f1: base * (0.7 + Math.random() * 0.8), gain: 0.05, wave: 'sine' });
+    }
+  },
+  gull(ctx, o, t, p = 1) {
+    for (let i = 0; i < 3; i++) Sound.tone(ctx, o, t + i * 0.22, 0.2, { f0: 1500 * p, f1: 900 * p, gain: 0.06, wave: 'sawtooth', filter: ['bandpass', 1700 * p, 3], vib: [30, 60] });
+  },
+  crow(ctx, o, t, p = 1) {
+    for (let i = 0; i < 2; i++) Sound.tone(ctx, o, t + i * 0.3, 0.22, { f0: 620 * p, f1: 480 * p, gain: 0.08, wave: 'sawtooth', filter: ['bandpass', 900, 2], vib: [45, 40] });
+  },
+  cricket(ctx, o, t, p = 1) {
+    for (let i = 0; i < 3; i++) Sound.tone(ctx, o, t + i * 0.18, 0.1, { f0: 4400 * p, gain: 0.025, wave: 'sine', am: 60 });
+  },
+  buzz(ctx, o, t, p = 1) { Sound.tone(ctx, o, t, 0.8, { f0: 220 * p, f1: 240 * p, gain: 0.05, wave: 'sawtooth', filter: ['lowpass', 900, 1], vib: [9, 8], attack: 0.15 }); },
   chime(ctx, o, t) { [659, 784, 988, 1319].forEach((f, i) => Sound.tone(ctx, o, t + i * 0.07, 0.8, { f0: f, gain: 0.06, wave: 'triangle' })); },
 };
 

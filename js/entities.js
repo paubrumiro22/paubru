@@ -595,7 +595,18 @@ const Particles = {
         const liquid = (p.splash || p.melt) && IS_LIQUID(id);
         if (liquid || (BLOCK_SOLID[id] && (ny - p.size * 0.5) - Math.floor(ny - p.size * 0.5) < BLOCK_HEIGHT[id] / 16)) {
           // rain vanishes on impact, snow settles and melts, lava bombs burst
-          if (p.splash) continue;
+          if (p.splash) {
+            // a raindrop hitting the ground throws up a couple of tiny droplets
+            if (!liquid && Math.random() < 0.45 && L.length < 3000) {
+              const top = Math.floor(ny - p.size * 0.5) + BLOCK_HEIGHT[id] / 16 + 0.02;
+              for (let k = 0; k < 2; k++) {
+                const a = Math.random() * Math.PI * 2, s = 0.6 + Math.random() * 0.8;
+                this.add(this.base(nx, top, nz, { vx: Math.cos(a) * s, vy: 1.6 + Math.random() * 1.4, vz: Math.sin(a) * s, life: 0.22, max: 0.22, size: 0.022,
+                  layer: T.p_smoke, r: p.r, g: p.g, b: p.b, blend: true, grav: 20, drag: 1, collide: false }));
+              }
+            }
+            continue;
+          }
           if (p.trail) { this.smoke(p.x, p.y + 0.3, p.z, 3, 0.4, true); continue; }
           if (p.melt) { p.melt = false; p.wander = false; p.vx = p.vz = 0; p.life = Math.min(p.life, 1.2); }
           p.vy = 0; p.vx *= 0.6; p.vz *= 0.6;

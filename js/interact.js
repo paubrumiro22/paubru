@@ -286,6 +286,7 @@ const Act = {
       const r = this.liquidRay(this.reach());
       if (!r) return false;
       if (held.id === I.BUCKET && IS_LIQUID(r.id)) {
+        if (G.world.getFlow(r.pos[0], r.pos[1], r.pos[2]) > 0) return false;   // only still sources fill a bucket
         editBlock(r.pos[0], r.pos[1], r.pos[2], B.AIR);
         updateNeighbors(r.pos[0], r.pos[1], r.pos[2]);
         const full = mkStack(r.id === B.WATER ? I.WATER_BUCKET : I.LAVA_BUCKET, 1);
@@ -297,9 +298,12 @@ const Act = {
         return true;
       }
       if (held.id !== I.BUCKET && r.prev) {
-        const [x, y, z] = BLOCK_REPLACE[r.id] && !IS_LIQUID(r.id) ? r.pos : r.prev;
+        const pour = held.id === I.WATER_BUCKET ? B.WATER : B.LAVA;
+        const into = r.id === pour && G.world.getFlow(r.pos[0], r.pos[1], r.pos[2]) > 0;   // top up a stream
+        const [x, y, z] = (BLOCK_REPLACE[r.id] && !IS_LIQUID(r.id)) || into ? r.pos : r.prev;
         if (!BLOCK_REPLACE[G.world.getBlock(x, y, z)]) return false;
-        editBlock(x, y, z, held.id === I.WATER_BUCKET ? B.WATER : B.LAVA);
+        if (into) { editBlock(x, y, z, B.AIR); }
+        editBlock(x, y, z, pour);
         if (G.mode === 'survival') G.inv.held = mkStack(I.BUCKET, 1);
         sfx('bucket', [x, y, z], 1, 0.8); this.swingHand(); G.ui.invDirty();
         return true;

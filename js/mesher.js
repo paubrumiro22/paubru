@@ -37,14 +37,14 @@ class MeshBuilder {
     this.cap = cap;
   }
   ensure(n) { if (this.count + n > this.cap) this.alloc(Math.max(this.cap * 2, this.count + n)); }
-  v(x, y, z, layer, nf, ao, sky, blk, r, g, b, u, vv) {
+  v(x, y, z, layer, nf, ao, sky, blk, r, g, b, u, vv, fu = 0, fv = 0) {
     const o = this.count++;
     const i16 = o * 10, i8 = o * VERT_BYTES;
     this.u16[i16] = x; this.u16[i16 + 1] = y; this.u16[i16 + 2] = z; this.u16[i16 + 3] = layer;
     const u8 = this.u8;
     u8[i8 + 8] = nf; u8[i8 + 9] = ao; u8[i8 + 10] = sky; u8[i8 + 11] = blk;
     u8[i8 + 12] = r; u8[i8 + 13] = g; u8[i8 + 14] = b; u8[i8 + 15] = 0;
-    u8[i8 + 16] = u; u8[i8 + 17] = vv; u8[i8 + 18] = 0; u8[i8 + 19] = 0;
+    u8[i8 + 16] = u; u8[i8 + 17] = vv; u8[i8 + 18] = fu; u8[i8 + 19] = fv;
   }
   data() { return this.u8.subarray(0, this.count * VERT_BYTES); }
 }
@@ -266,6 +266,30 @@ function buildChunkMesh(world, chunk) {
   const maxY = Math.min(chunk.maxY, CH - 1);
   const ox = cx * CS, oz = cz * CS;
   const tintBuf = [200, 200, 200];
+  // Liquid surface: each block's height comes from its flow level (sources sit at 14/16, thin
+  // sheets at the far end of a spread), corners average the liquid blocks around them so the
+  // surface slopes smoothly downstream; anything with liquid above is full height.
+  const liqH = (q, wx, wy, wz, id) => {
+    if (pb[q] !== id) return -1;
+    if (pb[q + RSS] === id) return 1;
+    const l = world.getFlow ? world.getFlow(wx, wy, wz) : 0;
+    if (l === 0 || l === 8) return 0.875;
+    return Math.max(0.1, 0.875 * (8 - l) / 8);
+  };
+  const cornerH = [0, 0, 0, 0];   // (x0,z0) (x1,z0) (x0,z1) (x1,z1)
+  const liquidCorners = (p, wx, y, wz, id) => {
+    for (let c = 0; c < 4; c++) {
+      const ccx = c & 1, ccz = c >> 1;
+      let sum = 0, n = 0, full = false;
+      for (let dz = ccz - 1; dz <= ccz; dz++) for (let dx = ccx - 1; dx <= ccx; dx++) {
+        const h = liqH(p + dx + dz * RS, wx + dx, y, wz + dz, id);
+        if (h < 0) continue;
+        if (h >= 1) full = true;
+        sum += h; n++;
+      }
+      cornerH[c] = full ? 1 : sum / n;
+    }
+  };
 
   for (let y = 0; y <= maxY; y++) {
     for (let z = 0; z < CS; z++) {
@@ -350,6 +374,8 @@ function buildChunkMesh(world, chunk) {
         const liquidTopLow = (isWater || isLava) && pb[p + RSS] !== id;
         const builder = isWater ? meshWater : (rt === RT_CUTOUT ? meshCutout : meshOpaque);
         const facing = FACING_BLOCKS.has(id) ? world.getFacing(ox + x, y, oz + z) : -1;
+        let cornersDone = false;
+        const flowLevel = (isWater || isLava) && world.getFlow ? world.getFlow(ox + x, y, oz + z) : 0;
 
         for (let d = 0; d < 6; d++) {
           const nIdx = p + DIR_OFFSET[d];
@@ -378,6 +404,18 @@ function buildChunkMesh(world, chunk) {
           const cu = CORNER_U[d], cv = CORNER_V[d];
 
           if (isWater || isLava || isCactus) {
+            let fu = 0, fv = 0;
+            if (!isCactus && liquidTopLow) {
+              if (!cornersDone) { liquidCorners(p, ox + x, y, oz + z, id); cornersDone = true; }
+              if (d === 2) {
+                // downhill direction for the flow-mapped ripples
+                const gx = (cornerH[1] + cornerH[3] - cornerH[0] - cornerH[2]) * 0.5;
+                const gz = (cornerH[2] + cornerH[3] - cornerH[0] - cornerH[1]) * 0.5;
+                const m = Math.hypot(gx, gz);
+                if (m > 0.004) { const k = Math.min(1, m * 4) / m; fu = Math.round(128 - gx * k * 126); fv = Math.round(128 - gz * k * 126); }
+              }
+            }
+            if (!isCactus && d !== 2 && d !== 3 && flowLevel > 0) { fu = 1; fv = flowLevel === 8 ? 255 : 120; }
             const s = Math.round((isCactus ? Math.max(skyL[p], skyL[nIdx]) : skyL[nIdx]) * 17);
             const b2 = Math.round((isCactus ? Math.max(blkL[p], blkL[nIdx]) : Math.max(blkL[nIdx], isLava ? 15 : 0)) * 17);
             builder.ensure(4);
@@ -386,8 +424,12 @@ function buildChunkMesh(world, chunk) {
               let vx = (x + c[0]) * POS_SCALE, vy = (y + c[1]) * POS_SCALE, vz = (z + c[2]) * POS_SCALE;
               let vv = cv[k];
               if (isCactus) { vx = (x * 16 + (c[0] ? 15 : 1)) * P4; vz = (z * 16 + (c[2] ? 15 : 1)) * P4; }
-              if (liquidTopLow && c[1]) { vy -= 2 * P4; if (d !== 2 && d !== 3) vv = 2; }
-              builder.v(vx, vy, vz, layer, d | (flags << 3), 3, s, b2, r, g, b, cu[k], vv);
+              if (liquidTopLow && c[1]) {
+                const hh = cornerH[c[0] + 2 * c[2]];
+                vy = Math.round((y + hh) * POS_SCALE);
+                if (d !== 2 && d !== 3) vv = Math.round((1 - hh) * 16);
+              }
+              builder.v(vx, vy, vz, layer, d | (flags << 3), 3, s, b2, r, g, b, cu[k], vv, fu, fv);
             }
             continue;
           }

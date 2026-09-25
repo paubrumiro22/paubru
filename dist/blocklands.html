@@ -308,6 +308,11 @@
   #playerList div { background: rgba(0, 0, 0, 0.42); padding: 3px 10px; border-radius: 7px; display: flex; align-items: center; gap: 7px; }
   #playerList i { width: 9px; height: 9px; border-radius: 50%; }
   .mprow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .skins { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+  .skin { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px 8px; border-radius: 11px; font-size: 12px; line-height: 1.2; text-align: center; }
+  .skin canvas { width: 44px; height: 44px; image-rendering: pixelated; border-radius: 6px; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); }
+  .skin.on { background: rgba(242, 185, 75, 0.2); border-color: var(--accent); }
+  .skinhint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
   #mpColors { display: flex; gap: 5px; }
   #mpColors button { width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
   #mpColors button.on { border-color: #fff; }
@@ -435,6 +440,10 @@
       <span id="mpStatus">Checking for other players&#x2026;</span>
     </div>
 
+    <h2>Skin</h2>
+    <div class="skins" id="skinGrid"></div>
+    <p class="skinhint">Everyone online sees your skin. Press <kbd>F5</kbd> while playing to look at yourself.</p>
+
     <h2>Game</h2>
     <div class="grid">
       <div class="field">
@@ -494,6 +503,7 @@
       <div><kbd>T</kbd>Fast-forward time (creative)</div>
       <div><kbd>Arrows</kbd>Look around (alternative)</div>
       <div><kbd>F3</kbd>Debug info &#xb7; <kbd>F1</kbd>Hide HUD</div>
+      <div><kbd>F5</kbd>Third person / front view</div>
       <div><kbd>Enter</kbd>Chat (online)</div>
     </div>
     <h2>Fighter jet</h2>
@@ -3187,9 +3197,33 @@ class WorldGen {
     this.placePlants(chunk, heights, HW, P, biomes, ox, oz, owners);
     this.placeCaveDecor(chunk, heights, HW, P, ox, oz);
     this.placeTrees(chunk, ox, oz);
+    this.placeSprings(chunk, heights, HW, P, ox, oz);
 
     chunk.maxY = 0;
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) chunk.recomputeHeight(x, z);
+  }
+
+  // Now and then a spring rises at the lip of a cliff: once the chunk loads, its water runs off
+  // the edge as a waterfall (fluids.js) and spreads out below.
+  placeSprings(chunk, heights, HW, P, ox, oz) {
+    if (hash3(chunk.cx, 7, chunk.cz, this.seed + 5501) > 0.2) return;
+    const b = chunk.blocks;
+    let best = null, bestDrop = 6;
+    for (let z = 2; z < CS - 2; z++) for (let x = 2; x < CS - 2; x++) {
+      const h = heights[(z + P) * HW + x + P];
+      if (h < SEA + 10 || h > CH - 4) continue;
+      const top = b[(h * CS + z) * CS + x];
+      if (IS_LIQUID(top) || top === B.ICE || !BLOCK_SOLID[top] || b[((h + 1) * CS + z) * CS + x] !== B.AIR) continue;
+      // lowest neighbour column a couple of blocks away: the drop the water will fall down
+      let low = h;
+      for (const [dx, dz] of [[3, 0], [-3, 0], [0, 3], [0, -3]]) low = Math.min(low, heights[(z + P + dz) * HW + x + P + dx]);
+      const drop = h - low;
+      if (drop > bestDrop + hash3(ox + x, h, oz + z, this.seed) * 3) { bestDrop = drop; best = [x, h, z]; }
+    }
+    if (!best) return;
+    const [x, y, z] = best;
+    b[(y * CS + z) * CS + x] = B.WATER;
+    chunk.springs = [ox + x, y, oz + z];
   }
 
   defaultColumn(wx, wz, h, slope) {
@@ -3472,6 +3506,7 @@ class World {
     this.chunks = new Map();
     this.edits = new Map();   // chunkKey -> Map(blockIndex -> id)
     this.facing = new Map();  // posKey -> face index (0 +X, 1 -X, 4 +Z, 5 -Z)
+    this.flow = new Map();    // posKey -> liquid level: 1..7 spreading (lava 2, 4, 6), 8 falling; absent = source
     this.blockEntities = new Map(); // posKey -> { type, ... }
     this.editsDirty = false;
   }
@@ -3503,6 +3538,8 @@ class World {
     return [0, 1, 4, 5][Math.floor(hash3(x, y, z, 7) * 4)];
   }
 
+  getFlow(x, y, z) { return this.flow.get(posKey(x, y, z)) || 0; }
+
   generateChunk(cx, cz) {
     const c = new Chunk(cx, cz);
     this.gen.generate(c);
@@ -3518,6 +3555,7 @@ class World {
       for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) c.recomputeHeight(x, z);
     }
     this.chunks.set(chunkKey(cx, cz), c);
+    if (typeof Fluids !== 'undefined' && this === G.world) Fluids.chunkAdded(c);
     // neighbours may now be meshable / need border faces refreshed
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
       if (!dx && !dz) continue;
@@ -3539,6 +3577,7 @@ class World {
     if (facing !== undefined) this.facing.set(pk, facing);
     else if (!(FACING_BLOCKS.has(id) && FACING_BLOCKS.has(c.blocks[idx]))) this.facing.delete(pk);
     if (c.blocks[idx] === id) return facing !== undefined ? [c] : null;
+    this.flow.delete(pk);
     c.blocks[idx] = id;
     c.recomputeHeight(lx, lz);
     const key = chunkKey(cx, cz);
@@ -3591,16 +3630,23 @@ class World {
     for (const [k, f] of this.facing) facing.push(k, f);
     const be = [];
     for (const [k, e] of this.blockEntities) be.push([k, e]);
-    return { facing, be };
+    const flow = [];
+    for (const [k, l] of this.flow) flow.push(k, l);
+    return { facing, be, flow };
   }
 
   loadExtras(obj) {
     this.facing.clear();
+    this.flow.clear();
     this.blockEntities.clear();
     if (!obj || typeof obj !== 'object') return;
     if (Array.isArray(obj.facing)) for (let i = 0; i + 1 < obj.facing.length; i += 2) {
       const k = Number(obj.facing[i]), f = obj.facing[i + 1] | 0;
       if (Number.isFinite(k) && [0, 1, 4, 5].includes(f)) this.facing.set(k, f);
+    }
+    if (Array.isArray(obj.flow)) for (let i = 0; i + 1 < obj.flow.length; i += 2) {
+      const k = Number(obj.flow[i]), l = obj.flow[i + 1] | 0;
+      if (Number.isFinite(k) && l >= 1 && l <= 8) this.flow.set(k, l);
     }
     if (Array.isArray(obj.be)) for (const pair of obj.be) {
       if (!Array.isArray(pair) || pair.length !== 2 || !Number.isFinite(Number(pair[0]))) continue;
@@ -4049,14 +4095,14 @@ class MeshBuilder {
     this.cap = cap;
   }
   ensure(n) { if (this.count + n > this.cap) this.alloc(Math.max(this.cap * 2, this.count + n)); }
-  v(x, y, z, layer, nf, ao, sky, blk, r, g, b, u, vv) {
+  v(x, y, z, layer, nf, ao, sky, blk, r, g, b, u, vv, fu = 0, fv = 0) {
     const o = this.count++;
     const i16 = o * 10, i8 = o * VERT_BYTES;
     this.u16[i16] = x; this.u16[i16 + 1] = y; this.u16[i16 + 2] = z; this.u16[i16 + 3] = layer;
     const u8 = this.u8;
     u8[i8 + 8] = nf; u8[i8 + 9] = ao; u8[i8 + 10] = sky; u8[i8 + 11] = blk;
     u8[i8 + 12] = r; u8[i8 + 13] = g; u8[i8 + 14] = b; u8[i8 + 15] = 0;
-    u8[i8 + 16] = u; u8[i8 + 17] = vv; u8[i8 + 18] = 0; u8[i8 + 19] = 0;
+    u8[i8 + 16] = u; u8[i8 + 17] = vv; u8[i8 + 18] = fu; u8[i8 + 19] = fv;
   }
   data() { return this.u8.subarray(0, this.count * VERT_BYTES); }
 }
@@ -4278,6 +4324,30 @@ function buildChunkMesh(world, chunk) {
   const maxY = Math.min(chunk.maxY, CH - 1);
   const ox = cx * CS, oz = cz * CS;
   const tintBuf = [200, 200, 200];
+  // Liquid surface: each block's height comes from its flow level (sources sit at 14/16, thin
+  // sheets at the far end of a spread), corners average the liquid blocks around them so the
+  // surface slopes smoothly downstream; anything with liquid above is full height.
+  const liqH = (q, wx, wy, wz, id) => {
+    if (pb[q] !== id) return -1;
+    if (pb[q + RSS] === id) return 1;
+    const l = world.getFlow ? world.getFlow(wx, wy, wz) : 0;
+    if (l === 0 || l === 8) return 0.875;
+    return Math.max(0.1, 0.875 * (8 - l) / 8);
+  };
+  const cornerH = [0, 0, 0, 0];   // (x0,z0) (x1,z0) (x0,z1) (x1,z1)
+  const liquidCorners = (p, wx, y, wz, id) => {
+    for (let c = 0; c < 4; c++) {
+      const ccx = c & 1, ccz = c >> 1;
+      let sum = 0, n = 0, full = false;
+      for (let dz = ccz - 1; dz <= ccz; dz++) for (let dx = ccx - 1; dx <= ccx; dx++) {
+        const h = liqH(p + dx + dz * RS, wx + dx, y, wz + dz, id);
+        if (h < 0) continue;
+        if (h >= 1) full = true;
+        sum += h; n++;
+      }
+      cornerH[c] = full ? 1 : sum / n;
+    }
+  };
 
   for (let y = 0; y <= maxY; y++) {
     for (let z = 0; z < CS; z++) {
@@ -4362,6 +4432,8 @@ function buildChunkMesh(world, chunk) {
         const liquidTopLow = (isWater || isLava) && pb[p + RSS] !== id;
         const builder = isWater ? meshWater : (rt === RT_CUTOUT ? meshCutout : meshOpaque);
         const facing = FACING_BLOCKS.has(id) ? world.getFacing(ox + x, y, oz + z) : -1;
+        let cornersDone = false;
+        const flowLevel = (isWater || isLava) && world.getFlow ? world.getFlow(ox + x, y, oz + z) : 0;
 
         for (let d = 0; d < 6; d++) {
           const nIdx = p + DIR_OFFSET[d];
@@ -4390,6 +4462,18 @@ function buildChunkMesh(world, chunk) {
           const cu = CORNER_U[d], cv = CORNER_V[d];
 
           if (isWater || isLava || isCactus) {
+            let fu = 0, fv = 0;
+            if (!isCactus && liquidTopLow) {
+              if (!cornersDone) { liquidCorners(p, ox + x, y, oz + z, id); cornersDone = true; }
+              if (d === 2) {
+                // downhill direction for the flow-mapped ripples
+                const gx = (cornerH[1] + cornerH[3] - cornerH[0] - cornerH[2]) * 0.5;
+                const gz = (cornerH[2] + cornerH[3] - cornerH[0] - cornerH[1]) * 0.5;
+                const m = Math.hypot(gx, gz);
+                if (m > 0.004) { const k = Math.min(1, m * 4) / m; fu = Math.round(128 - gx * k * 126); fv = Math.round(128 - gz * k * 126); }
+              }
+            }
+            if (!isCactus && d !== 2 && d !== 3 && flowLevel > 0) { fu = 1; fv = flowLevel === 8 ? 255 : 120; }
             const s = Math.round((isCactus ? Math.max(skyL[p], skyL[nIdx]) : skyL[nIdx]) * 17);
             const b2 = Math.round((isCactus ? Math.max(blkL[p], blkL[nIdx]) : Math.max(blkL[nIdx], isLava ? 15 : 0)) * 17);
             builder.ensure(4);
@@ -4398,8 +4482,12 @@ function buildChunkMesh(world, chunk) {
               let vx = (x + c[0]) * POS_SCALE, vy = (y + c[1]) * POS_SCALE, vz = (z + c[2]) * POS_SCALE;
               let vv = cv[k];
               if (isCactus) { vx = (x * 16 + (c[0] ? 15 : 1)) * P4; vz = (z * 16 + (c[2] ? 15 : 1)) * P4; }
-              if (liquidTopLow && c[1]) { vy -= 2 * P4; if (d !== 2 && d !== 3) vv = 2; }
-              builder.v(vx, vy, vz, layer, d | (flags << 3), 3, s, b2, r, g, b, cu[k], vv);
+              if (liquidTopLow && c[1]) {
+                const hh = cornerH[c[0] + 2 * c[2]];
+                vy = Math.round((y + hh) * POS_SCALE);
+                if (d !== 2 && d !== 3) vv = Math.round((1 - hh) * 16);
+              }
+              builder.v(vx, vy, vz, layer, d | (flags << 3), 3, s, b2, r, g, b, cu[k], vv, fu, fv);
             }
             continue;
           }
@@ -4461,14 +4549,15 @@ function chunkWorkerMain() {
       if (key !== genKey) { gen = new WorldGen(m.seed, m.type); genKey = key; }
       const c = new Chunk(m.cx, m.cz);
       gen.generate(c);
-      self.postMessage({ t: 'gen', epoch: m.epoch, cx: m.cx, cz: m.cz, blocks: c.blocks, heightmap: c.heightmap, grassTint: c.grassTint, foliageTint: c.foliageTint, maxY: c.maxY },
+      self.postMessage({ t: 'gen', epoch: m.epoch, cx: m.cx, cz: m.cz, blocks: c.blocks, heightmap: c.heightmap, grassTint: c.grassTint, foliageTint: c.foliageTint, maxY: c.maxY, springs: c.springs || null },
         [c.blocks.buffer, c.heightmap.buffer, c.grassTint.buffer, c.foliageTint.buffer]);
     } else if (m.t === 'mesh') {
       const chunks = new Map();
       for (const n of m.nb) chunks.set(chunkKey(n.cx, n.cz), n);
-      const facing = new Map(m.facing);
+      const facing = new Map(m.facing), flow = new Map(m.flow || []);
       const world = {
         getChunk: (cx, cz) => chunks.get(chunkKey(cx, cz)),
+        getFlow: (x, y, z) => flow.get(posKey(x, y, z)) || 0,
         getFacing: (x, y, z) => { const f = facing.get(posKey(x, y, z)); return f !== undefined ? f : [0, 1, 4, 5][Math.floor(hash3(x, y, z, 7) * 4)]; },
       };
       const center = chunks.get(chunkKey(m.cx, m.cz));
@@ -4583,13 +4672,22 @@ const ChunkWorkers = {
         if (x >= x0 && x < x0 + CS && z >= z0 && z < z0 + CS) facing.push([k, f]);
       }
     }
+    // liquid levels in and right around this chunk (the surface slopes need the neighbours)
+    const flow = [];
+    if (world.flow.size) {
+      const x0 = c.cx * CS - 1, z0 = c.cz * CS - 1;
+      for (const [k, l] of world.flow) {
+        const [x, , z] = keyPos(k);
+        if (x >= x0 && x <= x0 + CS + 1 && z >= z0 && z <= z0 + CS + 1) flow.push([k, l]);
+      }
+    }
     c.meshVer = (c.meshVer || 0) + 1;
     c.needsMesh = false;
     c.meshInFlight = true;
     this.meshPending++;
     const w = this.pick();
     w.load++;
-    w.postMessage({ t: 'mesh', epoch: this.epoch, ver: c.meshVer, cx: c.cx, cz: c.cz, nb, facing }, nb.map((e) => e.blocks.buffer));
+    w.postMessage({ t: 'mesh', epoch: this.epoch, ver: c.meshVer, cx: c.cx, cz: c.cz, nb, facing, flow }, nb.map((e) => e.blocks.buffer));
   },
 
   receive(w, m) {
@@ -4601,6 +4699,7 @@ const ChunkWorkers = {
       if (world.getChunk(m.cx, m.cz)) return;
       const c = new Chunk(m.cx, m.cz);
       c.blocks = m.blocks; c.heightmap = m.heightmap; c.grassTint = m.grassTint; c.foliageTint = m.foliageTint; c.maxY = m.maxY;
+      if (m.springs) c.springs = m.springs;
       world.addChunk(c);
       this.stats.gen++;
     } else if (m.t === 'mesh') {
@@ -4753,6 +4852,8 @@ uniform float uFar;
 uniform float uUnderwater;
 uniform float uSkyScale;
 uniform float uNight;
+uniform float uRain;
+uniform float uSnow;
 
 float hash12(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -4839,6 +4940,7 @@ out vec3 vUV;
 out vec3 vTint;
 out float vAO;
 out vec2 vLight;
+out vec2 vFlow;
 flat out int vNormal;
 flat out int vFlags;
 void main() {
@@ -4859,6 +4961,7 @@ void main() {
   }
   vRel = rel;
   vUV = vec3(uv, aPos.w);
+  vFlow = aUV.zw;
   vTint = aTint.rgb / 200.0;
   vAO = aData.y / 3.0;
   vLight = aData.zw / 255.0;
@@ -4924,6 +5027,29 @@ void main() {
   float blk = vLight.y;
   bool translucent = (vFlags & 8) != 0;
 
+  // weather on surfaces open to the sky: rain darkens and glosses them (puddles collect in the
+  // low spots of the texture), snow settles on top faces and leaves
+  float open = smoothstep(0.82, 0.97, sky);
+  float up = plant ? 0.0 : smoothstep(0.55, 0.9, N0.y);
+  float wet = uRain * open * (0.45 + 0.55 * up);
+  float puddle = 0.0;
+  if (wet > 0.01) {
+    float pn = texture(uNoise, world.xz * 0.11).r * 0.7 + texture(uNoise, world.xz * 0.37).g * 0.3;
+    puddle = up * smoothstep(0.52, 0.66, pn + (1.0 - nm.z) * 0.25) * uRain * open;
+    albedo *= 1.0 - 0.38 * wet;
+    smoothness = mix(smoothness, 0.97, max(puddle, wet * 0.55));
+    N = normalize(mix(N, N0, puddle));
+  }
+  float snowy = 0.0;
+  if (uSnow > 0.01 && !plant) {
+    float edge = texture(uNoise, world.xz * 0.23 + world.y * 0.05).r;
+    float leafy = (vFlags & 1) != 0 ? 0.75 : 1.0;
+    snowy = open * smoothstep(0.35, 0.8, N0.y) * smoothstep(edge * 0.9, edge * 0.9 + 0.25, uSnow) * leafy;
+    albedo = mix(albedo, vec3(0.86, 0.9, 0.96), snowy);
+    N = normalize(mix(N, N0, snowy * 0.7));
+    smoothness = mix(smoothness, 0.35, snowy);
+  }
+
   vec3 V = normalize(-vRel);
   vec3 L = uLightDir;
   float NdL = dot(N, L);
@@ -4958,6 +5084,12 @@ void main() {
     float G = (NdL / (NdL * (1.0 - k) + k)) * (NdV / (NdV * (1.0 - k) + k));
     float spec = D * F * G / (4.0 * NdL * NdV + 1e-4);
     col += uLightColor * min(spec, 30.0) * NdL * shadow * gate;
+  }
+  if (puddle > 0.01) {
+    // standing water mirrors the (overcast) sky
+    vec3 R = reflect(-V, N0);
+    float F = 0.02 + 0.98 * pow(1.0 - max(dot(N0, V), 0.0), 5.0);
+    col = mix(col, skyLUT(normalize(vec3(R.x, max(R.y, 0.02), R.z))), F * puddle * 0.85);
   }
 
   if (translucent) {
@@ -5299,6 +5431,7 @@ in vec3 vUV;
 in vec3 vTint;
 in float vAO;
 in vec2 vLight;
+in vec2 vFlow;
 flat in int vNormal;
 flat in int vFlags;
 layout(location = 0) out vec4 outColor;
@@ -5315,14 +5448,71 @@ float wHeight(vec2 p) {
        + texture(uNoise, p * 0.21 + vec2(t * 0.021, -t * 0.026)).b * 0.2;
 }
 
+// flowing water: two layers of ripples dragged along the stream, cross-faded so they never stretch
+float flowHeight(vec2 p, vec2 fl) {
+  float t = uTime * 0.6;
+  float a = fract(t), b = fract(t + 0.5);
+  float wa = 1.0 - abs(a - 0.5) * 2.0;
+  return mix(wHeight((p - fl * b * 3.0) * 1.8 + 13.7), wHeight((p - fl * a * 3.0) * 1.8), wa);
+}
+
+// expanding rings where raindrops hit the surface
+vec2 rainRipples(vec2 p) {
+  vec2 acc = vec2(0.0);
+  for (int l = 0; l < 2; l++) {
+    vec2 q = p * (l == 0 ? 1.7 : 2.9) + float(l) * 7.31;
+    vec2 cell = floor(q);
+    for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+      vec2 c = cell + vec2(i, j);
+      float h = hash12(c);
+      vec2 ctr = c + vec2(hash12(c + 3.1), hash12(c + 9.7));
+      float ph = fract(uTime * 1.3 + h);
+      vec2 d = q - ctr;
+      float r = length(d);
+      float ring = ph * 0.9;
+      float w = sin((r - ring) * 42.0) * smoothstep(0.12, 0.0, abs(r - ring)) * (1.0 - ph) * (1.0 - ph);
+      acc += d / max(r, 1e-3) * w;
+    }
+  }
+  return acc;
+}
+
+float gFoam = 0.0;
 vec3 waterNormal(vec3 world, vec3 N0, float dist) {
-  if (abs(N0.y) < 0.5) return N0;
+  if (abs(N0.y) < 0.5) {
+    if (vFlow.x > 0.0 && vFlow.x < 0.01) {
+      // a waterfall: streaks rushing down the face, white where it runs fast
+      vec2 sp = vec2(dot(world.xz, abs(N0.zx)), world.y);
+      float sp2 = vFlow.y > 0.9 ? 5.0 : 2.5;
+      float e = 0.05;
+      vec2 q = vec2(sp.x * 1.6, sp.y * 0.35 + uTime * sp2 * 0.35);
+      float h = wHeight(q * 4.0), hx = wHeight((q + vec2(e, 0.0)) * 4.0);
+      gFoam = vFlow.y > 0.9 ? 0.16 + smoothstep(0.55, 0.8, wHeight(q * 2.5 + 3.3)) * 0.4 : 0.06 + smoothstep(0.6, 0.8, wHeight(q * 2.5 + 3.3)) * 0.18;
+      vec3 T = vec3(abs(N0.z), 0.0, abs(N0.x));
+      return normalize(N0 + T * (hx - h) / e * 0.35);
+    }
+    return N0;
+  }
   float e = 0.06;
-  float h = wHeight(world.xz);
-  float hx = wHeight(world.xz + vec2(e, 0.0));
-  float hz = wHeight(world.xz + vec2(0.0, e));
   float s = 0.55 * mix(1.0, 0.25, clamp(dist / 140.0, 0.0, 1.0));
-  vec3 n = normalize(vec3(-(hx - h) / e * s, 1.0, -(hz - h) / e * s));
+  vec3 n;
+  if (vFlow.x > 0.02) {
+    vec2 fl = (vFlow * 255.0 - 128.0) / 126.0;
+    float sp = length(fl);
+    float h = flowHeight(world.xz, fl), hx = flowHeight(world.xz + vec2(e, 0.0), fl), hz = flowHeight(world.xz + vec2(0.0, e), fl);
+    s *= 1.0 + sp * 1.3;
+    n = normalize(vec3(-(hx - h) / e * s, 1.0, -(hz - h) / e * s));
+    gFoam = smoothstep(0.66, 0.86, flowHeight(world.xz * 0.7 + 5.0, fl)) * sp * 0.3;
+  } else {
+    float h = wHeight(world.xz);
+    float hx = wHeight(world.xz + vec2(e, 0.0));
+    float hz = wHeight(world.xz + vec2(0.0, e));
+    n = normalize(vec3(-(hx - h) / e * s, 1.0, -(hz - h) / e * s));
+  }
+  if (uRain > 0.01 && dist < 60.0) {
+    vec2 rr = rainRipples(world.xz) * uRain * (1.0 - dist / 60.0);
+    n = normalize(n + vec3(rr.x, 0.0, rr.y) * 0.5);
+  }
   return N0.y > 0.0 ? n : vec3(n.x, -n.y, n.z);
 }
 
@@ -5419,6 +5609,13 @@ void main() {
   float nh = max(dot(N, H), 0.0);
   float spec = pow(nh, 1400.0) * 90.0 + pow(nh, 160.0) * 1.2;
   col += uLightColor * spec * shadow * gate * step(0.0, uLightDir.y);
+
+  // foam: along shores and rocks where the water is shallow, on rapids and waterfalls
+  float shore = (1.0 - smoothstep(0.0, 0.7, thick)) * step(0.5, N0.y);
+  float fn = texture(uNoise, world.xz * 0.35 + vec2(uTime * 0.03, -uTime * 0.02)).r;
+  float foam = max(shore * smoothstep(0.35, 0.65, fn + shore * 0.3), gFoam);
+  vec3 foamCol = vec3(0.9, 0.95, 1.0) * (uAmbUp * 1.1 + uLightColor * max(uLightDir.y, 0.0) * shadow * gate * 0.9 + 0.01);
+  col = mix(col, foamCol, clamp(foam, 0.0, 1.0) * 0.85);
 
   col = applyFog(col, vRel);
   outColor = vec4(col * HDR_SCALE, 1.0);
@@ -5550,6 +5747,8 @@ uniform float uTime;
 uniform float uSaturation;
 uniform float uWeather;
 uniform float uFlash;
+uniform float uRainFx;
+uniform float uAspect;
 in vec2 vUV;
 layout(location = 0) out vec4 outColor;
 
@@ -5565,6 +5764,20 @@ float hash12(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
   p3 += dot(p3, p3.yzx + 33.33);
   return fract((p3.x + p3.y) * p3.z);
+}
+// sheets of rain between the camera and the distance: thin slanted streaks in three depths
+float rainStreaks(vec2 uv, float cols, float len, float speed, float seed) {
+  uv.x = uv.x * uAspect + uv.y * 0.12;
+  float x = uv.x * cols;
+  float cx = floor(x);
+  float h = hash12(vec2(cx, seed));
+  float y = uv.y / len + uTime * speed * (0.75 + 0.5 * h) + h * 37.0;
+  float cy = floor(y);
+  float on = step(0.6, hash12(vec2(cx + seed, cy)));
+  float fy = fract(y);
+  float off = (hash12(vec2(cy, cx + seed)) - 0.5) * 0.6;
+  float w = smoothstep(0.12, 0.0, abs(fract(x) - 0.5 + off));
+  return w * on * smoothstep(0.0, 0.15, fy) * smoothstep(0.75, 0.35, fy);
 }
 vec3 toSRGB(vec3 c) {
   return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
@@ -5582,6 +5795,11 @@ void main() {
   c *= uExposure * (1.0 + 3.5 * fl);
   c += vec3(0.5, 0.56, 0.78) * 0.5 * fl;
   c = acesFitted(c);
+  if (uRainFx > 0.01) {
+    float r = rainStreaks(uv, 90.0, 0.09, 2.6, 1.0) * 0.5 + rainStreaks(uv, 170.0, 0.05, 3.4, 7.0) * 0.35 + rainStreaks(uv, 320.0, 0.03, 4.3, 13.0) * 0.25;
+    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+    c += vec3(0.75, 0.8, 0.88) * r * uRainFx * (0.1 + lum * 0.35);
+  }
   // rain and storms tint the picture towards a cool grey
   float lw = dot(c, vec3(0.2126, 0.7152, 0.0722));
   c = mix(c, vec3(lw) * vec3(0.92, 0.97, 1.06), 0.35 * uWeather);
@@ -6190,7 +6408,9 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uShadowMat', 'm4', this.shadowMat || BIAS_MAT);
     this.setU(prog, 'uCloudCover', '1f', A.cloudCover);
     this.setU(prog, 'uCloudTime', '1f', A.time);
-    this.setU(prog, 'uWind', '1f', 1.0);
+    this.setU(prog, 'uWind', '1f', A.wind || 1);
+    this.setU(prog, 'uRain', '1f', A.rain || 0);
+    this.setU(prog, 'uSnow', '1f', A.snow || 0);
   },
 
   bindSceneTextures() {
@@ -6272,6 +6492,8 @@ Object.assign(Renderer.prototype, {
     this.updateCamera(p.cam);
     this.updateAtmosphere(p.dayTime, p.time, p.eyeSky, p.dt, p.weather || 0);
     const A = this.atmo;
+    A.rain = p.rain || 0; A.snow = p.snow || 0;
+    A.fogDensity += 0.022 * (p.mist || 0); A.wind = 1 + 1.8 * (p.weather || 0) * (p.weather || 0);
     const W = this.width, H = this.height;
     const cp = this.camPos;
     const ent = p.entities;
@@ -6328,7 +6550,7 @@ Object.assign(Renderer.prototype, {
       this.setU(prog, 'uViewProj', 'm4', this.shadowVP);
       this.setU(prog, 'uCamPos', '3f', cp[0], cp[1], cp[2]);
       this.setU(prog, 'uTime', '1f', A.time);
-      this.setU(prog, 'uWind', '1f', 1.0);
+      this.setU(prog, 'uWind', '1f', A.wind || 1);
       this.bindTex(0, gl.TEXTURE_2D_ARRAY, this.albedoTex);
       this.setU(prog, 'uCutout', '1i', 0);
       this.stats.shadowDrawn = shadowList.length;
@@ -6548,6 +6770,8 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uSaturation', '1f', 1.04 - 0.3 * (p.weather || 0));
     this.setU(prog, 'uWeather', '1f', p.weather || 0);
     this.setU(prog, 'uFlash', '1f', p.flash || 0);
+    this.setU(prog, 'uRainFx', '1f', p.underwater ? 0 : (p.rainFx || 0));
+    this.setU(prog, 'uAspect', '1f', W / H);
     this.drawFullscreen();
 
     // --- FXAA to screen ---
@@ -6568,7 +6792,7 @@ Object.assign(Renderer.prototype, {
 // Box models for mobs, their procedurally painted skins (one 2D atlas) and extruded 3D
 // meshes for item sprites. Model units are pixels (1/16 block); models face +Z.
 
-const ATLAS_W = 512, ATLAS_H = 256, SKIN_W = 128, SKIN_H = 64;
+const ATLAS_W = 512, ATLAS_H = 512, SKIN_W = 128, SKIN_H = 64;
 
 // part: { id, box: [x0, y0, z0, x1, y1, z1], pivot, parent, uv: shared texture key, role }
 const MOB_MODELS = {
@@ -6853,10 +7077,12 @@ function paintSkins() {
   }
 
   paintJetSwatches(px, rng);
+  paintPlayerSkins(px, rng);
 
   const cv = document.createElement('canvas');
   cv.width = ATLAS_W; cv.height = ATLAS_H;
   cv.getContext('2d').putImageData(img, 0, 0);
+  SKIN_ATLAS = cv;
   return cv;
 }
 
@@ -6960,6 +7186,437 @@ function spriteMesh(tiles, layer) {
   }
   spriteMeshCache.set(layer, quads);
   return quads;
+}
+</script>
+<script>
+'use strict';
+// Player skins: fifteen original costumes painted into the model atlas (slots 16..30, laid out
+// like the online avatar) plus 3D accessories (hats, crowns, capes, antennae...) drawn with the
+// avatar. Skin 0 is the classic explorer whose shirt takes the player's colour. Other players
+// see your skin online, you see it on your arm and in third person (F5).
+
+const SKIN_SLOT0 = 16;
+let SKIN_ATLAS = null;
+const rgb = (h) => [(h >> 16) & 255, (h >> 8) & 255, h & 255];
+const c01 = (h, k = 1.3) => rgb(h).map((v) => Math.pow(v / 255, 2.2) * k);   // linear, compensating the grey swatch
+
+// extras: boxes in model pixels attached to a part ('head' or 'body'), coloured, optionally
+// rotated about their own pivot and self-lit (glow)
+const SKINS = [
+  { key: 'explorer', name: 'Explorer', icon: '\ud83e\udded' },
+  {
+    key: 'astronaut', name: 'Astronaut', icon: '\ud83d\ude80',
+    extras: [
+      { part: 'head', box: [2.5, 32, -0.5, 3.5, 36, 0.5], color: 0xd8d8dc },
+      { part: 'head', box: [2.2, 36, -0.8, 3.8, 37.6, 0.8], color: 0xff4030, glow: true },
+      { part: 'body', box: [-3.5, 14, -4.6, 3.5, 23, -2], color: 0xe8e8ea },
+      { part: 'body', box: [-2.5, 15, -4.8, -0.5, 17, -4.5], color: 0xf07820 },
+    ],
+    paint(P) {
+      const white = rgb(0xececef), orange = rgb(0xf07820), grey = rgb(0xa8acb4);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'front' && x >= 1 && x <= 6 && y >= 2 && y <= 6) return (x === 2 && y === 3) || (x === 3 && y === 3) || (x === 2 && y === 4) ? rgb(0x9cc4ea) : rgb(0x1c2c50);
+        return y === 7 ? orange : white;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front' && y >= 2 && y <= 4 && x >= 2 && x <= 5) return [rgb(0xe03030), rgb(0x30c060), rgb(0x3080f0), rgb(0xf0c020)][(x + y) % 4];
+        if (y === 7) return orange;
+        return white;
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 2 ? grey : y === 6 ? orange : white));
+      P.fill('leg', (x, y, w, h) => (y >= h - 3 ? grey : y === 3 ? orange : white));
+    },
+  },
+  {
+    key: 'pirate', name: 'Pirate', icon: '\ud83c\udff4\u200d\u2620\ufe0f',
+    extras: [
+      { part: 'head', box: [-6, 31.5, -5, 6, 33, 5], color: 0x1a1a1e },
+      { part: 'head', box: [-4.5, 33, -4, 4.5, 36, 4], color: 0x1a1a1e },
+      { part: 'head', box: [-6, 32.9, 4.2, 6, 33.4, 5], color: 0xd8b040 },
+      { part: 'head', box: [-1.2, 34, 4, 1.2, 35.6, 4.3], color: 0xf0f0e8 },
+    ],
+    paint(P) {
+      const skinC = rgb(0xd09a70), beard = rgb(0x2a1a10);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'front') {
+          if (y === 3 && x >= 1 && x <= 2) return rgb(0x101010);
+          if (y === 2 && x >= 0 && x <= 3) return rgb(0x101010);
+          if (y === 3 && x === 5) return rgb(0xf4f4f4);
+          if (y === 3 && x === 6) return rgb(0x3a2a1a);
+          if (y >= 5 && !(y === 5 && x >= 3 && x <= 4)) return beard;
+          if (y === 6 && x >= 3 && x <= 4) return rgb(0x8a3030);
+          return skinC;
+        }
+        if (y === 2) return rgb(0x101010);
+        if (f === 'left' || f === 'right') return y >= 5 ? beard : skinC;
+        if (f === 'top') return rgb(0x2a1a10);
+        return y < 5 ? rgb(0x2a1a10) : skinC;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (y === 9) return f === 'front' && x >= 3 && x <= 4 ? rgb(0xe0c040) : rgb(0x201810);
+        if (y > 9) return rgb(0x6a4a2a);
+        return (y >> 1) % 2 ? rgb(0xd83030) : rgb(0xf0ece4);
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 3 ? skinC : (y >> 1) % 2 ? rgb(0xd83030) : rgb(0xf0ece4)));
+      P.fill('leg', (x, y, w, h) => (y >= h - 4 ? rgb(0x1a1210) : rgb(0x6a4a2a)));
+    },
+  },
+  {
+    key: 'ninja', name: 'Ninja', icon: '\ud83e\udd77',
+    extras: [
+      { part: 'head', box: [-1.5, 28.5, -6.5, -0.5, 29.5, -4], color: 0xd02020, rot: [0.5, 0.25, 0] },
+      { part: 'head', box: [0.5, 28, -7, 1.5, 29, -4], color: 0xd02020, rot: [0.7, -0.2, 0] },
+    ],
+    paint(P) {
+      const black = rgb(0x1c1c22), red = rgb(0xd02020), skinC = rgb(0xe2b08a);
+      P.fill('head', (x, y, w, h, f) => {
+        if (y === 1 || y === 2) return red;
+        if (f === 'front' && y >= 3 && y <= 4 && x >= 1 && x <= 6) return (y === 4 && (x === 2 || x === 5)) ? rgb(0x101010) : skinC;
+        return black;
+      });
+      P.fill('body', (x, y, w, h, f) => (y === 8 ? rgb(0x505058) : f === 'front' && Math.abs(x - y * 0.5 - 1) < 0.6 && y < 8 ? rgb(0x303038) : black));
+      P.fill('arm', (x, y, w, h) => (y >= h - 3 ? rgb(0x28282e) : black));
+      P.fill('leg', (x, y, w, h) => (y >= h - 5 && y % 2 === 0 ? rgb(0x3a3a42) : black));
+    },
+  },
+  {
+    key: 'chef', name: 'Chef', icon: '\ud83d\udc68\u200d\ud83c\udf73',
+    extras: [
+      { part: 'head', box: [-4.2, 32, -4.2, 4.2, 35, 4.2], color: 0xf8f8f6 },
+      { part: 'head', box: [-5, 35, -5, 5, 39, 5], color: 0xf8f8f6 },
+    ],
+    paint(P) {
+      const skinC = rgb(0xe8b48c), white = rgb(0xf6f6f2);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'front') {
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x202020);
+          if (y === 5 && x >= 1 && x <= 6) return rgb(0x2a1a12);
+          if (y === 4 && (x === 1 || x === 6)) return rgb(0xf09080);
+          if (y === 6 && x >= 3 && x <= 4) return rgb(0xb05050);
+        }
+        if (y === 0 && f !== 'bottom') return rgb(0x5a3a22);
+        return skinC;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (y <= 1 && f !== 'back') return rgb(0xd83030);
+        if (f === 'front' && (x === 2 || x === 5) && y % 3 === 0 && y > 1) return rgb(0x202020);
+        return white;
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 3 ? skinC : white));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x202020) : ((x + y) % 2 ? rgb(0x202020) : rgb(0xf0f0f0))));
+    },
+  },
+  {
+    key: 'robot', name: 'Robot', icon: '\ud83e\udd16',
+    extras: [
+      { part: 'head', box: [-0.5, 32, -0.5, 0.5, 35, 0.5], color: 0x9aa0a8 },
+      { part: 'head', box: [-1, 35, -1, 1, 37, 1], color: 0xff3030, glow: true },
+      { part: 'head', box: [-5, 27, -1, -4, 29, 1], color: 0x707880 },
+      { part: 'head', box: [4, 27, -1, 5, 29, 1], color: 0x707880 },
+      { part: 'head', box: [-3, 28, 4, -1, 29.5, 4.3], color: 0x60f0ff, glow: true },
+      { part: 'head', box: [1, 28, 4, 3, 29.5, 4.3], color: 0x60f0ff, glow: true },
+    ],
+    paint(P) {
+      const metal = rgb(0x9aa2ac), dark = rgb(0x5a6068);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'front' && y === 6 && x >= 2 && x <= 5) return x % 2 ? rgb(0x303038) : rgb(0xd0d4d8);
+        return x === 0 || y === 0 || x === w - 1 || y === h - 1 ? dark : metal;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front' && y >= 2 && y <= 6 && x >= 2 && x <= 5) return (y === 3 && (x === 2 || x === 5)) || (y === 4) || (y === 5 && x >= 3 && x <= 4) ? rgb(0xff4060) : rgb(0x102030);
+        return y % 4 === 0 ? dark : metal;
+      });
+      P.fill('arm', (x, y) => (y % 4 === 3 ? dark : metal));
+      P.fill('leg', (x, y, w, h) => (y % 4 === 3 || y >= h - 2 ? dark : metal));
+    },
+  },
+  {
+    key: 'dino', name: 'Dino', icon: '\ud83e\udd96',
+    extras: [
+      { part: 'head', box: [-0.8, 32, -3, 0.8, 34, -1], color: 0xf08a20 },
+      { part: 'head', box: [-0.8, 32, 0, 0.8, 33.5, 2], color: 0xf08a20 },
+      { part: 'body', box: [-0.8, 20, -3.5, 0.8, 22, -2], color: 0xf08a20 },
+      { part: 'body', box: [-0.8, 16, -3.5, 0.8, 18, -2], color: 0xf08a20 },
+      { part: 'body', box: [-2, 11, -9, 2, 14, -2], color: 0x5aaa46, rot: [0.35, 0, 0] },
+    ],
+    paint(P) {
+      const green = rgb(0x5aaa46), belly = rgb(0xc8dc78);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'front') {
+          if (y === 2 && (x === 1 || x === 6)) return rgb(0xffffff);
+          if (y === 2 && (x === 2 || x === 5)) return rgb(0x101010);
+          if (y === 4 && (x === 3 || x === 4)) return rgb(0x2a5a20);
+          if (y === 6) return x % 2 ? rgb(0xffffff) : rgb(0x8a2020);
+          if (y === 7) return x % 2 ? rgb(0x8a2020) : rgb(0xffffff);
+        }
+        return green;
+      });
+      P.fill('body', (x, y, w, h, f) => (f === 'front' && x >= 1 && x <= 6 && y >= 1 ? belly : green));
+      P.fill('arm', (x, y, w, h) => (y === h - 1 && x % 2 ? rgb(0xf0f0e0) : green));
+      P.fill('leg', (x, y, w, h) => (y === h - 1 && x % 2 ? rgb(0xf0f0e0) : green));
+    },
+  },
+  {
+    key: 'football', name: 'Football star', icon: '\u26bd',
+    paint(P) {
+      const skinC = rgb(0xd8a07a), hair = rgb(0x3a2412), g = rgb(0x1e9a4a), w = rgb(0xf4f4f0);
+      P.fill('head', (x, y, ww, h, f) => {
+        if (f === 'top') return hair;
+        if (y === 0) return hair;
+        if (y === 1) return rgb(0xf4f4f0);   // headband
+        if (f === 'front') {
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x1a1a1a);
+          if (y === 6 && x >= 2 && x <= 5) return x === 2 || x === 5 ? rgb(0xa04040) : rgb(0xffffff);
+          return skinC;
+        }
+        if (f === 'back') return y < 4 ? hair : skinC;
+        return y < 3 ? hair : skinC;
+      });
+      // the number 10 on the back
+      const ten = ['1.111', '1.1.1', '1.1.1', '1.1.1', '1.111'];
+      P.fill('body', (x, y, ww, h, f) => {
+        if (f === 'back' && y >= 2 && y <= 6 && x >= 1 && x <= 5 && ten[y - 2][x - 1] === '1') return rgb(0x101010);
+        if (f === 'front' && y === 2 && x === 5) return rgb(0xf0c020);
+        return (x >> 1) % 2 ? w : g;
+      });
+      P.fill('arm', (x, y, ww, h) => (y >= 4 ? skinC : (x >> 1) % 2 ? w : g));
+      P.fill('leg', (x, y, ww, h) => (y < 4 ? w : y < 6 ? skinC : y >= h - 2 ? rgb(0x101010) : g));
+    },
+  },
+  {
+    key: 'hero', name: 'Super Block', icon: '\ud83e\uddb8',
+    extras: [{ part: 'body', box: [-4.5, 3, -3.2, 4.5, 24, -2.2], color: 0xd02828, rot: [0.18, 0, 0] }],
+    paint(P) {
+      const blue = rgb(0x2a5ad8), red = rgb(0xd02828), gold = rgb(0xf0c830), skinC = rgb(0xe8b890);
+      P.fill('head', (x, y, w, h, f) => {
+        if (y <= 1 || f === 'top') return rgb(0x14141a);
+        if (f === 'front') {
+          if (y === 3 && x >= 1 && x <= 6) return x === 2 || x === 5 ? rgb(0xffffff) : blue;
+          if (y === 6 && x >= 3 && x <= 4) return rgb(0xa04040);
+          return skinC;
+        }
+        return f === 'back' ? rgb(0x14141a) : y === 3 ? blue : skinC;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (y === 10) return gold;
+        if (f === 'front' && y >= 2 && y <= 6 && Math.abs(x - 3.5) + Math.abs(y - 4) <= 3) return Math.abs(x - 3.5) + Math.abs(y - 4) <= 1.5 ? red : gold;
+        return blue;
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 3 ? red : blue));
+      P.fill('leg', (x, y, w, h) => (y < 3 ? red : y >= h - 4 ? red : blue));
+    },
+  },
+  {
+    key: 'king', name: 'King', icon: '\ud83d\udc51',
+    extras: [
+      { part: 'head', box: [-4.3, 32, -4.3, 4.3, 33.5, 4.3], color: 0xf0c030 },
+      { part: 'head', box: [-4.3, 33.5, -4.3, -2.8, 35.5, -2.8], color: 0xf0c030 },
+      { part: 'head', box: [2.8, 33.5, -4.3, 4.3, 35.5, -2.8], color: 0xf0c030 },
+      { part: 'head', box: [-4.3, 33.5, 2.8, -2.8, 35.5, 4.3], color: 0xf0c030 },
+      { part: 'head', box: [2.8, 33.5, 2.8, 4.3, 35.5, 4.3], color: 0xf0c030 },
+      { part: 'head', box: [-0.6, 32.3, 4.2, 0.6, 33.2, 4.5], color: 0xe02040, glow: true },
+    ],
+    paint(P) {
+      const skinC = rgb(0xe8b890), beard = rgb(0xf0f0ec), robe = rgb(0xb01830);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'front') {
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x303060);
+          if (y === 4 && (x === 1 || x === 6)) return rgb(0xf0a090);
+          if (y >= 5) return y === 5 && x >= 3 && x <= 4 ? rgb(0xc07070) : beard;
+          return skinC;
+        }
+        if (f === 'top') return rgb(0xe0e0dc);
+        return y >= 5 || f === 'back' ? beard : skinC;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front' && (x === 3 || x === 4)) return y % 3 === 1 ? rgb(0xf0c030) : rgb(0xf4f2ec);
+        if (y <= 1) return (x + y) % 3 === 0 ? rgb(0x101010) : rgb(0xf4f2ec);
+        return robe;
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 3 ? skinC : y === h - 4 ? rgb(0xf4f2ec) : robe));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x201818) : y <= 1 ? rgb(0xf4f2ec) : robe));
+    },
+  },
+  {
+    key: 'banana', name: 'Banana', icon: '\ud83c\udf4c',
+    extras: [{ part: 'head', box: [-1, 32, -1, 1, 35, 1], color: 0x5a3a1a, rot: [0.25, 0, 0.2] }],
+    paint(P) {
+      const y1 = rgb(0xf4d23c), y2 = rgb(0xe0b82a), skinC = rgb(0xe8b890);
+      const peel = (x, w) => (x === 0 || x === w - 1 ? y2 : y1);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'front' && x >= 1 && x <= 6 && y >= 2 && y <= 6) {
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x202020);
+          if (y === 5 && x >= 2 && x <= 5) return x === 2 || x === 5 ? rgb(0x904040) : rgb(0xc04848);
+          return skinC;
+        }
+        return f === 'top' ? rgb(0x6a4a1a) : peel(x, w);
+      });
+      P.fill('body', (x, y, w, h, f) => (f === 'front' && (x + y * 3) % 11 === 0 ? rgb(0x8a6a2a) : peel(x, w)));
+      P.fill('arm', (x, y, w, h) => (y >= h - 2 ? skinC : peel(x, w)));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x5a3a1a) : peel(x, w)));
+    },
+  },
+  {
+    key: 'clown', name: 'Clown', icon: '\ud83e\udd21',
+    extras: [
+      { part: 'head', box: [-7, 27, -3, -4, 32, 3], color: 0xff7a1a },
+      { part: 'head', box: [4, 27, -3, 7, 32, 3], color: 0x30c040 },
+      { part: 'head', box: [-3, 31.5, -3, 3, 33, 3], color: 0x3a8af0 },
+      { part: 'head', box: [-1, 27, 4, 1, 29, 5.5], color: 0xf02020, glow: true },
+    ],
+    paint(P) {
+      const white = rgb(0xf8f6f2);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'front') {
+          if (y === 2 && (x === 2 || x === 5)) return rgb(0x3060d0);
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x101010);
+          if ((y === 5 && (x === 1 || x === 6)) || (y === 6 && x >= 2 && x <= 5)) return rgb(0xe02828);
+          return white;
+        }
+        return white;
+      });
+      const dots = [rgb(0xe02828), rgb(0x2a70e0), rgb(0x30b040)];
+      P.fill('body', (x, y, w, h, f) => ((x * 3 + y * 5) % 7 === 0 ? dots[(x + y) % 3] : f === 'front' && x >= 3 && x <= 4 && y % 3 === 1 ? rgb(0xffffff) : rgb(0xf6d030)));
+      P.fill('arm', (x, y, w, h) => (y >= h - 3 ? white : (x * 3 + y * 5) % 7 === 0 ? dots[y % 3] : rgb(0xf6d030)));
+      P.fill('leg', (x, y, w, h) => (y >= h - 3 ? rgb(0xe02828) : rgb(0x3a58c8)));
+    },
+  },
+  {
+    key: 'penguin', name: 'Penguin', icon: '\ud83d\udc27',
+    extras: [{ part: 'head', box: [-1.2, 27, 4, 1.2, 28.5, 6], color: 0xf09020 }],
+    paint(P) {
+      const black = rgb(0x1a1c22), white = rgb(0xf4f4f0);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'front' && x >= 1 && x <= 6 && y >= 2) {
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x101010);
+          return white;
+        }
+        return black;
+      });
+      P.fill('body', (x, y, w, h, f) => (f === 'front' && x >= 1 && x <= 6 ? white : black));
+      P.fill('arm', () => black);
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0xf09020) : f2(y) ? white : black));
+      function f2(y) { return y < 3; }
+    },
+  },
+  {
+    key: 'grandpa', name: 'Grandpa', icon: '\ud83d\udc74',
+    paint(P) {
+      const skinC = rgb(0xecc0a0), hair = rgb(0xe8e8e8), card = rgb(0xb89060);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'front') {
+          if (y === 3 && (x <= 3 || x >= 4) && x >= 1 && x <= 6) return x === 1 || x === 3 || x === 4 || x === 6 ? rgb(0x202020) : rgb(0xb8d8f0);
+          if (y === 5 && x >= 2 && x <= 5) return hair;
+          if (y === 2 && (x === 1 || x === 6)) return rgb(0xd0d0d0);
+          return skinC;
+        }
+        if (f === 'top') return skinC;
+        if (f === 'left' || f === 'right') return y >= 2 && y <= 4 ? hair : y === 3 ? rgb(0x202020) : skinC;
+        return y >= 2 && y <= 5 ? hair : skinC;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front' && (x === 3 || x === 4) && y < 3) return rgb(0xf4f4f0);
+        if (f === 'front' && x === 4 && y % 3 === 2) return rgb(0x6a4a2a);
+        return (x + y) % 4 === 0 ? rgb(0xa88050) : card;
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 3 ? skinC : card));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x8a3a2a) : rgb(0x7a7a80)));
+    },
+  },
+  {
+    key: 'alien', name: 'Alien', icon: '\ud83d\udc7d',
+    extras: [
+      { part: 'head', box: [-2.5, 32, -0.5, -1.5, 35, 0.5], color: 0x8ac87a, rot: [0, 0, 0.3] },
+      { part: 'head', box: [1.5, 32, -0.5, 2.5, 35, 0.5], color: 0x8ac87a, rot: [0, 0, -0.3] },
+      { part: 'head', box: [-3.8, 35, -0.8, -2.2, 36.6, 0.8], color: 0x80ff80, glow: true },
+      { part: 'head', box: [2.2, 35, -0.8, 3.8, 36.6, 0.8], color: 0x80ff80, glow: true },
+    ],
+    paint(P) {
+      const skinC = rgb(0x8ac87a), silver = rgb(0xc4c8d0);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'front') {
+          const eye = (y === 2 || y === 3 || y === 4) && ((x >= 1 && x <= 2) || (x >= 5 && x <= 6));
+          if (eye) return (y === 2 && (x === 2 || x === 5)) ? rgb(0xe0f0ff) : rgb(0x08080c);
+          if (y === 6 && x >= 3 && x <= 4) return rgb(0x3a6a30);
+        }
+        return skinC;
+      });
+      P.fill('body', (x, y, w, h, f) => (f === 'front' && y === 3 && x >= 2 && x <= 5 ? rgb(0x40e0a0) : y % 5 === 4 ? rgb(0x9aa0aa) : silver));
+      P.fill('arm', (x, y, w, h) => (y >= h - 3 ? skinC : silver));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x707880) : silver));
+    },
+  },
+  {
+    key: 'skater', name: 'Skater', icon: '\ud83d\udef9',
+    extras: [
+      { part: 'head', box: [-4.3, 31, -4.3, 4.3, 33.2, 4.3], color: 0xd82828 },
+      { part: 'head', box: [-3, 31, -7.5, 3, 31.8, -4], color: 0xd82828 },
+    ],
+    paint(P) {
+      const skinC = rgb(0xc8906a), hood = rgb(0x6a3ac0);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'front') {
+          if (y === 3 && x >= 1 && x <= 6) return rgb(0x101014);
+          if (y === 2 && x >= 1 && x <= 6) return rgb(0x303038);
+          if (y === 6 && x >= 2 && x <= 5) return x === 2 || x === 5 ? rgb(0x904040) : rgb(0xffffff);
+          if (y === 0) return rgb(0x2a1a10);
+          return skinC;
+        }
+        if (f === 'top') return rgb(0x2a1a10);
+        return y < 3 ? rgb(0x2a1a10) : y === 3 && f !== 'back' ? rgb(0x101014) : skinC;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front' && y >= 7 && y <= 9 && x >= 1 && x <= 6) return rgb(0x5a30a8);
+        if (f === 'front' && y <= 3 && (x === 3 || x === 4) && y > 0) return rgb(0xf0f0f0);
+        return hood;
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 3 ? skinC : hood));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? (x % 2 ? rgb(0xf4f4f4) : rgb(0xd82828)) : (x + y) % 5 === 0 ? rgb(0x4a5a8a) : rgb(0x3a4a78)));
+    },
+  },
+];
+
+// atlas offset of skin i from the avatar's own slot
+function skinOffset(i) {
+  if (!i) return [0, 0];
+  const s = SKIN_SLOT0 + i - 1, a = MOB_SKIN_SLOT.avatar;
+  return [(s % 4 - a % 4) * SKIN_W, (Math.floor(s / 4) - Math.floor(a / 4)) * SKIN_H];
+}
+
+function paintPlayerSkins(px, rng) {
+  const base = (key) => MOB_MODELS.avatar.find((p) => p.id === key || p.uv === key).faces;
+  SKINS.forEach((sk, i) => {
+    if (!i) return;
+    const [dx, dy] = skinOffset(i);
+    const F = (key) => { const f = base(key), o = {}; for (const k in f) o[k] = [f[k][0] + dx, f[k][1] + dy, f[k][2], f[k][3]]; return o; };
+    sk.paint({
+      F,
+      fill(key, fn) {
+        const f = F(key);
+        for (const k of ['top', 'bottom', 'left', 'front', 'right', 'back']) {
+          const r = f[k];
+          for (let y = 0; y < r[3]; y++) for (let x = 0; x < r[2]; x++) {
+            const c = fn(x, y, r[2], r[3], k);
+            if (c) px(r[0] + x, r[1] + y, c, 0.94 + rng() * 0.08);
+          }
+        }
+      },
+    });
+    for (const e of sk.extras || []) e.rgb = c01(e.color);
+  });
+}
+
+// 40px portrait of a skin's face for the picker
+function skinPortrait(i, size = 40) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  if (typeof SKIN_ATLAS === 'undefined' || !SKIN_ATLAS) return cv;
+  const f = MOB_MODELS.avatar.find((p) => p.id === 'head').faces.front;
+  const [dx, dy] = skinOffset(i);
+  const g = cv.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.drawImage(SKIN_ATLAS, f[0] + dx, f[1] + dy, f[2], f[3], 0, 0, size, size);
+  return cv;
 }
 </script>
 <script>
@@ -7209,6 +7866,9 @@ class Player {
       v[1] = clamp(v[1], -4, 4.2);
       // hop out onto a ledge when swimming against it
       if (jump && (this.collides(this.pos[0] + wx * 0.35, this.pos[1] + 0.2, this.pos[2] + wz * 0.35))) v[1] = Math.max(v[1], 5.5);
+      // the current carries you downstream and waterfalls push you down
+      const cur = typeof Fluids !== 'undefined' && this.world === G.world ? Fluids.push(Math.floor(this.pos[0]), Math.floor(this.pos[1] + 0.35), Math.floor(this.pos[2])) : null;
+      if (cur) { v[0] += cur[0] * 9 * dt; v[2] += cur[2] * 9 * dt; v[1] += cur[1] * 6 * dt; }
     } else {
       const r = 1 - Math.exp(-dt * (this.onGround ? 16 : 2.4));
       v[0] += (wx * speed - v[0]) * r;
@@ -7890,6 +8550,24 @@ const SYNTH = {
     Sound.noise(ctx, o, t + 0.05, 3.2, { type: 'lowpass', freq: 520 * p, freqEnd: 90, gain: 1.0, attack: 0.08, rate: 0.6 });
     Sound.tone(ctx, o, t + 0.05, 2.2, { f0: 55 * p, f1: 32, gain: 0.5, attack: 0.1 });
   },
+  // wildlife
+  chirp(ctx, o, t, p = 1) {
+    const n = 2 + (Math.random() * 4 | 0), base = (2600 + Math.random() * 1600) * p;
+    for (let i = 0; i < n; i++) {
+      const s = t + i * (0.09 + Math.random() * 0.05);
+      Sound.tone(ctx, o, s, 0.07, { f0: base * (1 + Math.random() * 0.3), f1: base * (0.7 + Math.random() * 0.8), gain: 0.05, wave: 'sine' });
+    }
+  },
+  gull(ctx, o, t, p = 1) {
+    for (let i = 0; i < 3; i++) Sound.tone(ctx, o, t + i * 0.22, 0.2, { f0: 1500 * p, f1: 900 * p, gain: 0.06, wave: 'sawtooth', filter: ['bandpass', 1700 * p, 3], vib: [30, 60] });
+  },
+  crow(ctx, o, t, p = 1) {
+    for (let i = 0; i < 2; i++) Sound.tone(ctx, o, t + i * 0.3, 0.22, { f0: 620 * p, f1: 480 * p, gain: 0.08, wave: 'sawtooth', filter: ['bandpass', 900, 2], vib: [45, 40] });
+  },
+  cricket(ctx, o, t, p = 1) {
+    for (let i = 0; i < 3; i++) Sound.tone(ctx, o, t + i * 0.18, 0.1, { f0: 4400 * p, gain: 0.025, wave: 'sine', am: 60 });
+  },
+  buzz(ctx, o, t, p = 1) { Sound.tone(ctx, o, t, 0.8, { f0: 220 * p, f1: 240 * p, gain: 0.05, wave: 'sawtooth', filter: ['lowpass', 900, 1], vib: [9, 8], attack: 0.15 }); },
   chime(ctx, o, t) { [659, 784, 988, 1319].forEach((f, i) => Sound.tone(ctx, o, t + i * 0.07, 0.8, { f0: f, gain: 0.06, wave: 'triangle' })); },
 };
 
@@ -8540,7 +9218,18 @@ const Particles = {
         const liquid = (p.splash || p.melt) && IS_LIQUID(id);
         if (liquid || (BLOCK_SOLID[id] && (ny - p.size * 0.5) - Math.floor(ny - p.size * 0.5) < BLOCK_HEIGHT[id] / 16)) {
           // rain vanishes on impact, snow settles and melts, lava bombs burst
-          if (p.splash) continue;
+          if (p.splash) {
+            // a raindrop hitting the ground throws up a couple of tiny droplets
+            if (!liquid && Math.random() < 0.45 && L.length < 3000) {
+              const top = Math.floor(ny - p.size * 0.5) + BLOCK_HEIGHT[id] / 16 + 0.02;
+              for (let k = 0; k < 2; k++) {
+                const a = Math.random() * Math.PI * 2, s = 0.6 + Math.random() * 0.8;
+                this.add(this.base(nx, top, nz, { vx: Math.cos(a) * s, vy: 1.6 + Math.random() * 1.4, vz: Math.sin(a) * s, life: 0.22, max: 0.22, size: 0.022,
+                  layer: T.p_smoke, r: p.r, g: p.g, b: p.b, blend: true, grav: 20, drag: 1, collide: false }));
+              }
+            }
+            continue;
+          }
           if (p.trail) { this.smoke(p.x, p.y + 0.3, p.z, 3, 0.4, true); continue; }
           if (p.melt) { p.melt = false; p.wander = false; p.vx = p.vz = 0; p.life = Math.min(p.life, 1.2); }
           p.vy = 0; p.vx *= 0.6; p.vz *= 0.6;
@@ -8906,6 +9595,8 @@ const ER = {
     while (headYaw < -Math.PI) headYaw += Math.PI * 2;
     headYaw = clamp(headYaw, -1.1, 1.1);
     const partM = {};
+    const skin = mob.type === 'avatar' && mob.skin > 0 && SKINS[mob.skin] ? mob.skin : 0;
+    const [sdx, sdy] = skinOffset(skin);
     for (const p of model) {
       if (p.role === 'wool' && mob.sheared) continue;
       let r = XF.id();
@@ -8941,23 +9632,44 @@ const ER = {
       const faces = p.faces;
       const uvOf = (f) => {
         const r2 = faces[f.key];
-        return [-1, r2[0] / ATLAS_W, r2[1] / ATLAS_H, (r2[0] + r2[2]) / ATLAS_W, (r2[1] + r2[3]) / ATLAS_H];
+        return [-1, (r2[0] + sdx) / ATLAS_W, (r2[1] + sdy) / ATLAS_H, (r2[0] + sdx + r2[2]) / ATLAS_W, (r2[1] + sdy + r2[3]) / ATLAS_H];
       };
       const mm = XF.mul(base, m);
       if (p.role === 'wool') {
         const c = WOOL_COLORS[mob.woolColor][1];
         this.color = [c[0] / 234, c[1] / 236, c[2] / 237];
       }
-      if (p.tint && mob.tint) this.color = mob.tint;
+      if (p.tint && mob.tint && !skin) this.color = mob.tint;
       const b = p.box;
       this.box(mm, b[0], b[1], b[2], b[3], b[4], b[5], uvOf);
       this.color = [1, 1, 1];
+      if (skin && SKINS[skin].extras) this.skinExtras(mm, SKINS[skin].extras, p.id);
       // skeletons carry a bow
       if (mob.type === 'skeleton' && p.id === 'armR') {
         this.item(XF.chain(mm, XF.t(5, 12, 1), XF.ry(Math.PI / 2), XF.rz(0.8), XF.s(13)), I.BOW);
       }
     }
     this.ov = 0;
+  },
+
+  // hats, capes, antennae... of a skin, on the part they belong to
+  skinExtras(mm, extras, partId) {
+    const ov = this.ov;
+    const uv = () => Vehicles.swatchUV('white');
+    for (const e of extras) {
+      if (e.part !== partId) continue;
+      const b = e.box;
+      let m = mm;
+      if (e.rot) {
+        const cx = (b[0] + b[3]) / 2, cy = (b[1] + b[4]) / 2, cz = b[5];
+        m = XF.chain(mm, XF.t(cx, cy, cz), XF.rx(e.rot[0]), XF.ry(e.rot[1]), XF.rz(e.rot[2]), XF.t(-cx, -cy, -cz));
+      }
+      this.color = e.rgb;
+      if (e.glow) this.ov = 2.5;
+      this.box(m, b[0], b[1], b[2], b[3], b[4], b[5], uv);
+      this.ov = ov;
+    }
+    this.color = [1, 1, 1];
   },
 
   // -------------------------------------------------------- first person ----
@@ -8987,8 +9699,11 @@ const ER = {
     const posed = (p) => XF.chain(XF.t(p.t[0], p.t[1], p.t[2]), sw, XF.t(-p.t[0], -p.t[1], -p.t[2]), poseMatrix(p));
     if (!held || !def) {
       local = posed(HAND_POSE.arm);
-      const faces = MOB_MODELS.player[0].faces;
-      const uvOf = (f) => { const r2 = faces[f.key]; return [-1, r2[0] / ATLAS_W, r2[1] / ATLAS_H, (r2[0] + r2[2]) / ATLAS_W, (r2[1] + r2[3]) / ATLAS_H]; };
+      // your own skin's sleeve (the classic explorer keeps the rolled-up blue sleeve)
+      const skin = G.settings.skin > 0 && SKINS[G.settings.skin] ? G.settings.skin : 0;
+      const faces = skin ? MOB_MODELS.avatar.find((q) => q.id === 'armR').faces : MOB_MODELS.player[0].faces;
+      const [sdx, sdy] = skinOffset(skin);
+      const uvOf = (f) => { const r2 = faces[f.key]; return [-1, (r2[0] + sdx) / ATLAS_W, (r2[1] + sdy) / ATLAS_H, (r2[0] + sdx + r2[2]) / ATLAS_W, (r2[1] + sdy + r2[3]) / ATLAS_H]; };
       const b = MOB_MODELS.player[0].box;
       this.box(XF.chain(C, m, local), b[0], b[1], b[2], b[3], b[4], b[5], uvOf);
       return;
@@ -9017,7 +9732,9 @@ const ER = {
     for (const mob of Ents.mobs) if (near(mob.pos[0], mob.pos[2], Math.min(rd, 80))) this.mob(null, mob, cp);
     Vehicles.renderAll(cp, extra.cockpit);
     Net.render(cp);
+    if (extra.self) this.mob(null, extra.self, cp);
     Weather.render(cp);
+    Wildlife.render(cp);
     if (G.player.parachute) this.parachute(G.player.pos, cp);
 
     for (const it of Ents.items) {
@@ -9971,23 +10688,28 @@ const Vehicles = {
 // the snowy peaks place) fall around the camera as particles; storms add lightning bolts,
 // thunder and flashes. Events: meteor showers on clear nights and eruptions of the volcano.
 
-const WEATHER_KINDS = ['clear', 'rain', 'storm', 'snow'];
+const WEATHER_KINDS = ['clear', 'rain', 'storm', 'snow', 'fog'];
 
 const Weather = {
   kind: 'clear', amount: 0, timer: 90,
   flash: 0, bolts: [], nextBolt: 4,
   event: null, eventTimer: 120,
   loop: null,
+  wetness: 0,      // surfaces stay wet (and puddles stay) for a while after the rain stops
+  snowCover: 0,    // snow settles on the ground while it snows and melts afterwards
+  snowing: false,
+  rainFx: 0,       // how much rain the camera sees falling right now (0 under a roof)
 
   // 0..1 overcast strength the renderer uses
-  get overcast() { return this.amount * (this.kind === 'storm' ? 1 : 0.8); },
+  get overcast() { return this.amount * (this.kind === 'storm' ? 1 : this.kind === 'fog' ? 0.3 : 0.8); },
+  get mist() { return this.kind === 'fog' ? this.amount : 0; },
 
   set(kind, silent) {
     if (!WEATHER_KINDS.includes(kind)) kind = 'clear';
     if (kind === this.kind) return;
     this.kind = kind;
     this.timer = rand(150, 420);
-    if (!silent && G.ui && kind !== 'clear') G.ui.toast({ rain: '\ud83c\udf27\ufe0f It started raining', storm: '\u26c8\ufe0f A storm is coming', snow: '\u2744\ufe0f It is snowing' }[kind]);
+    if (!silent && G.ui && kind !== 'clear') G.ui.toast({ rain: '\ud83c\udf27\ufe0f It started raining', storm: '\u26c8\ufe0f A storm is coming', snow: '\u2744\ufe0f It is snowing', fog: '\ud83c\udf2b\ufe0f Fog rolls in' }[kind]);
   },
 
   // Is the column around (x, z) cold enough for snow?
@@ -10009,18 +10731,25 @@ const Weather = {
       this.timer -= dt;
       if (this.timer <= 0) {
         const r = Math.random();
-        this.set(this.kind !== 'clear' ? 'clear' : r < 0.55 ? 'rain' : r < 0.85 ? 'storm' : 'snow');
+        this.set(this.kind !== 'clear' ? 'clear' : r < 0.45 ? 'rain' : r < 0.7 ? 'storm' : r < 0.84 ? 'snow' : 'fog');
       }
     }
-    const wet = this.kind !== 'clear';
-    this.amount += ((wet ? 1 : 0) - this.amount) * (1 - Math.exp(-dt * 0.35));
+    const on = this.kind !== 'clear';
+    const wet = on && this.kind !== 'fog';
+    this.amount += ((on ? 1 : 0) - this.amount) * (1 - Math.exp(-dt * 0.35));
     const p = cam.pos;
     const snow = this.kind === 'snow' || (wet && this.cold(p[0], p[2]));
+    this.snowing = wet && snow;
     if (this.amount > 0.05 && wet) this.precipitate(dt, p, snow);
+    const raining = wet && !snow ? this.amount : 0;
+    this.wetness = clamp(this.wetness + (raining > 0.3 ? dt / 25 : -dt / 150), 0, 1);
+    this.snowCover = clamp(this.snowCover + (this.snowing && this.amount > 0.3 ? dt / 60 : -dt / 90), 0, 1);
+    const covered = G.eyeSky < 0.3 ? 0 : 1;
+    this.rainFx += (raining * covered * (this.kind === 'storm' ? 1 : 0.7) - this.rainFx) * (1 - Math.exp(-dt * 3));
     this.storm(dt, p);
     this.events(dt, p);
     this.flash = Math.max(0, this.flash - dt * 4);
-    this.sound(snow ? 0 : this.amount * (wet ? 1 : 0), p);
+    this.sound(snow || !wet ? 0 : this.amount, p);
   },
 
   // Rain streaks or snow flakes spawned in a box around the camera, stopped by roofs.
@@ -10038,9 +10767,10 @@ const Weather = {
           layer: T.p_smoke, r: 1.6, g: 1.65, b: 1.75, blend: true, drag: 1, drift: true, melt: true }));
       } else {
         const l = 1.2;
-        const wind = this.kind === 'storm' ? 4 : 1.2;
-        Particles.add(Particles.base(x, y, z, { vx: wind, vy: rand(-26, -20), vz: wind * 0.4, life: l, max: l, size: 0.018,
-          layer: T.p_smoke, r: 0.72, g: 0.8, b: 0.92, blend: true, drag: 1, streak: 0.045, splash: true }));
+        const wind = this.kind === 'storm' ? 5 + Math.sin(G.time * 0.3) * 2 : 1.2;
+        const b = rand(0.75, 1.05);
+        Particles.add(Particles.base(x, y, z, { vx: wind, vy: rand(-28, -21), vz: wind * 0.4, life: l, max: l, size: rand(0.012, 0.02),
+          layer: T.p_smoke, r: 1.25 * b, g: 1.35 * b, b: 1.5 * b, blend: true, drag: 1, streak: rand(0.035, 0.055), splash: true }));
       }
     }
   },
@@ -10180,7 +10910,513 @@ const Weather = {
     ER.ov = 0; ER.color = [1, 1, 1];
   },
 
-  reset() { this.bolts = []; this.flash = 0; this.event = null; },
+  reset() { this.bolts = []; this.flash = 0; this.event = null; this.wetness = 0; this.snowCover = 0; this.rainFx = 0; },
+};
+</script>
+<script>
+'use strict';
+// Flowing water and lava. Generated oceans, lakes and rivers are still sources; as soon as
+// something around a liquid changes (a block mined, a bucket poured, an explosion, a natural
+// spring loading in) the cells nearby are scheduled and the liquid spreads: straight down
+// first, sideways only where it rests on something, one level weaker per block (water reaches
+// 7 blocks, lava 3 and much slower). Two water sources side by side refill the gap between
+// them, lava touching water turns into cobblestone (or obsidian if it was a source).
+// Levels live in world.flow (1..7 spreading, 8 falling); the mesher slopes the surface from
+// them and the water shader drags its ripples downstream.
+
+const FLUID = {
+  [B.WATER]: { step: 1, max: 7, every: 1 },
+  [B.LAVA]: { step: 2, max: 6, every: 3 },
+};
+const FLUID_TICK = 0.2;
+const FLUID_BUDGET = 600;      // cells per tick
+const H4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+const Fluids = {
+  now: new Map(),     // posKey -> [x, y, z] to process on the next tick
+  parked: new Map(),  // waiting for a neighbouring chunk to load
+  prefCache: new Map(),
+  timer: 0,
+  tick: 0,
+
+  reset() { this.now.clear(); this.parked.clear(); this.timer = 0; },
+
+  // a chunk arrived: wake its spring and anything that was waiting at its border
+  chunkAdded(c) {
+    if (c.springs) this.schedule(c.springs[0], c.springs[1], c.springs[2]);
+    if (!this.parked.size) return;
+    for (const [k, p] of this.parked) {
+      if (Math.abs((p[0] >> 4) - c.cx) <= 1 && Math.abs((p[2] >> 4) - c.cz) <= 1) { this.parked.delete(k); this.now.set(k, p); }
+    }
+  },
+
+  schedule(x, y, z) {
+    if (y < 0 || y >= CH) return;
+    const k = posKey(x, y, z);
+    if (!this.now.has(k)) this.now.set(k, [x, y, z]);
+  },
+
+  // Something changed at (x, y, z): wake the liquid around it.
+  touch(x, y, z) {
+    const w = G.world;
+    let near = IS_LIQUID(w.getBlock(x, y, z));
+    for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+      if (IS_LIQUID(w.getBlock(x + dx, y + dy, z + dz))) { near = true; this.schedule(x + dx, y + dy, z + dz); }
+    }
+    if (near) this.schedule(x, y, z);
+  },
+
+  // Where liquid can go: air and things it washes away (plants, torches, snow layers...)
+  open(id) { return id === B.AIR || (BLOCK_REPLACE[id] && !IS_LIQUID(id)) || BLOCK_SUPPORT[id] === SUP_SOIL || id === B.TORCH || id === B.WALL_TORCH; },
+
+  level(x, y, z) { return G.world.getFlow(x, y, z); },
+
+  // A block the liquid can rest on and spread sideways from
+  floor(id) { return id !== B.AIR && !IS_LIQUID(id) && BLOCK_SOLID[id] !== 0 && !this.open(id); },
+
+  // Like real streams, liquid resting on a floor only runs towards the nearest way down (within
+  // 4 blocks); on flat ground with no drop in reach it spreads every way. Bitmask over H4.
+  prefers(x, y, z, k) {
+    const key = posKey(x, y, z) * 2 + (k === B.LAVA ? 1 : 0);
+    const hit = this.prefCache.get(key);
+    if (hit !== undefined) return hit;
+    const w = G.world;
+    const pass = (px, pz) => { const id = w.getBlock(px, y, pz); return this.open(id) || (id === k && w.getFlow(px, y, pz) > 0); };
+    const dists = [99, 99, 99, 99];
+    for (let d = 0; d < 4; d++) {
+      const sx = x + H4[d][0], sz = z + H4[d][1];
+      if (!pass(sx, sz)) continue;
+      let frontier = [[sx, sz]];
+      const seen = new Set([sx * 4096 + sz, x * 4096 + z]);
+      for (let depth = 0; depth < 4 && frontier.length; depth++) {
+        const next = [];
+        for (const [px, pz] of frontier) {
+          const below = w.getBlock(px, y - 1, pz);
+          if (this.open(below) || (below === k && w.getFlow(px, y - 1, pz) > 0)) { dists[d] = depth; next.length = 0; frontier = []; break; }
+          for (const [dx, dz] of H4) {
+            const qx = px + dx, qz = pz + dz, qk = qx * 4096 + qz;
+            if (seen.has(qk) || !pass(qx, qz)) continue;
+            seen.add(qk); next.push([qx, qz]);
+          }
+        }
+        if (dists[d] < 99) break;
+        frontier = next;
+      }
+    }
+    const m = Math.min(...dists);
+    let mask = 0;
+    for (let d = 0; d < 4; d++) if (m === 99 ? true : dists[d] === m) mask |= 1 << d;
+    this.prefCache.set(key, mask);
+    return mask;
+  },
+
+  // What (x, y, z) should hold for liquid kind k: -1 nothing, 0 source, 1..max spreading, 8 falling
+  want(x, y, z, k) {
+    const w = G.world, f = FLUID[k];
+    if (w.getBlock(x, y + 1, z) === k) return 8;
+    let best = 99, sources = 0;
+    for (let d = 0; d < 4; d++) {
+      const dx = H4[d][0], dz = H4[d][1];
+      const nx = x + dx, nz = z + dz;
+      if (w.getBlock(nx, y, nz) !== k) continue;
+      const l = w.getFlow(nx, y, nz);
+      if (l === 0) sources++;
+      // a neighbour only feeds sideways while it rests on a floor (or on a pool of source)
+      const below = w.getBlock(nx, y - 1, nz);
+      const rests = this.floor(below) || (below === k && w.getFlow(nx, y - 1, nz) === 0);
+      if (!rests) continue;
+      // does that neighbour run this way? (direction from it to us is the opposite of d)
+      if (!(this.prefers(nx, y, nz, k) & (1 << (d ^ 1)))) continue;
+      const base = l === 8 ? 0 : l;
+      best = Math.min(best, base + f.step);
+    }
+    if (k === B.WATER && sources >= 2) {
+      const below = w.getBlock(x, y - 1, z);
+      if (this.floor(below) || (below === k && w.getFlow(x, y - 1, z) === 0)) return 0;
+    }
+    return best <= f.max ? best : -1;
+  },
+
+  update(dt) {
+    if (!this.now.size) { this.timer = 0; return; }
+    this.timer += dt;
+    if (this.timer < FLUID_TICK) return;
+    this.timer = 0;
+    this.tick++;
+    this.prefCache.clear();
+    const batch = this.now;
+    this.now = new Map();
+    let n = 0;
+    const dirty = new Set();
+    for (const [k, p] of batch) {
+      if (n++ >= FLUID_BUDGET) { this.now.set(k, p); continue; }
+      this.step(p[0], p[1], p[2], dirty);
+    }
+    for (const c of dirty) {
+      if (neighborsLoaded(c.cx, c.cz)) meshChunk(c); else c.needsMesh = true;
+    }
+  },
+
+  step(x, y, z, dirty) {
+    const w = G.world;
+    if (!w.isLoaded(x, z) || !w.isLoaded(x + 1, z) || !w.isLoaded(x - 1, z) || !w.isLoaded(x, z + 1) || !w.isLoaded(x, z - 1)) {
+      if (this.parked.size < 20000) this.parked.set(posKey(x, y, z), [x, y, z]);
+      return;
+    }
+    const id = w.getBlock(x, y, z);
+    // lava meeting water hardens
+    if (id === B.LAVA) {
+      for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]]) {
+        if (w.getBlock(x + dx, y + dy, z + dz) !== B.WATER) continue;
+        this.set(x, y, z, w.getFlow(x, y, z) === 0 ? B.OBSIDIAN : B.COBBLE, 0, dirty);
+        sfx('fizz', [x + 0.5, y + 0.5, z + 0.5], 0.6, 1);
+        Particles.smoke(x + 0.5, y + 1, z + 0.5, 6, 0.4, false);
+        return;
+      }
+    }
+    if (IS_LIQUID(id)) {
+      const l = w.getFlow(x, y, z);
+      if (l === 0) { this.spread(x, y, z, id); return; }        // sources never change on their own
+      if (FLUID[id].every > 1 && this.tick % FLUID[id].every) { this.schedule(x, y, z); return; }
+      const want = this.want(x, y, z, id);
+      if (want < 0) this.set(x, y, z, B.AIR, 0, dirty);
+      else if (want !== l) this.set(x, y, z, id, want, dirty);
+      else this.spread(x, y, z, id);
+      return;
+    }
+    if (!this.open(id)) return;
+    // an empty cell next to liquid: does anything flow in?
+    for (const k of [B.WATER, B.LAVA]) {
+      if (FLUID[k].every > 1 && this.tick % FLUID[k].every) {
+        if (this.adjacent(x, y, z, k)) this.schedule(x, y, z);
+        continue;
+      }
+      const want = this.want(x, y, z, k);
+      if (want < 0) continue;
+      if (id !== B.AIR) {
+        if (G.mode === 'survival') for (const [it, c] of blockDrops(id, 0, Math.random)) Ents.spawnItem({ id: it, count: c }, x + 0.5, y + 0.3, z + 0.5);
+        Particles.blockBreak(x, y, z, id);
+      }
+      this.set(x, y, z, k, want, dirty);
+      return;
+    }
+  },
+
+  adjacent(x, y, z, k) {
+    const w = G.world;
+    return w.getBlock(x, y + 1, z) === k || H4.some(([dx, dz]) => w.getBlock(x + dx, y, z + dz) === k);
+  },
+
+  // wake the cells this liquid could run into
+  spread(x, y, z, id) {
+    const w = G.world;
+    if (this.open(w.getBlock(x, y - 1, z))) { this.schedule(x, y - 1, z); return; }
+    for (const [dx, dz] of H4) if (this.open(w.getBlock(x + dx, y, z + dz))) this.schedule(x + dx, y, z + dz);
+  },
+
+  // write without sharing it online: every player runs the same flow from the same edits
+  set(x, y, z, id, level, dirty) {
+    const w = G.world;
+    const old = w.getBlock(x, y, z);
+    const list = w.setBlock(x, y, z, id);
+    if (level > 0) w.flow.set(posKey(x, y, z), level); else w.flow.delete(posKey(x, y, z));
+    if (old !== id) cleanupBlockEntity(x, y, z, old, id);
+    const c = w.getChunk(x >> 4, z >> 4);
+    if (c) dirty.add(c);
+    if (list) {
+      const lx = x & 15, lz = z & 15;
+      for (const n of list) {
+        const ddx = n.cx - c.cx, ddz = n.cz - c.cz;
+        if ((ddx === 0 || (ddx === -1 && lx === 0) || (ddx === 1 && lx === 15)) && (ddz === 0 || (ddz === -1 && lz === 0) || (ddz === 1 && lz === 15))) dirty.add(n);
+      }
+    }
+    w.editsDirty = true;
+    this.schedule(x, y, z);
+    for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) this.schedule(x + dx, y + dy, z + dz);
+    // falling onto something that supports plants/sand etc.
+    if (id === B.AIR) updateNeighbors(x, y, z);
+  },
+
+  // Current pushing things along: direction the level falls towards around (x, y, z).
+  push(x, y, z) {
+    const w = G.world;
+    const k = w.getBlock(x, y, z);
+    if (!IS_LIQUID(k)) return null;
+    const l = w.getFlow(x, y, z);
+    if (l === 0) return null;
+    if (l === 8) return [0, -1, 0];
+    let vx = 0, vz = 0;
+    for (const [dx, dz] of H4) {
+      const nb = w.getBlock(x + dx, y, z + dz);
+      let nl;
+      if (nb === k) nl = w.getFlow(x + dx, y, z + dz) || 0;
+      else if (this.open(nb)) nl = FLUID[k].max + 1;
+      else continue;
+      if (nl === 8) nl = 0;
+      vx += dx * (nl - l); vz += dz * (nl - l);
+    }
+    const m = Math.hypot(vx, vz);
+    return m > 0 ? [vx / m, 0, vz / m] : null;
+  },
+};
+</script>
+<script>
+'use strict';
+// Ambient wildlife that makes the world feel alive: flocks of birds wheeling overhead (gulls by
+// the sea, swifts and crows inland), bees hopping between flowers, butterflies, schools of fish
+// under the water, and their calls. They live only around the camera, are purely cosmetic
+// (no collisions, no drops) and step aside for rain and night.
+
+const WL_R = 64;           // they live within this distance of the camera
+const wlWrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+
+const Wildlife = {
+  flocks: [], bees: [], flies: [], fish: [],
+  flowers: [],             // flower spots found near the camera: [x, y, z]
+  scanT: 0, spawnT: 0, callT: 4, buzzT: 0,
+
+  reset() { this.flocks = []; this.bees = []; this.flies = []; this.fish = []; this.flowers = []; },
+
+  isFlower(id) { return id === B.ROSE || id === B.DANDELION || id === B.TULIP || id === B.BLUEBELL; },
+
+  update(dt, cam) {
+    if (!G.settings.wildlife && G.settings.wildlife !== undefined) { this.reset(); return; }
+    const p = cam.pos;
+    const day = isDaytime();
+    const calm = Weather.kind === 'clear' || Weather.kind === 'fog' || Weather.amount < 0.3;
+    this.scanT -= dt;
+    if (this.scanT <= 0) { this.scanT = 0.5; this.scan(p); }
+    this.spawnT -= dt;
+    if (this.spawnT <= 0) { this.spawnT = 1.2; this.spawn(p, day, calm); }
+    const far = (q) => Math.hypot(q[0] - p[0], q[2] - p[2]) > WL_R + 16;
+    this.flocks = this.flocks.filter((f) => { this.updateFlock(f, dt, p, day, calm); return !f.gone && !far(f.c); });
+    this.bees = this.bees.filter((b) => { this.updateBug(b, dt, 5.5, !day || !calm); return !b.gone && !far(b.pos); });
+    this.flies = this.flies.filter((b) => { this.updateBug(b, dt, 2.2, !day || !calm); return !b.gone && !far(b.pos); });
+    this.fish = this.fish.filter((f) => { this.updateFish(f, dt); return !far(f.pos); });
+    this.sounds(dt, p, day, calm);
+  },
+
+  // look for flowers around the camera (a few random columns per scan)
+  scan(p) {
+    const w = G.world;
+    this.flowers = this.flowers.filter((f) => this.isFlower(w.getBlock(f[0], f[1], f[2])) && Math.hypot(f[0] - p[0], f[2] - p[2]) < 40);
+    for (let i = 0; i < 40 && this.flowers.length < 60; i++) {
+      const x = Math.floor(p[0] + rand(-28, 28)), z = Math.floor(p[2] + rand(-28, 28));
+      const h = w.surfaceHeight(x, z);
+      if (h < 0) continue;
+      for (let y = h; y >= h - 1; y--) if (this.isFlower(w.getBlock(x, y, z))) { this.flowers.push([x, y, z]); break; }
+    }
+  },
+
+  spawn(p, day, calm) {
+    const w = G.world;
+    const own = G.world.gen && G.world.gen.regionOwner ? G.world.gen.regionOwner(Math.floor(p[0]), Math.floor(p[2])) : null;
+    const seaside = own && (own.p === WORLD_PRESETS.beach || own.p === WORLD_PRESETS.islands);
+    // birds
+    if (day && calm && this.flocks.length < 3 && Math.random() < 0.5) {
+      const a = rand(0, Math.PI * 2), d = rand(30, 60);
+      const cx = p[0] + Math.cos(a) * d, cz = p[2] + Math.sin(a) * d;
+      const ground = Math.max(w.surfaceHeight(Math.floor(cx), Math.floor(cz)), SEA);
+      const kind = seaside || ground <= SEA + 1 ? 'gull' : Math.random() < 0.3 ? 'crow' : 'swift';
+      const n = kind === 'crow' ? 3 + (Math.random() * 3 | 0) : 5 + (Math.random() * 6 | 0);
+      const f = { kind, c: [cx, ground + rand(14, 28), cz], v: [rand(-1, 1), 0, rand(-1, 1)], turn: rand(-0.4, 0.4), t: 0, birds: [] };
+      const sp = kind === 'gull' ? 6 : kind === 'crow' ? 7 : 10;
+      const vl = Math.hypot(f.v[0], f.v[2]) || 1; f.v[0] *= sp / vl; f.v[2] *= sp / vl;
+      for (let i = 0; i < n; i++) f.birds.push({ off: [rand(-4, 4), rand(-1.5, 1.5), rand(-4, 4)], pos: [cx, f.c[1], cz], vel: f.v.slice(), ph: rand(0, 6.28), glide: 0 });
+      this.flocks.push(f);
+    }
+    // bees and butterflies around flowers
+    if (day && calm && this.flowers.length) {
+      if (this.bees.length < 10 && Math.random() < 0.7) {
+        const fl = this.flowers[Math.random() * this.flowers.length | 0];
+        this.bees.push({ kind: 'bee', pos: [fl[0] + 0.5, fl[1] + 1.5, fl[2] + 0.5], vel: [0, 0, 0], target: fl, t: 0, stay: rand(1, 3), ph: rand(0, 6) });
+      }
+      if (this.flies.length < 8 && Math.random() < 0.5) {
+        const fl = this.flowers[Math.random() * this.flowers.length | 0];
+        const hue = [[1, 0.62, 0.1], [0.95, 0.95, 0.9], [0.35, 0.55, 1], [1, 0.9, 0.25], [0.85, 0.3, 0.8]][Math.random() * 5 | 0];
+        this.flies.push({ kind: 'fly', pos: [fl[0] + 0.5, fl[1] + 2.2, fl[2] + 0.5], vel: [0, 0, 0], target: fl, t: 0, stay: rand(1, 4), ph: rand(0, 6), hue });
+      }
+    }
+    // fish in open water
+    if (this.fish.length < 18 && Math.random() < 0.6) {
+      const x = Math.floor(p[0] + rand(-24, 24)), z = Math.floor(p[2] + rand(-24, 24));
+      const y = SEA - 1 - (Math.random() * 3 | 0);
+      if (w.getBlock(x, y, z) === B.WATER && w.getBlock(x, y - 1, z) === B.WATER && w.getBlock(x, SEA, z) === B.WATER) {
+        const tropical = own && (own.p === WORLD_PRESETS.beach || own.p === WORLD_PRESETS.islands);
+        const n = 3 + (Math.random() * 5 | 0);
+        const col = tropical ? [[1, 0.55, 0.1], [0.25, 0.6, 1], [1, 0.9, 0.2]][Math.random() * 3 | 0] : [0.62, 0.68, 0.72];
+        const heading = rand(0, Math.PI * 2);
+        for (let i = 0; i < n; i++) this.fish.push({ pos: [x + rand(-1.5, 1.5), y + rand(-0.4, 0.4), z + rand(-1.5, 1.5)], yaw: heading + rand(-0.3, 0.3), sp: rand(1, 1.8), ph: rand(0, 6), col, t: 0 });
+      }
+    }
+  },
+
+  updateFlock(f, dt, p, day, calm) {
+    f.t += dt;
+    // the flock wanders in lazy curves, drifting back if it strays too far
+    f.turn += rand(-0.6, 0.6) * dt;
+    f.turn = clamp(f.turn, -0.5, 0.5);
+    const toC = Math.atan2(p[2] - f.c[2], p[0] - f.c[0]);
+    const head = Math.atan2(f.v[2], f.v[0]);
+    const dist = Math.hypot(p[0] - f.c[0], p[2] - f.c[2]);
+    let dh = f.turn * dt;
+    if (dist > WL_R * 0.8) dh += wlWrap(toC - head) * dt * 0.6;
+    const sp = Math.hypot(f.v[0], f.v[2]);
+    const nh = head + dh;
+    f.v[0] = Math.cos(nh) * sp; f.v[2] = Math.sin(nh) * sp;
+    f.c[0] += f.v[0] * dt; f.c[2] += f.v[2] * dt;
+    const ground = Math.max(G.world.surfaceHeight(Math.floor(f.c[0]), Math.floor(f.c[2])), SEA);
+    f.c[1] += ((ground + 18 + Math.sin(f.t * 0.3) * 5) - f.c[1]) * dt * 0.4;
+    if (!day || !calm) { f.c[1] += dt * 6; if (f.t > 4) f.gone = f.c[1] > p[1] + 60; }
+    for (const b of f.birds) {
+      const tx = f.c[0] + b.off[0] + Math.sin(f.t * 0.7 + b.ph) * 1.5, ty = f.c[1] + b.off[1] + Math.sin(f.t * 1.1 + b.ph) * 0.8, tz = f.c[2] + b.off[2] + Math.cos(f.t * 0.6 + b.ph) * 1.5;
+      for (let k = 0; k < 3; k++) {
+        const t = [tx, ty, tz][k];
+        b.vel[k] += ((t - b.pos[k]) * 1.6 + f.v[k] - b.vel[k]) * Math.min(1, dt * 2.5);
+        b.pos[k] += b.vel[k] * dt;
+      }
+      // flap while climbing or catching up, glide otherwise
+      const climb = b.vel[1];
+      b.glide += ((climb > 0.4 || Math.sin(f.t * 0.9 + b.ph * 3) > 0.3 ? 0 : 1) - b.glide) * Math.min(1, dt * 3);
+      b.ph += dt * (f.kind === 'swift' ? 16 : f.kind === 'gull' ? 7 : 9) * (1 - b.glide * 0.9);
+    }
+  },
+
+  // bees and butterflies: dart or flutter from flower to flower
+  updateBug(b, dt, speed, leave) {
+    b.t += dt;
+    const w = G.world;
+    let tgt;
+    if (leave) { tgt = [b.pos[0] + 5, b.pos[1] + 30, b.pos[2]]; if (b.t > 8) b.gone = true; }
+    else {
+      const fl = b.target;
+      tgt = [fl[0] + 0.5 + Math.sin(b.t * 1.7 + b.ph) * 0.35, fl[1] + (b.kind === 'bee' ? 0.75 : 1.0) + Math.sin(b.t * 2.3) * 0.15, fl[2] + 0.5 + Math.cos(b.t * 1.3 + b.ph) * 0.35];
+      const d = Math.hypot(tgt[0] - b.pos[0], tgt[1] - b.pos[1], tgt[2] - b.pos[2]);
+      if (d < 0.6) {
+        b.stay -= dt;
+        if (b.stay <= 0 && this.flowers.length) {
+          const near = this.flowers.filter((f) => Math.hypot(f[0] - fl[0], f[2] - fl[2]) < 12);
+          b.target = near.length ? near[Math.random() * near.length | 0] : fl;
+          b.stay = rand(1, b.kind === 'bee' ? 3 : 5);
+        }
+      }
+      if (!this.isFlower(w.getBlock(fl[0], fl[1], fl[2]))) b.gone = true;
+    }
+    const jitter = b.kind === 'bee' ? 3 : 5;
+    for (let k = 0; k < 3; k++) {
+      const want = clamp(tgt[k] - b.pos[k], -1, 1) * speed + rand(-jitter, jitter) * (k === 1 && b.kind === 'fly' ? 1.6 : 1);
+      b.vel[k] += (want - b.vel[k]) * Math.min(1, dt * (b.kind === 'bee' ? 5 : 2.5));
+      b.pos[k] += b.vel[k] * dt;
+    }
+    b.ph += dt * (b.kind === 'bee' ? 90 : 11);
+  },
+
+  updateFish(f, dt) {
+    f.t += dt;
+    f.yaw += Math.sin(f.t * 0.7 + f.ph) * dt * 0.8;
+    const nx = f.pos[0] + Math.cos(f.yaw) * f.sp * dt, nz = f.pos[2] + Math.sin(f.yaw) * f.sp * dt;
+    const w = G.world;
+    if (w.getBlock(Math.floor(nx), Math.floor(f.pos[1]), Math.floor(nz)) !== B.WATER) f.yaw += Math.PI * (0.6 + Math.random() * 0.5);
+    else { f.pos[0] = nx; f.pos[2] = nz; }
+    f.pos[1] += Math.sin(f.t * 1.3 + f.ph) * dt * 0.15;
+    f.ph += dt * 9;
+  },
+
+  sounds(dt, p, day, calm) {
+    this.callT -= dt;
+    if (this.callT <= 0) {
+      this.callT = rand(2.5, 7);
+      const fl = this.flocks[0];
+      if (fl && fl.birds.length) {
+        const b = fl.birds[Math.random() * fl.birds.length | 0];
+        sfx(fl.kind === 'gull' ? 'gull' : fl.kind === 'crow' ? 'crow' : 'chirp', b.pos, 0.9, rand(0.9, 1.15));
+      } else if (day && calm && G.eyeSky > 0.5) {
+        // birdsong from the trees
+        const own = G.regionOwn;
+        if (!own || own.p !== WORLD_PRESETS.volcano) sfx('chirp', [p[0] + rand(-14, 14), p[1] + rand(2, 6), p[2] + rand(-14, 14)], 0.6, rand(0.85, 1.3));
+      } else if (!day && Weather.kind === 'clear' && Math.random() < 0.6) sfx('cricket', [p[0] + rand(-8, 8), p[1], p[2] + rand(-8, 8)], 0.5, rand(0.95, 1.05));
+    }
+    this.buzzT -= dt;
+    if (this.buzzT <= 0) {
+      this.buzzT = 0.9;
+      let near = null, nd = 5;
+      for (const b of this.bees) { const d = Math.hypot(b.pos[0] - p[0], b.pos[1] - p[1], b.pos[2] - p[2]); if (d < nd) { nd = d; near = b; } }
+      if (near) sfx('buzz', near.pos, 0.5, rand(0.9, 1.1));
+    }
+  },
+
+  // ------------------------------------------------------------ rendering ----
+  render(cp) {
+    const W = () => Vehicles.swatchUV('white');
+    const box = (m, a, b, col) => { ER.color = col; ER.box(m, a[0], a[1], a[2], b[0], b[1], b[2], W); };
+    const rel = (q) => [q[0] - cp[0], q[1] - cp[1], q[2] - cp[2]];
+    const tooFar = (q) => { const r = rel(q); return r[0] * r[0] + r[1] * r[1] + r[2] * r[2] > 110 * 110; };
+    for (const f of this.flocks) {
+      const pal = f.kind === 'gull' ? { body: [0.95, 0.95, 0.93], wing: [0.78, 0.8, 0.84], tip: [0.15, 0.15, 0.17], beak: [0.95, 0.75, 0.2] }
+        : f.kind === 'crow' ? { body: [0.1, 0.1, 0.12], wing: [0.12, 0.12, 0.15], tip: [0.06, 0.06, 0.08], beak: [0.2, 0.2, 0.22] }
+          : { body: [0.22, 0.2, 0.24], wing: [0.26, 0.24, 0.3], tip: [0.18, 0.16, 0.2], beak: [0.3, 0.3, 0.3] };
+      const s = f.kind === 'gull' ? 1.25 : f.kind === 'crow' ? 1.05 : 0.7;
+      for (const b of f.birds) {
+        if (tooFar(b.pos)) continue;
+        ER.lightAt(b.pos[0], b.pos[1], b.pos[2]);
+        const yaw = Math.atan2(b.vel[0], b.vel[2]);
+        const pitch = Math.atan2(b.vel[1], Math.hypot(b.vel[0], b.vel[2]));
+        const r = rel(b.pos);
+        const base = XF.chain(XF.t(r[0], r[1], r[2]), XF.ry(yaw), XF.rx(-pitch * 0.6), XF.s(s));
+        const flap = Math.sin(b.ph) * 0.9 * (1 - b.glide) + 0.08;
+        box(base, [-0.09, -0.08, -0.28], [0.09, 0.08, 0.22], pal.body);
+        box(base, [-0.07, -0.02, 0.2], [0.07, 0.11, 0.34], pal.body);
+        box(base, [-0.025, 0.01, 0.34], [0.025, 0.05, 0.42], pal.beak);
+        box(base, [-0.12, -0.02, -0.46], [0.12, 0.02, -0.26], pal.wing);
+        for (const side of [-1, 1]) {
+          const wing = XF.chain(base, XF.t(side * 0.08, 0.04, 0), XF.rz(side * flap));
+          box(wing, side < 0 ? [-0.36, -0.015, -0.13] : [0, -0.015, -0.13], side < 0 ? [0, 0.015, 0.1] : [0.36, 0.015, 0.1], pal.wing);
+          const tip = XF.chain(wing, XF.t(side * 0.36, 0, 0), XF.rz(side * flap * 0.6));
+          box(tip, side < 0 ? [-0.3, -0.012, -0.12] : [0, -0.012, -0.12], side < 0 ? [0, 0.012, 0.06] : [0.3, 0.012, 0.06], pal.tip);
+        }
+      }
+    }
+    for (const b of this.bees) {
+      if (tooFar(b.pos)) continue;
+      ER.lightAt(b.pos[0], b.pos[1], b.pos[2]);
+      const r = rel(b.pos);
+      const base = XF.chain(XF.t(r[0], r[1], r[2]), XF.ry(Math.atan2(b.vel[0], b.vel[2])));
+      box(base, [-0.045, -0.04, -0.07], [0.045, 0.045, 0.07], [1, 0.78, 0.12]);
+      box(base, [-0.047, -0.042, -0.02], [0.047, 0.047, 0.015], [0.08, 0.06, 0.04]);
+      box(base, [-0.047, -0.042, -0.07], [0.047, 0.047, -0.05], [0.08, 0.06, 0.04]);
+      box(base, [-0.035, -0.03, 0.07], [0.035, 0.035, 0.1], [0.1, 0.08, 0.06]);
+      const flap = Math.sin(b.ph) * 0.8;
+      for (const side of [-1, 1]) {
+        const wing = XF.chain(base, XF.t(side * 0.03, 0.05, 0), XF.rz(side * flap));
+        box(wing, side < 0 ? [-0.1, 0, -0.03] : [0, 0, -0.03], side < 0 ? [0, 0.006, 0.05] : [0.1, 0.006, 0.05], [0.9, 0.95, 1]);
+      }
+    }
+    for (const b of this.flies) {
+      if (tooFar(b.pos)) continue;
+      ER.lightAt(b.pos[0], b.pos[1], b.pos[2]);
+      const r = rel(b.pos);
+      const base = XF.chain(XF.t(r[0], r[1], r[2]), XF.ry(Math.atan2(b.vel[0], b.vel[2])));
+      box(base, [-0.012, -0.012, -0.07], [0.012, 0.012, 0.07], [0.12, 0.1, 0.08]);
+      const flap = 0.3 + Math.abs(Math.sin(b.ph)) * 1.2;
+      for (const side of [-1, 1]) {
+        const wing = XF.chain(base, XF.t(side * 0.012, 0, 0), XF.rz(side * flap));
+        box(wing, side < 0 ? [-0.14, 0, -0.02] : [0, 0, -0.02], side < 0 ? [0, 0.004, 0.12] : [0.14, 0.004, 0.12], b.hue);
+        box(wing, side < 0 ? [-0.1, 0, -0.12] : [0, 0, -0.12], side < 0 ? [0, 0.004, -0.02] : [0.1, 0.004, -0.02], b.hue.map((c) => c * 0.8));
+      }
+    }
+    for (const f of this.fish) {
+      if (tooFar(f.pos)) continue;
+      ER.lightAt(f.pos[0], f.pos[1], f.pos[2]);
+      const r = rel(f.pos);
+      const vx = Math.cos(f.yaw), vz = Math.sin(f.yaw);
+      const base = XF.chain(XF.t(r[0], r[1], r[2]), XF.ry(Math.atan2(vx, vz)), XF.ry(Math.sin(f.ph) * 0.15));
+      box(base, [-0.04, -0.07, -0.14], [0.04, 0.07, 0.14], f.col);
+      const tail = XF.chain(base, XF.t(0, 0, -0.14), XF.ry(Math.sin(f.ph + 1) * 0.5));
+      box(tail, [-0.01, -0.07, -0.1], [0.01, 0.07, 0], f.col.map((c) => c * 0.8));
+      box(base, [-0.041, 0.01, 0.07], [0.041, 0.03, 0.09], [0.05, 0.05, 0.05]);
+    }
+    ER.color = [1, 1, 1];
+  },
 };
 </script>
 <script>
@@ -10196,7 +11432,7 @@ const DAY_LENGTH = 1200; // seconds per full day
 const DEFAULT_SETTINGS = {
   renderDistance: 8, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
   renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
-  weather: 'auto', events: true,
+  weather: 'auto', events: true, wildlife: true, skin: 0,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -10340,6 +11576,7 @@ function editBlock(x, y, z, id, facing) {
   if (!list) return false;
   Net.edit(x, y, z, id, facing);
   if (old !== id) cleanupBlockEntity(x, y, z, old, id);
+  Fluids.touch(x, y, z);
   const c = list[0];
   const lx = x & 15, lz = z & 15;
   if (neighborsLoaded(c.cx, c.cz)) meshChunk(c); else c.needsMesh = true;
@@ -10363,6 +11600,7 @@ function editBlocks(list) {
     if (!res) continue;
     Net.edit(x, y, z, id, facing);
     if (old !== id) cleanupBlockEntity(x, y, z, old, id);
+    Fluids.touch(x, y, z);
     for (const c of res) dirty.add(c);
   }
   for (const c of dirty) c.needsMesh = true;
@@ -10435,13 +11673,6 @@ function updateNeighbors(x, y, z, depth = 0) {
   checkFalling(x, y + 1, z);
 }
 
-// Water flows back into holes next to it (no flowing water, just refill).
-function waterRefill(x, y, z) {
-  const w = G.world;
-  if (y > SEA) return B.AIR;
-  return [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]].some(([dx, dy, dz]) => w.getBlock(x + dx, y + dy, z + dz) === B.WATER) ? B.WATER : B.AIR;
-}
-
 // Opens or closes a door (both halves) or a trapdoor.
 function toggleDoor(x, y, z) {
   const w = G.world;
@@ -10473,7 +11704,7 @@ function destroyBlock(x, y, z, opts = {}) {
     const oy = isDoorTop(id) ? y - 1 : y + 1;
     if (DOOR_IDS.has(w.getBlock(x, oy, z))) editBlock(x, oy, z, B.AIR);
   }
-  let fill = waterRefill(x, y, z);
+  let fill = B.AIR;   // liquid next to the hole flows in (fluids.js)
   if (id === B.ICE && G.mode === 'survival') fill = B.WATER;
   if (opts.drops) {
     for (const [it, n] of blockDrops(id, opts.tool || 0, Math.random)) {
@@ -10686,7 +11917,7 @@ function explodeNow(x, y, z, power, source, rng, remote) {
     if (G.mode === 'survival' && !remote && Math.random() < 1 / power) {
       for (const [it, n] of blockDrops(id, 0, Math.random)) Ents.spawnItem({ id: it, count: n }, bx + 0.5, by + 0.5, bz + 0.5);
     }
-    edits.push([bx, by, bz, waterRefill(bx, by, bz)]);
+    edits.push([bx, by, bz, B.AIR]);
   }
   editBlocks(edits);
   for (const [bx, by, bz] of destroyed.values()) updateNeighbors(bx, by, bz);
@@ -10864,6 +12095,8 @@ function newWorld(seed, save, opts = {}) {
   if (G.world) for (const c of G.world.chunks.values()) G.renderer.freeChunk(c);
   ChunkWorkers.reset();
   Weather.reset();
+  Fluids.reset();
+  Wildlife.reset();
   if (G.vehicle) G.vehicle = null;
   Ents.clear();
   G.region = null;
@@ -11068,7 +12301,7 @@ const Net = {
       w: 'bl1', n: this.name, c: this.color,
       p: [r1(p.pos[0]), r1(p.pos[1]), r1(p.pos[2])], r: [r2(p.yaw), r2(p.pitch)],
       a: (p.sneaking ? 1 : 0) | (Act.hand.swinging ? 2 : 0) | (p.parachute ? 4 : 0),
-      h: Act.heldId(), s: this.seq, q: this.ops,
+      h: Act.heldId(), s: this.seq, q: this.ops, k: G.settings.skin | 0,
     };
     if (v) d.v = [r1(v.pos[0]), r1(v.pos[1]), r1(v.pos[2]), r3(v.yaw), r3(v.pitch), r3(v.roll), Math.round(v.throttle * 100), v.burner ? 1 : 0, Math.round(v.gear * 100), (v.missiles[0] ? 1 : 0) | (v.missiles[1] ? 2 : 0), G.mouse.left ? 1 : 0, Math.round(v.speed)];
     else d.v = null;
@@ -11147,6 +12380,7 @@ const Net = {
     if (Array.isArray(pr.r)) { r.tyaw = Number(pr.r[0]) || 0; r.tpitch = clamp(Number(pr.r[1]) || 0, -1.6, 1.6); }
     r.flags = pr.a | 0;
     r.held = isItem(pr.h) ? pr.h : 0;
+    r.skin = Number.isInteger(pr.k) ? clamp(pr.k, 0, SKINS.length - 1) : 0;
     // aircraft
     const v = Array.isArray(pr.v) && pr.v.length >= 12 && pr.v.every((n) => Number.isFinite(Number(n))) ? pr.v.map(Number) : null;
     if (v) {
@@ -11278,6 +12512,7 @@ const Net = {
       m.headYaw = m.bodyYaw;
       m.headPitch = -r.pitch;
       m.tint = NET_COLORS[r.color].map((c) => c / 255 * 1.1);
+      m.skin = r.skin || 0;
       ER.mob(null, m, cp);
       if (r.flags & 4) ER.parachute(r.pos, cp);
     }
@@ -11656,6 +12891,7 @@ const Act = {
       const r = this.liquidRay(this.reach());
       if (!r) return false;
       if (held.id === I.BUCKET && IS_LIQUID(r.id)) {
+        if (G.world.getFlow(r.pos[0], r.pos[1], r.pos[2]) > 0) return false;   // only still sources fill a bucket
         editBlock(r.pos[0], r.pos[1], r.pos[2], B.AIR);
         updateNeighbors(r.pos[0], r.pos[1], r.pos[2]);
         const full = mkStack(r.id === B.WATER ? I.WATER_BUCKET : I.LAVA_BUCKET, 1);
@@ -11667,9 +12903,12 @@ const Act = {
         return true;
       }
       if (held.id !== I.BUCKET && r.prev) {
-        const [x, y, z] = BLOCK_REPLACE[r.id] && !IS_LIQUID(r.id) ? r.pos : r.prev;
+        const pour = held.id === I.WATER_BUCKET ? B.WATER : B.LAVA;
+        const into = r.id === pour && G.world.getFlow(r.pos[0], r.pos[1], r.pos[2]) > 0;   // top up a stream
+        const [x, y, z] = (BLOCK_REPLACE[r.id] && !IS_LIQUID(r.id)) || into ? r.pos : r.prev;
         if (!BLOCK_REPLACE[G.world.getBlock(x, y, z)]) return false;
-        editBlock(x, y, z, held.id === I.WATER_BUCKET ? B.WATER : B.LAVA);
+        if (into) { editBlock(x, y, z, B.AIR); }
+        editBlock(x, y, z, pour);
         if (G.mode === 'survival') G.inv.held = mkStack(I.BUCKET, 1);
         sfx('bucket', [x, y, z], 1, 0.8); this.swingHand(); G.ui.invDirty();
         return true;
@@ -12722,8 +13961,9 @@ const SETTINGS_UI = [
   { key: 'fxaa', label: 'Anti-aliasing (FXAA)', type: 'check' },
   { key: 'bobbing', label: 'View bobbing', type: 'check' },
   { key: 'dynamicRes', label: 'Dynamic resolution (smoother)', type: 'check' },
-  { key: 'weather', label: 'Weather', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow']] },
+  { key: 'weather', label: 'Weather', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow'], ['fog', 'Fog']] },
   { key: 'events', label: 'World events (meteor showers, eruptions)', type: 'check' },
+  { key: 'wildlife', label: 'Wildlife (birds, bees, butterflies, fish)', type: 'check' },
 ];
 
 // ---------- errors ----------
@@ -12761,6 +14001,7 @@ function loadSettings() {
   st.brightness = clamp(st.brightness, 0.6, 1.8);
   st.volume = clamp(st.volume, 0, 1);
   if (!['auto', ...WEATHER_KINDS].includes(st.weather)) st.weather = 'auto';
+  st.skin = clamp(Math.round(st.skin) || 0, 0, SKINS.length - 1);
 }
 function saveSettings() { storageSet(SETTINGS_KEY, G.settings); }
 
@@ -12968,7 +14209,7 @@ function requestLock() {
 }
 
 // ---------- input ----------
-const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'KeyR', 'KeyT', 'F1', 'F3', 'Tab',
+const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'KeyR', 'KeyT', 'F1', 'F3', 'F5', 'Tab',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyV', 'KeyG', 'Enter']);
 
 // Keys that mean something else while flying. Returns true when handled.
@@ -12989,6 +14230,28 @@ function vehicleKey(code) {
     case 'Space': case 'KeyF': case 'KeyQ': case 'KeyR': return true;
     default: return false;
   }
+}
+
+// Skin chooser in the menu: face portraits from the painted atlas
+function buildSkinPicker() {
+  const grid = $('skinGrid');
+  if (!grid || grid.childElementCount) return;
+  SKINS.forEach((sk, i) => {
+    const b = document.createElement('button');
+    b.className = 'skin';
+    b.title = sk.name;
+    b.append(skinPortrait(i, 44));
+    const n = document.createElement('span');
+    n.textContent = sk.icon + ' ' + sk.name;
+    b.append(n);
+    b.addEventListener('click', () => {
+      G.settings.skin = i; saveSettings(); Net.sendT = 0;
+      for (const o of grid.children) o.classList.toggle('on', o === b);
+      sfx('click', null, 1, 1.2);
+    });
+    if (i === G.settings.skin) b.classList.add('on');
+    grid.append(b);
+  });
 }
 
 function onKeyDown(e) {
@@ -13032,6 +14295,7 @@ function onKeyDown(e) {
     case 'KeyQ': Act.dropHeld(e.ctrlKey); break;
     case 'F3': G.debug = !G.debug; $('debug').classList.toggle('hidden', !G.debug); break;
     case 'F1': G.hudHidden = !G.hudHidden; $('hud').classList.toggle('hidden', G.hudHidden); break;
+    case 'F5': G.view = ((G.view || 0) + 1) % 3; UI.toast(['First person', 'Third person', 'Front view'][G.view]); break;
     default:
       if (e.code.startsWith('Digit')) {
         const n = Number(e.code.slice(5));
@@ -13232,6 +14496,7 @@ function bindInput() {
     refreshGameUI();
     if (Net.on) requestLock();
   });
+  buildSkinPicker();
   const chat = $('chatInput');
   chat.addEventListener('keydown', (e) => {
     e.stopPropagation();
@@ -13370,19 +14635,39 @@ function frame(now) {
       if (st.dead) { eye[1] -= 1.1; roll = 0.5; }
       if (G.sleeping) eye[1] -= 1.0;
       cam = { pos: eye, yaw: p.yaw, pitch: p.pitch, roll, fov: G.settings.fov + p.fovBoost - (Act.bow ? Math.min(1, Act.bow.t) * 12 : 0) };
+      if (G.view && !st.dead && !G.sleeping) {
+        // third person: behind you (or facing you), pulled in when a wall is in the way
+        const f = [-Math.sin(p.yaw) * Math.cos(p.pitch), Math.sin(p.pitch), -Math.cos(p.yaw) * Math.cos(p.pitch)];
+        const s = G.view === 1 ? -1 : 1;
+        let d = 4;
+        for (let t = 0.4; t <= 4.2; t += 0.2) {
+          if (BLOCK_OPAQUE[G.world.getBlock(Math.floor(eye[0] + f[0] * t * s), Math.floor(eye[1] + f[1] * t * s), Math.floor(eye[2] + f[2] * t * s))]) { d = Math.max(0.4, t - 0.4); break; }
+        }
+        cam.pos = [eye[0] + f[0] * d * s, eye[1] + f[1] * d * s, eye[2] + f[2] * d * s];
+        if (G.view === 2) { cam.yaw = p.yaw + Math.PI; cam.pitch = -p.pitch; }
+      }
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) Weather.update(dt, cam);
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); }
     Sound.setListener(cam.pos, cam.yaw);
-    const showHand = !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle;
-    const ents = ER.build(G.renderer, cam, {
+    const thirdPerson = G.view && !G.vehicle && !G.onTitle && !st.dead && !G.sleeping;
+    const showHand = !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle && !thirdPerson;
+    let self = null;
+    if (thirdPerson) {
+      const sp = Math.hypot(p.vel[0], p.vel[2]);
+      G.selfWalk = (G.selfWalk || 0) + sp * dt * 1.6;
+      self = { type: 'avatar', pos: p.pos, h: 1.8, bodyYaw: p.yaw + Math.PI, headYaw: p.yaw + Math.PI, headPitch: -p.pitch, walkPhase: G.selfWalk,
+        walkAmt: Math.min(1, sp / 4.3), hurtTime: st.hurtTime || 0, dead: false, fuse: 0, age: G.time, fire: 0, aiming: 0,
+        skin: G.settings.skin, tint: NET_COLORS[Net.color].map((c) => c / 255 * 1.1) };
+    }
+    const ents = ER.build(G.renderer, cam, { self,
       crack: G.vehicle ? null : Act.crackInfo(), hand: showHand ? Act.handState() : null,
       cockpit: G.vehicle && Vehicles.camMode === 'cockpit' ? G.vehicle : null,
     });
     G.renderer.render({
       cam, dayTime: G.dayTime, time: G.time, dt, eyeSky: G.eyeSky, underwater: !G.vehicle && !G.onTitle && p.eyeInWater,
-      weather: Weather.overcast, flash: Weather.flash,
+      weather: Weather.overcast, flash: Weather.flash, rain: Weather.wetness, snow: Weather.snowCover, mist: Weather.mist, rainFx: Weather.rainFx,
       chunks: G.world.chunks.values(), selection: hit && !G.hudHidden ? hit.pos : null, selectionBox: hit ? hit.box : null, entities: ents,
     });
     Vehicles.drawHud();

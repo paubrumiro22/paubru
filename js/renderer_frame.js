@@ -138,7 +138,9 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uShadowMat', 'm4', this.shadowMat || BIAS_MAT);
     this.setU(prog, 'uCloudCover', '1f', A.cloudCover);
     this.setU(prog, 'uCloudTime', '1f', A.time);
-    this.setU(prog, 'uWind', '1f', 1.0);
+    this.setU(prog, 'uWind', '1f', A.wind || 1);
+    this.setU(prog, 'uRain', '1f', A.rain || 0);
+    this.setU(prog, 'uSnow', '1f', A.snow || 0);
   },
 
   bindSceneTextures() {
@@ -220,6 +222,8 @@ Object.assign(Renderer.prototype, {
     this.updateCamera(p.cam);
     this.updateAtmosphere(p.dayTime, p.time, p.eyeSky, p.dt, p.weather || 0);
     const A = this.atmo;
+    A.rain = p.rain || 0; A.snow = p.snow || 0;
+    A.fogDensity += 0.022 * (p.mist || 0); A.wind = 1 + 1.8 * (p.weather || 0) * (p.weather || 0);
     const W = this.width, H = this.height;
     const cp = this.camPos;
     const ent = p.entities;
@@ -276,7 +280,7 @@ Object.assign(Renderer.prototype, {
       this.setU(prog, 'uViewProj', 'm4', this.shadowVP);
       this.setU(prog, 'uCamPos', '3f', cp[0], cp[1], cp[2]);
       this.setU(prog, 'uTime', '1f', A.time);
-      this.setU(prog, 'uWind', '1f', 1.0);
+      this.setU(prog, 'uWind', '1f', A.wind || 1);
       this.bindTex(0, gl.TEXTURE_2D_ARRAY, this.albedoTex);
       this.setU(prog, 'uCutout', '1i', 0);
       this.stats.shadowDrawn = shadowList.length;
@@ -496,6 +500,8 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uSaturation', '1f', 1.04 - 0.3 * (p.weather || 0));
     this.setU(prog, 'uWeather', '1f', p.weather || 0);
     this.setU(prog, 'uFlash', '1f', p.flash || 0);
+    this.setU(prog, 'uRainFx', '1f', p.underwater ? 0 : (p.rainFx || 0));
+    this.setU(prog, 'uAspect', '1f', W / H);
     this.drawFullscreen();
 
     // --- FXAA to screen ---

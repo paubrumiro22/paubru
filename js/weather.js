@@ -3,23 +3,28 @@
 // the snowy peaks place) fall around the camera as particles; storms add lightning bolts,
 // thunder and flashes. Events: meteor showers on clear nights and eruptions of the volcano.
 
-const WEATHER_KINDS = ['clear', 'rain', 'storm', 'snow'];
+const WEATHER_KINDS = ['clear', 'rain', 'storm', 'snow', 'fog'];
 
 const Weather = {
   kind: 'clear', amount: 0, timer: 90,
   flash: 0, bolts: [], nextBolt: 4,
   event: null, eventTimer: 120,
   loop: null,
+  wetness: 0,      // surfaces stay wet (and puddles stay) for a while after the rain stops
+  snowCover: 0,    // snow settles on the ground while it snows and melts afterwards
+  snowing: false,
+  rainFx: 0,       // how much rain the camera sees falling right now (0 under a roof)
 
   // 0..1 overcast strength the renderer uses
-  get overcast() { return this.amount * (this.kind === 'storm' ? 1 : 0.8); },
+  get overcast() { return this.amount * (this.kind === 'storm' ? 1 : this.kind === 'fog' ? 0.3 : 0.8); },
+  get mist() { return this.kind === 'fog' ? this.amount : 0; },
 
   set(kind, silent) {
     if (!WEATHER_KINDS.includes(kind)) kind = 'clear';
     if (kind === this.kind) return;
     this.kind = kind;
     this.timer = rand(150, 420);
-    if (!silent && G.ui && kind !== 'clear') G.ui.toast({ rain: '🌧️ It started raining', storm: '⛈️ A storm is coming', snow: '❄️ It is snowing' }[kind]);
+    if (!silent && G.ui && kind !== 'clear') G.ui.toast({ rain: '🌧️ It started raining', storm: '⛈️ A storm is coming', snow: '❄️ It is snowing', fog: '🌫️ Fog rolls in' }[kind]);
   },
 
   // Is the column around (x, z) cold enough for snow?
@@ -41,18 +46,25 @@ const Weather = {
       this.timer -= dt;
       if (this.timer <= 0) {
         const r = Math.random();
-        this.set(this.kind !== 'clear' ? 'clear' : r < 0.55 ? 'rain' : r < 0.85 ? 'storm' : 'snow');
+        this.set(this.kind !== 'clear' ? 'clear' : r < 0.45 ? 'rain' : r < 0.7 ? 'storm' : r < 0.84 ? 'snow' : 'fog');
       }
     }
-    const wet = this.kind !== 'clear';
-    this.amount += ((wet ? 1 : 0) - this.amount) * (1 - Math.exp(-dt * 0.35));
+    const on = this.kind !== 'clear';
+    const wet = on && this.kind !== 'fog';
+    this.amount += ((on ? 1 : 0) - this.amount) * (1 - Math.exp(-dt * 0.35));
     const p = cam.pos;
     const snow = this.kind === 'snow' || (wet && this.cold(p[0], p[2]));
+    this.snowing = wet && snow;
     if (this.amount > 0.05 && wet) this.precipitate(dt, p, snow);
+    const raining = wet && !snow ? this.amount : 0;
+    this.wetness = clamp(this.wetness + (raining > 0.3 ? dt / 25 : -dt / 150), 0, 1);
+    this.snowCover = clamp(this.snowCover + (this.snowing && this.amount > 0.3 ? dt / 60 : -dt / 90), 0, 1);
+    const covered = G.eyeSky < 0.3 ? 0 : 1;
+    this.rainFx += (raining * covered * (this.kind === 'storm' ? 1 : 0.7) - this.rainFx) * (1 - Math.exp(-dt * 3));
     this.storm(dt, p);
     this.events(dt, p);
     this.flash = Math.max(0, this.flash - dt * 4);
-    this.sound(snow ? 0 : this.amount * (wet ? 1 : 0), p);
+    this.sound(snow || !wet ? 0 : this.amount, p);
   },
 
   // Rain streaks or snow flakes spawned in a box around the camera, stopped by roofs.
@@ -70,9 +82,10 @@ const Weather = {
           layer: T.p_smoke, r: 1.6, g: 1.65, b: 1.75, blend: true, drag: 1, drift: true, melt: true }));
       } else {
         const l = 1.2;
-        const wind = this.kind === 'storm' ? 4 : 1.2;
-        Particles.add(Particles.base(x, y, z, { vx: wind, vy: rand(-26, -20), vz: wind * 0.4, life: l, max: l, size: 0.018,
-          layer: T.p_smoke, r: 0.72, g: 0.8, b: 0.92, blend: true, drag: 1, streak: 0.045, splash: true }));
+        const wind = this.kind === 'storm' ? 5 + Math.sin(G.time * 0.3) * 2 : 1.2;
+        const b = rand(0.75, 1.05);
+        Particles.add(Particles.base(x, y, z, { vx: wind, vy: rand(-28, -21), vz: wind * 0.4, life: l, max: l, size: rand(0.012, 0.02),
+          layer: T.p_smoke, r: 1.25 * b, g: 1.35 * b, b: 1.5 * b, blend: true, drag: 1, streak: rand(0.035, 0.055), splash: true }));
       }
     }
   },
@@ -212,5 +225,5 @@ const Weather = {
     ER.ov = 0; ER.color = [1, 1, 1];
   },
 
-  reset() { this.bolts = []; this.flash = 0; this.event = null; },
+  reset() { this.bolts = []; this.flash = 0; this.event = null; this.wetness = 0; this.snowCover = 0; this.rainFx = 0; },
 };

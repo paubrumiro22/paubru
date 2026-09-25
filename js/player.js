@@ -244,6 +244,9 @@ class Player {
       v[1] = clamp(v[1], -4, 4.2);
       // hop out onto a ledge when swimming against it
       if (jump && (this.collides(this.pos[0] + wx * 0.35, this.pos[1] + 0.2, this.pos[2] + wz * 0.35))) v[1] = Math.max(v[1], 5.5);
+      // the current carries you downstream and waterfalls push you down
+      const cur = typeof Fluids !== 'undefined' && this.world === G.world ? Fluids.push(Math.floor(this.pos[0]), Math.floor(this.pos[1] + 0.35), Math.floor(this.pos[2])) : null;
+      if (cur) { v[0] += cur[0] * 9 * dt; v[2] += cur[2] * 9 * dt; v[1] += cur[1] * 6 * dt; }
     } else {
       const r = 1 - Math.exp(-dt * (this.onGround ? 16 : 2.4));
       v[0] += (wx * speed - v[0]) * r;

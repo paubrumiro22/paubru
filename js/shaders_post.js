@@ -105,6 +105,8 @@ uniform float uTime;
 uniform float uSaturation;
 uniform float uWeather;
 uniform float uFlash;
+uniform float uRainFx;
+uniform float uAspect;
 in vec2 vUV;
 layout(location = 0) out vec4 outColor;
 
@@ -120,6 +122,20 @@ float hash12(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
   p3 += dot(p3, p3.yzx + 33.33);
   return fract((p3.x + p3.y) * p3.z);
+}
+// sheets of rain between the camera and the distance: thin slanted streaks in three depths
+float rainStreaks(vec2 uv, float cols, float len, float speed, float seed) {
+  uv.x = uv.x * uAspect + uv.y * 0.12;
+  float x = uv.x * cols;
+  float cx = floor(x);
+  float h = hash12(vec2(cx, seed));
+  float y = uv.y / len + uTime * speed * (0.75 + 0.5 * h) + h * 37.0;
+  float cy = floor(y);
+  float on = step(0.6, hash12(vec2(cx + seed, cy)));
+  float fy = fract(y);
+  float off = (hash12(vec2(cy, cx + seed)) - 0.5) * 0.6;
+  float w = smoothstep(0.12, 0.0, abs(fract(x) - 0.5 + off));
+  return w * on * smoothstep(0.0, 0.15, fy) * smoothstep(0.75, 0.35, fy);
 }
 vec3 toSRGB(vec3 c) {
   return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
@@ -137,6 +153,11 @@ void main() {
   c *= uExposure * (1.0 + 3.5 * fl);
   c += vec3(0.5, 0.56, 0.78) * 0.5 * fl;
   c = acesFitted(c);
+  if (uRainFx > 0.01) {
+    float r = rainStreaks(uv, 90.0, 0.09, 2.6, 1.0) * 0.5 + rainStreaks(uv, 170.0, 0.05, 3.4, 7.0) * 0.35 + rainStreaks(uv, 320.0, 0.03, 4.3, 13.0) * 0.25;
+    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+    c += vec3(0.75, 0.8, 0.88) * r * uRainFx * (0.1 + lum * 0.35);
+  }
   // rain and storms tint the picture towards a cool grey
   float lw = dot(c, vec3(0.2126, 0.7152, 0.0722));
   c = mix(c, vec3(lw) * vec3(0.92, 0.97, 1.06), 0.35 * uWeather);

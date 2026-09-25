@@ -16,8 +16,9 @@ const SETTINGS_UI = [
   { key: 'fxaa', label: 'Anti-aliasing (FXAA)', type: 'check' },
   { key: 'bobbing', label: 'View bobbing', type: 'check' },
   { key: 'dynamicRes', label: 'Dynamic resolution (smoother)', type: 'check' },
-  { key: 'weather', label: 'Weather', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow']] },
+  { key: 'weather', label: 'Weather', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow'], ['fog', 'Fog']] },
   { key: 'events', label: 'World events (meteor showers, eruptions)', type: 'check' },
+  { key: 'wildlife', label: 'Wildlife (birds, bees, butterflies, fish)', type: 'check' },
 ];
 
 // ---------- errors ----------
@@ -55,6 +56,7 @@ function loadSettings() {
   st.brightness = clamp(st.brightness, 0.6, 1.8);
   st.volume = clamp(st.volume, 0, 1);
   if (!['auto', ...WEATHER_KINDS].includes(st.weather)) st.weather = 'auto';
+  st.skin = clamp(Math.round(st.skin) || 0, 0, SKINS.length - 1);
 }
 function saveSettings() { storageSet(SETTINGS_KEY, G.settings); }
 
@@ -262,7 +264,7 @@ function requestLock() {
 }
 
 // ---------- input ----------
-const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'KeyR', 'KeyT', 'F1', 'F3', 'Tab',
+const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'KeyR', 'KeyT', 'F1', 'F3', 'F5', 'Tab',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyV', 'KeyG', 'Enter']);
 
 // Keys that mean something else while flying. Returns true when handled.
@@ -283,6 +285,28 @@ function vehicleKey(code) {
     case 'Space': case 'KeyF': case 'KeyQ': case 'KeyR': return true;
     default: return false;
   }
+}
+
+// Skin chooser in the menu: face portraits from the painted atlas
+function buildSkinPicker() {
+  const grid = $('skinGrid');
+  if (!grid || grid.childElementCount) return;
+  SKINS.forEach((sk, i) => {
+    const b = document.createElement('button');
+    b.className = 'skin';
+    b.title = sk.name;
+    b.append(skinPortrait(i, 44));
+    const n = document.createElement('span');
+    n.textContent = sk.icon + ' ' + sk.name;
+    b.append(n);
+    b.addEventListener('click', () => {
+      G.settings.skin = i; saveSettings(); Net.sendT = 0;
+      for (const o of grid.children) o.classList.toggle('on', o === b);
+      sfx('click', null, 1, 1.2);
+    });
+    if (i === G.settings.skin) b.classList.add('on');
+    grid.append(b);
+  });
 }
 
 function onKeyDown(e) {
@@ -326,6 +350,7 @@ function onKeyDown(e) {
     case 'KeyQ': Act.dropHeld(e.ctrlKey); break;
     case 'F3': G.debug = !G.debug; $('debug').classList.toggle('hidden', !G.debug); break;
     case 'F1': G.hudHidden = !G.hudHidden; $('hud').classList.toggle('hidden', G.hudHidden); break;
+    case 'F5': G.view = ((G.view || 0) + 1) % 3; UI.toast(['First person', 'Third person', 'Front view'][G.view]); break;
     default:
       if (e.code.startsWith('Digit')) {
         const n = Number(e.code.slice(5));
@@ -526,6 +551,7 @@ function bindInput() {
     refreshGameUI();
     if (Net.on) requestLock();
   });
+  buildSkinPicker();
   const chat = $('chatInput');
   chat.addEventListener('keydown', (e) => {
     e.stopPropagation();
@@ -664,19 +690,39 @@ function frame(now) {
       if (st.dead) { eye[1] -= 1.1; roll = 0.5; }
       if (G.sleeping) eye[1] -= 1.0;
       cam = { pos: eye, yaw: p.yaw, pitch: p.pitch, roll, fov: G.settings.fov + p.fovBoost - (Act.bow ? Math.min(1, Act.bow.t) * 12 : 0) };
+      if (G.view && !st.dead && !G.sleeping) {
+        // third person: behind you (or facing you), pulled in when a wall is in the way
+        const f = [-Math.sin(p.yaw) * Math.cos(p.pitch), Math.sin(p.pitch), -Math.cos(p.yaw) * Math.cos(p.pitch)];
+        const s = G.view === 1 ? -1 : 1;
+        let d = 4;
+        for (let t = 0.4; t <= 4.2; t += 0.2) {
+          if (BLOCK_OPAQUE[G.world.getBlock(Math.floor(eye[0] + f[0] * t * s), Math.floor(eye[1] + f[1] * t * s), Math.floor(eye[2] + f[2] * t * s))]) { d = Math.max(0.4, t - 0.4); break; }
+        }
+        cam.pos = [eye[0] + f[0] * d * s, eye[1] + f[1] * d * s, eye[2] + f[2] * d * s];
+        if (G.view === 2) { cam.yaw = p.yaw + Math.PI; cam.pitch = -p.pitch; }
+      }
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) Weather.update(dt, cam);
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); }
     Sound.setListener(cam.pos, cam.yaw);
-    const showHand = !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle;
-    const ents = ER.build(G.renderer, cam, {
+    const thirdPerson = G.view && !G.vehicle && !G.onTitle && !st.dead && !G.sleeping;
+    const showHand = !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle && !thirdPerson;
+    let self = null;
+    if (thirdPerson) {
+      const sp = Math.hypot(p.vel[0], p.vel[2]);
+      G.selfWalk = (G.selfWalk || 0) + sp * dt * 1.6;
+      self = { type: 'avatar', pos: p.pos, h: 1.8, bodyYaw: p.yaw + Math.PI, headYaw: p.yaw + Math.PI, headPitch: -p.pitch, walkPhase: G.selfWalk,
+        walkAmt: Math.min(1, sp / 4.3), hurtTime: st.hurtTime || 0, dead: false, fuse: 0, age: G.time, fire: 0, aiming: 0,
+        skin: G.settings.skin, tint: NET_COLORS[Net.color].map((c) => c / 255 * 1.1) };
+    }
+    const ents = ER.build(G.renderer, cam, { self,
       crack: G.vehicle ? null : Act.crackInfo(), hand: showHand ? Act.handState() : null,
       cockpit: G.vehicle && Vehicles.camMode === 'cockpit' ? G.vehicle : null,
     });
     G.renderer.render({
       cam, dayTime: G.dayTime, time: G.time, dt, eyeSky: G.eyeSky, underwater: !G.vehicle && !G.onTitle && p.eyeInWater,
-      weather: Weather.overcast, flash: Weather.flash,
+      weather: Weather.overcast, flash: Weather.flash, rain: Weather.wetness, snow: Weather.snowCover, mist: Weather.mist, rainFx: Weather.rainFx,
       chunks: G.world.chunks.values(), selection: hit && !G.hudHidden ? hit.pos : null, selectionBox: hit ? hit.box : null, entities: ents,
     });
     Vehicles.drawHud();

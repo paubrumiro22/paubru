@@ -10,7 +10,7 @@ const DAY_LENGTH = 1200; // seconds per full day
 const DEFAULT_SETTINGS = {
   renderDistance: 8, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
   renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
-  weather: 'auto', events: true,
+  weather: 'auto', events: true, wildlife: true, skin: 0,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -154,6 +154,7 @@ function editBlock(x, y, z, id, facing) {
   if (!list) return false;
   Net.edit(x, y, z, id, facing);
   if (old !== id) cleanupBlockEntity(x, y, z, old, id);
+  Fluids.touch(x, y, z);
   const c = list[0];
   const lx = x & 15, lz = z & 15;
   if (neighborsLoaded(c.cx, c.cz)) meshChunk(c); else c.needsMesh = true;
@@ -177,6 +178,7 @@ function editBlocks(list) {
     if (!res) continue;
     Net.edit(x, y, z, id, facing);
     if (old !== id) cleanupBlockEntity(x, y, z, old, id);
+    Fluids.touch(x, y, z);
     for (const c of res) dirty.add(c);
   }
   for (const c of dirty) c.needsMesh = true;
@@ -249,13 +251,6 @@ function updateNeighbors(x, y, z, depth = 0) {
   checkFalling(x, y + 1, z);
 }
 
-// Water flows back into holes next to it (no flowing water, just refill).
-function waterRefill(x, y, z) {
-  const w = G.world;
-  if (y > SEA) return B.AIR;
-  return [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]].some(([dx, dy, dz]) => w.getBlock(x + dx, y + dy, z + dz) === B.WATER) ? B.WATER : B.AIR;
-}
-
 // Opens or closes a door (both halves) or a trapdoor.
 function toggleDoor(x, y, z) {
   const w = G.world;
@@ -287,7 +282,7 @@ function destroyBlock(x, y, z, opts = {}) {
     const oy = isDoorTop(id) ? y - 1 : y + 1;
     if (DOOR_IDS.has(w.getBlock(x, oy, z))) editBlock(x, oy, z, B.AIR);
   }
-  let fill = waterRefill(x, y, z);
+  let fill = B.AIR;   // liquid next to the hole flows in (fluids.js)
   if (id === B.ICE && G.mode === 'survival') fill = B.WATER;
   if (opts.drops) {
     for (const [it, n] of blockDrops(id, opts.tool || 0, Math.random)) {
@@ -500,7 +495,7 @@ function explodeNow(x, y, z, power, source, rng, remote) {
     if (G.mode === 'survival' && !remote && Math.random() < 1 / power) {
       for (const [it, n] of blockDrops(id, 0, Math.random)) Ents.spawnItem({ id: it, count: n }, bx + 0.5, by + 0.5, bz + 0.5);
     }
-    edits.push([bx, by, bz, waterRefill(bx, by, bz)]);
+    edits.push([bx, by, bz, B.AIR]);
   }
   editBlocks(edits);
   for (const [bx, by, bz] of destroyed.values()) updateNeighbors(bx, by, bz);
@@ -678,6 +673,8 @@ function newWorld(seed, save, opts = {}) {
   if (G.world) for (const c of G.world.chunks.values()) G.renderer.freeChunk(c);
   ChunkWorkers.reset();
   Weather.reset();
+  Fluids.reset();
+  Wildlife.reset();
   if (G.vehicle) G.vehicle = null;
   Ents.clear();
   G.region = null;

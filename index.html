@@ -313,6 +313,11 @@
   #playerList div { background: rgba(0, 0, 0, 0.42); padding: 3px 10px; border-radius: 7px; display: flex; align-items: center; gap: 7px; }
   #playerList i { width: 9px; height: 9px; border-radius: 50%; }
   .mprow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .skins { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+  .skin { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px 8px; border-radius: 11px; font-size: 12px; line-height: 1.2; text-align: center; }
+  .skin canvas { width: 44px; height: 44px; image-rendering: pixelated; border-radius: 6px; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); }
+  .skin.on { background: rgba(242, 185, 75, 0.2); border-color: var(--accent); }
+  .skinhint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
   #mpColors { display: flex; gap: 5px; }
   #mpColors button { width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
   #mpColors button.on { border-color: #fff; }
@@ -442,6 +447,10 @@
       <span id="mpStatus">Checking for other players…</span>
     </div>
 
+    <h2>Skin</h2>
+    <div class="skins" id="skinGrid"></div>
+    <p class="skinhint">Everyone online sees your skin. Press <kbd>F5</kbd> while playing to look at yourself.</p>
+
     <h2>Game</h2>
     <div class="grid">
       <div class="field">
@@ -501,6 +510,7 @@
       <div><kbd>T</kbd>Fast-forward time (creative)</div>
       <div><kbd>Arrows</kbd>Look around (alternative)</div>
       <div><kbd>F3</kbd>Debug info · <kbd>F1</kbd>Hide HUD</div>
+      <div><kbd>F5</kbd>Third person / front view</div>
       <div><kbd>Enter</kbd>Chat (online)</div>
     </div>
     <h2>Fighter jet</h2>
@@ -542,6 +552,7 @@
 <script src="js/renderer_gl.js"></script>
 <script src="js/renderer_frame.js"></script>
 <script src="js/models.js"></script>
+<script src="js/skins.js"></script>
 <script src="js/player.js"></script>
 <script src="js/inventory.js"></script>
 <script src="js/survival.js"></script>
@@ -550,6 +561,8 @@
 <script src="js/entity_render.js"></script>
 <script src="js/vehicles.js"></script>
 <script src="js/weather.js"></script>
+<script src="js/fluids.js"></script>
+<script src="js/wildlife.js"></script>
 <script src="js/game.js"></script>
 <script src="js/net.js"></script>
 <script src="js/interact.js"></script>

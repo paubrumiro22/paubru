@@ -15,14 +15,15 @@ function chunkWorkerMain() {
       if (key !== genKey) { gen = new WorldGen(m.seed, m.type); genKey = key; }
       const c = new Chunk(m.cx, m.cz);
       gen.generate(c);
-      self.postMessage({ t: 'gen', epoch: m.epoch, cx: m.cx, cz: m.cz, blocks: c.blocks, heightmap: c.heightmap, grassTint: c.grassTint, foliageTint: c.foliageTint, maxY: c.maxY },
+      self.postMessage({ t: 'gen', epoch: m.epoch, cx: m.cx, cz: m.cz, blocks: c.blocks, heightmap: c.heightmap, grassTint: c.grassTint, foliageTint: c.foliageTint, maxY: c.maxY, springs: c.springs || null },
         [c.blocks.buffer, c.heightmap.buffer, c.grassTint.buffer, c.foliageTint.buffer]);
     } else if (m.t === 'mesh') {
       const chunks = new Map();
       for (const n of m.nb) chunks.set(chunkKey(n.cx, n.cz), n);
-      const facing = new Map(m.facing);
+      const facing = new Map(m.facing), flow = new Map(m.flow || []);
       const world = {
         getChunk: (cx, cz) => chunks.get(chunkKey(cx, cz)),
+        getFlow: (x, y, z) => flow.get(posKey(x, y, z)) || 0,
         getFacing: (x, y, z) => { const f = facing.get(posKey(x, y, z)); return f !== undefined ? f : [0, 1, 4, 5][Math.floor(hash3(x, y, z, 7) * 4)]; },
       };
       const center = chunks.get(chunkKey(m.cx, m.cz));
@@ -137,13 +138,22 @@ const ChunkWorkers = {
         if (x >= x0 && x < x0 + CS && z >= z0 && z < z0 + CS) facing.push([k, f]);
       }
     }
+    // liquid levels in and right around this chunk (the surface slopes need the neighbours)
+    const flow = [];
+    if (world.flow.size) {
+      const x0 = c.cx * CS - 1, z0 = c.cz * CS - 1;
+      for (const [k, l] of world.flow) {
+        const [x, , z] = keyPos(k);
+        if (x >= x0 && x <= x0 + CS + 1 && z >= z0 && z <= z0 + CS + 1) flow.push([k, l]);
+      }
+    }
     c.meshVer = (c.meshVer || 0) + 1;
     c.needsMesh = false;
     c.meshInFlight = true;
     this.meshPending++;
     const w = this.pick();
     w.load++;
-    w.postMessage({ t: 'mesh', epoch: this.epoch, ver: c.meshVer, cx: c.cx, cz: c.cz, nb, facing }, nb.map((e) => e.blocks.buffer));
+    w.postMessage({ t: 'mesh', epoch: this.epoch, ver: c.meshVer, cx: c.cx, cz: c.cz, nb, facing, flow }, nb.map((e) => e.blocks.buffer));
   },
 
   receive(w, m) {
@@ -155,6 +165,7 @@ const ChunkWorkers = {
       if (world.getChunk(m.cx, m.cz)) return;
       const c = new Chunk(m.cx, m.cz);
       c.blocks = m.blocks; c.heightmap = m.heightmap; c.grassTint = m.grassTint; c.foliageTint = m.foliageTint; c.maxY = m.maxY;
+      if (m.springs) c.springs = m.springs;
       world.addChunk(c);
       this.stats.gen++;
     } else if (m.t === 'mesh') {

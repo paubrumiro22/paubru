@@ -148,7 +148,7 @@ const Net = {
       w: 'bl1', n: this.name, c: this.color,
       p: [r1(p.pos[0]), r1(p.pos[1]), r1(p.pos[2])], r: [r2(p.yaw), r2(p.pitch)],
       a: (p.sneaking ? 1 : 0) | (Act.hand.swinging ? 2 : 0) | (p.parachute ? 4 : 0),
-      h: Act.heldId(), s: this.seq, q: this.ops,
+      h: Act.heldId(), s: this.seq, q: this.ops, k: G.settings.skin | 0,
     };
     if (v) d.v = [r1(v.pos[0]), r1(v.pos[1]), r1(v.pos[2]), r3(v.yaw), r3(v.pitch), r3(v.roll), Math.round(v.throttle * 100), v.burner ? 1 : 0, Math.round(v.gear * 100), (v.missiles[0] ? 1 : 0) | (v.missiles[1] ? 2 : 0), G.mouse.left ? 1 : 0, Math.round(v.speed)];
     else d.v = null;
@@ -227,6 +227,7 @@ const Net = {
     if (Array.isArray(pr.r)) { r.tyaw = Number(pr.r[0]) || 0; r.tpitch = clamp(Number(pr.r[1]) || 0, -1.6, 1.6); }
     r.flags = pr.a | 0;
     r.held = isItem(pr.h) ? pr.h : 0;
+    r.skin = Number.isInteger(pr.k) ? clamp(pr.k, 0, SKINS.length - 1) : 0;
     // aircraft
     const v = Array.isArray(pr.v) && pr.v.length >= 12 && pr.v.every((n) => Number.isFinite(Number(n))) ? pr.v.map(Number) : null;
     if (v) {
@@ -358,6 +359,7 @@ const Net = {
       m.headYaw = m.bodyYaw;
       m.headPitch = -r.pitch;
       m.tint = NET_COLORS[r.color].map((c) => c / 255 * 1.1);
+      m.skin = r.skin || 0;
       ER.mob(null, m, cp);
       if (r.flags & 4) ER.parachute(r.pos, cp);
     }
