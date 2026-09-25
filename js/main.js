@@ -163,9 +163,38 @@ function buildPlaces(el, after) {
 }
 
 function worldLabel() {
+  if (G.slot === 'campnou') return 'Camp Nou · Barcelona · real scale';
   if (Net.server) return 'Server “' + Net.server.name + '” · code ' + Net.server.code + ' · ' + (Net.peers.size + 1) + ' player' + (Net.peers.size ? 's' : '');
   if (G.online) return 'Online world · ' + (Net.peers.size + 1) + ' player' + (Net.peers.size ? 's' : '');
   return (G.mode === 'creative' ? 'Creative' : 'Survival') + ' world · seed ' + G.world.seed;
+}
+
+// ---------- private showcase world ----------
+// The Camp Nou world is not listed anywhere: it shows on the title screen of a device that once
+// opened the game with #campnou in the address, and keeps its own save next to your world.
+const CAMPNOU_FLAG = 'blocklands.campnou';
+function campNouUnlocked() { return !!storageGet(CAMPNOU_FLAG); }
+function enterCampNou() {
+  if (Net.on) Net.leave();
+  saveWorld();
+  G.slot = 'campnou';
+  const save = storageGet('blocklands.slot.campnou');
+  newWorld(1, save && save.v === 2 ? save : null, { type: 'campnou', mode: 'creative' });
+  G.rules.mobSpawning = false;
+  G.settings.weather = G.settings.weather === 'auto' ? 'clear' : G.settings.weather;
+  prepareArea(G.player.pos[0], G.player.pos[2], 2);
+  liftOutOfBlocks(G.player);
+  saveWorld();
+  refreshGameUI();
+  UI.toast('Camp Nou · 105 x 68 m pitch · fly with F or double-tap space');
+}
+function leaveCampNou() {
+  saveWorld();
+  G.slot = null;
+  const save = loadSave();
+  newWorld(save ? save.seed : (Math.random() * 2147483647) | 0, save, { mode: 'survival', type: 'default' });
+  prepareArea(G.player.pos[0], G.player.pos[2], 2);
+  refreshGameUI();
 }
 
 // ---------- title screen ----------
@@ -182,6 +211,8 @@ function showTitle() {
   $('placesPanel').classList.add('hidden');
   $('title').classList.remove('hidden');
   $('tPlayLabel').textContent = G.started ? 'Continue' : 'Play';
+  $('tCampNou').classList.toggle('hidden', !campNouUnlocked());
+  $('tCampNouLabel').textContent = G.slot === 'campnou' ? 'Back to my world' : 'Camp Nou';
   $('tWorld').textContent = worldLabel();
   G.titleYaw = G.player.yaw;
 }
@@ -529,6 +560,12 @@ function bindInput() {
     requestLock();
   });
   $('tCredits').addEventListener('click', showCredits);
+  $('tCampNou').addEventListener('click', () => {
+    sfx('click', null, 1, 1);
+    if (G.slot === 'campnou') { leaveCampNou(); showTitle(); return; }
+    enterCampNou();
+    requestLock();
+  });
   const hideCredits = () => $('credits').classList.add('hidden');
   $('credits').addEventListener('click', hideCredits);
   $('creditsRoll').addEventListener('animationend', hideCredits);
@@ -813,6 +850,10 @@ async function boot() {
   };
   try {
     loadSettings();
+    if (/campnou/i.test(location.hash)) {
+      storageSet(CAMPNOU_FLAG, 1);
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ }
+    }
     Sound.volume = G.settings.volume;
     setLoad(0.03, 'Painting textures and compiling shaders');
     await new Promise((r) => setTimeout(r, 30));

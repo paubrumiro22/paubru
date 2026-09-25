@@ -192,7 +192,7 @@ class WorldGen {
   }
 
   canCarve(y, h) {
-    if (this.type === 'flat') return false;
+    if (this.type === 'flat' || (this.preset && this.preset.noCaves)) return false;
     if (y <= 4) return false;
     if (y > h) return false;
     // keep a lid under the sea and near shores so water does not drain into caves
@@ -295,6 +295,7 @@ class WorldGen {
     this.placeTrees(chunk, ox, oz);
     this.placeSprings(chunk, heights, HW, P, ox, oz);
     if (this.structs) placeStructures(this, chunk);
+    if (this.preset && this.preset.build) this.preset.build(this, chunk);
 
     chunk.maxY = 0;
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) chunk.recomputeHeight(x, z);

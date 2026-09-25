@@ -644,7 +644,7 @@ function setGameMode(mode) {
 function saveWorld() {
   if (!G.world || !G.player) return;
   const p = G.player;
-  const ok = storageSet(G.online ? Net.saveKey() : SAVE_KEY, {
+  const ok = storageSet(G.slot ? 'blocklands.slot.' + G.slot : G.online ? Net.saveKey() : SAVE_KEY, {
     net: G.online && Net.server ? Net.serializeTimes() : undefined,
     v: 2, gen: G.world.genVer, seed: G.world.seed, type: G.world.type, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
     dayTime: G.dayTime, mode: G.mode, difficulty: G.difficulty, rules: G.rules, worldSpawn: G.worldSpawn, spawnPoint: G.spawnPoint,
