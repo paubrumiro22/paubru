@@ -88,13 +88,13 @@ Object.assign(Renderer.prototype, {
     // overcast: dimmer, flatter light
     const wk = 1 - 0.74 * weather;
     lightColor = lightColor.map((v) => v * wk);
-    const skyScale = 1.9;
+    const skyScale = 1.9 * (1 - 0.5 * weather);
     // ambient from the same sky model (cached, it only changes slowly)
     const key = Math.round(dayTime * 2000);
     if (key !== this.ambKey) {
       this.ambKey = key;
       const irr = Atmos.skyIrradiance(sunDir, sunI, moonDir, moonI);
-      this.ambSky = irr.map((v) => v * skyScale);
+      this.ambSky = irr.map((v) => v * 1.9);
     }
     const nightFloor = [0.018, 0.022, 0.036];
     const grey = (this.ambSky[0] + this.ambSky[1] + this.ambSky[2]) / 3;
@@ -104,7 +104,7 @@ Object.assign(Renderer.prototype, {
     const waterFog = [0.012 * lum + 0.0015, 0.07 * lum + 0.004, 0.085 * lum + 0.006];
 
     const dawn = Math.exp(-Math.pow((sunDir[1] - 0.05) / 0.18, 2));
-    const fogDensity = (0.0021 + 0.0032 * dawn) * (1 + 3.2 * weather) + 0.002 * weather;
+    const fogDensity = (0.0021 + 0.0032 * dawn) * (1 + 2.2 * weather) + 0.0016 * weather;
     const dayF = smoothstep(-0.12, 0.2, sunDir[1]);
     const target = lerp(2.4, 0.6, dayF) * (1 + 2.4 * (1 - eyeSky));
     this.exposure += (target - this.exposure) * (1 - Math.exp(-dt * 1.6));

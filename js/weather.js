@@ -51,7 +51,7 @@ const Weather = {
     if (this.amount > 0.05 && wet) this.precipitate(dt, p, snow);
     this.storm(dt, p);
     this.events(dt, p);
-    this.flash = Math.max(0, this.flash - dt * 3.2);
+    this.flash = Math.max(0, this.flash - dt * 4);
     this.sound(snow ? 0 : this.amount * (wet ? 1 : 0), p);
   },
 

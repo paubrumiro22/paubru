@@ -133,8 +133,9 @@ void main() {
   vec3 c = texture(uScene, uv).rgb / HDR_SCALE;
   if (uBloomOn > 0.5) c += texture(uBloom, uv).rgb / HDR_SCALE * uBloomStrength;
   if (uRaysOn > 0.5) c += texture(uRays, uv).rgb / HDR_SCALE;
-  c *= uExposure * (1.0 + 5.0 * uFlash);
-  c += vec3(0.55, 0.6, 0.8) * uFlash;
+  float fl = uFlash * uFlash;
+  c *= uExposure * (1.0 + 3.5 * fl);
+  c += vec3(0.5, 0.56, 0.78) * 0.5 * fl;
   c = acesFitted(c);
   // rain and storms tint the picture towards a cool grey
   float lw = dot(c, vec3(0.2126, 0.7152, 0.0722));
