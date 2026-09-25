@@ -200,7 +200,7 @@ function enterCampNou() {
   liftOutOfBlocks(G.player);
   saveWorld();
   refreshGameUI();
-  UI.toast('Camp Nou · 105 x 68 m pitch · fly with F or double-tap space');
+  UI.toast('Camp Nou · fly with F · N for day / night');
 }
 function leaveCampNou() {
   saveWorld();
@@ -311,7 +311,7 @@ function requestLock() {
 }
 
 // ---------- input ----------
-const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'KeyR', 'KeyT', 'KeyM', 'F1', 'F3', 'F5', 'Tab',
+const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'KeyR', 'KeyT', 'KeyN', 'KeyM', 'F1', 'F3', 'F5', 'Tab',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyV', 'KeyG', 'Enter']);
 
 // Keys that mean something else while flying. Returns true when handled.
@@ -401,6 +401,10 @@ function onKeyDown(e) {
       break;
     case 'KeyF': if (creative) { p.flying = !p.flying; p.vel[1] = 0; UI.toast(p.flying ? 'Flying' : 'Walking'); } break;
     case 'KeyE': UI.openInventory(); break;
+    // in the Camp Nou, N switches straight between day and a lit-up night
+    case 'KeyN':
+      if (G.slot === 'campnou') { const night = G.dayTime > 0.5; G.dayTime = night ? 0.3 : 0.78; UI.toast(night ? 'Day' : 'Night: the lights come on'); }
+      break;
     case 'KeyQ': Act.dropHeld(e.ctrlKey); break;
     case 'F3': G.debug = !G.debug; $('debug').classList.toggle('hidden', !G.debug); break;
     case 'F1': G.hudHidden = !G.hudHidden; $('hud').classList.toggle('hidden', G.hudHidden); break;

@@ -131,6 +131,9 @@ for (let id = 0; id < 256; id++) if (BLOCK_SHAPE[id] || id === B.LANTERN) FACING
 // Stadium seat: pedestal, pan and backrest (back on the facing side), a sliver apart from the next
 // seat so rows read as separate chairs. Walk over them like a half step.
 const SEAT_CANON = { boxes: [[6, 0, 6, 10, 5, 11], [1, 5, 3, 15, 7, 15], [1, 7, 1, 15, 15, 3.5], [0.5, 5, 5, 1.5, 9, 12], [14.5, 5, 5, 15.5, 9, 12]], coll: [[1, 0, 1, 15, 8, 15]] };
+// In the world a stadium has tens of thousands of seats: they are drawn as just the pan and the
+// backrest, without the faces underneath (the full model is kept for icons and held items).
+const SEAT_DRAW = [[1, 4, 2, 15, 7, 15], [1, 7, 1, 15, 15, 3.5]];
 
 // ---- geometry ----
 // Rotate / flip a canonical point (1/16 units, back at -Z) into facing f.

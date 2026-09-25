@@ -269,7 +269,11 @@ function emitArch(world, p, x, y, z, id, rt, flags, wx, wz) {
     const k = BLOCK_SHAPE[id];
     let boxes;
     if (k === SH_PILLAR) boxes = pillarBoxes(pb[p - RSS] === id, pb[p + RSS] === id);
-    else {
+    else if (k === SH_SEAT) {
+      const f = world.getFacing(wx, y, wz), noBottom = (d) => (d === 3 ? -1 : tex(d));
+      for (const b of SEAT_DRAW) { const q = xfBox(f, b); emitBox(meshOpaque, p, x, y, z, q[0], q[1], q[2], q[3], q[4], q[5], noBottom, flags, WHITE_TINT, null, true); }
+      return;
+    } else {
       const g = shapeGeom(k, world.getFacing(wx, y, wz));
       for (const poly of g.polys) emitPoly(meshOpaque, p, x, y, z, poly, poly.slant ? tex(poly.n[1] > 0 ? 2 : 3) : tex(poly.n[0] > 0 ? 0 : poly.n[0] < 0 ? 1 : poly.n[1] > 0 ? 2 : poly.n[1] < 0 ? 3 : poly.n[2] > 0 ? 4 : 5), flags);
       boxes = g.boxes;

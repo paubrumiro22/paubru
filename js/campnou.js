@@ -258,10 +258,10 @@ function cnColumn(W, x, z, r) {
     fill(S + 1, G + 38, CN_CONCRETE);
     set(G + 39, pres ? B.MARBLE : B.PLASTER);
     if (c === 45) set(G + 40, pres ? B.SEAT_RED : B.SEAT_WHITE, out);
-    if (c === 46) { fill(G + 40, G + 43, B.GLASS_PANE); set(G + 44, B.PLASTER); set(G + 45, pres ? B.SEAT_RED : B.SEAT_WHITE, out); }
+    if (c === 46) { fill(G + 40, G + 43, B.GLASS); set(G + 44, B.PLASTER); set(G + 45, pres ? B.SEAT_RED : B.SEAT_WHITE, out); }
     if (c >= 47 && c <= 50) { if (wall) fill(G + 40, G + 43, B.PLASTER); set(G + 44, c === 49 && ray % 5 === 2 ? B.GLOWSTONE : B.PLASTER); }
     if (c === 51) fill(G + 40, G + 44, B.PLASTER);
-    if (c === 47) { fill(G + 45, G + 48, B.GLASS_PANE); set(G + 49, B.PLASTER); cnRibbon(W, x, z, G + 50, 47.5); }
+    if (c === 47) { fill(G + 45, G + 48, B.GLASS); set(G + 49, B.PLASTER); cnRibbon(W, x, z, G + 50, 47.5); }
     if (c >= 48 && c <= 51 && wall) fill(G + 45, G + 48, B.PLASTER);
   }
   i = cnTierAt(CN_T3, c);
@@ -295,7 +295,7 @@ function cnConcourses(W, x, z, c, ray) {
     const f = CN_FLOORS[k], next = k < 3 ? CN_FLOORS[k + 1] : CN_EAVE_TOP;
     for (let y = f + 1; y <= next - 2; y++) {
       if (c === 57) set(y, y === next - 3 && ray % 12 < 3 ? B.GLOWSTONE : y <= f + 3 && ray % 12 === 6 ? B.BARREL : B.STONE);
-      else if (c === 62 && k === 0) set(y, ray % 24 === 0 && y <= f + 3 ? B.AIR : B.GLASS_PANE);
+      else if (c === 62 && k === 0) set(y, ray % 24 === 0 && y <= f + 3 ? B.AIR : B.GLASS);
       else set(y, B.AIR);
     }
     if (c > 57) { set(f, k === 0 ? B.STONE_BRICKS : B.DECK); set(next - 1, B.ALU_SLATS); }
@@ -376,9 +376,9 @@ function cnRoof(W, x, z, r) {
   let under = false;
   if (memb(c) && memb(co) && Lo === L + 1) set(L + 1, shapeId('membrane', 'slope'), out);
   if (memb(c) && memb(ci) && Li === L - 1) { set(L - 1, shapeId('membrane', 'slope'), CN_OPP[out] | 8); under = true; }
-  // radial cables under the membrane
+  // radial cables under the membrane (every other column's, to keep the geometry light)
   const dist = Math.hypot(x + 0.5, z + 0.5 - CN.zc);
-  if (!under && c >= 3 && c <= 66 && (cnT(x, z) * 92) % 1 * (dist * Math.PI * 2 / 92) < 0.9) set(L - 1, B.STONE_SLAB, 8);
+  if (!under && c >= 3 && c <= 66 && (cnT(x, z) * 46) % 1 * (dist * Math.PI * 2 / 46) < 0.9) set(L - 1, B.STONE_SLAB, 8);
   // compression ring and skywalk
   if (c >= 67) set(L - 1, B.PLASTER);
   if (c >= 68 && c <= 71) set(L, B.DECK);

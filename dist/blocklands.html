@@ -1294,6 +1294,9 @@ for (let id = 0; id < 256; id++) if (BLOCK_SHAPE[id] || id === B.LANTERN) FACING
 // Stadium seat: pedestal, pan and backrest (back on the facing side), a sliver apart from the next
 // seat so rows read as separate chairs. Walk over them like a half step.
 const SEAT_CANON = { boxes: [[6, 0, 6, 10, 5, 11], [1, 5, 3, 15, 7, 15], [1, 7, 1, 15, 15, 3.5], [0.5, 5, 5, 1.5, 9, 12], [14.5, 5, 5, 15.5, 9, 12]], coll: [[1, 0, 1, 15, 8, 15]] };
+// In the world a stadium has tens of thousands of seats: they are drawn as just the pan and the
+// backrest, without the faces underneath (the full model is kept for icons and held items).
+const SEAT_DRAW = [[1, 4, 2, 15, 7, 15], [1, 7, 1, 15, 15, 3.5]];
 
 // ---- geometry ----
 // Rotate / flip a canonical point (1/16 units, back at -Z) into facing f.
@@ -5940,10 +5943,10 @@ function cnColumn(W, x, z, r) {
     fill(S + 1, G + 38, CN_CONCRETE);
     set(G + 39, pres ? B.MARBLE : B.PLASTER);
     if (c === 45) set(G + 40, pres ? B.SEAT_RED : B.SEAT_WHITE, out);
-    if (c === 46) { fill(G + 40, G + 43, B.GLASS_PANE); set(G + 44, B.PLASTER); set(G + 45, pres ? B.SEAT_RED : B.SEAT_WHITE, out); }
+    if (c === 46) { fill(G + 40, G + 43, B.GLASS); set(G + 44, B.PLASTER); set(G + 45, pres ? B.SEAT_RED : B.SEAT_WHITE, out); }
     if (c >= 47 && c <= 50) { if (wall) fill(G + 40, G + 43, B.PLASTER); set(G + 44, c === 49 && ray % 5 === 2 ? B.GLOWSTONE : B.PLASTER); }
     if (c === 51) fill(G + 40, G + 44, B.PLASTER);
-    if (c === 47) { fill(G + 45, G + 48, B.GLASS_PANE); set(G + 49, B.PLASTER); cnRibbon(W, x, z, G + 50, 47.5); }
+    if (c === 47) { fill(G + 45, G + 48, B.GLASS); set(G + 49, B.PLASTER); cnRibbon(W, x, z, G + 50, 47.5); }
     if (c >= 48 && c <= 51 && wall) fill(G + 45, G + 48, B.PLASTER);
   }
   i = cnTierAt(CN_T3, c);
@@ -5977,7 +5980,7 @@ function cnConcourses(W, x, z, c, ray) {
     const f = CN_FLOORS[k], next = k < 3 ? CN_FLOORS[k + 1] : CN_EAVE_TOP;
     for (let y = f + 1; y <= next - 2; y++) {
       if (c === 57) set(y, y === next - 3 && ray % 12 < 3 ? B.GLOWSTONE : y <= f + 3 && ray % 12 === 6 ? B.BARREL : B.STONE);
-      else if (c === 62 && k === 0) set(y, ray % 24 === 0 && y <= f + 3 ? B.AIR : B.GLASS_PANE);
+      else if (c === 62 && k === 0) set(y, ray % 24 === 0 && y <= f + 3 ? B.AIR : B.GLASS);
       else set(y, B.AIR);
     }
     if (c > 57) { set(f, k === 0 ? B.STONE_BRICKS : B.DECK); set(next - 1, B.ALU_SLATS); }
@@ -6058,9 +6061,9 @@ function cnRoof(W, x, z, r) {
   let under = false;
   if (memb(c) && memb(co) && Lo === L + 1) set(L + 1, shapeId('membrane', 'slope'), out);
   if (memb(c) && memb(ci) && Li === L - 1) { set(L - 1, shapeId('membrane', 'slope'), CN_OPP[out] | 8); under = true; }
-  // radial cables under the membrane
+  // radial cables under the membrane (every other column's, to keep the geometry light)
   const dist = Math.hypot(x + 0.5, z + 0.5 - CN.zc);
-  if (!under && c >= 3 && c <= 66 && (cnT(x, z) * 92) % 1 * (dist * Math.PI * 2 / 92) < 0.9) set(L - 1, B.STONE_SLAB, 8);
+  if (!under && c >= 3 && c <= 66 && (cnT(x, z) * 46) % 1 * (dist * Math.PI * 2 / 46) < 0.9) set(L - 1, B.STONE_SLAB, 8);
   // compression ring and skywalk
   if (c >= 67) set(L - 1, B.PLASTER);
   if (c >= 68 && c <= 71) set(L, B.DECK);
@@ -6395,7 +6398,11 @@ function emitArch(world, p, x, y, z, id, rt, flags, wx, wz) {
     const k = BLOCK_SHAPE[id];
     let boxes;
     if (k === SH_PILLAR) boxes = pillarBoxes(pb[p - RSS] === id, pb[p + RSS] === id);
-    else {
+    else if (k === SH_SEAT) {
+      const f = world.getFacing(wx, y, wz), noBottom = (d) => (d === 3 ? -1 : tex(d));
+      for (const b of SEAT_DRAW) { const q = xfBox(f, b); emitBox(meshOpaque, p, x, y, z, q[0], q[1], q[2], q[3], q[4], q[5], noBottom, flags, WHITE_TINT, null, true); }
+      return;
+    } else {
       const g = shapeGeom(k, world.getFacing(wx, y, wz));
       for (const poly of g.polys) emitPoly(meshOpaque, p, x, y, z, poly, poly.slant ? tex(poly.n[1] > 0 ? 2 : 3) : tex(poly.n[0] > 0 ? 0 : poly.n[0] < 0 ? 1 : poly.n[1] > 0 ? 2 : poly.n[1] < 0 ? 3 : poly.n[2] > 0 ? 4 : 5), flags);
       boxes = g.boxes;
@@ -13810,7 +13817,7 @@ function streamCenter() {
 function updateChunks(budgetMs) {
   // a jet in the air sees further: stream a wider ring and let the renderer fade it in; so does
   // the Camp Nou, whose far stand is ~140 m from the centre spot
-  const boost = G.vehicle && !G.vehicle.onGround ? 3 : G.world.type === 'campnou' ? Math.max(0, 11 - G.settings.renderDistance) : 0;
+  const boost = G.vehicle && !G.vehicle.onGround ? 3 : G.world.type === 'campnou' ? Math.max(0, 9 - G.settings.renderDistance) : 0;
   const r = G.renderer;
   r.rangeBoost = (r.rangeBoost || 0) + (boost - (r.rangeBoost || 0)) * 0.02;
   const R = G.settings.renderDistance + Math.round(r.rangeBoost);
@@ -17463,7 +17470,7 @@ function enterCampNou() {
   liftOutOfBlocks(G.player);
   saveWorld();
   refreshGameUI();
-  UI.toast('Camp Nou \u00b7 105 x 68 m pitch \u00b7 fly with F or double-tap space');
+  UI.toast('Camp Nou \u00b7 fly with F \u00b7 N for day / night');
 }
 function leaveCampNou() {
   saveWorld();
@@ -17574,7 +17581,7 @@ function requestLock() {
 }
 
 // ---------- input ----------
-const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'KeyR', 'KeyT', 'KeyM', 'F1', 'F3', 'F5', 'Tab',
+const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'KeyR', 'KeyT', 'KeyN', 'KeyM', 'F1', 'F3', 'F5', 'Tab',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyV', 'KeyG', 'Enter']);
 
 // Keys that mean something else while flying. Returns true when handled.
@@ -17664,6 +17671,10 @@ function onKeyDown(e) {
       break;
     case 'KeyF': if (creative) { p.flying = !p.flying; p.vel[1] = 0; UI.toast(p.flying ? 'Flying' : 'Walking'); } break;
     case 'KeyE': UI.openInventory(); break;
+    // in the Camp Nou, N switches straight between day and a lit-up night
+    case 'KeyN':
+      if (G.slot === 'campnou') { const night = G.dayTime > 0.5; G.dayTime = night ? 0.3 : 0.78; UI.toast(night ? 'Day' : 'Night: the lights come on'); }
+      break;
     case 'KeyQ': Act.dropHeld(e.ctrlKey); break;
     case 'F3': G.debug = !G.debug; $('debug').classList.toggle('hidden', !G.debug); break;
     case 'F1': G.hudHidden = !G.hudHidden; $('hud').classList.toggle('hidden', G.hudHidden); break;

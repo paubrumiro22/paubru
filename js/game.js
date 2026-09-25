@@ -83,7 +83,7 @@ function streamCenter() {
 function updateChunks(budgetMs) {
   // a jet in the air sees further: stream a wider ring and let the renderer fade it in; so does
   // the Camp Nou, whose far stand is ~140 m from the centre spot
-  const boost = G.vehicle && !G.vehicle.onGround ? 3 : G.world.type === 'campnou' ? Math.max(0, 11 - G.settings.renderDistance) : 0;
+  const boost = G.vehicle && !G.vehicle.onGround ? 3 : G.world.type === 'campnou' ? Math.max(0, 9 - G.settings.renderDistance) : 0;
   const r = G.renderer;
   r.rangeBoost = (r.rangeBoost || 0) + (boost - (r.rangeBoost || 0)) * 0.02;
   const R = G.settings.renderDistance + Math.round(r.rangeBoost);
