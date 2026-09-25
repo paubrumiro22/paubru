@@ -312,6 +312,9 @@
   #playerList { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
   #playerList div { background: rgba(0, 0, 0, 0.42); padding: 3px 10px; border-radius: 7px; display: flex; align-items: center; gap: 7px; }
   #playerList i { width: 9px; height: 9px; border-radius: 50%; }
+  body.minimap #playerList { top: 222px; }
+  #minimap { position: absolute; right: 12px; top: 12px; width: 176px; height: 176px; border-radius: 50%; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45); pointer-events: none; }
+  #mapCoords { position: absolute; right: 12px; top: 194px; width: 176px; text-align: center; font: 600 11px/1.6 ui-monospace, "Cascadia Mono", Consolas, monospace; color: #e6edf5; text-shadow: 0 1px 2px #000; pointer-events: none; }
   .mprow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .skins { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
   .skin { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px 8px; border-radius: 11px; font-size: 12px; line-height: 1.2; text-align: center; }
@@ -322,6 +325,20 @@
   #mpColors button { width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
   #mpColors button.on { border-color: #fff; }
   #mpStatus { color: var(--muted); font-size: 13px; }
+  .field .mprow + .mprow, .field .srvcur { margin-top: 8px; }
+  .srvcur { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 12px; background: rgba(242, 185, 75, 0.12); border: 1px solid rgba(242, 185, 75, 0.45); }
+  .srvcur > div:first-child { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 160px; }
+  .srvcur > div:first-child span { color: var(--muted); font-size: 13px; }
+  .srvcode { font-size: 13px; color: var(--muted); }
+  .srvcode b { font: 700 20px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: 0.12em; color: #fff; margin-left: 6px; user-select: all; }
+  #srvLink { flex-basis: 100%; }
+  #srvList { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .srv { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }
+  .srv.on { border-color: rgba(242, 185, 75, 0.6); }
+  .srv > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .srv b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .srv span { color: var(--muted); font-size: 12px; }
+  .srv button { padding: 6px 12px; font-size: 13px; }
 
   @media (max-width: 560px) {
     .slot { width: 36px; height: 36px; } .slot i { inset: 4px; }
@@ -356,6 +373,8 @@
   <div id="nametags"></div>
   <div id="chatLog"></div>
   <div id="playerList"></div>
+  <canvas id="minimap" class="hidden" width="176" height="176"></canvas>
+  <div id="mapCoords" class="hidden"></div>
 </div>
 <canvas id="flightHud" class="fx hidden"></canvas>
 <input type="text" id="chatInput" class="hidden" maxlength="120" placeholder="Say something… (Enter to send, Esc to cancel)">
@@ -407,7 +426,7 @@
     <dl><dt>Hangar</dt><dd>Caza F-BL «Pau» con cañón, misiles y paracaídas</dd></dl>
     <dl><dt>Motor gráfico</dt><dd>WebGL2 hecho a mano: cielo con dispersión atmosférica, sombras,<br>agua con reflejos, nubes volumétricas, rayos de luz y bloom</dd></dl>
     <dl><dt>Arte y sonido</dt><dd>Texturas, modelos, criaturas y efectos generados por código.<br>Ningún archivo externo.</dd></dl>
-    <dl><dt>Multijugador</dt><dd>Un mundo compartido para todos los que abran el juego</dd></dl>
+    <dl><dt>Multijugador</dt><dd>Servidores con código para jugar con tus amigos, sin cuentas</dd></dl>
     <div class="thanks">¡Gracias por jugar!</div>
   </div>
 </div>
@@ -442,9 +461,26 @@
       <div class="mprow">
         <input type="text" id="mpName" maxlength="16" placeholder="Your name" style="width:170px">
         <div id="mpColors"></div>
-        <button id="mpJoinBtn" disabled>Join online world</button>
+        <button id="mpJoinBtn" class="hidden" disabled>Join shared world</button>
       </div>
-      <span id="mpStatus">Checking for other players…</span>
+      <div id="srvCurrent" class="srvcur hidden">
+        <div><b id="srvCurName"></b><span id="srvCurInfo"></span></div>
+        <div class="srvcode" title="Server code">Code <b id="srvCurCode"></b></div>
+        <button id="srvInvite" class="primary">Copy invite link</button>
+        <button id="srvLeave">Leave server</button>
+        <input type="text" id="srvLink" class="hidden" readonly>
+      </div>
+      <div class="mprow">
+        <input type="text" id="srvNameInput" maxlength="24" placeholder="New server name" style="width:190px">
+        <select id="srvModeSel"><option value="survival">Survival</option><option value="creative">Creative</option></select>
+        <button id="srvCreate">Create server</button>
+      </div>
+      <div class="mprow">
+        <input type="text" id="srvCodeInput" maxlength="8" placeholder="Friend’s code, e.g. K7P2QX" style="width:190px;text-transform:uppercase">
+        <button id="srvJoin">Join with code</button>
+      </div>
+      <div id="srvList"></div>
+      <span id="mpStatus"></span>
     </div>
 
     <h2>Skin</h2>
@@ -512,6 +548,7 @@
       <div><kbd>F3</kbd>Debug info · <kbd>F1</kbd>Hide HUD</div>
       <div><kbd>F5</kbd>Third person / front view</div>
       <div><kbd>Enter</kbd>Chat (online)</div>
+      <div><kbd>M</kbd>Minimap: close up / zoomed out / off</div>
     </div>
     <h2>Fighter jet</h2>
     <div class="keys">
@@ -565,6 +602,7 @@
 <script src="js/wildlife.js"></script>
 <script src="js/game.js"></script>
 <script src="js/net.js"></script>
+<script src="js/minimap.js"></script>
 <script src="js/interact.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>

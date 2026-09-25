@@ -386,6 +386,7 @@ class Renderer {
 
   uploadChunk(chunk, res) {
     const gl = this.gl;
+    chunk.uploads = (chunk.uploads || 0) + 1;   // lets the minimap know the chunk changed
     if (!chunk.mesh) chunk.mesh = { opaque: null, cutout: null, water: null };
     for (const kind of ['opaque', 'cutout', 'water']) {
       const b = res[kind];

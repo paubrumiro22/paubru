@@ -19,6 +19,7 @@ const SETTINGS_UI = [
   { key: 'weather', label: 'Weather', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow'], ['fog', 'Fog']] },
   { key: 'events', label: 'World events (meteor showers, eruptions)', type: 'check' },
   { key: 'wildlife', label: 'Wildlife (birds, bees, butterflies, fish)', type: 'check' },
+  { key: 'minimap', label: 'Minimap (M)', type: 'select', options: [['normal', 'Close up'], ['large', 'Zoomed out'], ['off', 'Off']] },
 ];
 
 // ---------- errors ----------
@@ -57,6 +58,7 @@ function loadSettings() {
   st.volume = clamp(st.volume, 0, 1);
   if (!['auto', ...WEATHER_KINDS].includes(st.weather)) st.weather = 'auto';
   st.skin = clamp(Math.round(st.skin) || 0, 0, SKINS.length - 1);
+  if (!['normal', 'large', 'off'].includes(st.minimap)) st.minimap = 'normal';
 }
 function saveSettings() { storageSet(SETTINGS_KEY, G.settings); }
 
@@ -122,7 +124,7 @@ function refreshGameUI() {
   $('difficultySel').value = String(G.difficulty);
   $('keepInvCheck').checked = G.rules.keepInventory;
   $('mobsCheck').checked = G.rules.mobSpawning;
-  $('seedVal').textContent = G.online ? 'online world' : String(G.world ? G.world.seed : '');
+  $('seedVal').textContent = Net.server ? 'server ' + Net.server.code : G.online ? 'online world' : String(G.world ? G.world.seed : '');
   const wt = G.world ? G.world.type : 'default';
   $('worldTypeVal').textContent = WORLD_PRESETS[wt] ? WORLD_PRESETS[wt].name : wt;
   buildPlaces($('placesGridMenu'));
@@ -161,6 +163,7 @@ function buildPlaces(el, after) {
 }
 
 function worldLabel() {
+  if (Net.server) return 'Server “' + Net.server.name + '” · code ' + Net.server.code + ' · ' + (Net.peers.size + 1) + ' player' + (Net.peers.size ? 's' : '');
   if (G.online) return 'Online world · ' + (Net.peers.size + 1) + ' player' + (Net.peers.size ? 's' : '');
   return (G.mode === 'creative' ? 'Creative' : 'Survival') + ' world · seed ' + G.world.seed;
 }
@@ -264,7 +267,7 @@ function requestLock() {
 }
 
 // ---------- input ----------
-const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'KeyR', 'KeyT', 'F1', 'F3', 'F5', 'Tab',
+const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'KeyR', 'KeyT', 'KeyM', 'F1', 'F3', 'F5', 'Tab',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyV', 'KeyG', 'Enter']);
 
 // Keys that mean something else while flying. Returns true when handled.
@@ -334,6 +337,7 @@ function onKeyDown(e) {
   const p = G.player;
   const creative = G.mode === 'creative';
   if (e.code === 'Enter' && Net.on) { Net.openChat(); return; }
+  if (e.code === 'KeyM') { Minimap.cycle(); buildSettingsUI(); return; }
   if (G.vehicle && vehicleKey(e.code)) return;
   switch (e.code) {
     case 'KeyW':
@@ -547,10 +551,28 @@ function bindInput() {
   $('mpName').addEventListener('change', (e) => { Net.name = safeName(e.target.value); Net.saveProfile(); Net.refreshUI(); Net.sendT = 0; });
   $('mpJoinBtn').addEventListener('click', () => {
     Sound.init();
-    if (Net.on) Net.leave(); else Net.join();
+    if (Net.on && !Net.server) Net.leave(); else Net.join();
     refreshGameUI();
     if (Net.on) requestLock();
   });
+  $('srvCreate').addEventListener('click', () => {
+    Sound.init();
+    Net.createServer($('srvNameInput').value, $('srvModeSel').value);
+    $('srvNameInput').value = '';
+    refreshGameUI();
+    UI.toast('Server created · code ' + Net.server.code + ' · use “Copy invite link” to invite friends');
+  });
+  const joinTyped = () => {
+    Sound.init();
+    if (!Net.joinCode($('srvCodeInput').value)) return;
+    $('srvCodeInput').value = '';
+    refreshGameUI();
+    requestLock();
+  };
+  $('srvJoin').addEventListener('click', joinTyped);
+  $('srvCodeInput').addEventListener('keydown', (e) => { if (e.code === 'Enter') joinTyped(); });
+  $('srvInvite').addEventListener('click', () => Net.copyInvite());
+  $('srvLeave').addEventListener('click', () => { Net.leave(); refreshGameUI(); });
   buildSkinPicker();
   const chat = $('chatInput');
   chat.addEventListener('keydown', (e) => {
@@ -733,6 +755,7 @@ function frame(now) {
     });
     Vehicles.drawHud();
     UI.update(dt);
+    Minimap.update(dt);
     adaptResolution(dt);
 
     // stats
@@ -792,12 +815,19 @@ async function boot() {
     Net.init();
     const save = loadSave();
     newWorld(save ? save.seed : (Math.random() * 2147483647) | 0, save, { mode: 'survival', type: 'default' });
+    // an invite link (#s=CODE) opens that server straight away
+    const invite = Net.codeFromLink();
+    if (invite) Net.joinCode(invite);
     setLoad(0.1, 'Generating terrain');
     await preload((f) => setLoad(0.1 + f * 0.85, 'Generating terrain · ' + Math.round(f * 100) + '%'));
     setLoad(0.97, 'Starting background workers');
     await Promise.race([workers, new Promise((r) => setTimeout(r, 2500))]);
     buildSettingsUI();
     bindInput();
+    window.addEventListener('hashchange', () => {
+      const c = Net.codeFromLink();
+      if (c && (!Net.server || Net.server.code !== c)) { Net.joinCode(c); refreshGameUI(); if (G.onTitle) $('tWorld').textContent = worldLabel(); }
+    });
     UI.invDirty();
     UI.updateHud(true);
     $('loading').classList.add('hidden');

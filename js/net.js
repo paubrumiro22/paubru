@@ -1,16 +1,51 @@
 'use strict';
-// Online play. Everyone who opens the published page joins one shared world ("online world").
-// Transport: the claude.ai artifact "room" (presence + events between people viewing the page)
-// or, outside claude.ai, a BroadcastChannel so several tabs of the same browser can play
-// together. Each player publishes a small presence object (position, look, aircraft, the last
-// few block edits / explosions as numbered "ops"); newcomers get the full edit history from the
-// longest-present player over the "sync" topic. Mobs stay local to each player.
+// Online play, two flavours:
+// - Servers: anyone creates one and gets a 6-letter code (and an invite link). Players connect
+//   straight to each other with WebRTC through Trystero (public Nostr relays only introduce
+//   them; no server of ours). The world lives in the browser of everyone who has played on it:
+//   each player keeps a copy with the time of every block edit, and when players meet they swap
+//   histories and keep the newest version of each block. So the world is saved as long as any
+//   of its players still has their copy, and anyone can open it again.
+// - The shared "online world" inside a claude.ai artifact (its "room" presence + events), or a
+//   BroadcastChannel between tabs of one browser.
+// Each player publishes a small presence object (position, look, aircraft, the last few block
+// edits / explosions as numbered "ops"); full histories travel over "sync". Mobs stay local.
 
 const ONLINE_SEED = 20250925;
 const ONLINE_SAVE_KEY = 'blocklands.online.v1';
 const NET_KEY = 'blocklands.net.v1';
+const SERVERS_KEY = 'blocklands.servers.v1';
+const SERVER_SAVE_PREFIX = 'blocklands.srv.';
+const SERVER_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const NET_APP_ID = 'blocklands-paubru-v1';
+const TRYSTERO_URL = 'https://cdn.jsdelivr.net/npm/trystero@0.25.4/+esm';
 const NET_OPS = 80;               // ops kept in presence (edits, explosions, missiles, chat)
 const NET_COLORS = [[230, 72, 60], [60, 140, 240], [70, 200, 90], [240, 190, 40], [190, 90, 230], [40, 200, 200], [250, 130, 40], [240, 110, 170]];
+
+let trysteroLoad = null;
+function loadTrystero() {
+  if (!trysteroLoad) trysteroLoad = import(TRYSTERO_URL).catch((e) => { trysteroLoad = null; throw e; });
+  return trysteroLoad;
+}
+
+function normServerCode(s) {
+  const c = String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return c.length === 6 && [...c].every((ch) => SERVER_CODE_CHARS.includes(ch)) ? c : null;
+}
+function newServerCode() {
+  const a = new Uint32Array(6);
+  crypto.getRandomValues(a);
+  return [...a].map((n) => SERVER_CODE_CHARS[n % SERVER_CODE_CHARS.length]).join('');
+}
+// The world seed comes from the code, so nobody has to send it.
+function serverSeed(code) {
+  let h = 2166136261;
+  for (let i = 0; i < code.length; i++) h = Math.imul(h ^ code.charCodeAt(i), 16777619);
+  h = Math.imul(h ^ (h >>> 15), 2246822507);
+  return (h ^ (h >>> 13)) & 0x7fffffff;
+}
+function serverLink(code) { return location.origin + location.pathname + '#s=' + code; }
+const nowSec = () => Math.floor(Date.now() / 1000);
 
 const Net = {
   available: false, kind: null, on: false, room: null, bc: null,
@@ -19,11 +54,16 @@ const Net = {
   ops: [], seq: 0, capture: true,
   sendT: 0, lastSent: '', chat: [], statusText: '',
   syncBuf: new Map(),
+  server: null,                // the server being played ({ code, name, mode, last }) or null
+  servers: [],                 // servers this browser knows
+  p2p: null, p2pToken: 0,
+  times: new Map(),            // posKey -> time (s) of the latest edit of that block
 
   async init() {
     const saved = storageGet(NET_KEY) || {};
     this.name = typeof saved.name === 'string' && saved.name.trim() ? saved.name.slice(0, 16) : 'Player' + Math.floor(100 + Math.random() * 900);
     this.color = Number.isInteger(saved.color) ? clamp(saved.color, 0, NET_COLORS.length - 1) : Math.floor(Math.random() * NET_COLORS.length);
+    this.loadServers();
     // claude.ai viewer: the artifact room
     try {
       if (window.claude && typeof window.claude.use === 'function') {
@@ -42,30 +82,102 @@ const Net = {
 
   saveProfile() { storageSet(NET_KEY, { name: this.name, color: this.color }); },
 
-  // ------------------------------------------------------------ session ----
-  join() {
-    if (!this.available || this.on) return;
-    saveWorld();
-    this.on = true;
-    G.online = true;
-    this.ops = []; this.seq = 0; this.peers.clear(); this.syncBuf.clear();
-    const save = storageGet(ONLINE_SAVE_KEY);
-    newWorld(ONLINE_SEED, save && save.v === 2 ? save : null, { mode: G.mode, type: 'default' });
-    prepareArea(G.player.pos[0], G.player.pos[2], 2);
-    liftOutOfBlocks(G.player);
-    if (this.kind === 'room') this.bindRoom();
-    else this.bindLocal();
-    this.sendPresence(true);
-    // background tabs pause animation frames: keep announcing from a timer
-    clearInterval(this.hb);
-    this.hb = setInterval(() => { if (this.on) this.sendPresence(this.kind === 'local'); }, 1000);
-    this.statusText = 'Online';
-    document.body.classList.add('online');
-    this.refreshUI();
-    G.ui.toast('Joined the online world as ' + this.name);
+  // ------------------------------------------------------------ servers ----
+  loadServers() {
+    const list = storageGet(SERVERS_KEY);
+    this.servers = Array.isArray(list) ? list.filter((s) => s && normServerCode(s.code)).map((s) => ({
+      code: s.code, name: safeServerName(s.name, s.code), mode: s.mode === 'creative' ? 'creative' : 'survival', last: Number(s.last) || 0, named: !!s.named,
+    })) : [];
+  },
+  saveServers() { storageSet(SERVERS_KEY, this.servers); },
+  findServer(code) { return this.servers.find((s) => s.code === code) || null; },
+
+  createServer(name, mode) {
+    const code = newServerCode();
+    const s = { code, name: safeServerName(name, code), mode: mode === 'creative' ? 'creative' : 'survival', last: nowSec(), named: true };
+    this.servers.push(s);
+    this.saveServers();
+    this.join(s);
+    return s;
   },
 
-  leave() {
+  joinCode(raw) {
+    const code = normServerCode(raw);
+    if (!code) { G.ui.toast('A server code has 6 letters and numbers, like K7P2QX'); return false; }
+    let s = this.findServer(code);
+    if (!s) { s = { code, name: 'Server ' + code, mode: 'survival', last: nowSec(), named: false }; this.servers.push(s); this.saveServers(); }
+    this.join(s);
+    return true;
+  },
+
+  forgetServer(code) {
+    if (this.server && this.server.code === code) this.leave();
+    this.servers = this.servers.filter((s) => s.code !== code);
+    this.saveServers();
+    try { localStorage.removeItem(SERVER_SAVE_PREFIX + code); } catch (e) { /* ignore */ }
+    this.refreshUI();
+  },
+
+  // A code in the address (#s=K7P2QX) means "join this server".
+  codeFromLink() {
+    const m = /(?:^|[#&])s=([A-Za-z0-9-]{6,8})/.exec(location.hash || '');
+    return m ? normServerCode(m[1]) : null;
+  },
+
+  saveKey() { return this.server ? SERVER_SAVE_PREFIX + this.server.code : ONLINE_SAVE_KEY; },
+  serializeTimes() {
+    const a = [];
+    for (const [k, t] of this.times) a.push(k, t);
+    return a;
+  },
+  loadTimes(a) {
+    this.times.clear();
+    if (!Array.isArray(a)) return;
+    for (let i = 0; i + 1 < a.length; i += 2) if (Number.isFinite(a[i]) && Number.isFinite(a[i + 1])) this.times.set(a[i], a[i + 1]);
+  },
+
+  // ------------------------------------------------------------ session ----
+  // server: a server record (P2P), or nothing for the shared claude.ai / tabs world
+  join(server) {
+    if (!server && !this.available) return;
+    if (this.on) {
+      if (server && this.server && server.code === this.server.code) return;
+      this.leave(true);   // saves the world being left
+    } else saveWorld();
+    this.server = server || null;
+    this.on = true;
+    G.online = true;
+    this.ops = []; this.seq = 0; this.peers.clear(); this.syncBuf.clear(); this.times.clear();
+    const save = storageGet(this.saveKey());
+    const ok = save && save.v === 2 ? save : null;
+    newWorld(server ? serverSeed(server.code) : ONLINE_SEED, ok, { mode: server ? server.mode : G.mode, type: 'default' });
+    if (ok) this.loadTimes(ok.net);
+    prepareArea(G.player.pos[0], G.player.pos[2], 2);
+    liftOutOfBlocks(G.player);
+    // background tabs pause animation frames: keep announcing from a timer
+    clearInterval(this.hb);
+    this.hb = setInterval(() => { if (this.on) this.sendPresence(this.kind === 'local' || !!this.server); }, 1000);
+    document.body.classList.add('online');
+    if (server) {
+      server.last = nowSec();
+      this.saveServers();
+      try { history.replaceState(null, '', '#s=' + server.code); } catch (e) { /* ignore */ }
+      this.statusText = 'Connecting…';
+      this.startP2P(server);
+      G.ui.toast('Server “' + server.name + '” · code ' + server.code);
+    } else {
+      this.statusText = 'Online';
+      if (this.kind === 'room') this.bindRoom();
+      else this.bindLocal();
+      this.sendPresence(true);
+      G.ui.toast('Joined the online world as ' + this.name);
+    }
+    saveWorld();
+    this.refreshUI();
+  },
+
+  // switching: another world is loaded right after, so do not go back to your own one
+  leave(switching) {
     if (!this.on) return;
     saveWorld();
     this.on = false;
@@ -73,15 +185,61 @@ const Net = {
     clearInterval(this.hb);
     if (this.unsub) for (const u of this.unsub) try { u(); } catch (e) { /* ignore */ }
     this.unsub = [];
-    if (this.room) this.room.presence({ w: null, p: null, v: null, q: null }).catch(() => {});
+    if (this.room && !this.server) this.room.presence({ w: null, p: null, v: null, q: null }).catch(() => {});
     if (this.bc) { this.bc.postMessage({ t: 'bye', peer: this.selfPeer }); this.bc.close(); this.bc = null; }
+    this.p2pToken++;
+    if (this.p2p) { const r = this.p2p.room; this.p2p = null; r.leave().catch(() => {}); }
+    for (const r of this.peers.values()) if (r.tag) r.tag.remove();
     this.peers.clear();
+    const wasServer = this.server;
+    this.server = null;
+    this.times.clear();
+    if (wasServer) try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ }
     document.body.classList.remove('online');
+    if (switching) return;
     const save = loadSave();
     newWorld(save ? save.seed : (Math.random() * 2147483647) | 0, save, { mode: 'survival', type: 'default' });
     prepareArea(G.player.pos[0], G.player.pos[2], 2);
     this.refreshUI();
     G.ui.toast('Back to your own world');
+  },
+
+  async startP2P(server) {
+    const token = ++this.p2pToken;
+    let mod;
+    try {
+      mod = await loadTrystero();
+    } catch (e) {
+      console.warn('Blocklands: could not load the networking library', e);
+      if (token === this.p2pToken) { this.statusText = 'Offline: could not reach the network (you can keep playing, it saves here)'; this.refreshUI(); }
+      return;
+    }
+    if (!this.on || this.server !== server || token !== this.p2pToken) return;
+    try {
+      const room = mod.joinRoom({ appId: NET_APP_ID, password: 'bl:' + server.code }, 'srv-' + server.code);
+      this.selfPeer = mod.selfId;
+      const pres = room.makeAction('pres'), sync = room.makeAction('sync'), need = room.makeAction('need');
+      pres.onMessage = (d, ctx) => {
+        const isNew = !this.peers.has(ctx.peerId);
+        this.onPresence(ctx.peerId, d);
+        if (isNew && this.peers.has(ctx.peerId)) this.refreshUI();
+      };
+      sync.onMessage = (d, ctx) => this.onSync(d, ctx.peerId);
+      need.onMessage = (d, ctx) => this.serve(ctx.peerId);
+      room.onPeerJoin = (id) => {
+        this.sendPresence(true, id);
+        // both sides send their whole history: each keeps the newest version of every block
+        setTimeout(() => this.serve(id), 300);
+      };
+      room.onPeerLeave = (id) => { this.dropPeer(id); this.refreshUI(); };
+      this.p2p = { room, pres, sync, need };
+      this.statusText = 'Online';
+      this.sendPresence(true);
+    } catch (e) {
+      console.warn('Blocklands: could not open the server', e);
+      this.statusText = 'Offline: could not open the connection (you can keep playing, it saves here)';
+    }
+    this.refreshUI();
   },
 
   // ------------------------------------------------------------ transports ----
@@ -117,7 +275,11 @@ const Net = {
     window.addEventListener('pagehide', () => { if (this.bc) this.bc.postMessage({ t: 'bye', peer: this.selfPeer }); });
   },
 
-  emit(topic, data) {
+  emit(topic, data, to) {
+    if (this.server) {
+      const a = this.p2p && this.p2p[topic];
+      return a ? a.send(data, to ? { target: to } : undefined).catch(() => {}) : Promise.resolve();
+    }
     if (this.kind === 'room') return this.room.emit(topic, data).catch(() => {});
     if (this.bc) this.bc.postMessage({ t: topic, peer: this.selfPeer, data });
     return Promise.resolve();
@@ -131,7 +293,11 @@ const Net = {
     if (this.ops.length > NET_OPS) this.ops.splice(0, this.ops.length - NET_OPS);
     this.sendT = 0;
   },
-  edit(x, y, z, id, facing) { if (this.on && this.capture) this.op(['b', x, y, z, id, facing === undefined ? -1 : facing]); },
+  edit(x, y, z, id, facing) {
+    if (!this.on) return;
+    this.times.set(posKey(x, y, z), nowSec());
+    if (this.capture) this.op(['b', x, y, z, id, facing === undefined ? -1 : facing]);
+  },
   explosion(x, y, z, power, seed) { if (this.on && this.capture) this.op(['x', r1(x), r1(y), r1(z), power, seed]); },
   missile(pos, dir, speed) { if (this.on) this.op(['m', r1(pos[0]), r1(pos[1]), r1(pos[2]), r3(dir[0]), r3(dir[1]), r3(dir[2]), Math.round(speed)]); },
   say(text) {
@@ -155,14 +321,15 @@ const Net = {
     return d;
   },
 
-  sendPresence(force) {
+  sendPresence(force, to) {
     const d = this.presenceData();
     let s = JSON.stringify(d);
     // stay inside the 4 KiB presence budget
     while (s.length > 3800 && d.q.length > 4) { d.q = d.q.slice(Math.ceil(d.q.length / 4)); s = JSON.stringify(d); }
     if (!force && s === this.lastSent) return;
     this.lastSent = s;
-    if (this.kind === 'room') this.room.presence(d).catch(() => {});
+    if (this.server) { if (this.p2p) this.p2p.pres.send(d, to ? { target: to } : undefined).catch(() => {}); }
+    else if (this.kind === 'room') this.room.presence(d).catch(() => {});
     else if (this.bc) this.bc.postMessage({ t: 'presence', peer: this.selfPeer, data: d });
   },
 
@@ -170,12 +337,12 @@ const Net = {
     if (!this.on) return;
     this.sendT -= dt;
     if (this.sendT <= 0) { this.sendT = 1 / 15; this.sendPresence(false); }
-    if (this.kind === 'local') {
-      // tabs have no presence service: re-announce and forget silent tabs
+    if (this.kind === 'local' || this.server) {
+      // tabs and P2P have no presence service: re-announce and forget silent players
       this.beat = (this.beat || 0) - dt;
       if (this.beat <= 0) { this.beat = 1; this.sendPresence(true); }
-      const now = performance.now();
-      for (const [k, r] of this.peers) if (now - r.seen > 4000) this.dropPeer(k);
+      const now = performance.now(), limit = this.server ? 9000 : 4000;
+      for (const [k, r] of this.peers) if (now - r.seen > limit) { this.dropPeer(k); this.refreshUI(); }
     }
     // smooth remote motion
     const k = 1 - Math.exp(-dt * 12);
@@ -248,7 +415,7 @@ const Net = {
     }
     if (q.length && q[0][0] > r.applied + 1 && s > r.applied) {
       // we missed some: ask them for everything
-      this.emit('need', { to: peer });
+      this.emit('need', { to: peer }, peer);
     }
     for (const o of q) {
       if (!Array.isArray(o) || !(o[0] > r.applied)) continue;
@@ -288,6 +455,7 @@ const Net = {
   applyEdit(x, y, z, id, facing) {
     const w = G.world;
     if (w.isLoaded(x, z)) { editBlock(x, y, z, id, facing); return; }
+    this.times.set(posKey(x, y, z), nowSec());
     const key = chunkKey(x >> 4, z >> 4);
     if (!w.edits.has(key)) w.edits.set(key, new Map());
     w.edits.get(key).set(blockIndex(x & 15, y, z & 15), id);
@@ -313,39 +481,67 @@ const Net = {
     setTimeout(() => this.serve(newPeer), 400);
   },
 
+  // Servers send [x, y, z, id, facing, time] per edited block; the shared world omits the time.
   serve(toPeer) {
-    const w = G.world;
+    if (!this.on) return;
+    const w = G.world, timed = !!this.server, k = timed ? 6 : 5;
     const flat = [];
     for (const [key, m] of w.edits) {
       const cx = Math.floor(key / 65536) - 32768, cz = (key % 65536) - 32768;
       for (const [idx, id] of m) {
         const x = cx * CS + (idx % CS), z = cz * CS + (Math.floor(idx / CS) % CS), y = Math.floor(idx / (CS * CS));
-        const f = w.facing.get(posKey(x, y, z));
+        const pk = posKey(x, y, z);
+        const f = w.facing.get(pk);
         flat.push(x, y, z, id, f === undefined ? -1 : f);
+        if (timed) flat.push(this.times.get(pk) || 0);
       }
     }
-    const per = 5 * 90;
+    const per = k * (timed ? 2000 : 90);
     const total = Math.max(1, Math.ceil(flat.length / per));
     const id = Math.random().toString(36).slice(2, 8);
+    const meta = this.server && this.server.named ? { name: this.server.name, mode: this.server.mode } : null;
     for (let i = 0; i < total; i++) {
-      const part = { to: toPeer, id, i, n: total, e: flat.slice(i * per, (i + 1) * per), t: G.dayTime };
-      setTimeout(() => this.emit('sync', part), i * 60);
+      const part = { to: toPeer, id, i, n: total, k, e: flat.slice(i * per, (i + 1) * per), t: G.dayTime };
+      if (i === 0 && meta) part.m = meta;
+      setTimeout(() => this.emit('sync', part, toPeer), i * 60);
     }
   },
 
-  onSync(d) {
+  onSync(d, from) {
     if (!d || d.to !== this.selfPeer || !Array.isArray(d.e)) return;
+    const k = d.k === 6 ? 6 : 5, timed = k === 6 && !!this.server;
     const was = this.capture;
     this.capture = false;
+    let changed = 0;
     try {
-      for (let i = 0; i + 4 < d.e.length; i += 5) {
+      for (let i = 0; i + k - 1 < d.e.length; i += k) {
         const [x, y, z, id, f] = d.e.slice(i, i + 5).map(Number);
         if (![x, y, z].every(Number.isInteger) || y < 0 || y >= CH || !(id === 0 || isValidBlock(id))) continue;
-        if (G.world.getBlock(x, y, z) === id && G.world.isLoaded(x, z)) continue;
-        this.applyEdit(x, y, z, id, [0, 1, 4, 5].includes(f) ? f : undefined);
+        const pk = posKey(x, y, z);
+        const t = timed ? Number(d.e[i + 5]) || 0 : 0;
+        // keep whichever version of this block changed last
+        if (timed && t <= (this.times.get(pk) || 0)) continue;
+        if (G.world.getBlock(x, y, z) !== id || !G.world.isLoaded(x, z)) { this.applyEdit(x, y, z, id, [0, 1, 4, 5].includes(f) ? f : undefined); changed++; }
+        if (timed) this.times.set(pk, t);
       }
-      if (d.i === 0 && Number.isFinite(d.t)) G.dayTime = ((d.t % 1) + 1) % 1;
+      if (d.i === 0) {
+        // one clock for everybody: the player with the smaller id sets the time of day
+        if (Number.isFinite(d.t) && (!this.server || !from || from < this.selfPeer)) G.dayTime = ((d.t % 1) + 1) % 1;
+        const s = this.server;
+        if (s && d.m && typeof d.m.name === 'string' && !s.named) {
+          s.name = safeServerName(d.m.name, s.code); s.named = true;
+          if ((d.m.mode === 'creative' || d.m.mode === 'survival') && d.m.mode !== s.mode) {
+            // first visit: start in the mode the server was created with
+            s.mode = d.m.mode;
+            setGameMode(s.mode);
+            refreshGameUI();
+          }
+          this.saveServers();
+          this.refreshUI();
+        }
+      }
     } finally { this.capture = was; }
+    if (changed && this.server) G.world.editsDirty = true;
   },
 
   // ------------------------------------------------------------ rendering ----
@@ -394,6 +590,63 @@ const Net = {
   },
 
   // ------------------------------------------------------------ chat & UI ----
+  buildServerList() {
+    const host = $('srvList');
+    if (!host) return;
+    host.innerHTML = '';
+    const list = this.servers.slice().sort((a, b) => b.last - a.last);
+    for (const s of list) {
+      const here = !!this.server && this.server.code === s.code;
+      const row = document.createElement('div');
+      row.className = 'srv' + (here ? ' on' : '');
+      const info = document.createElement('div');
+      const n = document.createElement('b');
+      n.textContent = s.name;
+      const sub = document.createElement('span');
+      sub.textContent = s.code + ' · ' + (s.mode === 'creative' ? 'Creative' : 'Survival') + (s.last ? ' · ' + timeAgo(s.last) : '');
+      info.append(n, sub);
+      row.append(info);
+      const play = document.createElement('button');
+      play.textContent = here ? 'Playing' : 'Play';
+      play.disabled = here;
+      play.className = here ? '' : 'primary';
+      play.addEventListener('click', () => { Sound.init(); this.join(s); refreshGameUI(); requestLock(); });
+      const forget = document.createElement('button');
+      forget.textContent = 'Delete';
+      forget.title = 'Delete your copy of this world from this device';
+      let armed = 0;
+      forget.addEventListener('click', () => {
+        if (!armed) {
+          forget.textContent = 'Delete my copy?';
+          armed = setTimeout(() => { armed = 0; forget.textContent = 'Delete'; }, 4000);
+          return;
+        }
+        clearTimeout(armed);
+        this.forgetServer(s.code);
+        refreshGameUI();
+      });
+      row.append(play, forget);
+      host.append(row);
+    }
+  },
+
+  copyInvite() {
+    if (!this.server) return;
+    const link = serverLink(this.server.code);
+    const done = () => G.ui.toast('Invite link copied · code ' + this.server.code);
+    const fallback = () => {
+      const i = $('srvLink');
+      i.value = link;
+      i.classList.remove('hidden');
+      i.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { /* ignore */ }
+      if (ok) done(); else G.ui.toast('Copy the link from the box');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, fallback);
+    else fallback();
+  },
+
   addChat(name, color, text) {
     const log = $('chatLog');
     const line = document.createElement('div');
@@ -420,16 +673,25 @@ const Net = {
   refreshUI() {
     const st = $('mpStatus');
     if (!st) return;
+    const players = (this.peers.size + 1) + ' player' + (this.peers.size ? 's' : '');
+    // the shared claude.ai world (only offered where the artifact room exists)
     const btn = $('mpJoinBtn');
-    if (!this.available) {
-      st.textContent = 'Checking for other players…';
-      btn.disabled = true;
-    } else {
-      btn.disabled = false;
-      btn.textContent = this.on ? 'Leave online world' : 'Join online world';
-      const where = this.kind === 'room' ? 'Everyone who opens this page (share it from the Share menu) plays in the same world.' : 'Not inside claude.ai: open this page in another tab of this browser to play together.';
-      st.textContent = this.on ? (this.statusText || 'Online') + ' · ' + (this.peers.size + 1) + ' player' + (this.peers.size ? 's' : '') + ' here' : where;
+    const shared = this.kind === 'room';
+    btn.classList.toggle('hidden', !shared);
+    btn.disabled = !this.available;
+    btn.textContent = this.on && !this.server ? 'Leave shared world' : 'Join shared world';
+    // the server you are on
+    const cur = $('srvCurrent');
+    cur.classList.toggle('hidden', !this.server);
+    if (this.server) {
+      $('srvCurName').textContent = this.server.name;
+      $('srvCurCode').textContent = this.server.code;
+      $('srvCurInfo').textContent = (this.statusText || 'Online') + ' · ' + players;
     }
+    if (this.on && !this.server) st.textContent = (this.statusText || 'Online') + ' · ' + players + ' in the shared world';
+    else if (this.server) st.textContent = 'Send the code or the invite link to your friends. The world saves on every player’s device, so anyone who played here can open it again.';
+    else st.textContent = 'Create a server and share its code, or type a friend’s code. No account needed.';
+    this.buildServerList();
     $('mpName').value = this.name;
     document.querySelectorAll('#mpColors button').forEach((b, i) => b.classList.toggle('on', i === this.color));
     const pl = $('playerList');
@@ -447,4 +709,12 @@ const Net = {
 function r1(v) { return Math.round(v * 10) / 10; }
 function r2(v) { return Math.round(v * 100) / 100; }
 function r3(v) { return Math.round(v * 1000) / 1000; }
+function safeServerName(n, code) { const s = String(n || '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 24); return s || 'Server ' + code; }
+function timeAgo(sec) {
+  const d = Math.max(0, nowSec() - sec);
+  if (d < 90) return 'just now';
+  if (d < 5400) return Math.round(d / 60) + ' min ago';
+  if (d < 129600) return Math.round(d / 3600) + ' h ago';
+  return Math.round(d / 86400) + ' days ago';
+}
 function safeName(n) { const s = String(n || '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 16); return s || 'Player'; }

@@ -10,7 +10,7 @@ const DAY_LENGTH = 1200; // seconds per full day
 const DEFAULT_SETTINGS = {
   renderDistance: 8, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
   renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
-  weather: 'auto', events: true, wildlife: true, skin: 0,
+  weather: 'auto', events: true, wildlife: true, skin: 0, minimap: 'normal',
 };
 
 const $ = (id) => document.getElementById(id);
@@ -644,7 +644,8 @@ function setGameMode(mode) {
 function saveWorld() {
   if (!G.world || !G.player) return;
   const p = G.player;
-  const ok = storageSet(G.online ? ONLINE_SAVE_KEY : SAVE_KEY, {
+  const ok = storageSet(G.online ? Net.saveKey() : SAVE_KEY, {
+    net: G.online && Net.server ? Net.serializeTimes() : undefined,
     v: 2, seed: G.world.seed, type: G.world.type, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
     dayTime: G.dayTime, mode: G.mode, difficulty: G.difficulty, rules: G.rules, worldSpawn: G.worldSpawn, spawnPoint: G.spawnPoint,
     player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, flying: p.flying }, inv: G.inv.serialize(), stats: G.stats.serialize(),
