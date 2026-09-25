@@ -152,6 +152,7 @@ const Act = {
     }
     if ((k === SH_PANEL || k === SH_ARCH) && n[1] === 0) return this.dirIndex([-n[0], 0, -n[2]]) | (k === SH_ARCH ? 0 : flip);
     if (k === SH_PILLAR) return 0;
+    if (k === SH_SEAT) return look;
     return look | flip;
   },
 

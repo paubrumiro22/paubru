@@ -1152,7 +1152,7 @@ Object.assign(B, {
 });
 
 const RT_SHAPE = 15, RT_CONNECT = 16, RT_LANTERN = 17;
-const SH_STAIRS = 1, SH_SLOPE = 2, SH_OUTER = 3, SH_INNER = 4, SH_PANEL = 5, SH_PILLAR = 6, SH_ARCH = 7;
+const SH_STAIRS = 1, SH_SLOPE = 2, SH_OUTER = 3, SH_INNER = 4, SH_PANEL = 5, SH_PILLAR = 6, SH_ARCH = 7, SH_SEAT = 8;
 const CN_FENCE = 1, CN_WALL = 2, CN_PANE = 3;
 const BLOCK_SHAPE = new Uint8Array(256);    // shape kind of a shaped block
 const BLOCK_SHAPE_MAT = new Uint8Array(256); // index into ARCH_MATS
@@ -1206,6 +1206,8 @@ const ARCH_MATS = [
   { key: 'tiles', name: 'Clay Tile', tex: 'roof_tiles', src: B.ROOF_TILES, o: with_(ROCK, { hard: 1.2 }), pillar: false },
   { key: 'slate', name: 'Slate', tex: 'slate', src: B.SLATE, o: with_(ROCK, { hard: 1.5 }), pillar: false },
   { key: 'thatch', name: 'Thatch', tex: 'thatch', src: B.THATCH, o: { hard: 0.5, tool: TOOL_HOE, snd: SND.GRASS }, pillar: false },
+  // tensile roof fabric: dark on the weather side, white and softly lit underneath (src set below)
+  { key: 'membrane', name: 'Membrane', tex: ['membrane_top', 'membrane', 'membrane_edge'], src: 0, o: { hard: 0.8, snd: SND.WOOL }, pillar: false, atten: 1 },
 ];
 const SHAPE_KINDS = [
   { kind: SH_STAIRS, key: 'stairs', name: 'Stairs', atten: 15, yield: 1 },
@@ -1222,7 +1224,7 @@ const SHAPE_OF = {};   // `${matKey}:${shapeKey}` -> block id
   ARCH_MATS.forEach((m, mi) => {
     for (const s of SHAPE_KINDS) {
       if (s.pillarOnly && !m.pillar) continue;
-      defBlock(id, m.name + ' ' + s.name, RT_SHAPE, m.tex, Object.assign({}, m.o, { atten: s.atten, solid: true, cat: 'architecture' }));
+      defBlock(id, m.name + ' ' + s.name, RT_SHAPE, m.tex, Object.assign({}, m.o, { atten: m.atten || s.atten, solid: true, cat: 'architecture' }));
       BLOCK_SHAPE[id] = s.kind;
       BLOCK_SHAPE_MAT[id] = mi;
       BLOCK_HEIGHT[id] = 16;
@@ -1232,8 +1234,37 @@ const SHAPE_OF = {};   // `${matKey}:${shapeKey}` -> block id
   });
   B.SHAPE_END = id;
 }
+
+// ---- stadium pieces (ids after the shapes, so older saves keep theirs) ----
+{
+  let id = B.SHAPE_END;
+  B.MEMBRANE = id++;
+  B.SEAT_RED = id++; B.SEAT_BLUE = id++; B.SEAT_YELLOW = id++; B.SEAT_WHITE = id++;
+  B.LED_BLUE = id++; B.LED_RED = id++; B.LED_YELLOW = id++;
+  B.ALU_SLATS = id++; B.DECK = id++;
+  B.STADIUM_END = id;
+}
+ARCH_MATS[ARCH_MATS.length - 1].src = B.MEMBRANE;
+// translucent: daylight passes through it like glass, so the stands under the roof stay bright
+defBlock(B.MEMBRANE, 'Roof Membrane', RT_CUBE, ['membrane_top', 'membrane', 'membrane_edge'], { hard: 0.8, snd: SND.WOOL, atten: 1, cat: 'architecture' });
+[['Red', B.SEAT_RED, 'seat_red'], ['Blue', B.SEAT_BLUE, 'seat_blue'], ['Yellow', B.SEAT_YELLOW, 'seat_yellow'], ['White', B.SEAT_WHITE, 'seat_white']].forEach(([n, id, tex]) => {
+  defBlock(id, n + ' Stadium Seat', RT_SHAPE, tex, { hard: 0.6, tool: TOOL_PICK, snd: SND.WOOD, atten: 1, solid: true, cat: 'architecture' });
+  BLOCK_SHAPE[id] = SH_SEAT;
+  BLOCK_HEIGHT[id] = 8;
+});
+// LED screen panels: lit by their own pixels, no light cast (they are screens, not lamps)
+const LED_OPT = { hard: 0.6, tool: TOOL_PICK, snd: SND.GLASS, cat: 'architecture' };
+defBlock(B.LED_BLUE, 'Blue LED Panel', RT_CUBE, { top: 'smooth_stone', side: 'led_blue' }, LED_OPT);
+defBlock(B.LED_RED, 'Red LED Panel', RT_CUBE, { top: 'smooth_stone', side: 'led_red' }, LED_OPT);
+defBlock(B.LED_YELLOW, 'Yellow LED Panel', RT_CUBE, { top: 'smooth_stone', side: 'led_yellow' }, with_(LED_OPT, { emit: 7 }));
+defBlock(B.ALU_SLATS, 'Aluminium Slat Ceiling', RT_CUBE, 'alu_slats', with_(ROCK, { hard: 1.2, snd: SND.METAL, cat: 'architecture' }));
+defBlock(B.DECK, 'Wood Decking', RT_CUBE, { top: 'deck', side: 'deck_side' }, with_(WOOD, { cat: 'architecture' }));
 function shapeId(mat, shape) { return SHAPE_OF[mat + ':' + shape] || 0; }
 for (let id = 0; id < 256; id++) if (BLOCK_SHAPE[id] || id === B.LANTERN) FACING_BLOCKS.add(id);
+
+// Stadium seat: pedestal, pan and backrest (back on the facing side), a sliver apart from the next
+// seat so rows read as separate chairs. Walk over them like a half step.
+const SEAT_CANON = { boxes: [[6, 0, 6, 10, 5, 11], [1, 5, 3, 15, 7, 15], [1, 7, 1, 15, 15, 3.5], [0.5, 5, 5, 1.5, 9, 12], [14.5, 5, 5, 15.5, 9, 12]], coll: [[1, 0, 1, 15, 8, 15]] };
 
 // ---- geometry ----
 // Rotate / flip a canonical point (1/16 units, back at -Z) into facing f.
@@ -1280,6 +1311,7 @@ const SHAPE_CANON = {
   [SH_PANEL]: { boxes: [[0, 0, 0, 16, 16, 8]] },
   [SH_ARCH]: { boxes: archSlices() },
   [SH_PILLAR]: { boxes: [[3, 0, 3, 13, 16, 13]] },
+  [SH_SEAT]: SEAT_CANON,
   [SH_SLOPE]: {
     polys: [
       { p: [[0, 0, 16], [16, 0, 16], [16, 0, 0], [0, 0, 0]], n: [0, -1, 0] },
@@ -3619,6 +3651,80 @@ gen('solar_panel', (d, rng) => {
     put(d, x, y, c, f);
   });
 }, { smooth: 0.9, bump: 0.6 });
+
+// ---- stadium pieces ----
+function genSeat(d, rng, c) {
+  // moulded plastic: flat colour, a soft sheen down the middle and darker edges
+  fillTile(d, (x, y) => {
+    const e = Math.min(x, y, TM - x, TM - y);
+    let f = 0.9 + 0.12 * Math.exp(-((x - 12) ** 2) / 60) + rng() * 0.02;
+    if (e === 0) f *= 0.72; else if (e === 1) f *= 0.88;
+    put(d, x, y, c, quant(f, 24));
+  });
+}
+gen('seat_red', (d, rng) => genSeat(d, rng, [190, 26, 52]), { smooth: 0.6, bump: 0.3 });
+gen('seat_blue', (d, rng) => genSeat(d, rng, [36, 52, 150]), { smooth: 0.6, bump: 0.3 });
+gen('seat_yellow', (d, rng) => genSeat(d, rng, [236, 184, 30]), { smooth: 0.6, bump: 0.3 });
+gen('seat_white', (d, rng) => genSeat(d, rng, [226, 228, 230]), { smooth: 0.6, bump: 0.3 });
+
+function genLed(d, rng, ctx, c, glow) {
+  // a screen of round pixels on a black mask, each pixel lit by itself
+  fillTile(d, (x, y, k) => {
+    const px = x & 3, py = y & 3, dot = px < 3 && py < 3, core = px === 1 && py === 1;
+    if (dot) { put(d, x, y, c, (core ? 1 : 0.86) + rng() * 0.08); ctx.emit[k] = core ? glow : glow * 0.8; }
+    else { put(d, x, y, [16, 16, 22]); ctx.emit[k] = glow * 0.1; }
+  });
+}
+gen('led_blue', (d, rng, ctx) => genLed(d, rng, ctx, [40, 90, 230], 0.55), { smooth: 0.8, bump: 0.2 });
+gen('led_red', (d, rng, ctx) => genLed(d, rng, ctx, [225, 30, 70], 0.65), { smooth: 0.8, bump: 0.2 });
+gen('led_yellow', (d, rng, ctx) => genLed(d, rng, ctx, [255, 214, 70], 1), { smooth: 0.8, bump: 0.2 });
+
+gen('membrane', (d, rng) => {
+  // underside of the tensile roof: white fabric, faint weave, a seam every half block
+  const f = fbm(rng, 4, 2);
+  fillTile(d, (x, y, k) => {
+    let fa = 0.95 + f[k] * 0.05 + ((x + y) & 1 ? 0.012 : 0);
+    if ((y & 15) === 0) fa *= 0.86;
+    put(d, x, y, [238, 238, 234], quant(fa, 30));
+  });
+}, { smooth: 0.25, bump: 0.3 });
+gen('membrane_top', (d, rng) => {
+  // weather side: deep navy with a sheen and raised seams
+  const f = fbm(rng, 3, 2);
+  fillTile(d, (x, y, k) => {
+    let fa = 0.9 + f[k] * 0.12;
+    if ((y & 15) === 0) fa = 1.25; else if ((y & 15) === 1) fa *= 0.8;
+    put(d, x, y, [30, 38, 70], quant(fa, 24));
+  });
+}, { smooth: 0.7, bump: 0.8 });
+gen('membrane_edge', (d, rng) => {
+  fillTile(d, (x, y) => put(d, x, y, y < 12 ? [30, 38, 70] : [232, 232, 228], 0.95 + rng() * 0.05));
+}, { smooth: 0.5, bump: 0.3 });
+
+gen('alu_slats', (d, rng) => {
+  // linear ceiling: narrow silver-grey aluminium strips with dark shadow gaps
+  fillTile(d, (x, y) => {
+    const k = x & 3;
+    let f = k === 3 ? 0.42 : k === 0 ? 1.08 : 0.96;
+    f *= 0.97 + rng() * 0.04;
+    put(d, x, y, [206, 208, 210], quant(f, 20));
+  });
+}, { smooth: 0.65, bump: 1.4 });
+
+gen('deck', (d, rng) => {
+  // hardwood decking: long boards with staggered butt joints and a dark gap between boards
+  const tone = Array.from({ length: 8 }, () => 0.86 + rng() * 0.2);
+  const grain = fbm(rng, 2, 3, 0.5, 8);
+  fillTile(d, (x, y, k) => {
+    const b = y >> 2, joint = ((x + b * 11) & 31) === 0;
+    let f = tone[b] * (0.9 + grain[k] * 0.16);
+    if ((y & 3) === 3 || joint) f *= 0.5;
+    put(d, x, y, [170, 116, 72], quant(f, 18));
+  });
+}, { smooth: 0.3, bump: 1.2 });
+gen('deck_side', (d, rng) => {
+  fillTile(d, (x, y) => put(d, x, y, y < 4 ? [170, 116, 72] : [150, 150, 146], (y < 4 ? 0.9 : 0.85) + rng() * 0.08));
+}, { smooth: 0.3, bump: 0.6 });
 </script>
 <script data-w>
 'use strict';
@@ -5546,27 +5652,26 @@ function placeStructures(g, chunk) {
 </script>
 <script data-w>
 'use strict';
-// A private showcase world: FC Barcelona's stadium as it will look once the current rebuild is
-// finished (Nikken Sekkei + Pascual i Ausi\u00f3 design), at real scale (1 block = 1 m, about
-// 260 x 225 m and 53 m high). Inside: the 105 x 68 pitch with mowing stripes and markings, goals
-// with nets, dugouts and tunnel; three tiers in blue and garnet with the club's motto in the
-// seats, the raised VIP ring and the box band whose fronts carry the two 360-degree LED ribbons,
-// and three 26 x 9 m video boards hanging from the roof. Outside: the open facade of concourse
-// rings under wide white eaves (wood-slatted soffits, glass balustrades, vertical cores, CAMP NOU
-// on the glass) and the tensile roof over every seat, translucent near the pitch, solar panels in
-// the middle, white outside with a blue-and-garnet striped rim. Everything is computed per column
-// from the stadium's shape, so chunks build it independently (in workers too). No crests or
-// sponsor logos are reproduced.
+// A showcase world: FC Barcelona's rebuilt stadium (Nikken Sekkei + Pascual i Ausio) at real scale
+// (1 block = 1 m, about 270 x 240 m). The pitch sits 12 m below the street. Inside: 105 x 68 pitch
+// with mowing stripes, markings, goals and nets, LED boards, glazed dugouts and tunnel to the
+// dressing room; three tiers of real seats (garnet-red with blue scattered, bluer at the front of
+// the lower tier and the back of the upper one), each tier cantilevered over the one below; the
+// crest and Spotify's roundel drawn in seats in the middle tier; the double VIP ring with its
+// presidential box; two 360-degree LED rings with the motto; three video boards. Outside:
+// concourses carved into the back of the stands, open timber-decked terraces under aluminium slat
+// soffits that step further out the higher they are, glass balustrades, lit blaugrana fins, 92
+// columns, glass lift cores and grand stairs to the plaza. On top, the tensile roof (navy outside,
+// white and translucent inside, open over the pitch) with radial cables, the lit tension ring,
+// the skywalk and a rim that glows blue and garnet at night. Everything is computed per column
+// from the stadium's shape, so chunks build it independently (in workers too).
 
 const CN = {
+  ver: 2,                   // bump to drop old Camp Nou saves when the stadium changes shape
   G: 40,                    // grass level (players stand at G + 1)
+  S: 52,                    // street level: the pitch sits 12 m below it, like the real one
   hx: 35, hz: 16, rc: 22,   // inner bowl: rounded rectangle (straight half-lengths + corner radius)
   zc: -0.5,                 // pitch centre line in z (68 cells: -34..33)
-  standEnd: 60,             // back of the stands (concourses begin)
-  facade: 70,               // glass balustrades of the concourses
-  eave: 72,                 // outer edge of the eaves
-  roof: 80,                 // outer edge of the roof
-  roofY: 52,                // roof height above the grass
 };
 // Distance outward from the inner edge of the stands (negative on the pitch side).
 function cnR(x, z) {
@@ -5596,6 +5701,7 @@ function cnArc(x, z, d) {
 // 5x7 capitals
 const CN_FONT = {
   M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
+  F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
   E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
   S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
   Q: ['01110', '10001', '10001', '10001', '10101', '10010', '01101'],
@@ -5617,22 +5723,88 @@ function cnText(text, col, row) {
   return !!g && g[row][k] === '1';
 }
 
-const CN_BLUE = B.WOOL + 11, CN_GARNET = B.WOOL + 14, CN_YELLOW = B.WOOL + 4, CN_BLACK = B.WOOL + 15, CN_PINK = B.WOOL + 6;
+const CN_BLACK = B.WOOL + 15;
 const CN_CONCRETE = B.SMOOTH_STONE;
 const CN_MOTTO = 'MES QUE UN CLUB   ';
 
-// Seating profile: { top, kind } for distance r from the inner edge of the stands.
-function cnProfile(r) {
-  const G = CN.G;
-  if (r < 1) return { top: G + 1, kind: 'boards' };
-  if (r < 3) return { top: G, kind: 'walk' };
-  if (r < 24) return { top: G + 2 + Math.floor((r - 3) * 0.6), kind: 'tier1' };
-  if (r < 27) return { top: G + 21, kind: 'band', lo: G + 14, face: 25 };   // raised VIP ring
-  if (r < 38) return { top: G + 22 + Math.floor((r - 27) * 0.7), kind: 'tier2' };
-  if (r < 41) return { top: G + 37, kind: 'band', lo: G + 30, face: 39 };   // boxes between 2nd and 3rd tier
-  if (r < CN.standEnd) return { top: G + 38 + Math.floor((r - 41) * 0.6), kind: 'tier3' };
-  if (r < CN.roof) return { top: G, kind: 'facade' };
-  return { top: G, kind: 'plaza' };
+// Outward direction of the bowl at a column, snapped to an axis: 0 +X, 1 -X, 4 +Z, 5 -Z.
+function cnOut(x, z) {
+  const X = x + 0.5, Z = z + 0.5 - CN.zc;
+  const px = Math.max(Math.abs(X) - CN.hx, 0), pz = Math.max(Math.abs(Z) - CN.hz, 0);
+  return px > pz ? (X > 0 ? 0 : 1) : (Z > 0 ? 4 : 5);
+}
+const CN_DIR = { 0: [1, 0], 1: [-1, 0], 4: [0, 1], 5: [0, -1] };
+const CN_OPP = { 0: 1, 1: 0, 4: 5, 5: 4 };
+function cnHash(x, z) { return (Math.imul(x, 73856093) ^ Math.imul(z, 19349663) ^ Math.imul(x ^ z, 83492791)) >>> 0; }
+
+// A tier: rows of `widths` cells (the last cell of each row carries the seat, the others are
+// legroom), each row one block higher than the one in front.
+function cnTier(c0, widths, top0) {
+  const t = { c0, top: [], seat: [], row: [], rows: widths.length, end: c0 };
+  widths.forEach((w, i) => { for (let k = 0; k < w; k++) { t.top.push(top0 + i); t.seat.push(k === w - 1); t.row.push(i); } });
+  t.end = c0 + t.top.length;
+  return t;
+}
+const rep = (a, n) => [].concat(...Array.from({ length: n }, () => a));
+// Lower tier: 10 two-block rows from 2 m above the grass to street level (the pitch is sunk).
+const CN_T1 = cnTier(3, rep([2], 10), CN.G + 2);
+// Middle tier: cantilevers over the back of the lower one; its front carries the first LED ring.
+const CN_T2 = cnTier(21, rep([2, 1], 8), CN.G + 24);
+// Upper tier: the steepest, above the double VIP ring and the second LED ring.
+const CN_T3 = cnTier(48, rep([1, 1, 2], 4).concat([1, 1]), CN.G + 58);
+function cnTierAt(t, c) { return c >= t.c0 && c < t.end ? c - t.c0 : -1; }
+
+// Facade: concourse floors (tops) and how far out each one reaches; the higher, the further.
+const CN_FLOORS = [CN.S, CN.G + 25, CN.G + 38, CN.G + 51];
+const CN_EAVE_TOP = CN.G + 63;
+const CN_EDGE = [0, 69, 72, 75, 78];
+
+// Seats: garnet-red with blue scattered through them, bluer at the front of the lower tier and the
+// back of the upper one; the crest and the sponsor's roundel drawn in seats in the middle tier.
+function cnSeatColor(x, z, tier, row, rows) {
+  const f = row / (rows - 1), h = (cnHash(x, z) % 1000) / 1000;
+  const pBlue = tier === 1 ? 0.62 - 0.44 * f : tier === 2 ? 0.2 : 0.16 + 0.42 * f;
+  return h < pBlue ? B.SEAT_BLUE : B.SEAT_RED;
+}
+// FC Barcelona crest, 21 x 16 cells stretched 1.6x along the stand (row 0 at the top): St George's cross and the Senyera, the band with
+// the initials, the blaugrana stripes with the ball, all outlined in gold.
+const CN_INITIALS = { F: ['111', '100', '110', '100', '100'], C: ['111', '100', '100', '100', '111'], B: ['110', '101', '110', '101', '110'] };
+function cnCrest(col, row) {
+  if (col < 0 || col > 20 || row < 0 || row > 15) return 0;
+  const dc = Math.abs(col - 10);
+  const hw = row <= 11 ? 10.5 : 10.5 - (row - 11) * 2.6;
+  if (dc > hw) return 0;
+  if (row === 0 && (dc === 10 || dc === 0)) return 0;
+  if (dc > hw - 1 || row === 0 || row === 5 || row === 11) return B.SEAT_YELLOW;
+  if (row <= 4) {
+    if (col === 10) return B.SEAT_YELLOW;
+    if (col < 10) return col === 5 || row === 2 ? B.SEAT_RED : B.SEAT_WHITE;
+    return col % 2 ? B.SEAT_RED : B.SEAT_YELLOW;
+  }
+  if (row <= 10) {
+    for (const [ch, c0] of [['F', 3], ['C', 9], ['B', 15]]) {
+      const k = col - c0;
+      if (k >= 0 && k < 3 && CN_INITIALS[ch][row - 6][k] === '1') return B.SEAT_BLUE;
+    }
+    return B.SEAT_WHITE;
+  }
+  if (row >= 12 && row <= 13 && dc <= 1) return B.SEAT_YELLOW;
+  return (col >> 1) & 1 ? B.SEAT_BLUE : B.SEAT_RED;
+}
+// Spotify's roundel with its three curved bars, 16 rows tall, stretched like the crest.
+function cnRoundel(dx, dy) {
+  if (dx * dx + dy * dy > 7.9 * 7.9) return 0;
+  const bars = [[3.2, 5.2], [0.2, 4.4], [-2.6, 3.4]];
+  for (const [y0, w] of bars) if (Math.abs(dx) <= w && Math.abs(dy - (y0 - 0.07 * dx * dx)) < 0.62) return B.SEAT_BLUE;
+  return B.SEAT_YELLOW;
+}
+function cnMosaic(x, z, row) {
+  const X = x + 0.5, Z = z + 0.5 - CN.zc;
+  // crest across the middle tier opposite the main stand (left to right as seen from the pitch)
+  if (Z > CN.hz && Math.abs(X) <= CN.hx) return cnCrest(Math.floor((16.5 - X) / 1.6), 15 - row);
+  // the roundel behind both goals
+  if (Math.abs(X) > CN.hx && Math.abs(Z) <= CN.hz) return cnRoundel(Z / 1.6, row - 7.5);
+  return 0;
 }
 
 // Radial aisles every ~12 m of arc.
@@ -5661,9 +5833,9 @@ function cnLine(x, z) {
   return false;
 }
 
-// Facade levels: concourse floors and the eaves over them.
-const CN_FLOORS = [0, 12, 24, 36];
-const CN_EAVES = [9, 21, 33];
+// Players' tunnel: a glazed, retractable-style mouth on the pitch, then under the main stand to
+// the dressing room.
+function cnTunnel(x, z) { return z < -10 && Math.abs(x + 0.5) <= 1.5; }
 
 function cnPitch(W, x, z) {
   const G = CN.G, set = (y, id, f) => W.set(x, y, z, id, f);
@@ -5674,157 +5846,231 @@ function cnPitch(W, x, z) {
     if (x === gx && z > -4 && z < 3) set(G + 3, B.MARBLE);
     if ((x === bx || x === cx) && z >= -4 && z <= 3) { set(G + 1, B.COBWEB); set(G + 2, B.COBWEB); if (x === bx) set(G + 3, B.COBWEB); }
   }
-  for (const fx of [-52, 52]) for (const fz of [-34, 33]) if (x === fx && z === fz) { set(G + 1, B.OAK_FENCE); set(G + 2, B.WOOL + 1); }
-  // dugouts on the main-stand side
+  for (const fx of [-52, 52]) for (const fz of [-34, 33]) if (x === fx && z === fz) { set(G + 1, B.OAK_FENCE); set(G + 2, B.WOOL + 14); }
+  // dugouts in front of the main stand: bucket seats under a glass canopy
   if (z >= -38 && z <= -36 && ((x >= -12 && x <= -4) || (x >= 4 && x <= 12))) {
     const edge = x === -12 || x === -4 || x === 4 || x === 12;
-    if (z === -38) set(G + 1, shapeId('plaster', 'stairs'), 5);
-    if (edge || z === -38) { set(G + 2, B.GLASS_PANE); if (edge) set(G + 1, B.GLASS_PANE); }
-    set(G + 3, z === -36 ? shapeId('plaster', 'slope') : B.PLASTER, 4);
+    if (z === -38 && !edge) set(G + 1, x < 0 ? B.SEAT_BLUE : B.SEAT_RED, 5);
+    if (edge) for (let y = G + 1; y <= G + 2; y++) set(y, B.GLASS_PANE);
+    set(G + 3, z === -38 ? B.PLASTER : B.GLASS);
   }
 }
 
-// A 360-degree LED ribbon: 8 blocks tall, the motto lit in yellow on blue round the whole bowl.
+// A 360-degree LED ribbon: 8 blocks tall, the motto lit in yellow, background alternating blue
+// and red with each repeat.
 function cnRibbon(W, x, z, y0, d) {
   // stretch the lettering a hair so a whole number of mottos fits round the bowl (no seam)
   const len = CN_MOTTO.length * 6, P = 4 * CN.hx + 4 * CN.hz + 2 * Math.PI * (CN.rc + d);
-  const col = Math.floor(cnArc(x, z, d) * Math.round(P / len) * len / P) % len;
-  for (let row = 0; row < 8; row++) {
-    W.set(x, y0 + row, z, row === 0 ? CN_BLACK : cnText(CN_MOTTO, col, 7 - row) ? B.GLOWSTONE : CN_BLUE);
-  }
+  const pos = Math.floor(cnArc(x, z, d) * Math.round(P / len) * len / P), col = pos % len;
+  const bg = Math.floor(pos / len) & 1 ? B.LED_RED : B.LED_BLUE;
+  for (let row = 0; row < 8; row++) W.set(x, y0 + row, z, row === 0 ? CN_BLACK : cnText(CN_MOTTO, col, 7 - row) ? B.LED_YELLOW : bg);
 }
 
-function cnColumn(W, x, z) {
-  const G = CN.G;
-  const r = cnR(x, z);
+function cnSeatRow(W, x, z, t, i, base, tier, out) {
+  const top = t.top[i], set = (y, id, f) => W.set(x, y, z, id, f);
+  for (let y = base; y <= top; y++) set(y, CN_CONCRETE);
+  if (!t.seat[i]) return;
+  const m = tier === 2 ? cnMosaic(x, z, t.row[i]) : 0;
+  if (!m && cnAisle(x, z)) { if (i > 0 && !t.seat[i - 1]) set(top + 1, B.STONE_SLAB); return; }
+  set(top + 1, m || cnSeatColor(x, z, tier, t.row[i], t.rows), out);
+}
+
+function cnColumn(W, x, z, r) {
+  const G = CN.G, S = CN.S, c = Math.floor(r);
   const set = (y, id, f) => W.set(x, y, z, id, f);
-  if (r < 0) { cnPitch(W, x, z); return; }
-  const P = cnProfile(r);
-  const mainSide = z < -10;
-  if (P.kind === 'plaza') {
-    set(G, Math.floor(r) % 12 === 0 ? B.STONE_BRICKS : CN_CONCRETE);
-    if (r > 86 && r < 87 && cnAisle(x, z) && (cnRay(x, z, 104) & 1)) { for (let y = G + 1; y <= G + 5; y++) set(y, B.IRON_BARS); set(G + 6, B.LANTERN, 0); }
-    return;
+  const clear = (y0, y1) => { for (let y = y0; y <= y1; y++) set(y, B.AIR); };
+  const fill = (y0, y1, id) => { for (let y = y0; y <= y1; y++) set(y, id); };
+  const out = cnOut(x, z), main = z < -10, ray = cnRay(x, z, 360);
+  const tunnel = cnTunnel(x, z);
+  if (c === 0) { set(G + 1, Math.floor(cnArc(x, z, 0.5) / 12) & 1 ? B.LED_RED : B.LED_BLUE); return; }
+  if (c < 3) return;
+  if (c > 66) { cnOutside(W, x, z, c); return; }
+
+  // lower tier (the tunnel mouth cuts through its first rows)
+  let i = cnTierAt(CN_T1, c);
+  if (i >= 0 && !(tunnel && c <= 8)) cnSeatRow(W, x, z, CN_T1, i, G + 1, 1, out);
+  if (c >= 23 && c <= 25) set(S, CN_CONCRETE);                 // walkway behind the lower tier
+
+  // first LED ring on the front of the middle tier, lit soffit behind it
+  if (c === 20) cnRibbon(W, x, z, G + 16, 20.5);
+  i = cnTierAt(CN_T2, c);
+  if (i >= 0) {
+    const base = c <= 25 ? G + 17 : S + 1;
+    if (c <= 25) set(G + 16, ray % 9 === 0 && c === 23 ? B.GLOWSTONE : B.ALU_SLATS);
+    cnSeatRow(W, x, z, CN_T2, i, base, 2, out);
+    // inner concourse ring behind the lower tier, entered through the aisles
+    if (c === 26 && cnAisle(x, z)) clear(S + 1, S + 3);
+    if (c >= 27 && c <= 30) { clear(S + 1, S + 4); if (c === 28 && ray % 8 === 0) set(S + 5, B.GLOWSTONE); set(S, B.DECK); }
+    if (c === 31) fill(S + 1, S + 4, ray % 20 < 2 ? B.GLOWSTONE : B.PLASTER);
   }
-  if (P.kind === 'facade') { cnFacade(W, x, z, r); return; }
-  for (let y = G; y < P.top; y++) set(y, CN_CONCRETE);
-  switch (P.kind) {
-    case 'boards': set(G + 1, [CN_BLUE, CN_GARNET, CN_YELLOW][Math.floor((cnT(x, z) * 70 % 1) * 3)]); break;
-    case 'walk': set(G, CN_CONCRETE); break;
-    case 'tier1': case 'tier2': case 'tier3': {
-      let seat = P.kind === 'tier2' ? CN_GARNET : CN_BLUE;
-      let motto = false;
-      // the motto across the lower tier opposite the main stand
-      if (P.kind === 'tier1' && z > 20) {
-        const lvl = P.top - (G + 2) - 2, col = 45 - x;
-        if (lvl >= -1 && lvl <= 7 && col >= -2 && col <= 91) { motto = true; seat = cnText('MES QUE UN CLUB', col, 6 - lvl) ? CN_YELLOW : CN_GARNET; }
-      }
-      if (P.kind === 'tier3' && Math.abs(x) > 55) seat = (cnRay(x, z, 90) & 1) ? CN_BLUE : CN_GARNET;
-      set(P.top, cnAisle(x, z) && !motto ? CN_CONCRETE : seat);
-      break;
-    }
-    case 'band': {
-      // the box fronts carry the LED ribbons; glazed boxes behind
-      set(P.top, CN_CONCRETE);
-      if (r < P.face) cnRibbon(W, x, z, P.lo, P.face - 0.5);
-      else if (r < P.face + 1) for (let y = P.lo; y < P.top; y++) set(y, y === P.lo ? B.PLASTER : B.GLASS_PANE);
-      break;
-    }
-    default: break;
+
+  // double VIP ring between the middle and upper tiers
+  const pres = main && Math.abs(x + 0.5) < 14;
+  const wall = ray % 5 === 0;
+  if (c >= 45 && c <= 51) {
+    fill(S + 1, G + 38, CN_CONCRETE);
+    set(G + 39, pres ? B.MARBLE : B.PLASTER);
+    if (c === 45) set(G + 40, pres ? B.SEAT_RED : B.SEAT_WHITE, out);
+    if (c === 46) { fill(G + 40, G + 43, B.GLASS_PANE); set(G + 44, B.PLASTER); set(G + 45, pres ? B.SEAT_RED : B.SEAT_WHITE, out); }
+    if (c >= 47 && c <= 50) { if (wall) fill(G + 40, G + 43, B.PLASTER); set(G + 44, c === 49 && ray % 5 === 2 ? B.GLOWSTONE : B.PLASTER); }
+    if (c === 51) fill(G + 40, G + 44, B.PLASTER);
+    if (c === 47) { fill(G + 45, G + 48, B.GLASS_PANE); set(G + 49, B.PLASTER); cnRibbon(W, x, z, G + 50, 47.5); }
+    if (c >= 48 && c <= 51 && wall) fill(G + 45, G + 48, B.PLASTER);
   }
-  // players' tunnel under the main stand
-  if (mainSide && Math.abs(x + 0.5) <= 1.5 && r < 12) { for (let y = G + 1; y <= G + 3; y++) set(y, B.AIR); if (r > 10) set(G + 4, CN_CONCRETE); }
+  i = cnTierAt(CN_T3, c);
+  if (i >= 0) cnSeatRow(W, x, z, CN_T3, i, c <= 51 ? G + 49 : S + 1, 3, out);
+  if (c === 66) { fill(S + 1, G + 72, CN_CONCRETE); set(G + 73, B.GLASS_PANE); }
+
+  // concourses carved into the back of the stands
+  if (c >= 57) cnConcourses(W, x, z, c, ray);
+
+  // the players' tunnel and the dressing room at its end
+  if (tunnel && c <= 30) {
+    set(G, CN_CONCRETE); clear(G + 1, G + 3);
+    if (c <= 8) set(G + 4, B.GLASS);
+    else if (c % 4 === 0) set(G + 4, B.GLOWSTONE);
+    else set(G + 4, CN_CONCRETE);
+  }
+  if (main && tunnel === false && c <= 8 && Math.abs(x + 0.5) <= 2.5) { for (let y = G + 1; y <= G + 3; y++) set(y, B.GLASS_PANE); set(G + 4, B.GLASS); }
+  if (main && c >= 29 && c <= 35 && Math.abs(x + 0.5) <= 9) {
+    set(G, B.MARBLE); clear(G + 1, G + 4);
+    set(G + 5, (x + c) % 4 === 0 ? B.GLOWSTONE : B.PLASTER);
+    if (c === 35) set(G + 1, x & 1 ? B.SEAT_BLUE : B.SEAT_RED, out);
+    if (c === 35 || Math.abs(x + 0.5) >= 8.5) for (let y = c === 35 ? G + 2 : G + 1; y <= G + 4; y++) set(y, B.PLASTER);
+  }
 }
 
-// Open facade: concourse floors with glass balustrades under wide white eaves that rise a little
-// towards the street, wood slats under them, glass lift/stair cores, the name on the glass.
-function cnFacade(W, x, z, r) {
-  const G = CN.G, set = (y, id, f) => W.set(x, y, z, id, f);
-  const ray = cnRay(x, z, 260);
-  // back wall of the stands (inner side of the concourses): light render with glazed openings
-  if (r < CN.standEnd + 1) {
-    for (let y = G; y <= G + CN.roofY - 1; y++) {
-      const k = (y - G) % 12;
-      set(y, k >= 2 && k <= 7 && ray % 6 === 0 ? B.GLASS_PANE : k >= 1 && k <= 3 && ray % 18 === 3 ? B.AIR : B.PLASTER);
+// Concourse levels: a hollow ring inside the stands' back (lit kiosks on the inner wall), glazed
+// at street level, open terraces with timber decks above.
+function cnConcourses(W, x, z, c, ray) {
+  const set = (y, id, f) => W.set(x, y, z, id, f);
+  for (let k = 0; k < 4; k++) {
+    const f = CN_FLOORS[k], next = k < 3 ? CN_FLOORS[k + 1] : CN_EAVE_TOP;
+    for (let y = f + 1; y <= next - 2; y++) {
+      if (c === 57) set(y, y === next - 3 && ray % 12 < 3 ? B.GLOWSTONE : y <= f + 3 && ray % 12 === 6 ? B.BARREL : B.STONE);
+      else if (c === 62 && k === 0) set(y, ray % 24 === 0 && y <= f + 3 ? B.AIR : B.GLASS_PANE);
+      else set(y, B.AIR);
     }
-    return;
+    if (c > 57) { set(f, k === 0 ? B.STONE_BRICKS : B.DECK); set(next - 1, B.ALU_SLATS); }
   }
-  for (const f of CN_FLOORS) {
-    if (f === 0) {
-      if (r < CN.facade - 2) set(G, CN_CONCRETE);
-      // ground-floor atrium: glass all round, with doors
-      if (r >= CN.facade - 3 && r < CN.facade - 2) for (let y = G + 1; y <= G + 8; y++) set(y, cnRay(x, z, 180) % 12 === 0 && y <= G + 3 ? B.AIR : B.GLASS_PANE);
-    } else {
-      if (r < CN.facade) set(G + f, r >= CN.facade - 2 ? B.PLASTER : CN_CONCRETE);
-      if (r >= CN.facade - 1 && r < CN.facade) set(G + f + 1, B.GLASS_PANE);   // balustrade
-    }
-  }
-  // eaves: wood slats underneath, white plaster on top, one block higher over the street
-  CN_EAVES.forEach((e, i) => {
-    const edge = CN.eave + i * 2;           // each eave reaches a little further than the one below
-    if (r >= edge) return;
-    const lift = r >= 64 ? 1 : 0;
-    // wood slats with downlights set into them
-    const lamp = (r >= 63 && r < 64) || (r >= 67 && r < 68);
-    set(G + e + lift, lamp && ray % 5 === 0 ? B.GLOWSTONE : ray % 2 ? B.SPRUCE_PLANKS : B.BIRCH_PLANKS);
-    set(G + e + lift + 1, B.PLASTER);
-    set(G + e + lift + 2, B.PLASTER);
-    if (r >= edge - 1) set(G + e + lift + 3, B.PLASTER);
-  });
-  // glass lift and stair cores through every level
-  const core = (cnRay(x, z, 16) & 1) === 0 && (cnT(x, z) * 16) % 1 < 0.06 && r < CN.facade - 1;
-  if (core) for (let y = G + 1; y <= G + CN.roofY - 1; y++) set(y, (y - G) % 4 === 0 ? B.PLASTER : B.GLASS_PANE);
-  // the name on the first concourse's glass, main side, reading from the street
-  if (z < -10 && r >= CN.facade - 1 && r < CN.facade && Math.abs(x) < 40) {
+  if (c > 57) set(CN_EAVE_TOP, B.PLASTER);
+  // CAMP NOU across the street-level glazing of the main side
+  if (z < -10 && c === 62 && Math.abs(x) < 40) {
     const col = 22 - x;
-    for (let row = 0; row < 7; row++) if (cnText('CAMP NOU', col, row)) set(G + 20 - row, B.MARBLE);
+    for (let row = 0; row < 7; row++) if (cnText('CAMP NOU', col, row)) set(CN.S + 9 - row, B.MARBLE);
   }
 }
 
-// Tensile roof over every seat, three video boards hanging from it.
-function cnRoof(W, x, z) {
-  const r = cnR(x, z), G = CN.G, y = G + CN.roofY;
-  if (r >= 2 && r < CN.roof) {
-    let id = r < 18 ? B.GLASS : r < 44 ? B.SOLAR_PANEL : B.PLASTER;
-    if (r >= 44 && cnRay(x, z, 208) % 4 === 0) id = CN_CONCRETE;   // membrane ribs
-    if (r < 3) id = B.PLASTER;                                      // inner tension ring
-    W.set(x, y, z, id);
-    if (r >= CN.roof - 6) {
-      const k = cnRay(x, z, 312) % 3;   // lit rim: blue, garnet and light stripes
-      W.set(x, y - 1, z, k === 0 ? CN_BLUE : k === 1 ? CN_GARNET : B.GLOWSTONE);
-      W.set(x, y + 1, z, B.PLASTER);
-      if (r >= CN.roof - 1) { W.set(x, y + 2, z, B.PLASTER); W.set(x, y - 2, z, B.PLASTER); }
-    }
-    if (r >= 3 && r < 4 && cnAisle(x, z)) W.set(x, y - 1, z, B.GLOWSTONE);   // floodlights
+// Outside the stands: cantilevered terraces (each reaching further out than the one below) with
+// glass balustrades and white edges, light fins in blaugrana, big concrete columns, glass lift
+// cores, grand stairs down to the plaza, and the plaza itself.
+function cnOutside(W, x, z, c) {
+  const G = CN.G, S = CN.S, set = (y, id, f) => W.set(x, y, z, id, f);
+  const t = cnT(x, z), dist = Math.hypot(x + 0.5, z + 0.5 - CN.zc), out = cnOut(x, z);
+  const ray = cnRay(x, z, 720);
+  const arcIn = (n, w) => ((t * n + 0.5) % 1) * (dist * Math.PI * 2 / n) < w;   // a w-metre band n times round
+  const stairs = arcIn(6, 9) && c >= 69 && c <= 80;
+  // plaza
+  if (c < 91 || (c > 103 && c < 110)) set(S, c % 12 === 0 ? B.STONE_BRICKS : CN_CONCRETE);
+  if (c === 86 && arcIn(52, 1)) { for (let y = S + 1; y <= S + 5; y++) set(y, B.IRON_BARS); set(S + 6, B.LANTERN, 0); }
+  if (c > 78) {
+    if (stairs) { const top = G + 25 - (c - 68); for (let y = S + 1; y < top; y++) set(y, CN_CONCRETE); set(top, shapeId('plaster', 'stairs'), CN_OPP[out]); }
+    return;
   }
-  // three 26 x 9 m video boards: over each goal end and over the stand facing the main one
+  // terraces and eaves
+  for (let k = 1; k <= 4; k++) {
+    if (c >= CN_EDGE[k]) continue;
+    const f = k < 4 ? CN_FLOORS[k] : CN_EAVE_TOP, edge = c === CN_EDGE[k] - 1;
+    set(f, edge || k === 4 ? B.PLASTER : B.DECK);
+    set(f - 1, edge ? B.PLASTER : ray % 7 === 0 && c === CN_EDGE[k] - 3 ? B.GLOWSTONE : B.ALU_SLATS);
+    if (edge && k < 4 && !(k === 1 && arcIn(6, 9))) set(f + 1, B.GLASS_PANE);
+    // light fins in some bays: vertical blaugrana blades just inside the balustrade
+    if (k < 4 && c === CN_EDGE[k] - 2 && (Math.floor(t * 30) % 2 === 0) && ray % 3 === 0) {
+      const next = k < 3 ? CN_FLOORS[k + 1] : CN_EAVE_TOP;
+      for (let y = f + 2; y <= next - 3; y++) set(y, Math.floor(ray / 3) % 2 ? B.LED_BLUE : B.LED_RED);
+    }
+  }
+  // arcade under the first terrace
+  if (c < CN_EDGE[1]) set(S, B.STONE_BRICKS);
+  // grand stairs up to the first terrace
+  if (stairs) { const top = G + 25 - (c - 68); for (let y = S + 1; y < top; y++) set(y, CN_CONCRETE); set(top, shapeId('plaster', 'stairs'), CN_OPP[out]); }
+  // columns carrying the terraces and, above them, the roof's compression ring
+  const column = (t * 92) % 1 * (dist * Math.PI * 2 / 92) < 1.2;
+  if (c === 67 && column) {
+    for (let y = S + 1; y < CN_EAVE_TOP; y++) if (!CN_FLOORS.includes(y) && !CN_FLOORS.includes(y + 1)) set(y, CN_CONCRETE);
+    for (let y = CN_EAVE_TOP + 1; y < G + 76; y++) set(y, shapeId('plaster', 'pillar'));
+  }
+  // the band of light between the top eave and the roof
+  if (c === 67 && !column) for (let y = CN_EAVE_TOP + 1; y <= G + 72; y++) set(y, (ray >> 2) % 2 ? B.LED_BLUE : B.LED_RED);
+  // glass lift cores
+  if (c >= 67 && c <= 68 && arcIn(12, 3) && !arcIn(6, 9)) for (let y = S + 1; y <= G + 77; y++) set(y, (y - S) % 5 === 0 ? B.PLASTER : B.GLASS);
+}
+
+// Tensile roof: navy weather side, white underneath; translucent next to the open oculus, a lit
+// tension ring at the inner edge, steel cables radiating out to the compression ring on the 92
+// columns, the skywalk on top and a rim lit in blue and garnet at night.
+function cnRoofLevel(c) {
+  if (c < 2 || c > 82) return -1;
+  return c <= 66 ? CN.G + 66 + Math.floor((c - 2) * 10 / 64) : CN.G + 76;
+}
+function cnRoof(W, x, z, r) {
+  const c = Math.floor(r), L = cnRoofLevel(c), G = CN.G;
+  if (L < 0) return;
+  const set = (y, id, f) => W.set(x, y, z, id, f);
+  const out = cnOut(x, z), [dx, dz] = CN_DIR[out];
+  const memb = (cc) => cc >= 14 && cc <= 80;
+  if (c === 2) { set(L, B.PLASTER); set(L - 1, cnAisle(x, z) ? B.GLOWSTONE : B.PLASTER); }
+  else if (c < 14) set(L, B.GLASS);
+  else if (c <= 80) set(L, B.MEMBRANE);
+  else { for (let y = L - 4; y <= L + 1; y++) set(y, y === L - 1 ? ((cnT(x, z) * 8 | 0) & 1 ? B.LED_RED : B.LED_BLUE) : B.MEMBRANE); return; }
+  // smooth the steps of the membrane with sloped pieces above and below
+  const co = Math.floor(cnR(x + dx, z + dz)), ci = Math.floor(cnR(x - dx, z - dz));
+  const Lo = cnRoofLevel(co), Li = cnRoofLevel(ci);
+  let under = false;
+  if (memb(c) && memb(co) && Lo === L + 1) set(L + 1, shapeId('membrane', 'slope'), out);
+  if (memb(c) && memb(ci) && Li === L - 1) { set(L - 1, shapeId('membrane', 'slope'), CN_OPP[out] | 8); under = true; }
+  // radial cables under the membrane
+  const dist = Math.hypot(x + 0.5, z + 0.5 - CN.zc);
+  if (!under && c >= 3 && c <= 66 && (cnT(x, z) * 92) % 1 * (dist * Math.PI * 2 / 92) < 0.9) set(L - 1, B.STONE_SLAB, 8);
+  // compression ring and skywalk
+  if (c >= 67) set(L - 1, B.PLASTER);
+  if (c >= 68 && c <= 71) set(L, B.DECK);
+  if (c === 67 || c === 72) set(L + 1, B.GLASS_PANE);
+  if (c === 71 && cnRay(x, z, 180) % 6 === 0) set(L + 1, B.LANTERN, 0);
+}
+
+// Three 26 x 9 m video boards hanging from the roof: over each goal end and over the stand
+// facing the main one.
+function cnBoards(W, x, z) {
+  const G = CN.G, y = G + 66;
   const board = (col, text) => {
     const off = Math.floor((26 - (text.length * 6 - 1)) / 2);
     for (let row = 0; row < 9; row++) {
       const frame = row === 0 || row === 8 || col === 0 || col === 25;
-      W.set(x, G + 42 + row, z, frame ? CN_BLACK : cnText(text, col - off, 7 - row) ? B.GLOWSTONE : (row + col) % 7 === 0 ? CN_PINK : CN_BLUE);
+      W.set(x, G + 52 + row, z, frame ? CN_BLACK : cnText(text, col - off, 7 - row) ? B.LED_YELLOW : B.LED_BLUE);
     }
-    if (col === 3 || col === 22) for (let yy = G + 51; yy < y; yy++) W.set(x, yy, z, B.IRON_BARS);
+    if (col === 3 || col === 22) for (let yy = G + 61; yy < y; yy++) W.set(x, yy, z, B.IRON_BARS);
   };
   const dz = z + 0.5 - CN.zc;
   // text reads left to right from the pitch
-  if (x === 64 && Math.abs(dz) < 13) board(Math.floor(dz + 12.5 + 0.5), 'NOU');
+  if (x === 64 && Math.abs(dz) < 13) board(Math.floor(dz + 12.5 + 0.5), 'FCB');
   if (x === -65 && Math.abs(dz) < 13) board(Math.floor(12.5 - dz + 0.5), 'NOU');
   if (z === 44 && Math.abs(x + 0.5) < 13) board(Math.floor(12.5 - (x + 0.5) + 0.5), 'CAMP');
 }
 
 WORLD_PRESETS.campnou = {
   name: 'Camp Nou', icon: '\ud83c\udfdf\ufe0f', words: [], time: 0.34, noCaves: true, hidden: true,
-  height() { return CN.G; },
+  // the bowl and the lower tier sit in a pit; everything else starts at street level
+  height(g, x, z) { return cnR(x, z) < 23 ? CN.G : CN.S; },
   column(g, x, z) {
     const r = cnR(x, z);
     const stripe = Math.floor((x + 52.5) / 5.25) & 1;
-    const tint = r < 0 ? (stripe ? [[0.74, 1.26, 0.5], [0.66, 1.1, 0.5]] : [[0.5, 0.9, 0.36], [0.5, 0.9, 0.36]]) : [[0.72, 1.06, 0.56], [0.72, 1.06, 0.56]];
+    const tint = r < 3 ? (stripe ? [[0.74, 1.26, 0.5], [0.66, 1.1, 0.5]] : [[0.5, 0.9, 0.36], [0.5, 0.9, 0.36]]) : [[0.72, 1.06, 0.56], [0.72, 1.06, 0.56]];
     return col({ top: B.GRASS, filler: B.DIRT, depth: 3, level: 0, tint, biome: BIOME.PLAINS });
   },
   plant(g, x, z, h, ground, rr) {
     const r = cnR(x, z);
-    if (r > 104 && ground === B.GRASS && rr < 0.12) return { ids: [rr < 0.03 ? B.DANDELION : B.TALLGRASS] };
+    if (r > 110 && ground === B.GRASS && rr < 0.12) return { ids: [rr < 0.03 ? B.DANDELION : B.TALLGRASS] };
     return null;
   },
   trees: { cell: 8, R: 4 },
@@ -5832,16 +6078,18 @@ WORLD_PRESETS.campnou = {
     const d = cnR(x, z);
     // a double row of trees round the esplanade, then scattered ones
     if ((d > 92 && d < 95) || (d > 99 && d < 102)) return r < 0.8 ? { kind: 'oak' } : null;
-    return d > 104 && d < 140 && r < 0.3 ? { kind: r < 0.1 ? 'birch' : 'oak' } : null;
+    return d > 111 && d < 150 && r < 0.3 ? { kind: r < 0.1 ? 'birch' : 'oak' } : null;
   },
   spawn() { return { pos: [0.5, CN.G + 1, -6.5], yaw: Math.PI, pitch: 0.12 }; },
   water: WATER_STYLE.river,
   build(g, chunk) {
     const W = structWriter(chunk);
     for (let z = W.z0; z <= W.z1; z++) for (let x = W.x0; x <= W.x1; x++) {
-      if (cnR(x, z) > 110) continue;
-      cnColumn(W, x, z);
-      cnRoof(W, x, z);
+      const r = cnR(x, z);
+      if (r > 110) continue;
+      if (r < 0) cnPitch(W, x, z); else cnColumn(W, x, z, r);
+      cnRoof(W, x, z, r);
+      cnBoards(W, x, z);
     }
   },
 };
@@ -13528,8 +13776,9 @@ function streamCenter() {
 }
 
 function updateChunks(budgetMs) {
-  // a jet in the air sees further: stream a wider ring and let the renderer fade it in
-  const boost = G.vehicle && !G.vehicle.onGround ? 3 : 0;
+  // a jet in the air sees further: stream a wider ring and let the renderer fade it in; so does
+  // the Camp Nou, whose far stand is ~140 m from the centre spot
+  const boost = G.vehicle && !G.vehicle.onGround ? 3 : G.world.type === 'campnou' ? Math.max(0, 11 - G.settings.renderDistance) : 0;
   const r = G.renderer;
   r.rangeBoost = (r.rangeBoost || 0) + (boost - (r.rangeBoost || 0)) * 0.02;
   const R = G.settings.renderDistance + Math.round(r.rangeBoost);
@@ -14093,7 +14342,7 @@ function saveWorld() {
   const p = G.player;
   const ok = storageSet(G.slot ? 'blocklands.slot.' + G.slot : G.online ? Net.saveKey() : SAVE_KEY, {
     net: G.online && Net.server ? Net.serializeTimes() : undefined,
-    v: 2, gen: G.world.genVer, seed: G.world.seed, type: G.world.type, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
+    v: 2, gen: G.world.genVer, seed: G.world.seed, type: G.world.type, cnv: G.slot === 'campnou' ? CN.ver : undefined, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
     dayTime: G.dayTime, mode: G.mode, difficulty: G.difficulty, rules: G.rules, worldSpawn: G.worldSpawn, spawnPoint: G.spawnPoint,
     player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, flying: p.flying }, inv: G.inv.serialize(), stats: G.stats.serialize(),
     vehicles: Vehicles.serialize(),
@@ -15391,6 +15640,7 @@ const Act = {
     }
     if ((k === SH_PANEL || k === SH_ARCH) && n[1] === 0) return this.dirIndex([-n[0], 0, -n[2]]) | (k === SH_ARCH ? 0 : flip);
     if (k === SH_PILLAR) return 0;
+    if (k === SH_SEAT) return look;
     return look | flip;
   },
 
@@ -16884,7 +17134,8 @@ function enterCampNou() {
   saveWorld();
   G.slot = 'campnou';
   const save = storageGet('blocklands.slot.campnou');
-  newWorld(1, save && save.v === 2 ? save : null, { type: 'campnou', mode: 'creative' });
+  // a save from an older build of the stadium would leave edits floating in the new one
+  newWorld(1, save && save.v === 2 && save.cnv === CN.ver ? save : null, { type: 'campnou', mode: 'creative' });
   G.rules.mobSpawning = false;
   G.settings.weather = G.settings.weather === 'auto' ? 'clear' : G.settings.weather;
   prepareArea(G.player.pos[0], G.player.pos[2], 2);

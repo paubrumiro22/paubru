@@ -176,7 +176,8 @@ function enterCampNou() {
   saveWorld();
   G.slot = 'campnou';
   const save = storageGet('blocklands.slot.campnou');
-  newWorld(1, save && save.v === 2 ? save : null, { type: 'campnou', mode: 'creative' });
+  // a save from an older build of the stadium would leave edits floating in the new one
+  newWorld(1, save && save.v === 2 && save.cnv === CN.ver ? save : null, { type: 'campnou', mode: 'creative' });
   G.rules.mobSpawning = false;
   G.settings.weather = G.settings.weather === 'auto' ? 'clear' : G.settings.weather;
   prepareArea(G.player.pos[0], G.player.pos[2], 2);

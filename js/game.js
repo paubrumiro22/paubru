@@ -81,8 +81,9 @@ function streamCenter() {
 }
 
 function updateChunks(budgetMs) {
-  // a jet in the air sees further: stream a wider ring and let the renderer fade it in
-  const boost = G.vehicle && !G.vehicle.onGround ? 3 : 0;
+  // a jet in the air sees further: stream a wider ring and let the renderer fade it in; so does
+  // the Camp Nou, whose far stand is ~140 m from the centre spot
+  const boost = G.vehicle && !G.vehicle.onGround ? 3 : G.world.type === 'campnou' ? Math.max(0, 11 - G.settings.renderDistance) : 0;
   const r = G.renderer;
   r.rangeBoost = (r.rangeBoost || 0) + (boost - (r.rangeBoost || 0)) * 0.02;
   const R = G.settings.renderDistance + Math.round(r.rangeBoost);
@@ -646,7 +647,7 @@ function saveWorld() {
   const p = G.player;
   const ok = storageSet(G.slot ? 'blocklands.slot.' + G.slot : G.online ? Net.saveKey() : SAVE_KEY, {
     net: G.online && Net.server ? Net.serializeTimes() : undefined,
-    v: 2, gen: G.world.genVer, seed: G.world.seed, type: G.world.type, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
+    v: 2, gen: G.world.genVer, seed: G.world.seed, type: G.world.type, cnv: G.slot === 'campnou' ? CN.ver : undefined, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
     dayTime: G.dayTime, mode: G.mode, difficulty: G.difficulty, rules: G.rules, worldSpawn: G.worldSpawn, spawnPoint: G.spawnPoint,
     player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, flying: p.flying }, inv: G.inv.serialize(), stats: G.stats.serialize(),
     vehicles: Vehicles.serialize(),

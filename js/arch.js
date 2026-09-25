@@ -18,7 +18,7 @@ Object.assign(B, {
 });
 
 const RT_SHAPE = 15, RT_CONNECT = 16, RT_LANTERN = 17;
-const SH_STAIRS = 1, SH_SLOPE = 2, SH_OUTER = 3, SH_INNER = 4, SH_PANEL = 5, SH_PILLAR = 6, SH_ARCH = 7;
+const SH_STAIRS = 1, SH_SLOPE = 2, SH_OUTER = 3, SH_INNER = 4, SH_PANEL = 5, SH_PILLAR = 6, SH_ARCH = 7, SH_SEAT = 8;
 const CN_FENCE = 1, CN_WALL = 2, CN_PANE = 3;
 const BLOCK_SHAPE = new Uint8Array(256);    // shape kind of a shaped block
 const BLOCK_SHAPE_MAT = new Uint8Array(256); // index into ARCH_MATS
@@ -72,6 +72,8 @@ const ARCH_MATS = [
   { key: 'tiles', name: 'Clay Tile', tex: 'roof_tiles', src: B.ROOF_TILES, o: with_(ROCK, { hard: 1.2 }), pillar: false },
   { key: 'slate', name: 'Slate', tex: 'slate', src: B.SLATE, o: with_(ROCK, { hard: 1.5 }), pillar: false },
   { key: 'thatch', name: 'Thatch', tex: 'thatch', src: B.THATCH, o: { hard: 0.5, tool: TOOL_HOE, snd: SND.GRASS }, pillar: false },
+  // tensile roof fabric: dark on the weather side, white and softly lit underneath (src set below)
+  { key: 'membrane', name: 'Membrane', tex: ['membrane_top', 'membrane', 'membrane_edge'], src: 0, o: { hard: 0.8, snd: SND.WOOL }, pillar: false, atten: 1 },
 ];
 const SHAPE_KINDS = [
   { kind: SH_STAIRS, key: 'stairs', name: 'Stairs', atten: 15, yield: 1 },
@@ -88,7 +90,7 @@ const SHAPE_OF = {};   // `${matKey}:${shapeKey}` -> block id
   ARCH_MATS.forEach((m, mi) => {
     for (const s of SHAPE_KINDS) {
       if (s.pillarOnly && !m.pillar) continue;
-      defBlock(id, m.name + ' ' + s.name, RT_SHAPE, m.tex, Object.assign({}, m.o, { atten: s.atten, solid: true, cat: 'architecture' }));
+      defBlock(id, m.name + ' ' + s.name, RT_SHAPE, m.tex, Object.assign({}, m.o, { atten: m.atten || s.atten, solid: true, cat: 'architecture' }));
       BLOCK_SHAPE[id] = s.kind;
       BLOCK_SHAPE_MAT[id] = mi;
       BLOCK_HEIGHT[id] = 16;
@@ -98,8 +100,37 @@ const SHAPE_OF = {};   // `${matKey}:${shapeKey}` -> block id
   });
   B.SHAPE_END = id;
 }
+
+// ---- stadium pieces (ids after the shapes, so older saves keep theirs) ----
+{
+  let id = B.SHAPE_END;
+  B.MEMBRANE = id++;
+  B.SEAT_RED = id++; B.SEAT_BLUE = id++; B.SEAT_YELLOW = id++; B.SEAT_WHITE = id++;
+  B.LED_BLUE = id++; B.LED_RED = id++; B.LED_YELLOW = id++;
+  B.ALU_SLATS = id++; B.DECK = id++;
+  B.STADIUM_END = id;
+}
+ARCH_MATS[ARCH_MATS.length - 1].src = B.MEMBRANE;
+// translucent: daylight passes through it like glass, so the stands under the roof stay bright
+defBlock(B.MEMBRANE, 'Roof Membrane', RT_CUBE, ['membrane_top', 'membrane', 'membrane_edge'], { hard: 0.8, snd: SND.WOOL, atten: 1, cat: 'architecture' });
+[['Red', B.SEAT_RED, 'seat_red'], ['Blue', B.SEAT_BLUE, 'seat_blue'], ['Yellow', B.SEAT_YELLOW, 'seat_yellow'], ['White', B.SEAT_WHITE, 'seat_white']].forEach(([n, id, tex]) => {
+  defBlock(id, n + ' Stadium Seat', RT_SHAPE, tex, { hard: 0.6, tool: TOOL_PICK, snd: SND.WOOD, atten: 1, solid: true, cat: 'architecture' });
+  BLOCK_SHAPE[id] = SH_SEAT;
+  BLOCK_HEIGHT[id] = 8;
+});
+// LED screen panels: lit by their own pixels, no light cast (they are screens, not lamps)
+const LED_OPT = { hard: 0.6, tool: TOOL_PICK, snd: SND.GLASS, cat: 'architecture' };
+defBlock(B.LED_BLUE, 'Blue LED Panel', RT_CUBE, { top: 'smooth_stone', side: 'led_blue' }, LED_OPT);
+defBlock(B.LED_RED, 'Red LED Panel', RT_CUBE, { top: 'smooth_stone', side: 'led_red' }, LED_OPT);
+defBlock(B.LED_YELLOW, 'Yellow LED Panel', RT_CUBE, { top: 'smooth_stone', side: 'led_yellow' }, with_(LED_OPT, { emit: 7 }));
+defBlock(B.ALU_SLATS, 'Aluminium Slat Ceiling', RT_CUBE, 'alu_slats', with_(ROCK, { hard: 1.2, snd: SND.METAL, cat: 'architecture' }));
+defBlock(B.DECK, 'Wood Decking', RT_CUBE, { top: 'deck', side: 'deck_side' }, with_(WOOD, { cat: 'architecture' }));
 function shapeId(mat, shape) { return SHAPE_OF[mat + ':' + shape] || 0; }
 for (let id = 0; id < 256; id++) if (BLOCK_SHAPE[id] || id === B.LANTERN) FACING_BLOCKS.add(id);
+
+// Stadium seat: pedestal, pan and backrest (back on the facing side), a sliver apart from the next
+// seat so rows read as separate chairs. Walk over them like a half step.
+const SEAT_CANON = { boxes: [[6, 0, 6, 10, 5, 11], [1, 5, 3, 15, 7, 15], [1, 7, 1, 15, 15, 3.5], [0.5, 5, 5, 1.5, 9, 12], [14.5, 5, 5, 15.5, 9, 12]], coll: [[1, 0, 1, 15, 8, 15]] };
 
 // ---- geometry ----
 // Rotate / flip a canonical point (1/16 units, back at -Z) into facing f.
@@ -146,6 +177,7 @@ const SHAPE_CANON = {
   [SH_PANEL]: { boxes: [[0, 0, 0, 16, 16, 8]] },
   [SH_ARCH]: { boxes: archSlices() },
   [SH_PILLAR]: { boxes: [[3, 0, 3, 13, 16, 13]] },
+  [SH_SEAT]: SEAT_CANON,
   [SH_SLOPE]: {
     polys: [
       { p: [[0, 0, 16], [16, 0, 16], [16, 0, 0], [0, 0, 0]], n: [0, -1, 0] },

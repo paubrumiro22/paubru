@@ -236,3 +236,77 @@ gen('solar_panel', (d, rng) => {
     put(d, x, y, c, f);
   });
 }, { smooth: 0.9, bump: 0.6 });
+
+// ---- stadium pieces ----
+function genSeat(d, rng, c) {
+  // moulded plastic: flat colour, a soft sheen down the middle and darker edges
+  fillTile(d, (x, y) => {
+    const e = Math.min(x, y, TM - x, TM - y);
+    let f = 0.9 + 0.12 * Math.exp(-((x - 12) ** 2) / 60) + rng() * 0.02;
+    if (e === 0) f *= 0.72; else if (e === 1) f *= 0.88;
+    put(d, x, y, c, quant(f, 24));
+  });
+}
+gen('seat_red', (d, rng) => genSeat(d, rng, [190, 26, 52]), { smooth: 0.6, bump: 0.3 });
+gen('seat_blue', (d, rng) => genSeat(d, rng, [36, 52, 150]), { smooth: 0.6, bump: 0.3 });
+gen('seat_yellow', (d, rng) => genSeat(d, rng, [236, 184, 30]), { smooth: 0.6, bump: 0.3 });
+gen('seat_white', (d, rng) => genSeat(d, rng, [226, 228, 230]), { smooth: 0.6, bump: 0.3 });
+
+function genLed(d, rng, ctx, c, glow) {
+  // a screen of round pixels on a black mask, each pixel lit by itself
+  fillTile(d, (x, y, k) => {
+    const px = x & 3, py = y & 3, dot = px < 3 && py < 3, core = px === 1 && py === 1;
+    if (dot) { put(d, x, y, c, (core ? 1 : 0.86) + rng() * 0.08); ctx.emit[k] = core ? glow : glow * 0.8; }
+    else { put(d, x, y, [16, 16, 22]); ctx.emit[k] = glow * 0.1; }
+  });
+}
+gen('led_blue', (d, rng, ctx) => genLed(d, rng, ctx, [40, 90, 230], 0.55), { smooth: 0.8, bump: 0.2 });
+gen('led_red', (d, rng, ctx) => genLed(d, rng, ctx, [225, 30, 70], 0.65), { smooth: 0.8, bump: 0.2 });
+gen('led_yellow', (d, rng, ctx) => genLed(d, rng, ctx, [255, 214, 70], 1), { smooth: 0.8, bump: 0.2 });
+
+gen('membrane', (d, rng) => {
+  // underside of the tensile roof: white fabric, faint weave, a seam every half block
+  const f = fbm(rng, 4, 2);
+  fillTile(d, (x, y, k) => {
+    let fa = 0.95 + f[k] * 0.05 + ((x + y) & 1 ? 0.012 : 0);
+    if ((y & 15) === 0) fa *= 0.86;
+    put(d, x, y, [238, 238, 234], quant(fa, 30));
+  });
+}, { smooth: 0.25, bump: 0.3 });
+gen('membrane_top', (d, rng) => {
+  // weather side: deep navy with a sheen and raised seams
+  const f = fbm(rng, 3, 2);
+  fillTile(d, (x, y, k) => {
+    let fa = 0.9 + f[k] * 0.12;
+    if ((y & 15) === 0) fa = 1.25; else if ((y & 15) === 1) fa *= 0.8;
+    put(d, x, y, [30, 38, 70], quant(fa, 24));
+  });
+}, { smooth: 0.7, bump: 0.8 });
+gen('membrane_edge', (d, rng) => {
+  fillTile(d, (x, y) => put(d, x, y, y < 12 ? [30, 38, 70] : [232, 232, 228], 0.95 + rng() * 0.05));
+}, { smooth: 0.5, bump: 0.3 });
+
+gen('alu_slats', (d, rng) => {
+  // linear ceiling: narrow silver-grey aluminium strips with dark shadow gaps
+  fillTile(d, (x, y) => {
+    const k = x & 3;
+    let f = k === 3 ? 0.42 : k === 0 ? 1.08 : 0.96;
+    f *= 0.97 + rng() * 0.04;
+    put(d, x, y, [206, 208, 210], quant(f, 20));
+  });
+}, { smooth: 0.65, bump: 1.4 });
+
+gen('deck', (d, rng) => {
+  // hardwood decking: long boards with staggered butt joints and a dark gap between boards
+  const tone = Array.from({ length: 8 }, () => 0.86 + rng() * 0.2);
+  const grain = fbm(rng, 2, 3, 0.5, 8);
+  fillTile(d, (x, y, k) => {
+    const b = y >> 2, joint = ((x + b * 11) & 31) === 0;
+    let f = tone[b] * (0.9 + grain[k] * 0.16);
+    if ((y & 3) === 3 || joint) f *= 0.5;
+    put(d, x, y, [170, 116, 72], quant(f, 18));
+  });
+}, { smooth: 0.3, bump: 1.2 });
+gen('deck_side', (d, rng) => {
+  fillTile(d, (x, y) => put(d, x, y, y < 4 ? [170, 116, 72] : [150, 150, 146], (y < 4 ? 0.9 : 0.85) + rng() * 0.08));
+}, { smooth: 0.3, bump: 0.6 });
