@@ -13,7 +13,7 @@
 Object.assign(B, {
   PLASTER: 119, MARBLE: 120, ROOF_TILES: 121, SLATE: 122, THATCH: 123, DIRT_PATH: 124, LANTERN: 125, BARREL: 126,
   ARCH_TABLE: 127, COBWEB: 128, OAK_FENCE: 129, SPRUCE_FENCE: 130, COBBLE_WALL: 131, STONE_BRICK_WALL: 132,
-  GLASS_PANE: 133, IRON_BARS: 134, ENCHANT_TABLE: 135, BREWING_STAND: 136, EMERALD_ORE: 137, EMERALD_BLOCK: 138,
+  GLASS_PANE: 133, IRON_BARS: 134, ENCHANT_TABLE: 135, BREWING_STAND: 136, EMERALD_ORE: 137, EMERALD_BLOCK: 138, SOLAR_PANEL: 139,
   SHAPE0: 140,
 });
 
@@ -40,6 +40,7 @@ defBlock(B.BARREL, 'Barrel', RT_CUBE, { top: 'barrel_top', bottom: 'barrel_top',
 defBlock(B.ARCH_TABLE, "Architect's Table", RT_CUBE, { top: 'arch_table_top', bottom: 'planks', side: 'arch_table_side' }, with_(WOOD, { hard: 2.5, cat: 'functional' }));
 defBlock(B.COBWEB, 'Cobweb', RT_CROSS, 'cobweb', { atten: 1, hard: 4, tool: TOOL_SWORD, snd: SND.WOOL, flags: FLAG_TRANSLUCENT, solid: false, cat: 'nature' });
 defBlock(B.EMERALD_ORE, 'Emerald Ore', RT_CUBE, 'emerald_ore', with_(ROCK, { hard: 3, tier: 3, cat: 'nature' }));
+defBlock(B.SOLAR_PANEL, 'Solar Panel', RT_CUBE, { top: 'solar_panel', bottom: 'smooth_stone', side: 'smooth_stone' }, with_(ROCK, { hard: 1.5, snd: SND.GLASS, cat: 'architecture' }));
 defBlock(B.EMERALD_BLOCK, 'Block of Emerald', RT_CUBE, 'emerald_block', with_(ROCK, { hard: 5, tier: 3, snd: SND.METAL }));
 
 // connecting blocks

@@ -225,3 +225,14 @@ sprite('i_enchanted_book', (d, rng, ctx) => {
   sprRect(d, 12, 15, 19, 16, [255, 214, 90]);
   for (const [x, y] of [[10, 22], [20, 9], [22, 20], [14, 25]]) { sprRect(d, x, y, x + 2, y + 2, [255, 240, 170]); ctx.emit[y * TS + x] = 0.8; }
 });
+
+gen('solar_panel', (d, rng) => {
+  // dark blue cells in a silver frame, a sheen across them
+  fillTile(d, (x, y) => {
+    const frame = (x & 15) === 0 || (y & 15) === 0;
+    const grid = (x & 3) === 0 || (y & 7) === 0;
+    let c = [26, 40, 88], f = 0.9 + rng() * 0.08 + ((x + y) % 32 < 6 ? 0.25 : 0);
+    if (frame) { c = [176, 182, 190]; f = 1; } else if (grid) c = [60, 76, 120];
+    put(d, x, y, c, f);
+  });
+}, { smooth: 0.9, bump: 0.6 });
