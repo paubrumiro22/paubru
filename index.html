@@ -13,13 +13,16 @@
     color-scheme: dark;
     --ground: #070a0f;
     --glass: rgba(11, 16, 24, 0.66);
-    --glass-strong: rgba(9, 13, 20, 0.86);
+    --glass-strong: rgba(9, 13, 20, 0.88);
     --line: rgba(214, 228, 246, 0.14);
+    --line-strong: rgba(214, 228, 246, 0.28);
     --text: #eef3f8;
     --muted: #9eadbd;
     --accent: #f2b94b;
     --accent-hover: #ffcd6b;
     --accent-ink: #2a1a02;
+    --danger: #e0433b;
+    --slot: 46px;
     --display: "Silkscreen", ui-monospace, "Cascadia Mono", Consolas, monospace;
     --body: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
@@ -32,26 +35,65 @@
   #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
   .hidden { display: none !important; }
 
+  /* screen-space effects */
+  .fx { position: fixed; inset: 0; pointer-events: none; }
+  #hurtOverlay { opacity: 0; background: radial-gradient(ellipse at center, rgba(160, 0, 0, 0) 45%, rgba(170, 8, 8, 0.55) 80%, rgba(120, 0, 0, 0.85)); }
+  #fireOverlay { opacity: 0; transition: opacity .25s; mix-blend-mode: screen; }
+  #fireOverlay.on { opacity: 1; }
+  #fireOverlay::before, #fireOverlay::after {
+    content: ""; position: absolute; left: -10%; right: -10%; bottom: -6%; height: 46%;
+    background:
+      radial-gradient(ellipse 9% 60% at 12% 100%, rgba(255, 210, 90, 0.9), transparent 70%),
+      radial-gradient(ellipse 8% 70% at 30% 100%, rgba(255, 150, 40, 0.85), transparent 70%),
+      radial-gradient(ellipse 10% 55% at 52% 100%, rgba(255, 220, 110, 0.9), transparent 70%),
+      radial-gradient(ellipse 8% 75% at 71% 100%, rgba(255, 140, 30, 0.85), transparent 70%),
+      radial-gradient(ellipse 9% 60% at 90% 100%, rgba(255, 200, 80, 0.9), transparent 70%);
+    filter: blur(6px); animation: flicker .38s steps(3) infinite alternate; transform-origin: bottom;
+  }
+  #fireOverlay::after { animation-delay: -.19s; opacity: .7; transform: scaleX(-1); }
+  @keyframes flicker { 0% { transform: scaleY(0.86) translateX(-1.5%); } 50% { transform: scaleY(1.08) translateX(1%); } 100% { transform: scaleY(0.94) translateX(0); } }
+  #lavaOverlay { opacity: 0; background: radial-gradient(ellipse at center, rgba(255, 120, 20, 0.78), rgba(170, 30, 0, 0.95)); transition: opacity .15s; }
+  #lavaOverlay.on { opacity: 1; }
+  #sleepOverlay { opacity: 0; background: #020306; }
+
   /* HUD */
   #hud { position: fixed; inset: 0; pointer-events: none; }
   #crosshair { position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; transform: translate(-50%, -50%); mix-blend-mode: difference; }
   #crosshair::before, #crosshair::after { content: ""; position: absolute; background: #fff; }
   #crosshair::before { left: 9px; top: 0; width: 2px; height: 20px; }
   #crosshair::after { top: 9px; left: 0; width: 20px; height: 2px; }
+  #bottombar { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+  #status { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 6px; }
+  #status .col { display: flex; flex-direction: column; gap: 3px; }
+  #status .right { align-items: flex-end; }
+  .icons { display: flex; gap: 1px; height: 18px; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6)); }
+  .icons i { width: 18px; height: 18px; background-size: 100% 100%; image-rendering: pixelated; }
+  #hearts.low i { animation: jitter .32s steps(2) infinite; }
+  #hearts.low i:nth-child(2n) { animation-delay: -.11s; } #hearts.low i:nth-child(3n) { animation-delay: -.2s; }
+  #food.low i { animation: jitter .4s steps(2) infinite; }
+  #food.low i:nth-child(2n) { animation-delay: -.15s; }
+  @keyframes jitter { 0% { transform: translateY(0); } 50% { transform: translateY(-2px); } 100% { transform: translateY(1px); } }
+  #hearts.flash i { filter: brightness(1.9) saturate(0.4); }
+  #hearts.regen i { animation: wave .5s ease-out; }
+  #hearts.regen i:nth-child(1) { animation-delay: 0s; } #hearts.regen i:nth-child(2) { animation-delay: .03s; } #hearts.regen i:nth-child(3) { animation-delay: .06s; }
+  #hearts.regen i:nth-child(4) { animation-delay: .09s; } #hearts.regen i:nth-child(5) { animation-delay: .12s; } #hearts.regen i:nth-child(6) { animation-delay: .15s; }
+  #hearts.regen i:nth-child(7) { animation-delay: .18s; } #hearts.regen i:nth-child(8) { animation-delay: .21s; } #hearts.regen i:nth-child(9) { animation-delay: .24s; } #hearts.regen i:nth-child(10) { animation-delay: .27s; }
+  @keyframes wave { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-3px); } }
   #hotbar {
-    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 4px; padding: 5px; border-radius: 12px;
+    display: flex; gap: 4px; padding: 5px; border-radius: 12px; align-self: center;
     background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(10px);
   }
   .slot {
-    position: relative; width: 52px; height: 52px; border-radius: 8px; display: grid; place-items: center;
-    border: 2px solid transparent; background: rgba(255, 255, 255, 0.04); transition: background .12s, border-color .12s;
+    position: relative; width: 52px; height: 52px; border-radius: 8px; flex: none;
+    border: 2px solid transparent; background: rgba(255, 255, 255, 0.04); transition: background .12s, border-color .12s, transform .12s;
   }
-  .slot.sel { border-color: #fff; background: rgba(255, 255, 255, 0.16); }
-  .slot canvas { width: 40px; height: 40px; image-rendering: pixelated; }
-  .slot .num { position: absolute; left: 5px; top: 2px; font-size: 10px; color: var(--muted); }
+  .slot i { position: absolute; inset: 6px; background-size: contain; background-repeat: no-repeat; background-position: center; image-rendering: pixelated; }
+  .slot .cnt { position: absolute; right: 4px; bottom: 0; font: 700 13px/1.3 var(--body); color: #fff; text-shadow: 1px 1px 0 #000, 0 0 3px #000; }
+  .slot .dur { position: absolute; left: 7px; right: 7px; bottom: 5px; height: 3px; background: rgba(0, 0, 0, 0.8); border-radius: 2px; display: none; }
+  .slot .dur b { display: block; height: 100%; border-radius: 2px; }
+  #hotbar .slot.sel { border-color: #fff; background: rgba(255, 255, 255, 0.16); transform: translateY(-3px); }
   #blockname {
-    position: absolute; bottom: 86px; left: 50%; transform: translateX(-50%); padding: 4px 12px; border-radius: 7px;
+    position: absolute; bottom: 118px; left: 50%; transform: translateX(-50%); padding: 4px 12px; border-radius: 7px;
     background: var(--glass); border: 1px solid var(--line); opacity: 0; transition: opacity .35s; white-space: nowrap;
   }
   #blockname.show { opacity: 1; }
@@ -101,7 +143,12 @@
   }
   select option { background: #151a21; }
   .check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 14px; cursor: pointer; }
+  .field label.check { justify-content: flex-start; color: var(--text); font-size: 14px; }
   .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; border-radius: 0; padding: 8px 10px; background: transparent; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
   .keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px 18px; color: var(--muted); font-size: 13px; }
   kbd {
     display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 6px; text-align: center; color: var(--text);
@@ -111,26 +158,128 @@
   #loading .bar { height: 8px; background: rgba(255, 255, 255, 0.08); border-radius: 99px; overflow: hidden; margin: 16px 0 8px; }
   #loading .bar div { height: 100%; width: 0%; background: var(--accent); transition: width .15s; }
   #loadStatus { color: var(--muted); font-size: 13px; }
-  #invGrid { display: grid; grid-template-columns: repeat(auto-fill, 60px); gap: 6px; }
-  #invGrid .slot { width: 60px; height: 60px; cursor: pointer; }
-  #invGrid .slot:hover { background: rgba(255, 255, 255, 0.14); }
-  #invGrid .slot canvas { width: 44px; height: 44px; }
+  .presets { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  #presetList { display: flex; flex-wrap: wrap; gap: 6px; }
+  #presetList button { padding: 5px 10px; font-size: 13px; border-radius: 99px; }
+  .chip { display: none; align-self: flex-start; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 700; background: rgba(242, 185, 75, 0.18); border: 1px solid rgba(242, 185, 75, 0.55); color: var(--accent-hover); }
+  .chip.on { display: inline-block; }
   #errorBox pre { white-space: pre-wrap; font: 12px ui-monospace, Consolas, monospace; color: #ffb4a8; max-height: 50vh; overflow: auto; }
+
+  /* Container screens */
+  #screen { background: radial-gradient(ellipse at 50% 45%, rgba(4, 7, 12, 0.45), rgba(3, 5, 8, 0.82)); }
+  .invpanel { width: auto; max-width: calc(100vw - 32px); padding: 18px 20px 20px; animation: pop .16s ease-out; }
+  @keyframes pop { from { transform: translateY(8px) scale(0.985); opacity: 0; } to { transform: none; opacity: 1; } }
+  .invpanel h3 { font: 400 11px/1 var(--display); text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); margin: 14px 0 8px; }
+  .invtop { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+  .invtop > .craftbox h3, .invtop > .furnacebox h3, .invtop > .chestbox h3 { margin-top: 2px; }
+  .sgrid { display: grid; gap: 3px; }
+  .sgrid.hotrow { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .invpanel .slot, #cursorStack { width: var(--slot); height: var(--slot); border-radius: 7px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.045); }
+  .invpanel .slot { cursor: pointer; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 -2px 4px rgba(0, 0, 0, 0.25); }
+  .invpanel .slot:hover { background: rgba(255, 255, 255, 0.14); border-color: var(--line-strong); }
+  .invpanel .slot.dragging { background: rgba(242, 185, 75, 0.2); border-color: var(--accent); }
+  .invpanel .slot.out { width: 60px; height: 60px; border-color: rgba(242, 185, 75, 0.5); background: rgba(242, 185, 75, 0.07); }
+  .invpanel .slot.out:hover { background: rgba(242, 185, 75, 0.18); }
+  .invpanel .slot.dim { opacity: 0.32; }
+  .invpanel .slot.hint i { opacity: 0.16; filter: grayscale(1); }
+  .invpanel .slot.trash { background: rgba(224, 67, 59, 0.12); border-color: rgba(224, 67, 59, 0.45); }
+  .invpanel .slot.trash::after { content: "×"; position: absolute; inset: 0; display: grid; place-items: center; font: 700 26px var(--body); color: rgba(255, 140, 130, 0.9); }
+  .armorcol { display: flex; flex-direction: column; gap: 3px; }
+  .charcard {
+    width: 150px; min-height: 196px; padding: 12px; border-radius: 10px; border: 1px solid var(--line);
+    background: linear-gradient(160deg, rgba(242, 185, 75, 0.12), rgba(60, 120, 170, 0.08) 60%, rgba(0, 0, 0, 0.1));
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .cc-title { font: 700 13px var(--display); letter-spacing: .08em; color: var(--accent); }
+  .cc-row { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .cc-row img { width: 18px; height: 18px; image-rendering: pixelated; }
+  .cc-foot { margin-top: auto; color: var(--muted); font-size: 12px; }
+  .craftrow { display: flex; align-items: center; gap: 12px; }
+  .arrow { width: 40px; height: 22px; position: relative; background: rgba(255, 255, 255, 0.14); clip-path: polygon(0 32%, 62% 32%, 62% 0, 100% 50%, 62% 100%, 62% 68%, 0 68%); }
+  .arrow.progress div { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--accent); }
+  .bookbtn { align-self: flex-end; font-size: 13px; padding: 7px 12px; }
+  .book { width: 262px; border-left: 1px solid var(--line); padding-left: 16px; }
+  .bookhead { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+  .bookhead h3 { margin: 2px 0 8px !important; }
+  .bookhead input { width: 130px; padding: 4px 8px; font-size: 12px; }
+  .booklist { display: grid; grid-template-columns: repeat(5, var(--slot)); gap: 3px; max-height: 198px; overflow-y: auto; padding-right: 4px; }
+  .furnace { display: flex; align-items: center; gap: 18px; }
+  .fcol { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .flame { width: 18px; height: 18px; position: relative; background: rgba(255, 255, 255, 0.08); clip-path: polygon(50% 0, 80% 35%, 100% 70%, 80% 100%, 20% 100%, 0 70%, 20% 35%); }
+  .flame div { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(0deg, #ff6a00, #ffd24a); }
+  .ctabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+  .ctab { display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 6px; font-size: 13px; border-radius: 8px; }
+  .ctab i { width: 26px; height: 26px; background-size: contain; background-repeat: no-repeat; image-rendering: pixelated; }
+  .ctab.on { background: rgba(242, 185, 75, 0.18); border-color: rgba(242, 185, 75, 0.6); }
+  .chead { display: flex; gap: 8px; margin-bottom: 8px; }
+  .chead input { flex: 1; min-width: 0; }
+  .chead button { font-size: 13px; padding: 6px 12px; }
+  .palette { height: min(46vh, 300px); overflow-y: auto; padding-right: 4px; }
+  .kind-creative { width: min(720px, calc(100vw - 32px)); }
+  body.screen-open #bottombar, body.screen-open #blockname { visibility: hidden; }
+  .cbottom { display: flex; align-items: flex-end; gap: 10px; }
+  .cbottom .hotrow { margin-top: 12px; }
+  #cursorStack { position: fixed; left: 0; top: 0; pointer-events: none; display: none; border: 0; background: none; z-index: 20; }
+  #cursorStack i { position: absolute; inset: 3px; background-size: contain; background-repeat: no-repeat; image-rendering: pixelated; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5)); }
+  #cursorStack .cnt { position: absolute; right: 2px; bottom: -2px; font: 700 14px var(--body); text-shadow: 1px 1px 0 #000; }
+  #tooltip {
+    position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; display: none; max-width: 280px;
+    padding: 7px 10px; border-radius: 8px; background: rgba(12, 8, 22, 0.94); border: 1px solid rgba(160, 120, 255, 0.45);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); font-size: 13px;
+  }
+  #tooltip b { display: block; font-weight: 700; }
+  #tooltip span { display: block; color: var(--muted); font-size: 12px; }
+  #tooltip span.ing { color: #cfd8e3; margin-top: 3px; }
+  #tooltip span.warn { color: #f0a868; }
+
+  /* Death */
+  #death { background: radial-gradient(ellipse at center, rgba(120, 10, 10, 0.35), rgba(70, 0, 0, 0.82)); animation: fadein .8s ease-out; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  .deathbox { text-align: center; }
+  .deathbox h1 { font: 700 54px/1 var(--display); margin: 0 0 12px; color: #ffe3de; text-shadow: 0 4px 0 rgba(90, 0, 0, 0.8), 0 0 30px rgba(255, 60, 40, 0.4); animation: slam .6s cubic-bezier(.2, 1.4, .4, 1); }
+  @keyframes slam { from { transform: scale(1.6); opacity: 0; } to { transform: none; opacity: 1; } }
+  .deathbox p { color: #f3c9c2; margin: 0 0 22px; font-size: 16px; }
+  .deathbox .row { justify-content: center; }
+
   @media (max-width: 560px) {
-    .slot { width: 36px; height: 36px; } .slot canvas { width: 28px; height: 28px; }
+    .slot { width: 36px; height: 36px; } .slot i { inset: 4px; }
     .brand h1 { font-size: 26px; } .panel { padding: 18px; }
+    :root { --slot: 34px; }
+    .icons i { width: 13px; height: 13px; } .icons { height: 13px; }
+    .book { width: 100%; border-left: 0; padding-left: 0; }
   }
 </style>
 </head>
 <body>
 <canvas id="game" tabindex="0"></canvas>
 
+<div id="hurtOverlay" class="fx"></div>
+<div id="fireOverlay" class="fx"></div>
+<div id="lavaOverlay" class="fx"></div>
+<div id="sleepOverlay" class="fx"></div>
+
 <div id="hud" class="hidden">
   <div id="crosshair"></div>
   <div id="blockname"></div>
-  <div id="hotbar"></div>
+  <div id="bottombar">
+    <div id="status">
+      <div class="col left"><div id="armorBar" class="icons"></div><div id="hearts" class="icons"></div></div>
+      <div class="col right"><div id="air" class="icons"></div><div id="food" class="icons"></div></div>
+    </div>
+    <div id="hotbar"></div>
+  </div>
   <div id="debug" class="hidden"></div>
   <div id="toast"></div>
+</div>
+
+<div id="screen" class="overlay hidden"><div id="screenPanel" class="panel invpanel"></div></div>
+
+<div id="death" class="overlay hidden">
+  <div class="deathbox">
+    <h1>You died!</h1>
+    <p id="deathMsg"></p>
+    <div class="row"><button id="respawnBtn" class="primary">Respawn</button><button id="deathMenuBtn">Title screen</button></div>
+  </div>
 </div>
 
 <div id="loading" class="overlay">
@@ -145,13 +294,29 @@
 <div id="menu" class="overlay hidden">
   <div class="panel">
     <div class="brand"><h1>BLOCK<span>LANDS</span></h1></div>
-    <p class="tagline">A voxel sandbox with physically based sky, soft shadows, reflective water, volumetric clouds and god rays.</p>
+    <p class="tagline">Survive the night or build freely: mobs, crafting, farming and smelting under a physically based sky with soft shadows, reflective water and volumetric clouds.</p>
     <div class="row">
       <button id="playBtn" class="primary">Play</button>
       <span id="lockHint" style="color:var(--muted);font-size:13px">Click Play to capture the mouse. Press Esc to come back here.</span>
     </div>
 
-    <h2>Graphics</h2>
+    <h2>Game</h2>
+    <div class="grid">
+      <div class="field">
+        <label>Game mode</label>
+        <div id="modeSeg" class="seg"><button data-mode="survival">Survival</button><button data-mode="creative">Creative</button></div>
+      </div>
+      <div class="field">
+        <label>Difficulty</label>
+        <select id="difficultySel"><option value="0">Peaceful</option><option value="1">Easy</option><option value="2">Normal</option><option value="3">Hard</option></select>
+      </div>
+      <div class="field" style="justify-content:flex-end;gap:8px">
+        <label class="check"><input type="checkbox" id="keepInvCheck"> Keep inventory on death</label>
+        <label class="check"><input type="checkbox" id="mobsCheck"> Mob spawning</label>
+      </div>
+    </div>
+
+    <h2>Graphics &amp; sound</h2>
     <div class="grid" id="settingsGrid"></div>
 
     <h2>World</h2>
@@ -163,38 +328,47 @@
       <div class="field" style="justify-content:flex-end">
         <label class="check"><input type="checkbox" id="cycleCheck"> Day/night cycle runs</label>
       </div>
-      <div class="field">
-        <label>Seed <b id="seedVal"></b></label>
-        <div class="row"><input type="text" id="seedInput" placeholder="random" style="flex:1;min-width:0"><button id="newWorldBtn">New world</button></div>
+    </div>
+    <div class="field" style="margin-top:12px">
+      <label>Current world <b><span id="seedVal"></span> · <span id="worldTypeVal"></span></b></label>
+      <div class="row">
+        <input type="text" id="seedInput" placeholder="Seed or a place: “playa paradisíaca”, “volcán”…" style="flex:1;min-width:0">
+        <select id="worldTypeSel">
+          <option value="default">Default</option><option value="flat">Flat</option>
+          <option value="beach">Paradise beach</option><option value="volcano">Volcano</option><option value="oasis">Desert oasis</option>
+          <option value="peaks">Snowy peaks</option><option value="forest">Ancient forest</option><option value="canyon">Red canyon</option>
+          <option value="islands">Archipelago</option><option value="meadow">Flower meadow</option>
+        </select>
+        <button id="newWorldBtn">New world</button>
+      </div>
+      <div class="presets">
+        <span id="presetChip" class="chip"></span>
+        <div id="presetList">
+          <button data-seed="playa paradisíaca">🏝️ Playa paradisíaca</button><button data-seed="volcán">🌋 Volcán</button>
+          <button data-seed="oasis">🐪 Oasis</button><button data-seed="montañas nevadas">🏔️ Montañas nevadas</button>
+          <button data-seed="bosque ancestral">🌳 Bosque</button><button data-seed="cañón rojo">🏜️ Cañón</button>
+          <button data-seed="islas">⛵ Islas</button><button data-seed="pradera de flores">🌸 Pradera</button>
+        </div>
       </div>
     </div>
 
     <h2>Controls</h2>
     <div class="keys">
       <div><kbd>W A S D</kbd>Move</div>
-      <div><kbd>Space</kbd>Jump / swim up</div>
+      <div><kbd>Space</kbd>Jump / swim / climb</div>
       <div><kbd>Shift</kbd>Sneak / fly down</div>
       <div><kbd>W W</kbd>or <kbd>R</kbd>Sprint</div>
-      <div><kbd>F</kbd>or <kbd>Space Space</kbd>Toggle flying</div>
-      <div><kbd>LMB</kbd>Break block</div>
-      <div><kbd>RMB</kbd>Place block</div>
+      <div><kbd>LMB</kbd>Mine (hold) / attack</div>
+      <div><kbd>RMB</kbd>Place, use, eat, draw bow</div>
       <div><kbd>MMB</kbd>Pick block</div>
+      <div><kbd>E</kbd>Inventory &amp; crafting</div>
+      <div><kbd>Q</kbd>Drop item (<kbd>Ctrl</kbd> stack)</div>
       <div><kbd>1–9</kbd>or wheel: select</div>
-      <div><kbd>E</kbd>Block palette</div>
-      <div><kbd>T</kbd>Hold to fast-forward time</div>
+      <div><kbd>F</kbd>/ <kbd>Space Space</kbd>Fly (creative)</div>
+      <div><kbd>T</kbd>Fast-forward time (creative)</div>
       <div><kbd>Arrows</kbd>Look around (alternative)</div>
       <div><kbd>F3</kbd>Debug info · <kbd>F1</kbd>Hide HUD</div>
     </div>
-  </div>
-</div>
-
-<div id="inventory" class="overlay hidden">
-  <div class="panel">
-    <div class="row" style="justify-content:space-between">
-      <h2 style="margin:0">Block palette</h2>
-      <span style="color:var(--muted);font-size:13px">Click a block to put it in the selected hotbar slot · <kbd>E</kbd> close</span>
-    </div>
-    <div id="invGrid" style="margin-top:14px"></div>
   </div>
 </div>
 
@@ -210,15 +384,26 @@
 <script src="js/math.js"></script>
 <script src="js/noise.js"></script>
 <script src="js/blocks.js"></script>
+<script src="js/items.js"></script>
 <script src="js/textures.js"></script>
 <script src="js/world.js"></script>
+<script src="js/presets.js"></script>
 <script src="js/mesher.js"></script>
 <script src="js/atmosphere.js"></script>
 <script src="js/shaders_scene.js"></script>
 <script src="js/shaders_post.js"></script>
 <script src="js/renderer_gl.js"></script>
 <script src="js/renderer_frame.js"></script>
+<script src="js/models.js"></script>
 <script src="js/player.js"></script>
+<script src="js/inventory.js"></script>
+<script src="js/survival.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/entity_render.js"></script>
+<script src="js/game.js"></script>
+<script src="js/interact.js"></script>
+<script src="js/ui.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

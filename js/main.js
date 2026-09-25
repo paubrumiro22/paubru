@@ -1,14 +1,5 @@
 'use strict';
-// Boot, game loop, chunk streaming, input, UI and persistence.
-
-const SAVE_KEY = 'blocklands.world.v1';
-const SETTINGS_KEY = 'blocklands.settings.v1';
-const DAY_LENGTH = 1200; // seconds per full day
-
-const DEFAULT_SETTINGS = {
-  renderDistance: 8, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
-  renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true,
-};
+// Boot, settings/menu, input and the frame loop.
 
 const SETTINGS_UI = [
   { key: 'renderDistance', label: 'Render distance', type: 'range', min: 3, max: 16, step: 1, fmt: (v) => v + ' chunks' },
@@ -17,35 +8,14 @@ const SETTINGS_UI = [
   { key: 'fov', label: 'Field of view', type: 'range', min: 50, max: 110, step: 1, fmt: (v) => v + '°' },
   { key: 'sensitivity', label: 'Mouse sensitivity', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: (v) => v.toFixed(2) },
   { key: 'brightness', label: 'Brightness', type: 'range', min: 0.6, max: 1.8, step: 0.05, fmt: (v) => v.toFixed(2) },
+  { key: 'volume', label: 'Sound volume', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => Math.round(v * 100) + '%' },
   { key: 'ssr', label: 'Screen-space reflections', type: 'check' },
   { key: 'clouds', label: 'Volumetric clouds', type: 'check' },
   { key: 'godrays', label: 'God rays', type: 'check' },
   { key: 'bloom', label: 'Bloom', type: 'check' },
   { key: 'fxaa', label: 'Anti-aliasing (FXAA)', type: 'check' },
+  { key: 'bobbing', label: 'View bobbing', type: 'check' },
 ];
-
-const $ = (id) => document.getElementById(id);
-
-function storageGet(key) {
-  try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : null; } catch (e) { return null; }
-}
-function storageSet(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (e) { return false; }
-}
-
-const G = {
-  canvas: $('game'),
-  settings: Object.assign({}, DEFAULT_SETTINGS),
-  renderer: null, world: null, player: null,
-  input: { keys: new Set(), sprintHeld: false },
-  mouse: { left: false, right: false, nextBreak: 0, nextPlace: 0 },
-  playing: false, started: false, inventoryOpen: false, hudHidden: false, debug: false, dead: false,
-  dayTime: 0.08, time: 0, hotbar: DEFAULT_HOTBAR.slice(), slot: 0,
-  lastW: 0, lastSpace: 0, offsets: null, offsetsR: -1, lastSave: 0,
-  fps: 0, frameMs: 0, fpsAcc: 0, fpsFrames: 0, lastDebug: 0,
-  selection: null, eyeSky: 1, icons: new Map(), lastTime: 0,
-  unlocked: false, lockPending: false, drag: { active: false, moved: 0, t: 0 },
-};
 
 // ---------- errors ----------
 function showError(title, err) {
@@ -80,6 +50,7 @@ function loadSettings() {
   st.fov = clamp(st.fov, 50, 110);
   st.sensitivity = clamp(st.sensitivity, 0.2, 3);
   st.brightness = clamp(st.brightness, 0.6, 1.8);
+  st.volume = clamp(st.volume, 0, 1);
 }
 function saveSettings() { storageSet(SETTINGS_KEY, G.settings); }
 
@@ -132,6 +103,7 @@ function buildSettingsUI() {
 function setSetting(key, value) {
   G.settings[key] = value;
   saveSettings();
+  if (key === 'volume') Sound.setVolume(value);
   if (!G.renderer) return;
   if (key === 'shadows' || key === 'clouds') {
     try { G.renderer.applySettings(); } catch (e) { showError('Could not apply graphics settings', e); }
@@ -139,86 +111,17 @@ function setSetting(key, value) {
   if (key === 'renderScale') resize();
 }
 
-// ---------- UI ----------
-function blockIcon(id) {
-  if (!G.icons.has(id)) G.icons.set(id, makeBlockIcon(G.renderer.textureTiles, id, 48));
-  const src = G.icons.get(id);
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = 48;
-  cv.getContext('2d').drawImage(src, 0, 0);
-  return cv;
+function refreshGameUI() {
+  document.querySelectorAll('#modeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.mode === G.mode));
+  $('difficultySel').value = String(G.difficulty);
+  $('keepInvCheck').checked = G.rules.keepInventory;
+  $('mobsCheck').checked = G.rules.mobSpawning;
+  $('seedVal').textContent = String(G.world ? G.world.seed : '');
+  const wt = G.world ? G.world.type : 'default';
+  $('worldTypeVal').textContent = WORLD_PRESETS[wt] ? WORLD_PRESETS[wt].name : wt;
 }
 
-function buildHotbar() {
-  const hb = $('hotbar');
-  hb.innerHTML = '';
-  G.hotbar.forEach((id, i) => {
-    const s = document.createElement('div');
-    s.className = 'slot' + (i === G.slot ? ' sel' : '');
-    const n = document.createElement('span');
-    n.className = 'num';
-    n.textContent = String(i + 1);
-    s.append(n);
-    if (id) s.append(blockIcon(id));
-    hb.append(s);
-  });
-}
-
-let nameTimer = 0;
-function showBlockName() {
-  const el = $('blockname');
-  const id = G.hotbar[G.slot];
-  el.textContent = id ? BLOCK_NAME[id] : '';
-  el.classList.add('show');
-  clearTimeout(nameTimer);
-  nameTimer = setTimeout(() => el.classList.remove('show'), 1400);
-}
-
-let toastTimer = 0;
-function toast(text) {
-  const el = $('toast');
-  el.textContent = text;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
-}
-
-function selectSlot(i) {
-  G.slot = ((i % 9) + 9) % 9;
-  const slots = $('hotbar').children;
-  for (let k = 0; k < slots.length; k++) slots[k].classList.toggle('sel', k === G.slot);
-  showBlockName();
-}
-
-function buildInventory() {
-  const grid = $('invGrid');
-  grid.innerHTML = '';
-  for (const id of PALETTE) {
-    const s = document.createElement('div');
-    s.className = 'slot';
-    s.title = BLOCK_NAME[id];
-    s.append(blockIcon(id));
-    s.addEventListener('click', () => {
-      G.hotbar[G.slot] = id;
-      buildHotbar();
-      showBlockName();
-      closeInventory(true);
-    });
-    grid.append(s);
-  }
-}
-
-function openInventory() {
-  G.inventoryOpen = true;
-  $('inventory').classList.remove('hidden');
-  if (document.pointerLockElement) document.exitPointerLock();
-}
-function closeInventory(relock) {
-  G.inventoryOpen = false;
-  $('inventory').classList.add('hidden');
-  if (relock) requestLock(); else showMenu();
-}
-
+// ---------- menu / pointer lock ----------
 function formatClock(t) {
   const h = (t * 24 + 6) % 24;
   const hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
@@ -227,13 +130,14 @@ function formatClock(t) {
 
 function showMenu() {
   if (G.dead) return;
+  if (G.screenOpen) UI.closeScreen(true);
   $('menu').classList.remove('hidden');
   $('hud').classList.add('hidden');
   $('playBtn').textContent = G.started ? 'Resume' : 'Play';
   $('timeSlider').value = G.dayTime;
   $('timeVal').textContent = formatClock(G.dayTime);
   $('cycleCheck').checked = G.settings.dayCycle;
-  $('seedVal').textContent = String(G.world ? G.world.seed : '');
+  refreshGameUI();
 }
 function hideMenu() {
   $('menu').classList.add('hidden');
@@ -241,16 +145,16 @@ function hideMenu() {
 }
 
 // Mouse capture can be refused (embedded browsers, some kiosk modes). The game then runs in
-// "free cursor" mode: drag with the left button to look, click to break.
+// "free cursor" mode: drag to look, hold still to mine, click to hit.
 function enterUnlockedPlay() {
-  if (G.dead || G.inventoryOpen || document.pointerLockElement) return;
+  if (G.dead || G.screenOpen || document.pointerLockElement) return;
   G.unlocked = true;
   G.playing = true;
   G.started = true;
   releaseAllInput();
   hideMenu();
   G.canvas.style.cursor = 'crosshair';
-  toast('Mouse capture unavailable: drag to look, click to break, Esc for menu');
+  UI.toast('Mouse capture unavailable: drag to look, hold to mine, Esc for menu');
 }
 
 function leaveUnlockedPlay() {
@@ -261,13 +165,16 @@ function leaveUnlockedPlay() {
 }
 
 function requestLock() {
+  Sound.init();
+  if (G.stats.dead) return;
+  if (G.unlocked) { G.playing = true; hideMenu(); return; }
   if (typeof G.canvas.requestPointerLock !== 'function') { enterUnlockedPlay(); return; }
   G.lockPending = true;
   const fail = (e) => {
     setTimeout(() => { G.lockPending = false; }, 250);
     if (document.pointerLockElement) return;
     // SecurityError = re-locking too soon after Esc; the user just needs to click again
-    if (e && e.name === 'SecurityError') { showMenu(); toast('Click Play again to capture the mouse'); }
+    if (e && e.name === 'SecurityError') { showMenu(); UI.toast('Click Play again to capture the mouse'); }
     else enterUnlockedPlay();
   };
   try {
@@ -277,164 +184,20 @@ function requestLock() {
   } catch (e) { fail(e); }
 }
 
-// ---------- world / chunks ----------
-function buildOffsets(R) {
-  const out = [];
-  // meshed chunks reach R + 0.5; their diagonal neighbours must exist too (R + 0.5 + sqrt 2)
-  const lim = R + 3;
-  for (let dz = -lim; dz <= lim; dz++) for (let dx = -lim; dx <= lim; dx++) {
-    const d = Math.hypot(dx, dz);
-    if (d <= R + 2) out.push([dx, dz, d]);
-  }
-  out.sort((a, b) => a[2] - b[2]);
-  G.offsets = out;
-  G.offsetsR = R;
-}
-
-function neighborsLoaded(cx, cz) {
-  const w = G.world;
-  for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (!w.getChunk(cx + dx, cz + dz)) return false;
-  return true;
-}
-
-function meshChunk(c) {
-  const res = buildChunkMesh(G.world, c);
-  G.renderer.uploadChunk(c, res);
-  c.needsMesh = false;
-}
-
-function updateChunks(budgetMs) {
-  const t0 = performance.now();
-  const R = G.settings.renderDistance;
-  if (G.offsetsR !== R) buildOffsets(R);
-  const w = G.world;
-  const pcx = Math.floor(G.player.pos[0] / CS), pcz = Math.floor(G.player.pos[2] / CS);
-  let work = 0;
-  for (const [dx, dz] of G.offsets) {
-    if (work > 0 && performance.now() - t0 > budgetMs * 0.45) break;
-    const cx = pcx + dx, cz = pcz + dz;
-    if (!w.getChunk(cx, cz)) { w.generateChunk(cx, cz); work++; }
-  }
-  for (const [dx, dz, d] of G.offsets) {
-    if (d > R + 0.5) break;
-    if (work > 0 && performance.now() - t0 > budgetMs) break;
-    const c = w.getChunk(pcx + dx, pcz + dz);
-    if (!c || !c.needsMesh || !neighborsLoaded(c.cx, c.cz)) continue;
-    meshChunk(c);
-    work++;
-  }
-  // unload far chunks now and then
-  if ((G.frameCount & 63) === 0) {
-    const lim = R + 4;
-    for (const [key, c] of w.chunks) {
-      if (Math.abs(c.cx - pcx) > lim || Math.abs(c.cz - pcz) > lim) {
-        G.renderer.freeChunk(c);
-        w.chunks.delete(key);
-      }
-    }
-  }
-}
-
-function editBlock(x, y, z, id) {
-  const list = G.world.setBlock(x, y, z, id);
-  if (!list) return false;
-  const c = list[0];
-  const lx = x & 15, lz = z & 15;
-  if (neighborsLoaded(c.cx, c.cz)) meshChunk(c); else c.needsMesh = true;
-  for (let i = 1; i < list.length; i++) {
-    const n = list[i];
-    const dx = n.cx - c.cx, dz = n.cz - c.cz;
-    const touchX = dx === 0 || (dx === -1 && lx === 0) || (dx === 1 && lx === 15);
-    const touchZ = dz === 0 || (dz === -1 && lz === 0) || (dz === 1 && lz === 15);
-    if (touchX && touchZ && neighborsLoaded(n.cx, n.cz)) meshChunk(n); else n.needsMesh = true;
-  }
-  return true;
-}
-
-function breakBlock() {
-  const hit = G.player.raycast(6);
-  if (!hit) return;
-  const [x, y, z] = hit.pos;
-  if (hit.id === B.BEDROCK && y === 0) return;
-  // water flows back into the hole if it touches water on a side or above
-  const w = G.world;
-  let fill = B.AIR;
-  if (y <= SEA && [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]].some(([dx, dy, dz]) => w.getBlock(x + dx, y + dy, z + dz) === B.WATER)) fill = B.WATER;
-  editBlock(x, y, z, fill);
-  const above = w.getBlock(x, y + 1, z);
-  if (BLOCK_RT[above] === RT_CROSS) editBlock(x, y + 1, z, B.AIR);
-}
-
-function placeBlock() {
-  const id = G.hotbar[G.slot];
-  if (!id) return;
-  const hit = G.player.raycast(6);
-  if (!hit) return;
-  let [x, y, z] = hit.pos;
-  if (BLOCK_RT[hit.id] !== RT_CROSS) { x += hit.normal[0]; y += hit.normal[1]; z += hit.normal[2]; }
-  if (y < 0 || y >= CH) return;
-  const w = G.world;
-  const cur = w.getBlock(x, y, z);
-  if (!(cur === B.AIR || cur === B.WATER || BLOCK_RT[cur] === RT_CROSS)) return;
-  if (BLOCK_SOLID[id] && G.player.intersectsBlock(x, y, z)) return;
-  if (BLOCK_RT[id] === RT_CROSS) {
-    const below = w.getBlock(x, y - 1, z);
-    if (!BLOCK_OPAQUE[below] || cur === B.WATER) return;
-  }
-  editBlock(x, y, z, id);
-}
-
-function pickBlock() {
-  const hit = G.player.raycast(6);
-  if (!hit || !isValidBlock(hit.id)) return;
-  const existing = G.hotbar.indexOf(hit.id);
-  if (existing >= 0) { selectSlot(existing); return; }
-  G.hotbar[G.slot] = hit.id;
-  buildHotbar();
-  showBlockName();
-}
-
-// ---------- persistence ----------
-function saveWorld() {
-  if (!G.world || !G.player) return;
-  const p = G.player;
-  storageSet(SAVE_KEY, {
-    v: 1, seed: G.world.seed, edits: G.world.serializeEdits(), dayTime: G.dayTime,
-    hotbar: G.hotbar, slot: G.slot,
-    player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, flying: p.flying },
-  });
-  G.world.editsDirty = false;
-}
-
-function findSpawn(gen) {
-  for (let r = 0; r < 60; r++) {
-    const n = Math.max(1, r * 6);
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2;
-      const x = Math.round(Math.cos(a) * r * 12), z = Math.round(Math.sin(a) * r * 12);
-      const h = gen.height(x, z);
-      if (h > SEA + 2 && h < SEA + 30) return [x + 0.5, h + 1, z + 0.5];
-    }
-  }
-  return [0.5, gen.height(0, 0) + 2, 0.5];
-}
-
-function liftOutOfBlocks(p) {
-  for (let i = 0; i < CH && p.collides(p.pos[0], p.pos[1], p.pos[2]); i++) p.pos[1] += 1;
-}
-
 // ---------- input ----------
-const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyR', 'KeyT', 'F1', 'F3', 'Tab',
+const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'KeyR', 'KeyT', 'F1', 'F3', 'Tab',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
 
 function onKeyDown(e) {
   if (G.dead) return;
-  if (G.inventoryOpen) {
-    if (e.code === 'KeyE') { e.preventDefault(); closeInventory(true); }
-    else if (e.code === 'Escape') { e.preventDefault(); closeInventory(false); }
+  const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT');
+  if (G.screenOpen) {
+    if (e.code === 'Escape' || (e.code === 'KeyE' && !typing)) { e.preventDefault(); UI.closeScreen(false); return; }
+    if (!typing && UI.key(e)) e.preventDefault();
     return;
   }
-  if (!G.playing) return;
+  if (typing) return;
+  if (!G.playing || G.stats.dead) return;
   if (G.unlocked && e.code === 'Escape') {
     e.preventDefault();
     leaveUnlockedPlay();
@@ -448,6 +211,7 @@ function onKeyDown(e) {
   if (!first || e.repeat) return;
   const now = performance.now();
   const p = G.player;
+  const creative = G.mode === 'creative';
   switch (e.code) {
     case 'KeyW':
       if (now - G.lastW < 280) G.input.sprintHeld = true;
@@ -455,17 +219,18 @@ function onKeyDown(e) {
       break;
     case 'KeyR': G.input.sprintHeld = true; break;
     case 'Space':
-      if (now - G.lastSpace < 280 && !p.inWater) { p.flying = !p.flying; p.vel[1] = 0; toast(p.flying ? 'Flying' : 'Walking'); }
+      if (creative && now - G.lastSpace < 280 && !p.inWater) { p.flying = !p.flying; p.vel[1] = 0; UI.toast(p.flying ? 'Flying' : 'Walking'); }
       G.lastSpace = now;
       break;
-    case 'KeyF': p.flying = !p.flying; p.vel[1] = 0; toast(p.flying ? 'Flying' : 'Walking'); break;
-    case 'KeyE': openInventory(); break;
+    case 'KeyF': if (creative) { p.flying = !p.flying; p.vel[1] = 0; UI.toast(p.flying ? 'Flying' : 'Walking'); } break;
+    case 'KeyE': UI.openInventory(); break;
+    case 'KeyQ': Act.dropHeld(e.ctrlKey); break;
     case 'F3': G.debug = !G.debug; $('debug').classList.toggle('hidden', !G.debug); break;
     case 'F1': G.hudHidden = !G.hudHidden; $('hud').classList.toggle('hidden', G.hudHidden); break;
     default:
       if (e.code.startsWith('Digit')) {
         const n = Number(e.code.slice(5));
-        if (n >= 1 && n <= 9) selectSlot(n - 1);
+        if (n >= 1 && n <= 9) UI.selectSlot(n - 1);
       }
   }
 }
@@ -479,6 +244,15 @@ function releaseAllInput() {
   G.input.keys.clear();
   G.input.sprintHeld = false;
   G.mouse.left = G.mouse.right = false;
+  G.drag.active = false; G.drag.mining = false;
+}
+
+function primaryDown(now) {
+  G.mouse.left = true;
+  const t = Act.target;
+  if (t && t.mob) { Act.attack(t.mob); Act.attackCd = 0.45; }
+  else if (!t) { Act.swingHand(); sfx('swing', null, 0.5, 1); }
+  G.mouse.nextBreak = Math.min(G.mouse.nextBreak, now);
 }
 
 function bindInput() {
@@ -486,10 +260,13 @@ function bindInput() {
   document.addEventListener('keyup', onKeyUp);
   window.addEventListener('blur', releaseAllInput);
   document.addEventListener('mousemove', (e) => {
-    if (!G.playing) return;
+    if (!G.playing || G.screenOpen || G.stats.dead) return;
     if (G.unlocked && !G.drag.active) return;
     const mx = clamp(e.movementX || 0, -300, 300), my = clamp(e.movementY || 0, -300, 300);
-    if (G.unlocked) G.drag.moved += Math.abs(mx) + Math.abs(my);
+    if (G.unlocked) {
+      G.drag.moved += Math.abs(mx) + Math.abs(my);
+      if (G.drag.mining) return;
+    }
     const s = 0.0022 * G.settings.sensitivity * (G.unlocked ? 1.6 : 1);
     const p = G.player;
     p.yaw -= mx * s;
@@ -497,29 +274,39 @@ function bindInput() {
     if (p.yaw > Math.PI) p.yaw -= Math.PI * 2; else if (p.yaw < -Math.PI) p.yaw += Math.PI * 2;
   });
   document.addEventListener('mousedown', (e) => {
-    if (!G.playing) return;
+    if (!G.playing || G.screenOpen || G.stats.dead) return;
     if (G.unlocked && e.target !== G.canvas) return;
     e.preventDefault();
+    Sound.init();
     const now = performance.now();
-    if (G.unlocked && e.button === 0) { G.drag.active = true; G.drag.moved = 0; G.drag.t = now; return; }
-    if (e.button === 0) { G.mouse.left = true; breakBlock(); G.mouse.nextBreak = now + 260; }
-    else if (e.button === 2) { G.mouse.right = true; placeBlock(); G.mouse.nextPlace = now + 260; }
-    else if (e.button === 1) pickBlock();
+    if (G.unlocked && e.button === 0) { G.drag.active = true; G.drag.moved = 0; G.drag.t = now; G.drag.mining = false; return; }
+    if (e.button === 0) primaryDown(now);
+    else if (e.button === 2) { G.mouse.right = true; if (Act.useItem(true)) G.mouse.nextPlace = now + 260; }
+    else if (e.button === 1) Act.pickBlock();
   });
   document.addEventListener('mouseup', (e) => {
     if (e.button === 0 && G.drag.active) {
       G.drag.active = false;
-      if (G.playing && G.drag.moved < 6 && performance.now() - G.drag.t < 400) breakBlock();
+      if (G.playing && !G.drag.mining && G.drag.moved < 6 && performance.now() - G.drag.t < 300) {
+        primaryDown(performance.now());
+        if (G.mode === 'creative' && Act.target && Act.target.block) {
+          const [x, y, z] = Act.target.block.pos;
+          destroyBlock(x, y, z, { drops: false });
+        }
+        setTimeout(() => { if (!G.drag.active) G.mouse.left = false; }, 60);
+        return;
+      }
+      G.drag.mining = false;
     }
     if (e.button === 0) G.mouse.left = false;
     if (e.button === 2) G.mouse.right = false;
   });
   document.addEventListener('contextmenu', (e) => e.preventDefault());
   document.addEventListener('wheel', (e) => {
-    if (!G.playing || !e.deltaY) return;
-    selectSlot(G.slot + (e.deltaY > 0 ? 1 : -1));
+    if (!G.playing || G.screenOpen || !e.deltaY) return;
+    UI.selectSlot(G.inv.selected + (e.deltaY > 0 ? 1 : -1));
   }, { passive: true });
-  G.canvas.addEventListener('click', () => { if (!G.playing && G.started && !G.inventoryOpen && $('menu').classList.contains('hidden')) requestLock(); });
+  G.canvas.addEventListener('click', () => { if (!G.playing && G.started && !G.screenOpen && !G.stats.dead && $('menu').classList.contains('hidden')) requestLock(); });
 
   document.addEventListener('pointerlockchange', () => {
     const locked = document.pointerLockElement === G.canvas;
@@ -528,7 +315,7 @@ function bindInput() {
     G.playing = locked;
     releaseAllInput();
     if (locked) { G.started = true; hideMenu(); }
-    else if (!G.inventoryOpen) { showMenu(); saveWorld(); }
+    else if (!G.screenOpen && !G.stats.dead) { showMenu(); saveWorld(); }
   });
   // Browsers without the promise form only report failures through this event.
   document.addEventListener('pointerlockerror', () => { if (!G.lockPending) enterUnlockedPlay(); });
@@ -539,6 +326,28 @@ function bindInput() {
     $('timeVal').textContent = formatClock(G.dayTime);
   });
   $('cycleCheck').addEventListener('change', (e) => setSetting('dayCycle', e.target.checked));
+  document.querySelectorAll('#modeSeg button').forEach((b) => b.addEventListener('click', () => {
+    setGameMode(b.dataset.mode);
+    refreshGameUI();
+    UI.toast(G.mode === 'creative' ? 'Creative mode' : 'Survival mode');
+  }));
+  // typing a place name in the seed box picks the matching themed world
+  const seedIn = $('seedInput');
+  seedIn.addEventListener('input', () => {
+    const k = presetFromText(seedIn.value);
+    const chip = $('presetChip');
+    if (k) { $('worldTypeSel').value = k; chip.textContent = WORLD_PRESETS[k].icon + ' ' + WORLD_PRESETS[k].name; chip.classList.add('on'); }
+    else chip.classList.remove('on');
+  });
+  seedIn.addEventListener('keydown', (e) => { if (e.code === 'Enter') { e.preventDefault(); newBtn.dataset.armed = '1'; newBtn.click(); } });
+  document.querySelectorAll('#presetList button').forEach((b) => b.addEventListener('click', () => {
+    seedIn.value = b.dataset.seed;
+    seedIn.dispatchEvent(new Event('input'));
+    seedIn.focus();
+  }));
+  $('difficultySel').addEventListener('change', (e) => { G.difficulty = Number(e.target.value); });
+  $('keepInvCheck').addEventListener('change', (e) => { G.rules.keepInventory = e.target.checked; });
+  $('mobsCheck').addEventListener('change', (e) => { G.rules.mobSpawning = e.target.checked; });
   // Two-step confirmation in the page itself (embedded viewers suppress window.confirm).
   let armTimer = 0;
   const newBtn = $('newWorldBtn');
@@ -552,14 +361,17 @@ function bindInput() {
     }
     disarm();
     const raw = $('seedInput').value.trim();
+    const preset = presetFromText(raw);
     let seed;
     if (!raw) seed = (Math.random() * 2147483647) | 0;
     else if (/^-?\d+$/.test(raw)) seed = Number(raw) | 0;
     else { seed = 0; for (let i = 0; i < raw.length; i++) seed = (Math.imul(seed, 31) + raw.charCodeAt(i)) | 0; }
-    newWorld(seed, null);
-    $('seedVal').textContent = String(seed);
+    const type = preset || $('worldTypeSel').value;
+    newWorld(seed, null, { type, mode: G.mode });
+    refreshGameUI();
     saveWorld();
-    toast('New world created · seed ' + seed);
+    UI.toast((WORLD_PRESETS[type] ? WORLD_PRESETS[type].name + ' · ' : 'New world · ') + 'seed ' + seed);
+    requestLock();
   });
 
   window.addEventListener('resize', resize);
@@ -579,32 +391,6 @@ function resize() {
   const w = clamp(Math.round(window.innerWidth * s), 1, maxSize);
   const h = clamp(Math.round(window.innerHeight * s), 1, maxSize);
   G.renderer.resize(w, h);
-}
-
-// ---------- world lifecycle ----------
-function newWorld(seed, save) {
-  if (G.world) for (const c of G.world.chunks.values()) G.renderer.freeChunk(c);
-  G.world = new World(seed);
-  G.player = new Player(G.world);
-  if (save) {
-    G.world.loadEdits(save.edits);
-    const sp = save.player;
-    if (sp && Array.isArray(sp.pos) && sp.pos.length === 3 && sp.pos.every(Number.isFinite)) {
-      G.player.pos = sp.pos.slice();
-      G.player.yaw = Number.isFinite(sp.yaw) ? sp.yaw : 0;
-      G.player.pitch = Number.isFinite(sp.pitch) ? clamp(sp.pitch, -1.56, 1.56) : 0;
-      G.player.flying = !!sp.flying;
-    } else G.player.pos = findSpawn(G.world.gen);
-    if (Number.isFinite(save.dayTime)) G.dayTime = ((save.dayTime % 1) + 1) % 1;
-    if (Array.isArray(save.hotbar) && save.hotbar.length === 9) G.hotbar = save.hotbar.map((id) => (isValidBlock(id) ? id : 0));
-    if (Number.isInteger(save.slot)) G.slot = clamp(save.slot, 0, 8);
-  } else {
-    G.player.pos = findSpawn(G.world.gen);
-    G.player.yaw = -0.6;
-    G.player.pitch = -0.05;
-    G.dayTime = 0.08;
-  }
-  G.offsetsR = -1;
 }
 
 async function preload(onProgress) {
@@ -633,44 +419,78 @@ async function preload(onProgress) {
 }
 
 // ---------- main loop ----------
+const NO_KEYS = { keys: new Set(), sprintHeld: false };
+
 function frame(now) {
   if (G.dead) return;
   try {
     const dt = Math.min(0.05, Math.max(0, (now - G.lastTime) / 1000));
     G.lastTime = now;
-    G.frameCount = (G.frameCount || 0) + 1;
+    G.frameCount++;
     G.time += dt;
-    const p = G.player;
+    const p = G.player, st = G.stats;
+    const paused = !G.playing && !G.screenOpen && !st.dead;
+    const active = G.playing && !G.screenOpen && !st.dead && !G.sleeping;
 
-    if (G.playing) {
-      const k = G.input.keys;
-      const turn = (k.has('ArrowLeft') ? 1 : 0) - (k.has('ArrowRight') ? 1 : 0);
-      const tilt = (k.has('ArrowUp') ? 1 : 0) - (k.has('ArrowDown') ? 1 : 0);
-      if (turn) p.yaw = ((p.yaw + turn * 2.2 * dt + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
-      if (tilt) p.pitch = clamp(p.pitch + tilt * 1.8 * dt, -1.5605, 1.5605);
-      p.update(dt, G.input);
-      if (G.mouse.left && now >= G.mouse.nextBreak) { breakBlock(); G.mouse.nextBreak = now + 220; }
-      if (G.mouse.right && now >= G.mouse.nextPlace) { placeBlock(); G.mouse.nextPlace = now + 220; }
+    if (!paused) {
+      if (active) {
+        const k = G.input.keys;
+        const turn = (k.has('ArrowLeft') ? 1 : 0) - (k.has('ArrowRight') ? 1 : 0);
+        const tilt = (k.has('ArrowUp') ? 1 : 0) - (k.has('ArrowDown') ? 1 : 0);
+        if (turn) p.yaw = ((p.yaw + turn * 2.2 * dt + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+        if (tilt) p.pitch = clamp(p.pitch + tilt * 1.8 * dt, -1.5605, 1.5605);
+        // free-cursor mode: holding still turns into mining
+        if (G.unlocked && G.drag.active && !G.drag.mining && G.drag.moved < 6 && now - G.drag.t > 260) { G.drag.mining = true; G.mouse.left = true; }
+        G.input.noSprint = G.mode === 'survival' && st.food <= 6;
+        G.input.slow = !!(Act.eat || Act.bow);
+        p.update(dt, G.input);
+      } else if (!st.dead) p.update(dt, NO_KEYS);
+      Act.target = active ? Act.pick() : null;
+      if (active) { Act.updateMining(dt, now); Act.updateUse(dt, now); }
+      else { Act.mine.pos = null; Act.eat = null; Act.bow = null; }
+      Act.updateHand(dt);
+      Act.updateSounds(dt);
+      st.update(dt, p);
+      Ents.update(dt);
+      tickFurnaces(dt);
+      randomTicks(dt);
+      updateSleep(dt);
+      const fast = active && G.input.keys.has('KeyT') && G.mode === 'creative';
+      if (G.settings.dayCycle || fast) G.dayTime = (G.dayTime + (dt / DAY_LENGTH) * (fast ? 60 : 1)) % 1;
+      const pr = G.world.gen.preset;
+      if (pr && pr.ambient) pr.ambient(dt, p.pos);
+      // ambience underground
+      G.caveSoundT -= dt;
+      if (G.caveSoundT <= 0) { G.caveSoundT = rand(40, 100); if (G.eyeSky < 0.2) sfx('cave', null, 0.7, 1); }
     }
-    const fast = G.playing && G.input.keys.has('KeyT');
-    if (G.settings.dayCycle || fast) G.dayTime = (G.dayTime + (dt / DAY_LENGTH) * (fast ? 60 : 1)) % 1;
 
     updateChunks(G.playing ? 7 : 12);
 
-    const hit = G.playing ? p.raycast(6) : null;
+    const hit = Act.target && Act.target.block;
     const eye = p.eyePos();
+    G.shake *= Math.exp(-dt * 3);
+    let roll = st.hurtTilt * 0.13;
+    if (st.dead) { eye[1] -= 1.1; roll = 0.5; }
+    if (G.sleeping) eye[1] -= 1.0;
+    if (G.shake > 0.01) {
+      eye[0] += (Math.random() - 0.5) * G.shake * 0.25; eye[1] += (Math.random() - 0.5) * G.shake * 0.25; eye[2] += (Math.random() - 0.5) * G.shake * 0.25;
+    }
     G.eyeSky = sampleSkyExposure(G.world, eye[0], eye[1], eye[2]);
+    Sound.setListener(eye, p.yaw);
+    const cam = { pos: eye, yaw: p.yaw, pitch: p.pitch, roll, fov: G.settings.fov + p.fovBoost - (Act.bow ? Math.min(1, Act.bow.t) * 12 : 0) };
+    const showHand = !G.hudHidden && !st.dead && !G.sleeping;
+    const ents = ER.build(G.renderer, cam, { crack: Act.crackInfo(), hand: showHand ? Act.handState() : null });
     G.renderer.render({
-      cam: { pos: eye, yaw: p.yaw, pitch: p.pitch, fov: G.settings.fov + p.fovBoost },
-      dayTime: G.dayTime, time: G.time, dt, eyeSky: G.eyeSky, underwater: p.eyeInWater,
-      chunks: G.world.chunks.values(), selection: hit ? hit.pos : null,
+      cam, dayTime: G.dayTime, time: G.time, dt, eyeSky: G.eyeSky, underwater: p.eyeInWater,
+      chunks: G.world.chunks.values(), selection: hit && !G.hudHidden ? hit.pos : null, selectionBox: hit ? hit.box : null, entities: ents,
     });
+    UI.update(dt);
 
     // stats
     G.fpsAcc += dt; G.fpsFrames++;
     if (G.fpsAcc >= 0.5) { G.fps = G.fpsFrames / G.fpsAcc; G.frameMs = (G.fpsAcc / G.fpsFrames) * 1000; G.fpsAcc = 0; G.fpsFrames = 0; }
     if (G.debug && now - G.lastDebug > 200) { G.lastDebug = now; updateDebug(); }
-    if (G.world.editsDirty && now - G.lastSave > 10000) { G.lastSave = now; saveWorld(); }
+    if (now - G.lastSave > 15000 && (G.world.editsDirty || G.playing)) { G.lastSave = now; saveWorld(); }
   } catch (e) {
     showError('The game loop stopped because of an error', e);
     return;
@@ -687,14 +507,17 @@ function updateDebug() {
   const biome = Object.keys(BIOME).find((k) => BIOME[k] === gen.biome(h, cl.temp, cl.hum)) || '?';
   const dirs = ['north', 'west', 'south', 'east'];
   const facing = dirs[((Math.round(p.yaw / (Math.PI / 2)) % 4) + 4) % 4];
+  const L = G.world.getLight(x, Math.floor(p.pos[1] + 0.5), z);
   $('debug').textContent = [
     'Blocklands  ' + G.fps.toFixed(0) + ' fps (' + G.frameMs.toFixed(1) + ' ms)',
     'XYZ ' + p.pos.map((v) => v.toFixed(2)).join(' / ') + '   chunk ' + (x >> 4) + ', ' + (z >> 4),
     'Facing ' + facing + '   biome ' + biome.toLowerCase() + '   ' + (p.flying ? 'flying' : p.onGround ? 'grounded' : 'airborne') + (p.inWater ? ' (water)' : ''),
+    'Light sky ' + (L >> 4) + ' block ' + (L & 15) + '   mode ' + G.mode + '   difficulty ' + G.difficulty,
     'Chunks ' + G.world.chunks.size + ' loaded, ' + r.stats.drawn + ' drawn, ' + r.stats.shadowDrawn + ' in shadow map',
+    'Entities ' + Ents.mobs.length + ' mobs, ' + Ents.items.length + ' items, ' + Particles.list.length + ' particles, ' + r.stats.entities + ' quads',
     'Triangles ' + (r.stats.triangles / 1e6).toFixed(2) + 'M   render ' + r.width + 'x' + r.height,
     'Time ' + formatClock(G.dayTime) + '   exposure ' + r.exposure.toFixed(2) + '   HDR ' + (r.hdrFormat.float ? 'RGBA16F' : 'RGBA8 (fallback)'),
-    'Seed ' + G.world.seed,
+    'Seed ' + G.world.seed + ' (' + G.world.type + ')',
   ].join('\n');
 }
 
@@ -706,19 +529,22 @@ async function boot() {
   };
   try {
     loadSettings();
+    Sound.volume = G.settings.volume;
     setLoad(0.03, 'Painting textures and compiling shaders');
     await new Promise((r) => setTimeout(r, 30));
     G.renderer = new Renderer(G.canvas, G.settings);
+    G.renderer.setAtlas(paintSkins());
     resize();
-    const save = storageGet(SAVE_KEY);
-    const validSave = save && save.v === 1 && Number.isInteger(save.seed);
-    newWorld(validSave ? save.seed : (Math.random() * 2147483647) | 0, validSave ? save : null);
+    G.ui = UI;
+    UI.init();
+    const save = loadSave();
+    newWorld(save ? save.seed : (Math.random() * 2147483647) | 0, save, { mode: 'survival', type: 'default' });
     setLoad(0.1, 'Generating terrain');
     await preload((f) => setLoad(0.1 + f * 0.9, 'Generating terrain · ' + Math.round(f * 100) + '%'));
     buildSettingsUI();
-    buildHotbar();
-    buildInventory();
     bindInput();
+    UI.invDirty();
+    UI.updateHud(true);
     $('loading').classList.add('hidden');
     showMenu();
     G.lastTime = performance.now();

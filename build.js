@@ -24,7 +24,17 @@ const inlined = body.replace(/<script src="([^"]+)"><\/script>/g, (_, src) => {
   return '<script>\n' + code.trim() + '\n</script>';
 });
 
-const out = headKept + '\n' + inlined.trim() + '\n';
+// The host page may not declare a charset: keep the output pure ASCII.
+const asciiJs = (code) => code.replace(/[^\x00-\x7f]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+const asciiHtml = (html) => html.replace(/[\u0080-\uffff]/g, (c, i, str) => {
+  const cp = str.codePointAt(i);
+  if (cp >= 0xdc00 && cp <= 0xdfff) return '';
+  return '&#x' + cp.toString(16) + ';';
+});
+const scripts = [];
+let out = headKept + '\n' + inlined.trim() + '\n';
+out = out.replace(/<script>([\s\S]*?)<\/script>/g, (_, code) => { scripts.push(asciiJs(code)); return '<script>@@SCRIPT' + (scripts.length - 1) + '@@</script>'; });
+out = asciiHtml(out).replace(/@@SCRIPT(\d+)@@/g, (_, i) => scripts[Number(i)]);
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 const file = path.join(root, 'dist', 'blocklands.html');
 fs.writeFileSync(file, out);

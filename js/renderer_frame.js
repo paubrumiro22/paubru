@@ -25,8 +25,14 @@ Object.assign(Renderer.prototype, {
     const aspect = this.width / this.height;
     const yaw = cam.yaw, pitch = cam.pitch;
     const f = [-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)];
-    const r = [Math.cos(yaw), 0, -Math.sin(yaw)];
-    const u = V3.cross(r, f);
+    let r = [Math.cos(yaw), 0, -Math.sin(yaw)];
+    let u = V3.cross(r, f);
+    if (cam.roll) {
+      const c = Math.cos(cam.roll), s = Math.sin(cam.roll);
+      const r2 = [r[0] * c + u[0] * s, r[1] * c + u[1] * s, r[2] * c + u[2] * s];
+      u = [u[0] * c - r[0] * s, u[1] * c - r[1] * s, u[2] * c - r[2] * s];
+      r = r2;
+    }
     const back = [-f[0], -f[1], -f[2]];
     this.camForward = f;
     this.near = 0.06;
@@ -134,6 +140,23 @@ Object.assign(Renderer.prototype, {
     this.bindTex(2, gl.TEXTURE_2D, this.shadowTex);
     this.bindTex(3, gl.TEXTURE_2D, this.lutTex);
     this.bindTex(4, gl.TEXTURE_2D, this.noiseTex);
+    this.bindTex(12, gl.TEXTURE_2D_ARRAY, this.emitTex);
+    this.bindTex(13, gl.TEXTURE_2D, this.atlasTex || null);
+  },
+
+  // Camera basis for code that builds geometry in view space (first-person hand).
+  cameraBasis(cam) {
+    const yaw = cam.yaw, pitch = cam.pitch;
+    const f = [-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)];
+    let r = [Math.cos(yaw), 0, -Math.sin(yaw)];
+    let u = V3.cross(r, f);
+    if (cam.roll) {
+      const c = Math.cos(cam.roll), s = Math.sin(cam.roll);
+      const r2 = [r[0] * c + u[0] * s, r[1] * c + u[1] * s, r[2] * c + u[2] * s];
+      u = [u[0] * c - r[0] * s, u[1] * c - r[1] * s, u[2] * c - r[2] * s];
+      r = r2;
+    }
+    return { f, r, u };
   },
 
   drawFullscreen() {
@@ -191,6 +214,9 @@ Object.assign(Renderer.prototype, {
     const A = this.atmo;
     const W = this.width, H = this.height;
     const cp = this.camPos;
+    const ent = p.entities;
+    if (ent) this.uploadEntities(ent.quads);
+    this.stats.entities = ent ? ent.quads : 0;
 
     // --- visibility ---
     const visible = [], shadowList = [];
@@ -249,6 +275,13 @@ Object.assign(Renderer.prototype, {
       this.drawChunkList(prog, shadowList, 'opaque');
       this.setU(prog, 'uCutout', '1i', 1);
       this.drawChunkList(prog, shadowList, 'cutout');
+      if (ent && ent.opaque[1] > 0) {
+        prog = this.progs.entityShadow;
+        gl.useProgram(prog.program);
+        this.setU(prog, 'uViewProj', 'm4', this.shadowVP);
+        this.bindTex(13, gl.TEXTURE_2D, this.atlasTex || null);
+        this.drawEntityRange(ent.opaque[0], ent.opaque[1]);
+      }
       gl.disable(gl.POLYGON_OFFSET_FILL);
     }
 
@@ -271,6 +304,24 @@ Object.assign(Renderer.prototype, {
     gl.disable(gl.CULL_FACE);
     this.setU(prog, 'uCutout', '1i', 1);
     tris += this.drawChunkList(prog, visible, 'cutout');
+
+    // entities, then block-breaking cracks pulled slightly towards the camera
+    if (ent) {
+      prog = this.progs.entity;
+      gl.useProgram(prog.program);
+      this.setCommon(prog, p.underwater);
+      this.setU(prog, 'uViewProj', 'm4', this.viewProj);
+      this.setU(prog, 'uPass', '1i', 0);
+      this.drawEntityRange(ent.opaque[0], ent.opaque[1]);
+      if (ent.crack[1] > 0) {
+        this.setU(prog, 'uPass', '1i', 2);
+        this.setU(prog, 'uCrack', '1f', ent.crackLevel);
+        gl.enable(gl.POLYGON_OFFSET_FILL);
+        gl.polygonOffset(-1.0, -2.0);
+        this.drawEntityRange(ent.crack[0], ent.crack[1]);
+        gl.disable(gl.POLYGON_OFFSET_FILL);
+      }
+    }
 
     // sky behind everything
     gl.depthFunc(gl.LEQUAL);
@@ -307,6 +358,20 @@ Object.assign(Renderer.prototype, {
     this.stats.drawn = visible.length;
     this.stats.triangles = tris;
 
+    // --- translucent particles (smoke) ---
+    if (ent && ent.blend[1] > 0) {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.depthMask(false);
+      prog = this.progs.entity;
+      gl.useProgram(prog.program);
+      this.setU(prog, 'uPass', '1i', 1);
+      this.bindTex(0, gl.TEXTURE_2D_ARRAY, this.albedoTex);
+      this.drawEntityRange(ent.blend[0], ent.blend[1]);
+      gl.depthMask(true);
+      gl.disable(gl.BLEND);
+    }
+
     // --- selection outline ---
     if (p.selection) {
       gl.enable(gl.BLEND);
@@ -315,10 +380,29 @@ Object.assign(Renderer.prototype, {
       gl.useProgram(prog.program);
       this.setU(prog, 'uViewProj', 'm4', this.viewProj);
       this.setU(prog, 'uOffset', '3f', p.selection[0] - cp[0], p.selection[1] - cp[1], p.selection[2] - cp[2]);
+      const bx = p.selectionBox || [0, 0, 0, 1, 1, 1];
+      this.setU(prog, 'uBoxMin', '3f', bx[0], bx[1], bx[2]);
+      this.setU(prog, 'uBoxSize', '3f', bx[3] - bx[0], bx[4] - bx[1], bx[5] - bx[2]);
       this.setU(prog, 'uColor', '4f', 0.02, 0.02, 0.02, 0.7);
       gl.bindVertexArray(this.lineVAO);
       gl.drawArrays(gl.LINES, 0, 24);
       gl.disable(gl.BLEND);
+    }
+
+    // --- first-person hand / held item, squeezed into the front of the depth range ---
+    if (ent && ent.hand[1] > 0) {
+      const aspect = W / H;
+      this.handProj = M4.perspective(this.handProj || M4.create(), (70 * Math.PI) / 180, aspect, 0.02, 20);
+      this.handVP = M4.multiply(this.handVP || M4.create(), this.handProj, this.view);
+      gl.depthRange(0, 0.02);
+      prog = this.progs.entity;
+      gl.useProgram(prog.program);
+      this.setU(prog, 'uViewProj', 'm4', this.handVP);
+      this.setU(prog, 'uPass', '1i', 0);
+      this.bindTex(0, gl.TEXTURE_2D_ARRAY, this.albedoTex);
+      this.bindTex(2, gl.TEXTURE_2D, this.shadowTex);
+      this.drawEntityRange(ent.hand[0], ent.hand[1]);
+      gl.depthRange(0, 1);
     }
     gl.disable(gl.DEPTH_TEST);
     gl.bindVertexArray(null);

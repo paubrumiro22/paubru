@@ -107,6 +107,7 @@ precision highp int;
 layout(location = 0) in vec4 aPos;
 layout(location = 1) in vec4 aData;
 layout(location = 2) in vec4 aTint;
+layout(location = 3) in vec4 aUV;
 uniform mat4 uViewProj;
 uniform vec3 uChunkOffset;
 uniform vec3 uCamPos;
@@ -122,9 +123,8 @@ flat out int vFlags;
 void main() {
   int nf = int(aData.x + 0.5);
   int flags = nf >> 3;
-  int uvb = int(aTint.w + 0.5);
-  vec2 uv = vec2(float(uvb & 1), float((uvb >> 1) & 1));
-  vec3 rel = uChunkOffset + aPos.xyz / 16.0;
+  vec2 uv = aUV.xy / 16.0;
+  vec3 rel = uChunkOffset + aPos.xyz / 64.0;
   vec3 world = rel + uCamPos;
   if ((flags & 1) != 0) {
     rel.x += sin(uTime * 1.6 + world.x * 0.8 + world.y * 0.6) * 0.035 * uWind;
@@ -160,6 +160,8 @@ ${GLSL_COMMON}
 ${GLSL_FACE_BASIS}
 uniform sampler2DArray uAlbedo;
 uniform sampler2DArray uNormalMap;
+uniform sampler2DArray uEmitMap;
+uniform sampler2D uNoise;
 uniform int uCutout;
 in vec3 vRel;
 in vec3 vUV;
@@ -171,6 +173,19 @@ flat in int vFlags;
 layout(location = 0) out vec4 outColor;
 
 void main() {
+  bool lava = (vFlags & 16) != 0;
+  vec3 world = vRel + uCamPos;
+  if (lava) {
+    // slow churning flow: scrolled, gently distorted texture plus a hot/cool pulse
+    vec2 wob = vec2(sin(world.z * 0.9 + uTime * 0.5), cos(world.x * 0.8 + uTime * 0.4)) * 0.06;
+    vec2 luv = fract(vUV.xy + vec2(uTime * 0.013, uTime * 0.008) + wob);
+    vec4 la = textureGrad(uAlbedo, vec3(luv, vUV.z), dFdx(vUV.xy), dFdy(vUV.xy));
+    float pulse = texture(uNoise, world.xz * 0.06 + uTime * vec2(0.007, 0.004)).r;
+    vec3 c = la.rgb * (2.2 + 1.6 * pulse);
+    c = applyFog(c, vRel);
+    outColor = vec4(c * HDR_SCALE, 1.0);
+    return;
+  }
   vec4 alb = texture(uAlbedo, vUV);
   if (uCutout == 1 && alb.a < 0.5) discard;
   vec3 albedo = alb.rgb * vTint;
@@ -204,7 +219,8 @@ void main() {
   float ao = 0.32 + 0.68 * vAO;
   if (plant) ao *= mix(1.0, 0.55, vUV.y);
   vec3 amb = mix(uAmbDown, uAmbUp, N.y * 0.5 + 0.5) * (sky * sky) + vec3(0.010, 0.012, 0.018);
-  vec3 torch = vec3(1.0, 0.66, 0.36) * pow(blk, 2.2) * 2.6;
+  float flicker = 1.0 + 0.05 * sin(uTime * 7.3 + world.x * 1.3) * sin(uTime * 5.1 + world.z * 1.7);
+  vec3 torch = vec3(1.0, 0.66, 0.36) * pow(blk, 2.2) * 2.6 * flicker;
   vec3 col = albedo * (direct + (amb + torch) * ao);
 
   // GGX specular
@@ -227,10 +243,88 @@ void main() {
     float sss = pow(max(dot(-V, L), 0.0), 6.0);
     col += albedo * uLightColor * sss * shadow * gate * 0.8;
   }
-  if ((vFlags & 4) != 0) col = albedo * 3.0 + col * 0.25;
+  if ((vFlags & 4) != 0) {
+    float e = texture(uEmitMap, vUV).r;
+    col = mix(col, albedo * 3.0 * flicker + col * 0.25, e);
+  }
 
   col = applyFog(col, vRel);
   outColor = vec4(col * HDR_SCALE, 1.0);
+}
+`;
+
+// Mobs, dropped items, particles, block cracks and the first-person hand. Vertices arrive
+// camera-relative and already transformed; uPass: 0 alpha-tested, 1 blended, 2 crack overlay.
+const VS_ENTITY = `#version 300 es
+precision highp float;
+layout(location = 0) in vec3 aPos;
+layout(location = 1) in vec3 aUV;
+layout(location = 2) in vec3 aNormal;
+layout(location = 3) in vec3 aLight;
+layout(location = 4) in vec4 aColor;
+uniform mat4 uViewProj;
+out vec3 vRel;
+out vec3 vUV;
+out vec3 vN;
+out vec3 vLight;
+out vec4 vColor;
+void main() {
+  vRel = aPos; vUV = aUV; vN = aNormal; vLight = aLight; vColor = aColor;
+  gl_Position = uViewProj * vec4(aPos, 1.0);
+}
+`;
+
+const FS_ENTITY = () => `#version 300 es
+${GLSL_FRAG_HEAD}
+${GLSL_DEFINES}
+${GLSL_COMMON}
+uniform sampler2DArray uAlbedo;
+uniform sampler2DArray uEmitMap;
+uniform sampler2D uAtlas;
+uniform int uPass;
+uniform float uCrack;
+in vec3 vRel;
+in vec3 vUV;
+in vec3 vN;
+in vec3 vLight;
+in vec4 vColor;
+layout(location = 0) out vec4 outColor;
+
+void main() {
+  vec4 alb = vUV.z < -0.5 ? texture(uAtlas, vUV.xy) : texture(uAlbedo, vUV);
+  if (uPass == 2) {
+    if (alb.a < 0.02 || alb.a > uCrack) discard;
+    alb.a = 1.0;
+  } else if (uPass == 0 && alb.a < 0.5) discard;
+  vec3 albedo = alb.rgb * vColor.rgb;
+  vec3 N = normalize(vN);
+  if (!gl_FrontFacing) N = -N;
+  float sky = vLight.x, blk = vLight.y;
+  float gate = smoothstep(0.05, 0.6, sky);
+  float NdL = dot(N, uLightDir);
+  float shadow = NdL > 0.0 ? shadowFactor(vRel, N) : 0.0;
+  vec3 direct = uLightColor * max(NdL, 0.0) * shadow * gate;
+  vec3 amb = mix(uAmbDown, uAmbUp, N.y * 0.5 + 0.5) * (sky * sky) + vec3(0.012, 0.014, 0.02);
+  vec3 torch = vec3(1.0, 0.66, 0.36) * pow(blk, 2.2) * 2.6;
+  vec3 light = direct + amb + torch;
+  vec3 col = albedo * light;
+  if (vUV.z > -0.5) col += albedo * 3.0 * texture(uEmitMap, vUV).r;
+  float ov = vColor.a;
+  if (ov > 0.0) col = mix(col, vec3(0.9, 0.06, 0.04) * (0.15 + dot(light, vec3(0.33))), ov * 0.55);
+  else if (ov < 0.0) col = mix(col, vec3(2.2), -ov);
+  col = applyFog(col, vRel);
+  outColor = vec4(col * HDR_SCALE, uPass == 1 ? alb.a * vLight.z : 1.0);
+}
+`;
+
+const FS_ENTITY_SHADOW = () => `#version 300 es
+${GLSL_FRAG_HEAD}
+uniform sampler2DArray uAlbedo;
+uniform sampler2D uAtlas;
+in vec3 vUV;
+void main() {
+  vec4 a = vUV.z < -0.5 ? texture(uAtlas, vUV.xy) : texture(uAlbedo, vUV);
+  if (a.a < 0.5) discard;
 }
 `;
 
@@ -612,7 +706,9 @@ const VS_LINES = `#version 300 es
 layout(location = 0) in vec3 aPos;
 uniform mat4 uViewProj;
 uniform vec3 uOffset;
-void main() { gl_Position = uViewProj * vec4(aPos + uOffset, 1.0); }
+uniform vec3 uBoxMin;
+uniform vec3 uBoxSize;
+void main() { gl_Position = uViewProj * vec4(uBoxMin + aPos * uBoxSize + uOffset, 1.0); }
 `;
 
 const FS_LINES = () => `#version 300 es

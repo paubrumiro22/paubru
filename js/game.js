@@ -1,0 +1,577 @@
+'use strict';
+// Game state, chunk streaming, block edits (support, falling, drops), random ticks (crops,
+// saplings, grass), furnaces and chests, explosions, sleeping, spawning and persistence.
+
+const SAVE_KEY = 'blocklands.world.v2';
+const SAVE_KEY_V1 = 'blocklands.world.v1';
+const SETTINGS_KEY = 'blocklands.settings.v1';
+const DAY_LENGTH = 1200; // seconds per full day
+
+const DEFAULT_SETTINGS = {
+  renderDistance: 8, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
+  renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true,
+};
+
+const $ = (id) => document.getElementById(id);
+
+function storageGet(key) {
+  try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+}
+function storageSet(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (e) { return false; }
+}
+
+const G = {
+  canvas: $('game'),
+  settings: Object.assign({}, DEFAULT_SETTINGS),
+  renderer: null, world: null, player: null, inv: new Inventory(), stats: new Stats(), ui: null,
+  input: { keys: new Set(), sprintHeld: false },
+  mouse: { left: false, right: false, nextBreak: 0, nextPlace: 0 },
+  playing: false, started: false, screenOpen: false, hudHidden: false, debug: false, dead: false,
+  mode: 'survival', difficulty: 2, rules: { keepInventory: false, mobSpawning: true },
+  dayTime: 0.08, time: 0, frameCount: 0,
+  offsets: null, offsetsR: -1, lastSave: 0,
+  fps: 0, frameMs: 0, fpsAcc: 0, fpsFrames: 0, lastDebug: 0,
+  eyeSky: 1, lastTime: 0, shake: 0,
+  worldSpawn: [0.5, 80, 0.5], spawnPoint: null, sleeping: null,
+  unlocked: false, lockPending: false, drag: { active: false, moved: 0, t: 0, mining: false },
+  tickAcc: 0, furnaceAcc: 0, caveSoundT: 20,
+};
+
+// ---------- chunks ----------
+function buildOffsets(R) {
+  const out = [];
+  // meshed chunks reach R + 0.5; their diagonal neighbours must exist too (R + 0.5 + sqrt 2)
+  const lim = R + 3;
+  for (let dz = -lim; dz <= lim; dz++) for (let dx = -lim; dx <= lim; dx++) {
+    const d = Math.hypot(dx, dz);
+    if (d <= R + 2) out.push([dx, dz, d]);
+  }
+  out.sort((a, b) => a[2] - b[2]);
+  G.offsets = out;
+  G.offsetsR = R;
+}
+
+function neighborsLoaded(cx, cz) {
+  const w = G.world;
+  for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (!w.getChunk(cx + dx, cz + dz)) return false;
+  return true;
+}
+
+function meshChunk(c) {
+  const res = buildChunkMesh(G.world, c);
+  G.renderer.uploadChunk(c, res);
+  c.needsMesh = false;
+}
+
+function updateChunks(budgetMs) {
+  const t0 = performance.now();
+  const R = G.settings.renderDistance;
+  if (G.offsetsR !== R) buildOffsets(R);
+  const w = G.world;
+  const pcx = Math.floor(G.player.pos[0] / CS), pcz = Math.floor(G.player.pos[2] / CS);
+  let work = 0;
+  for (const [dx, dz] of G.offsets) {
+    if (work > 0 && performance.now() - t0 > budgetMs * 0.45) break;
+    const cx = pcx + dx, cz = pcz + dz;
+    if (!w.getChunk(cx, cz)) { w.generateChunk(cx, cz); work++; }
+  }
+  for (const [dx, dz, d] of G.offsets) {
+    if (d > R + 0.5) break;
+    if (work > 0 && performance.now() - t0 > budgetMs) break;
+    const c = w.getChunk(pcx + dx, pcz + dz);
+    if (!c || !c.needsMesh || !neighborsLoaded(c.cx, c.cz)) continue;
+    meshChunk(c);
+    work++;
+  }
+  // unload far chunks now and then
+  if ((G.frameCount & 63) === 0) {
+    const lim = R + 4;
+    for (const [key, c] of w.chunks) {
+      if (Math.abs(c.cx - pcx) > lim || Math.abs(c.cz - pcz) > lim) {
+        G.renderer.freeChunk(c);
+        w.chunks.delete(key);
+      }
+    }
+  }
+}
+
+// ---------- block edits ----------
+function editBlock(x, y, z, id, facing) {
+  const w = G.world;
+  const old = w.getBlock(x, y, z);
+  const list = w.setBlock(x, y, z, id, facing);
+  if (!list) return false;
+  if (old !== id) cleanupBlockEntity(x, y, z, old, id);
+  const c = list[0];
+  const lx = x & 15, lz = z & 15;
+  if (neighborsLoaded(c.cx, c.cz)) meshChunk(c); else c.needsMesh = true;
+  for (let i = 1; i < list.length; i++) {
+    const n = list[i];
+    const dx = n.cx - c.cx, dz = n.cz - c.cz;
+    const touchX = dx === 0 || (dx === -1 && lx === 0) || (dx === 1 && lx === 15);
+    const touchZ = dz === 0 || (dz === -1 && lz === 0) || (dz === 1 && lz === 15);
+    if (touchX && touchZ && neighborsLoaded(n.cx, n.cz)) meshChunk(n); else n.needsMesh = true;
+  }
+  return true;
+}
+
+// Many edits at once (explosions, trees): each chunk is re-meshed a single time.
+function editBlocks(list) {
+  const w = G.world;
+  const dirty = new Set();
+  for (const [x, y, z, id, facing] of list) {
+    const old = w.getBlock(x, y, z);
+    const res = w.setBlock(x, y, z, id, facing);
+    if (!res) continue;
+    if (old !== id) cleanupBlockEntity(x, y, z, old, id);
+    for (const c of res) dirty.add(c);
+  }
+  for (const c of dirty) c.needsMesh = true;
+  const p = G.player.pos;
+  const pcx = Math.floor(p[0] / CS), pcz = Math.floor(p[2] / CS);
+  for (const c of dirty) if (Math.abs(c.cx - pcx) <= 1 && Math.abs(c.cz - pcz) <= 1 && neighborsLoaded(c.cx, c.cz)) meshChunk(c);
+}
+
+function cleanupBlockEntity(x, y, z, old, id) {
+  const k = posKey(x, y, z);
+  const be = G.world.blockEntities.get(k);
+  if (!be) return;
+  const keep = (be.type === 'furnace' && (id === B.FURNACE || id === B.FURNACE_LIT)) || (be.type === 'chest' && id === B.CHEST);
+  if (keep) return;
+  for (const s of be.slots || []) if (s && s.id) Ents.spawnItem(cloneStack(s), x + 0.5, y + 0.5, z + 0.5);
+  G.world.blockEntities.delete(k);
+  if (G.ui) G.ui.blockEntityRemoved(k);
+}
+
+function blockEntity(x, y, z, type) {
+  const k = posKey(x, y, z);
+  let be = G.world.blockEntities.get(k);
+  if (!be || be.type !== type) {
+    be = type === 'chest' ? { type, slots: new Array(27).fill(null) } : { type, slots: [null, null, null], burn: 0, burnMax: 0, cook: 0 };
+    G.world.blockEntities.set(k, be);
+  }
+  return be;
+}
+
+const FACE_DIR = { 0: [1, 0, 0], 1: [-1, 0, 0], 4: [0, 0, 1], 5: [0, 0, -1] };
+
+function canStay(id, x, y, z, facing) {
+  const w = G.world;
+  const below = w.getBlock(x, y - 1, z);
+  switch (BLOCK_SUPPORT[id]) {
+    case SUP_FLOOR: return BLOCK_SOLID[below] === 1 && BLOCK_HEIGHT[below] === 16;
+    case SUP_WALL: {
+      const d = FACE_DIR[facing !== undefined ? facing : w.getFacing(x, y, z)] || [0, 0, 1];
+      const b = w.getBlock(x - d[0], y, z - d[2]);
+      return BLOCK_SOLID[b] && BLOCK_HEIGHT[b] === 16;
+    }
+    case SUP_SOIL: return SOIL.has(below);
+    case SUP_SAND: return below === B.SAND || below === B.DIRT || below === B.GRASS || below === B.TERRACOTTA;
+    case SUP_SOLID: return BLOCK_OPAQUE[below] === 1;
+    case SUP_FARMLAND: return below === B.FARMLAND;
+    case SUP_CANE: {
+      if (below === B.SUGAR_CANE) return true;
+      if (below !== B.GRASS && below !== B.DIRT && below !== B.SAND) return false;
+      return [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => w.getBlock(x + dx, y - 1, z + dz) === B.WATER);
+    }
+    case SUP_CACTUS: return below === B.SAND || below === B.CACTUS;
+    default: return true;
+  }
+}
+
+// Blocks around (x, y, z) that lost their support pop off; sand and gravel start falling.
+function updateNeighbors(x, y, z, depth = 0) {
+  if (depth > 64) return;
+  const w = G.world;
+  for (const [dx, dy, dz] of [[0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, -1, 0]]) {
+    const nx = x + dx, ny = y + dy, nz = z + dz;
+    const id = w.getBlock(nx, ny, nz);
+    if (BLOCK_SUPPORT[id] && !canStay(id, nx, ny, nz)) {
+      if (G.mode === 'survival') for (const [it, n] of blockDrops(id, 0, Math.random)) Ents.spawnItem({ id: it, count: n }, nx + 0.5, ny + 0.3, nz + 0.5);
+      Particles.blockBreak(nx, ny, nz, id);
+      editBlock(nx, ny, nz, B.AIR);
+      updateNeighbors(nx, ny, nz, depth + 1);
+    }
+  }
+  checkFalling(x, y + 1, z);
+}
+
+// Water flows back into holes next to it (no flowing water, just refill).
+function waterRefill(x, y, z) {
+  const w = G.world;
+  if (y > SEA) return B.AIR;
+  return [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]].some(([dx, dy, dz]) => w.getBlock(x + dx, y + dy, z + dz) === B.WATER) ? B.WATER : B.AIR;
+}
+
+// Removes a block like a player would: drops, particles, sound and neighbour updates.
+function destroyBlock(x, y, z, opts = {}) {
+  const w = G.world;
+  const id = w.getBlock(x, y, z);
+  if (id === B.AIR || IS_LIQUID(id)) return false;
+  let fill = waterRefill(x, y, z);
+  if (id === B.ICE && G.mode === 'survival') fill = B.WATER;
+  if (opts.drops) {
+    for (const [it, n] of blockDrops(id, opts.tool || 0, Math.random)) {
+      Ents.spawnItem({ id: it, count: n }, x + 0.5, y + 0.4, z + 0.5);
+    }
+  }
+  if (!opts.silent) {
+    Particles.blockBreak(x, y, z, id);
+    sfx('break_' + BLOCK_SOUND[id], [x + 0.5, y + 0.5, z + 0.5], 1, rand(0.85, 1.05));
+  }
+  editBlock(x, y, z, fill);
+  updateNeighbors(x, y, z);
+  return true;
+}
+
+// ---------- growth ----------
+function growTree(x, y, z, sapling) {
+  const w = G.world;
+  const kind = sapling === B.BIRCH_SAPLING ? 'birch' : sapling === B.SPRUCE_SAPLING ? 'spruce' : 'oak';
+  const need = kind === 'spruce' ? 9 : 7;
+  for (let i = 1; i < need; i++) {
+    const id = w.getBlock(x, y + i, z);
+    if (id !== B.AIR && BLOCK_RT[id] !== RT_CUTOUT) return false;
+  }
+  const edits = [[x, y, z, B.AIR]];
+  const pending = new Map();
+  const get = (wx, wy, wz) => {
+    if (wy < 0 || wy >= CH || !w.isLoaded(wx, wz)) return -1;
+    const k = posKey(wx, wy, wz);
+    return pending.has(k) ? pending.get(k) : (wx === x && wy === y && wz === z ? B.AIR : w.getBlock(wx, wy, wz));
+  };
+  const set = (wx, wy, wz, id) => { pending.set(posKey(wx, wy, wz), id); edits.push([wx, wy, wz, id]); };
+  buildTree(get, set, x, y, z, kind, Math.random(), G.world.seed);
+  editBlocks(edits);
+  return true;
+}
+
+function randomTick(x, y, z, id) {
+  const w = G.world;
+  const L = w.getLight(x, y, z);
+  const light = Math.max((L >> 4) * (isDaytime() ? 1 : 0.3), L & 15);
+  if (id >= B.WHEAT_0 && id < B.WHEAT_3) {
+    if (light >= 8 && Math.random() < 0.5) editBlock(x, y, z, id + 1);
+  } else if (id === B.OAK_SAPLING || id === B.BIRCH_SAPLING || id === B.SPRUCE_SAPLING) {
+    if (light >= 8 && Math.random() < 0.25) growTree(x, y, z, id);
+  } else if (id === B.SUGAR_CANE || id === B.CACTUS) {
+    if (w.getBlock(x, y + 1, z) === B.AIR && Math.random() < 0.35) {
+      let h = 1;
+      while (h < 4 && w.getBlock(x, y - h, z) === id) h++;
+      if (h < 3) { editBlock(x, y + 1, z, id); }
+    }
+  } else if (id === B.DIRT) {
+    const above = w.getBlock(x, y + 1, z);
+    if (BLOCK_ATTEN[above] <= 1 && !IS_LIQUID(above) && (w.getLight(x, y + 1, z) >> 4) >= 9) {
+      for (let k = 0; k < 4; k++) {
+        const nx = x + Math.floor(rand(-1, 2)), ny = y + Math.floor(rand(-2, 2)), nz = z + Math.floor(rand(-1, 2));
+        if (w.getBlock(nx, ny, nz) === B.GRASS) { editBlock(x, y, z, B.GRASS); break; }
+      }
+    }
+  } else if (id === B.GRASS) {
+    const above = w.getBlock(x, y + 1, z);
+    if (BLOCK_OPAQUE[above] || IS_LIQUID(above)) editBlock(x, y, z, B.DIRT);
+  } else if (id === B.FARMLAND) {
+    const above = w.getBlock(x, y + 1, z);
+    if (!(above >= B.WHEAT_0 && above <= B.WHEAT_3) && Math.random() < 0.12) editBlock(x, y, z, B.DIRT);
+  }
+}
+
+const TICKABLE = new Uint8Array(256);
+[B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING, B.SUGAR_CANE, B.CACTUS, B.DIRT, B.GRASS, B.FARMLAND].forEach((id) => { TICKABLE[id] = 1; });
+
+function randomTicks(dt) {
+  G.tickAcc += dt;
+  if (G.tickAcc < 0.05) return;
+  G.tickAcc = 0;
+  const w = G.world;
+  const pcx = Math.floor(G.player.pos[0] / CS), pcz = Math.floor(G.player.pos[2] / CS);
+  for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
+    const c = w.getChunk(pcx + dx, pcz + dz);
+    if (!c || !c.mesh) continue;
+    const sections = (c.maxY >> 4) + 1;
+    for (let s = 0; s < sections; s++) for (let k = 0; k < 3; k++) {
+      const r = (Math.random() * 4096) | 0;
+      const lx = r & 15, lz = (r >> 4) & 15, y = (s << 4) + (r >> 8);
+      const id = c.blocks[(y * CS + lz) * CS + lx];
+      if (TICKABLE[id]) randomTick(c.cx * CS + lx, y, c.cz * CS + lz, id);
+    }
+  }
+}
+
+function boneMeal(x, y, z) {
+  const w = G.world;
+  const id = w.getBlock(x, y, z);
+  if (id >= B.WHEAT_0 && id < B.WHEAT_3) { editBlock(x, y, z, Math.min(B.WHEAT_3, id + 1 + Math.floor(Math.random() * 3))); return true; }
+  if (id === B.OAK_SAPLING || id === B.BIRCH_SAPLING || id === B.SPRUCE_SAPLING) { if (Math.random() < 0.45) growTree(x, y, z, id); return true; }
+  if (id === B.GRASS) {
+    for (let i = 0; i < 14; i++) {
+      const nx = x + Math.floor(rand(-3, 4)), nz = z + Math.floor(rand(-3, 4));
+      if (w.getBlock(nx, y, nz) === B.GRASS && w.getBlock(nx, y + 1, nz) === B.AIR) {
+        const r = Math.random();
+        editBlock(nx, y + 1, nz, r < 0.75 ? B.TALLGRASS : r < 0.85 ? B.DANDELION : r < 0.93 ? B.ROSE : B.TULIP);
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
+// ---------- furnaces ----------
+function tickFurnaces(dt) {
+  const w = G.world;
+  for (const [k, be] of w.blockEntities) {
+    if (be.type !== 'furnace') continue;
+    const [x, y, z] = keyPos(k);
+    if (!w.isLoaded(x, z)) continue;
+    const s = be.slots;
+    const input = s[0], fuel = s[1], out = s[2];
+    const result = input ? SMELT[input.id] : undefined;
+    const canSmelt = result !== undefined && (!out || (out.id === result && out.count < maxStack(result)));
+    if (be.burn > 0) be.burn -= dt;
+    let changed = false;
+    if (be.burn <= 0 && canSmelt && fuel && ITEM_DEF[fuel.id] && ITEM_DEF[fuel.id].fuel) {
+      be.burn = be.burnMax = ITEM_DEF[fuel.id].fuel;
+      if (fuel.id === I.LAVA_BUCKET) s[1] = mkStack(I.BUCKET, 1);
+      else { fuel.count--; if (fuel.count <= 0) s[1] = null; }
+      changed = true;
+    }
+    if (be.burn > 0 && canSmelt) {
+      be.cook += dt;
+      if (be.cook >= SMELT_TIME) {
+        be.cook = 0;
+        input.count--; if (input.count <= 0) s[0] = null;
+        if (out) out.count++; else s[2] = mkStack(result, 1);
+        changed = true;
+      }
+    } else be.cook = Math.max(0, be.cook - dt * 2);
+    if (be.burn < 0) be.burn = 0;
+    const id = w.getBlock(x, y, z);
+    const lit = be.burn > 0;
+    if (lit && id === B.FURNACE) editBlock(x, y, z, B.FURNACE_LIT);
+    else if (!lit && id === B.FURNACE_LIT) editBlock(x, y, z, B.FURNACE);
+    if (changed && G.ui) G.ui.containerChanged(k);
+    if (lit && Math.random() < dt * 2) Particles.smoke(x + 0.5, y + 1.05, z + 0.5, 1, 0.2, true);
+  }
+}
+
+// ---------- TNT and explosions ----------
+function igniteTNT(x, y, z, fuse = 4) {
+  const w = G.world;
+  if (w.getBlock(x, y, z) !== B.TNT) return;
+  editBlock(x, y, z, B.AIR);
+  Ents.tnts.push(new PrimedTNT(x, y, z, fuse));
+  sfx('fuse', [x + 0.5, y + 0.5, z + 0.5], 1, 1);
+}
+
+function explode(x, y, z, power, source) {
+  const w = G.world;
+  sfx('explode', [x, y, z], 1.5, rand(0.8, 1.05));
+  Particles.explosion(x, y, z, power);
+  const p = G.player;
+  const pd = Math.hypot(p.pos[0] - x, p.pos[1] + 1 - y, p.pos[2] - z);
+  G.shake = Math.max(G.shake, clamp(1.2 - pd / (power * 5), 0, 1));
+  const destroyed = new Map();
+  for (let i = 0; i < 16; i++) for (let j = 0; j < 16; j++) for (let k = 0; k < 16; k++) {
+    if (i && j && k && i < 15 && j < 15 && k < 15) continue;
+    let dx = i / 15 * 2 - 1, dy = j / 15 * 2 - 1, dz = k / 15 * 2 - 1;
+    const l = Math.hypot(dx, dy, dz);
+    dx /= l; dy /= l; dz /= l;
+    let inten = power * (0.7 + Math.random() * 0.6);
+    let px = x, py = y, pz = z;
+    while (inten > 0) {
+      const bx = Math.floor(px), by = Math.floor(py), bz = Math.floor(pz);
+      if (by < 0 || by >= CH) break;
+      const id = w.getBlock(bx, by, bz);
+      if (id !== B.AIR) {
+        inten -= (BLOCK_BLAST[id] + 0.3) * 0.3;
+        if (inten > 0 && BLOCK_HARD[id] >= 0 && !IS_LIQUID(id)) destroyed.set(posKey(bx, by, bz), [bx, by, bz, id]);
+      }
+      px += dx * 0.3; py += dy * 0.3; pz += dz * 0.3;
+      inten -= 0.225;
+    }
+  }
+  const edits = [];
+  for (const [bx, by, bz, id] of destroyed.values()) {
+    if (id === B.TNT) { edits.push([bx, by, bz, B.AIR]); Ents.tnts.push(new PrimedTNT(bx, by, bz, rand(0.5, 1.5))); continue; }
+    if (G.mode === 'survival' && Math.random() < 1 / power) {
+      for (const [it, n] of blockDrops(id, 0, Math.random)) Ents.spawnItem({ id: it, count: n }, bx + 0.5, by + 0.5, bz + 0.5);
+    }
+    edits.push([bx, by, bz, waterRefill(bx, by, bz)]);
+  }
+  editBlocks(edits);
+  for (const [bx, by, bz] of destroyed.values()) updateNeighbors(bx, by, bz);
+  // entities
+  const R = power * 2;
+  for (const m of Ents.mobs) {
+    if (m === source || m.dead) continue;
+    const d = Math.hypot(m.pos[0] - x, m.pos[1] + m.h / 2 - y, m.pos[2] - z);
+    if (d > R) continue;
+    const imp = 1 - d / R;
+    m.damage(Math.floor((imp * imp + imp) / 2 * 7 * power + 1), { explosion: true, from: [x, y, z], knock: imp * 2.5 });
+    m.vel[1] += imp * 6;
+  }
+  for (const it of Ents.items) {
+    const d = Math.hypot(it.pos[0] - x, it.pos[1] - y, it.pos[2] - z);
+    if (d < R) { const imp = (1 - d / R) * 8; it.vel[0] += (it.pos[0] - x) / (d || 1) * imp; it.vel[1] += imp * 0.6; it.vel[2] += (it.pos[2] - z) / (d || 1) * imp; }
+  }
+  if (pd < R) {
+    const imp = 1 - pd / R;
+    const dx = p.pos[0] - x, dz = p.pos[2] - z, l = Math.hypot(dx, dz) || 1;
+    p.vel[0] += dx / l * imp * 12; p.vel[2] += dz / l * imp * 12; p.vel[1] += imp * 8;
+    G.stats.damage(Math.floor((imp * imp + imp) / 2 * 7 * power + 1), { type: 'explosion', from: [x, y, z], mob: source && source.def ? source : null });
+  }
+}
+
+// ---------- sleeping ----------
+function trySleep(x, y, z) {
+  if (Math.sin(G.dayTime * Math.PI * 2) > 0.1) { G.ui.toast('You can only sleep at night'); return; }
+  for (const m of Ents.mobs) {
+    if (m.def.hostile && !m.dead && Math.abs(m.pos[0] - x) < 8 && Math.abs(m.pos[1] - y) < 5 && Math.abs(m.pos[2] - z) < 8) {
+      G.ui.toast('You may not rest now, there are monsters nearby'); return;
+    }
+  }
+  G.spawnPoint = [x + 0.5, y + 1, z + 0.5];
+  G.sleeping = { t: 0, bed: [x, y, z] };
+  G.player.vel = [0, 0, 0];
+  sfx('sleep', null, 0.8, 1);
+  G.ui.toast('Respawn point set');
+}
+
+function updateSleep(dt) {
+  const s = G.sleeping;
+  if (!s) return;
+  s.t += dt;
+  if (s.t > 2.6) {
+    G.dayTime = 0.015;
+    G.sleeping = null;
+    G.ui.toast('Good morning');
+  }
+}
+
+// ---------- spawn / respawn ----------
+function findSpawn(gen) {
+  if (gen.preset) return gen.preset.spawn(gen).pos;
+  for (let r = 0; r < 60; r++) {
+    const n = Math.max(1, r * 6);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const x = Math.round(Math.cos(a) * r * 12), z = Math.round(Math.sin(a) * r * 12);
+      const h = gen.height(x, z);
+      if (h > SEA + 2 && h < SEA + 30) return [x + 0.5, h + 1, z + 0.5];
+    }
+  }
+  return [0.5, gen.height(0, 0) + 2, 0.5];
+}
+
+function liftOutOfBlocks(p) {
+  for (let i = 0; i < CH && p.collides(p.pos[0], p.pos[1], p.pos[2]); i++) p.pos[1] += 1;
+}
+
+function respawn() {
+  let sp = G.worldSpawn;
+  if (G.spawnPoint) {
+    const [x, y, z] = G.spawnPoint.map(Math.floor);
+    if (!G.world.isLoaded(x, z) || G.world.getBlock(x, y - 1, z) === B.BED) sp = G.spawnPoint;
+    else { G.spawnPoint = null; G.ui.toast('Your bed was missing or obstructed'); }
+  }
+  G.stats.reset();
+  const p = G.player;
+  p.pos = sp.slice();
+  p.vel = [0, 0, 0];
+  p.fallStart = null; p.landed = 0;
+  G.ui.hideDeath();
+  G.ui.invDirty();
+  const pcx = Math.floor(p.pos[0] / CS), pcz = Math.floor(p.pos[2] / CS);
+  for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (!G.world.getChunk(pcx + dx, pcz + dz)) G.world.generateChunk(pcx + dx, pcz + dz);
+  liftOutOfBlocks(p);
+}
+
+function setGameMode(mode) {
+  G.mode = mode === 'creative' ? 'creative' : 'survival';
+  G.player.creative = G.mode === 'creative';
+  if (G.mode === 'survival') G.player.flying = false;
+  if (G.stats.dead && G.mode === 'creative') respawn();
+  if (G.ui) { G.ui.invDirty(); G.ui.updateHud(true); }
+}
+
+// ---------- persistence ----------
+function saveWorld() {
+  if (!G.world || !G.player) return;
+  const p = G.player;
+  const ok = storageSet(SAVE_KEY, {
+    v: 2, seed: G.world.seed, type: G.world.type, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
+    dayTime: G.dayTime, mode: G.mode, difficulty: G.difficulty, rules: G.rules, worldSpawn: G.worldSpawn, spawnPoint: G.spawnPoint,
+    player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, flying: p.flying }, inv: G.inv.serialize(), stats: G.stats.serialize(),
+  });
+  if (!ok && G.ui) G.ui.toast('Could not save: browser storage is full');
+  G.world.editsDirty = false;
+}
+
+function loadSave() {
+  const s = storageGet(SAVE_KEY);
+  if (s && s.v === 2 && Number.isInteger(s.seed)) return s;
+  const old = storageGet(SAVE_KEY_V1);
+  if (old && old.v === 1 && Number.isInteger(old.seed)) {
+    // worlds from the first version were creative-only
+    const inv = { slots: new Array(36).fill(0), armor: [0, 0, 0, 0], selected: old.slot | 0 };
+    if (Array.isArray(old.hotbar)) old.hotbar.forEach((id, i) => { if (i < 9 && isItem(id)) inv.slots[i] = [id, 1, 0]; });
+    return { v: 2, seed: old.seed, type: 'default', edits: old.edits, dayTime: old.dayTime, mode: 'creative', player: old.player, inv };
+  }
+  return null;
+}
+
+const STARTER_CREATIVE = [B.GRASS, B.COBBLE, B.PLANKS, B.GLASS, B.STONE_BRICKS, B.TORCH, B.LOG, B.GLOWSTONE, B.TNT];
+
+function newWorld(seed, save, opts = {}) {
+  if (G.world) for (const c of G.world.chunks.values()) G.renderer.freeChunk(c);
+  Ents.clear();
+  const type = save ? save.type : opts.type;
+  G.world = new World(seed, type);
+  G.player = new Player(G.world);
+  G.stats.reset();
+  G.inv.clear();
+  G.spawnPoint = null;
+  G.sleeping = null;
+  G.worldSpawn = findSpawn(G.world.gen);
+  if (save) {
+    G.world.loadEdits(save.edits);
+    G.world.loadExtras(save.extras);
+    const sp = save.player;
+    if (sp && Array.isArray(sp.pos) && sp.pos.length === 3 && sp.pos.every(Number.isFinite)) {
+      G.player.pos = sp.pos.slice();
+      G.player.yaw = Number.isFinite(sp.yaw) ? sp.yaw : 0;
+      G.player.pitch = Number.isFinite(sp.pitch) ? clamp(sp.pitch, -1.56, 1.56) : 0;
+      G.player.flying = !!sp.flying;
+    } else G.player.pos = G.worldSpawn.slice();
+    if (Number.isFinite(save.dayTime)) G.dayTime = ((save.dayTime % 1) + 1) % 1;
+    G.mode = save.mode === 'creative' ? 'creative' : 'survival';
+    G.difficulty = Number.isInteger(save.difficulty) ? clamp(save.difficulty, 0, 3) : 2;
+    if (save.rules && typeof save.rules === 'object') {
+      G.rules.keepInventory = !!save.rules.keepInventory;
+      G.rules.mobSpawning = save.rules.mobSpawning !== false;
+    }
+    if (Array.isArray(save.worldSpawn) && save.worldSpawn.every(Number.isFinite)) G.worldSpawn = save.worldSpawn;
+    if (Array.isArray(save.spawnPoint) && save.spawnPoint.every(Number.isFinite)) G.spawnPoint = save.spawnPoint;
+    G.inv.load(save.inv);
+    G.stats.load(save.stats);
+  } else {
+    G.player.pos = G.worldSpawn.slice();
+    G.player.yaw = -0.6;
+    G.player.pitch = -0.05;
+    G.dayTime = 0.08;
+    const pr = G.world.gen.preset;
+    if (pr) {
+      const sp = pr.spawn(G.world.gen);
+      G.player.yaw = sp.yaw; G.player.pitch = sp.pitch;
+      G.dayTime = pr.time;
+    }
+    if (opts.mode) G.mode = opts.mode;
+    if (G.mode === 'creative') STARTER_CREATIVE.forEach((id, i) => { G.inv.slots[i] = mkStack(id, 1); });
+  }
+  G.player.creative = G.mode === 'creative';
+  if (!G.player.creative) G.player.flying = false;
+  G.offsetsR = -1;
+  if (G.ui) { G.ui.invDirty(); G.ui.closeScreen(true); }
+}

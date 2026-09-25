@@ -1,14 +1,17 @@
 'use strict';
-// WebGL2 resource management: programs, textures, render targets and chunk meshes.
+// WebGL2 resource management: programs, textures, render targets, chunk meshes and the
+// per-frame entity vertex stream.
 
 let GLSL_DEFINES = '';
 
 const SAMPLER_UNITS = {
   uAlbedo: 0, uNormalMap: 1, uShadowMap: 2, uSkyLUT: 3, uNoise: 4, uSceneColor: 5, uSceneDepth: 6,
-  uSrc: 7, uScene: 8, uBloom: 9, uRays: 10, uDepth: 11,
+  uSrc: 7, uScene: 8, uBloom: 9, uRays: 10, uDepth: 11, uEmitMap: 12, uAtlas: 13,
 };
 const MAX_QUADS = 1 << 17;
 const LUT_W = 256, LUT_H = 128;
+const ENT_FLOATS = 16;                 // floats per entity vertex
+const ENT_MAX_QUADS = 24000;
 const SHADOW_PRESETS = {
   off: { size: 1, range: 0, taps: 1 },
   low: { size: 1024, range: 48, taps: 4 },
@@ -66,7 +69,7 @@ class Renderer {
     this.width = 0; this.height = 0;
     this.exposure = 1;
     this.frame = 0;
-    this.stats = { drawn: 0, shadowDrawn: 0, triangles: 0 };
+    this.stats = { drawn: 0, shadowDrawn: 0, triangles: 0, entities: 0 };
 
     this.aniso = gl.getExtension('EXT_texture_filter_anisotropic');
     gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float');
@@ -75,6 +78,7 @@ class Renderer {
     this.hdrScale = this.hdrFormat.float ? 1.0 : 0.25;
 
     this.createStaticResources();
+    this.createEntityResources();
     this.buildPrograms();
     this.shadowKey = '';
     this.ensureShadowTarget();
@@ -112,6 +116,8 @@ class Renderer {
       terrain: createProgram(gl, VS_TERRAIN, FS_TERRAIN(), 'terrain'),
       shadow: createProgram(gl, VS_TERRAIN, FS_SHADOW(), 'shadow'),
       water: createProgram(gl, VS_TERRAIN, FS_WATER(), 'water'),
+      entity: createProgram(gl, VS_ENTITY, FS_ENTITY(), 'entity'),
+      entityShadow: createProgram(gl, VS_ENTITY, FS_ENTITY_SHADOW(), 'entity shadow'),
       sky: createProgram(gl, VS_FULLSCREEN, FS_SKY(), 'sky'),
       skyLut: createProgram(gl, VS_FULLSCREEN, FS_SKY_LUT(), 'sky LUT'),
       lines: createProgram(gl, VS_LINES, FS_LINES(), 'lines'),
@@ -163,21 +169,33 @@ class Renderer {
     gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
     gl.bindVertexArray(null);
 
-    // block textures
+    // block textures, item sprites and effects
     const tex = generateTextures(this.settings.textureSeed || 1337);
+    const maxLayers = gl.getParameter(gl.MAX_ARRAY_TEXTURE_LAYERS) || 256;
+    if (tex.count > maxLayers) throw new Error('Too many texture layers (' + tex.count + ' > ' + maxLayers + ')');
     this.textureTiles = tex.tiles;
+    this.texCount = tex.count;
     this.albedoTex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.albedoTex);
-    gl.texStorage3D(gl.TEXTURE_2D_ARRAY, tex.levels.length, gl.SRGB8_ALPHA8, TS, TS, TEX_COUNT);
+    gl.texStorage3D(gl.TEXTURE_2D_ARRAY, tex.levels.length, gl.SRGB8_ALPHA8, TS, TS, tex.count);
     tex.levels.forEach((lv, level) => {
-      gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, level, 0, 0, 0, lv.size, lv.size, TEX_COUNT, gl.RGBA, gl.UNSIGNED_BYTE, lv.data);
+      gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, level, 0, 0, 0, lv.size, lv.size, tex.count, gl.RGBA, gl.UNSIGNED_BYTE, lv.data);
     });
     this.setArrayParams(gl.NEAREST);
 
     this.normalTex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.normalTex);
-    gl.texStorage3D(gl.TEXTURE_2D_ARRAY, tex.levels.length, gl.RGBA8, TS, TS, TEX_COUNT);
-    gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, 0, TS, TS, TEX_COUNT, gl.RGBA, gl.UNSIGNED_BYTE, tex.normal);
+    gl.texStorage3D(gl.TEXTURE_2D_ARRAY, tex.levels.length, gl.RGBA8, TS, TS, tex.count);
+    gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, 0, TS, TS, tex.count, gl.RGBA, gl.UNSIGNED_BYTE, tex.normal);
+    gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
+    this.setArrayParams(gl.NEAREST);
+
+    this.emitTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.emitTex);
+    gl.texStorage3D(gl.TEXTURE_2D_ARRAY, tex.levels.length, gl.R8, TS, TS, tex.count);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, 0, TS, TS, tex.count, gl.RED, gl.UNSIGNED_BYTE, tex.emit);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
     gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
     this.setArrayParams(gl.NEAREST);
 
@@ -196,6 +214,51 @@ class Renderer {
     // sky-view LUT
     this.lutTex = this.createTarget(LUT_W, LUT_H, this.hdrFormat.internal, gl.LINEAR, gl.REPEAT, gl.CLAMP_TO_EDGE);
     this.lutFB = this.createFBO(this.lutTex, null);
+  }
+
+  // Mob skins live in one 2D atlas painted by models.js.
+  setAtlas(canvas) {
+    const gl = this.gl;
+    if (!this.atlasTex) this.atlasTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.atlasTex);
+    gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8_ALPHA8, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+
+  createEntityResources() {
+    const gl = this.gl;
+    this.entData = new Float32Array(ENT_MAX_QUADS * 4 * ENT_FLOATS);
+    this.entVAO = gl.createVertexArray();
+    this.entVBO = gl.createBuffer();
+    gl.bindVertexArray(this.entVAO);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.entVBO);
+    gl.bufferData(gl.ARRAY_BUFFER, this.entData.byteLength, gl.DYNAMIC_DRAW);
+    const stride = ENT_FLOATS * 4;
+    const attr = (loc, n, off) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, stride, off * 4); };
+    attr(0, 3, 0); attr(1, 3, 3); attr(2, 3, 6); attr(3, 3, 9); attr(4, 4, 12);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.quadIndex);
+    gl.bindVertexArray(null);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+  }
+
+  uploadEntities(quads) {
+    if (!quads) return;
+    const gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.entVBO);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.entData, 0, quads * 4 * ENT_FLOATS);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+  }
+
+  drawEntityRange(first, count) {
+    if (count <= 0) return;
+    const gl = this.gl;
+    gl.bindVertexArray(this.entVAO);
+    gl.drawElements(gl.TRIANGLES, count * 6, gl.UNSIGNED_INT, first * 6 * 4);
   }
 
   setArrayParams(magFilter) {
@@ -309,11 +372,13 @@ class Renderer {
     gl.bindVertexArray(vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
     gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 4, gl.UNSIGNED_SHORT, false, 16, 0);
+    gl.vertexAttribPointer(0, 4, gl.UNSIGNED_SHORT, false, VERT_BYTES, 0);
     gl.enableVertexAttribArray(1);
-    gl.vertexAttribPointer(1, 4, gl.UNSIGNED_BYTE, false, 16, 8);
+    gl.vertexAttribPointer(1, 4, gl.UNSIGNED_BYTE, false, VERT_BYTES, 8);
     gl.enableVertexAttribArray(2);
-    gl.vertexAttribPointer(2, 4, gl.UNSIGNED_BYTE, false, 16, 12);
+    gl.vertexAttribPointer(2, 4, gl.UNSIGNED_BYTE, false, VERT_BYTES, 12);
+    gl.enableVertexAttribArray(3);
+    gl.vertexAttribPointer(3, 4, gl.UNSIGNED_BYTE, false, VERT_BYTES, 16);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.quadIndex);
     gl.bindVertexArray(null);
     return { vao, vbo, count: 0 };

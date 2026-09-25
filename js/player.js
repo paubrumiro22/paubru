@@ -1,5 +1,6 @@
 'use strict';
-// First-person player: movement physics, AABB collision, swimming, flying and block raycasts.
+// Box physics shared by the player and mobs (partial-height blocks, step-up), plus the
+// first-person player: movement, swimming, climbing, flying and block raycasts.
 
 const PLAYER_HALF_W = 0.3;
 const PLAYER_H = 1.8;
@@ -7,35 +8,147 @@ const PLAYER_EYE = 1.62;
 const GRAVITY = 30;
 const JUMP_V = 8.9;
 
+// Height (in blocks) of the collision box at a cell, 0 when passable.
+function solidHeight(world, x, y, z) {
+  if (y < 0) return 1;
+  if (y >= CH) return 0;
+  if (!world.isLoaded(x, z)) return 1;
+  return BLOCK_HEIGHT[world.getBlock(x, y, z)] / 16;
+}
+
+function boxCollides(world, px, py, pz, hw, h) {
+  const x0 = Math.floor(px - hw + 1e-4), x1 = Math.floor(px + hw - 1e-4);
+  const y0 = Math.floor(py + 1e-4), y1 = Math.floor(py + h - 1e-4);
+  const z0 = Math.floor(pz - hw + 1e-4), z1 = Math.floor(pz + hw - 1e-4);
+  for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+    const sh = solidHeight(world, x, y, z);
+    if (sh > 0 && py < y + sh - 1e-4) return true;
+  }
+  return false;
+}
+
+// Moves body.pos along one axis, stopping at block boxes. Returns true on contact.
+function bodyMoveAxis(world, b, axis, d) {
+  if (d === 0) return false;
+  const p = b.pos, hw = b.hw, h = b.h;
+  p[axis] += d;
+  const x0 = Math.floor(p[0] - hw + 1e-4), x1 = Math.floor(p[0] + hw - 1e-4);
+  const y0 = Math.floor(p[1] + 1e-4), y1 = Math.floor(p[1] + h - 1e-4);
+  const z0 = Math.floor(p[2] - hw + 1e-4), z1 = Math.floor(p[2] + hw - 1e-4);
+  let limit = d > 0 ? Infinity : -Infinity;
+  let hit = false;
+  for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+    const sh = solidHeight(world, x, y, z);
+    if (sh <= 0) continue;
+    const top = y + sh;
+    if (p[1] >= top - 1e-4) continue; // above this box
+    hit = true;
+    const bnd = axis === 0 ? x : axis === 1 ? y : z;
+    if (d > 0) {
+      const lim = axis === 1 ? bnd - h : bnd - hw;
+      if (lim < limit) limit = lim;
+    } else {
+      const lim = axis === 1 ? top : bnd + 1 + hw;
+      if (lim > limit) limit = lim;
+    }
+  }
+  if (!hit) return false;
+  p[axis] = d > 0 ? limit - 1e-5 : limit + (axis === 1 ? 0 : 1e-5);
+  if (axis === 1 && d < 0) b.onGround = true;
+  b.vel[axis] = 0;
+  return true;
+}
+
+// Full move with substeps and automatic step-up onto slabs / half blocks.
+function bodyMove(world, b, dx, dy, dz, stepH, guard) {
+  const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) / 0.4));
+  const wasOnGround = b.onGround;
+  b.onGround = false;
+  b.collidedH = false;
+  for (let s = 0; s < steps; s++) {
+    bodyMoveAxis(world, b, 1, dy / steps);
+    for (const axis of [0, 2]) {
+      const dd = (axis === 0 ? dx : dz) / steps;
+      if (!dd) continue;
+      if (guard && !guard(axis, dd)) { b.vel[axis] = 0; continue; }
+      const before = b.pos.slice();
+      if (!bodyMoveAxis(world, b, axis, dd)) continue;
+      b.collidedH = true;
+      // try stepping up
+      if (stepH > 0 && (wasOnGround || b.onGround)) {
+        const save = b.pos.slice(), saveV = b.vel[axis];
+        b.pos[0] = before[0]; b.pos[1] = before[1]; b.pos[2] = before[2];
+        const clearance = findStep(world, b, axis, dd, stepH);
+        if (clearance > 0) {
+          b.pos[1] += clearance;
+          b.pos[axis] += dd;
+          b.vel[axis] = saveV || dd;
+          b.stepped = clearance;
+        } else { b.pos[0] = save[0]; b.pos[1] = save[1]; b.pos[2] = save[2]; }
+      }
+    }
+  }
+}
+
+// Smallest lift <= stepH that lets the body move dd along axis without collision.
+function findStep(world, b, axis, dd, stepH) {
+  const p = b.pos;
+  const nx = p[0] + (axis === 0 ? dd : 0), nz = p[2] + (axis === 2 ? dd : 0);
+  for (let lift = 0.0625; lift <= stepH + 1e-6; lift += 0.0625) {
+    if (boxCollides(world, p[0], p[1] + lift, p[2], b.hw, b.h)) return 0;
+    if (!boxCollides(world, nx, p[1] + lift, nz, b.hw, b.h)) {
+      // settle on the actual surface
+      let y = p[1] + lift;
+      while (y - 0.0625 >= p[1] && !boxCollides(world, nx, y - 0.0625, nz, b.hw, b.h)) y -= 0.0625;
+      return y - p[1] > 0.01 ? y - p[1] : 0;
+    }
+  }
+  return 0;
+}
+
+function liquidAt(world, x, y, z) {
+  const id = world.getBlock(Math.floor(x), Math.floor(y), Math.floor(z));
+  return id === B.WATER || id === B.LAVA ? id : 0;
+}
+
 class Player {
   constructor(world) {
     this.world = world;
     this.pos = [0.5, 90, 0.5];
     this.vel = [0, 0, 0];
+    this.hw = PLAYER_HALF_W;
+    this.h = PLAYER_H;
     this.yaw = 0;
     this.pitch = 0;
     this.onGround = false;
     this.flying = false;
     this.inWater = false;
+    this.inLava = false;
     this.eyeInWater = false;
+    this.eyeInLava = false;
+    this.onLadder = false;
     this.sprinting = false;
     this.sneaking = false;
     this.bobPhase = 0;
     this.bobAmount = 0;
     this.fovBoost = 0;
+    this.sneakOffset = 0;
+    this.fallStart = null;     // highest y since leaving the ground
+    this.landed = 0;           // fall distance reported on landing (consumed by survival)
+    this.jumped = false;
+    this.distWalked = 0;
+    this.stepDist = 0;
+    this.creative = true;
+    this.flySpeed = 1;
+    this.stepped = 0;
+    this.eyeSmooth = 0;
   }
 
-  isSolidAt(x, y, z) {
-    if (y < 0) return true;
-    if (y >= CH) return false;
-    if (!this.world.isLoaded(x, z)) return true;
-    return BLOCK_SOLID[this.world.getBlock(x, y, z)] === 1;
-  }
+  isSolidAt(x, y, z) { return solidHeight(this.world, x, y, z) > 0; }
 
   eyePos() {
-    const sneak = this.sneaking && !this.flying ? 0.12 : 0;
     const bob = Math.sin(this.bobPhase * 2) * 0.045 * this.bobAmount;
-    return [this.pos[0], this.pos[1] + PLAYER_EYE - sneak + bob, this.pos[2]];
+    return [this.pos[0], this.pos[1] + PLAYER_EYE - this.sneakOffset + bob - this.eyeSmooth, this.pos[2]];
   }
 
   // Loaded chunk under the player? Physics waits until the ground exists.
@@ -43,63 +156,41 @@ class Player {
     return this.world.isLoaded(Math.floor(this.pos[0]), Math.floor(this.pos[2]));
   }
 
-  collides(px, py, pz) {
-    const x0 = Math.floor(px - PLAYER_HALF_W + 1e-4), x1 = Math.floor(px + PLAYER_HALF_W - 1e-4);
-    const y0 = Math.floor(py + 1e-4), y1 = Math.floor(py + PLAYER_H - 1e-4);
-    const z0 = Math.floor(pz - PLAYER_HALF_W + 1e-4), z1 = Math.floor(pz + PLAYER_HALF_W - 1e-4);
-    for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
-      if (this.isSolidAt(x, y, z)) return true;
-    }
-    return false;
-  }
-
-  moveAxis(axis, d) {
-    if (d === 0) return;
-    const p = this.pos;
-    p[axis] += d;
-    const x0 = Math.floor(p[0] - PLAYER_HALF_W + 1e-4), x1 = Math.floor(p[0] + PLAYER_HALF_W - 1e-4);
-    const y0 = Math.floor(p[1] + 1e-4), y1 = Math.floor(p[1] + PLAYER_H - 1e-4);
-    const z0 = Math.floor(p[2] - PLAYER_HALF_W + 1e-4), z1 = Math.floor(p[2] + PLAYER_HALF_W - 1e-4);
-    let limit = d > 0 ? Infinity : -Infinity;
-    let hit = false;
-    for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
-      if (!this.isSolidAt(x, y, z)) continue;
-      hit = true;
-      const b = axis === 0 ? x : axis === 1 ? y : z;
-      if (d > 0) {
-        const lim = axis === 1 ? b - PLAYER_H : b - PLAYER_HALF_W;
-        if (lim < limit) limit = lim;
-      } else {
-        const lim = axis === 1 ? b + 1 : b + 1 + PLAYER_HALF_W;
-        if (lim > limit) limit = lim;
-      }
-    }
-    if (!hit) return;
-    p[axis] = d > 0 ? limit - 1e-5 : limit + (axis === 1 ? 0 : 1e-5);
-    if (axis === 1 && d < 0) this.onGround = true;
-    this.vel[axis] = 0;
-  }
+  collides(px, py, pz) { return boxCollides(this.world, px, py, pz, this.hw, this.h); }
 
   // Would stepping to (px, pz) leave the player without any ground beneath? (sneak edge guard)
   hasGroundBelow(px, pz) {
-    const y = Math.floor(this.pos[1] - 0.05);
+    const y = this.pos[1] - 0.05;
     const x0 = Math.floor(px - PLAYER_HALF_W + 1e-4), x1 = Math.floor(px + PLAYER_HALF_W - 1e-4);
     const z0 = Math.floor(pz - PLAYER_HALF_W + 1e-4), z1 = Math.floor(pz + PLAYER_HALF_W - 1e-4);
-    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (this.isSolidAt(x, y, z)) return true;
+    const yi = Math.floor(y);
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+      const sh = solidHeight(this.world, x, yi, z);
+      if (sh > 0 && y < yi + sh) return true;
+    }
     return false;
   }
 
-  updateWaterState() {
+  updateEnvState() {
     const w = this.world, p = this.pos;
     const fx = Math.floor(p[0]), fz = Math.floor(p[2]);
-    this.inWater = w.getBlock(fx, Math.floor(p[1] + 0.35), fz) === B.WATER || w.getBlock(fx, Math.floor(p[1] + 1.0), fz) === B.WATER;
+    const feet = w.getBlock(fx, Math.floor(p[1] + 0.35), fz), waist = w.getBlock(fx, Math.floor(p[1] + 1.0), fz);
+    this.inWater = feet === B.WATER || waist === B.WATER;
+    this.inLava = feet === B.LAVA || waist === B.LAVA;
     const e = this.eyePos();
     const ey = Math.floor(e[1]);
     const id = w.getBlock(fx, ey, fz);
-    if (id === B.WATER) {
+    if (id === B.WATER || id === B.LAVA) {
       const above = w.getBlock(fx, ey + 1, fz);
-      this.eyeInWater = above === B.WATER || e[1] - ey < 0.875;
-    } else this.eyeInWater = false;
+      const under = above === id || e[1] - ey < 0.875;
+      this.eyeInWater = id === B.WATER && under;
+      this.eyeInLava = id === B.LAVA && under;
+    } else { this.eyeInWater = false; this.eyeInLava = false; }
+    // ladders anywhere in the body's column
+    this.onLadder = false;
+    for (let y = Math.floor(p[1]); y <= Math.floor(p[1] + 1.2); y++) {
+      if (w.getBlock(fx, y, fz) === B.LADDER) { this.onLadder = true; break; }
+    }
   }
 
   update(dt, input) {
@@ -109,10 +200,11 @@ class Player {
     const str = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0);
     const jump = k.has('Space');
     this.sneaking = k.has('ShiftLeft') || k.has('ShiftRight');
-    if (input.sprintHeld && fwd > 0) this.sprinting = true;
-    if (fwd <= 0 || this.sneaking) this.sprinting = false;
+    if (input.sprintHeld && fwd > 0 && !input.noSprint) this.sprinting = true;
+    if (fwd <= 0 || this.sneaking || input.noSprint) this.sprinting = false;
+    this.jumped = false;
 
-    this.updateWaterState();
+    this.updateEnvState();
     // unstick if something was placed inside us / spawned in a block
     if (this.collides(this.pos[0], this.pos[1], this.pos[2])) {
       this.pos[1] = Math.floor(this.pos[1]) + 1;
@@ -126,26 +218,29 @@ class Player {
     const wl = Math.hypot(wx, wz);
     if (wl > 0) { wx /= wl; wz /= wl; }
 
+    const liquid = this.inWater || this.inLava;
     let speed;
-    if (this.flying) speed = this.sprinting ? 22 : 11;
+    if (this.flying) speed = (this.sprinting ? 22 : 11) * this.flySpeed;
+    else if (this.inLava) speed = 1.6;
     else if (this.inWater) speed = this.sprinting ? 3.6 : 2.6;
     else if (this.sneaking) speed = 1.6;
     else speed = this.sprinting ? 5.8 : 4.3;
+    if (input.slow) speed *= 0.35;
 
     const v = this.vel;
     if (this.flying) {
       const r = 1 - Math.exp(-dt * 9);
       v[0] += (wx * speed - v[0]) * r;
       v[2] += (wz * speed - v[2]) * r;
-      const vy = ((jump ? 1 : 0) - (this.sneaking ? 1 : 0)) * 8;
+      const vy = ((jump ? 1 : 0) - (this.sneaking ? 1 : 0)) * 8 * this.flySpeed;
       v[1] += (vy - v[1]) * r;
-    } else if (this.inWater) {
-      const r = 1 - Math.exp(-dt * 5);
+    } else if (liquid) {
+      const r = 1 - Math.exp(-dt * (this.inLava ? 3 : 5));
       v[0] += (wx * speed - v[0]) * r;
       v[2] += (wz * speed - v[2]) * r;
-      v[1] -= GRAVITY * 0.22 * dt;
-      if (jump) v[1] += 24 * dt;
-      v[1] *= Math.exp(-dt * 2.2);
+      v[1] -= GRAVITY * (this.inLava ? 0.12 : 0.22) * dt;
+      if (jump) v[1] += (this.inLava ? 14 : 24) * dt;
+      v[1] *= Math.exp(-dt * (this.inLava ? 4 : 2.2));
       v[1] = clamp(v[1], -4, 4.2);
       // hop out onto a ledge when swimming against it
       if (jump && (this.collides(this.pos[0] + wx * 0.35, this.pos[1] + 0.2, this.pos[2] + wz * 0.35))) v[1] = Math.max(v[1], 5.5);
@@ -157,41 +252,53 @@ class Player {
       if (v[1] < -58) v[1] = -58;
       if (jump && this.onGround) {
         v[1] = JUMP_V;
+        this.jumped = true;
         if (this.sprinting) { v[0] += wx * 1.2; v[2] += wz * 1.2; }
+      }
+      if (this.onLadder) {
+        if (jump || (this.collidedH && (fwd || str))) v[1] = 3.2;
+        else if (this.sneaking) v[1] = Math.max(v[1], 0);
+        else v[1] = Math.max(v[1], -2.6);
       }
     }
 
     const dx = v[0] * dt, dy = v[1] * dt, dz = v[2] * dt;
-    const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) / 0.4));
-    const wasOnGround = this.onGround;
-    this.onGround = false;
-    for (let s = 0; s < steps; s++) {
-      this.moveAxis(1, dy / steps);
-      const guard = this.sneaking && !this.flying && !this.inWater && (wasOnGround || this.onGround);
-      const nx = this.pos[0] + dx / steps;
-      if (!guard || this.hasGroundBelow(nx, this.pos[2])) this.moveAxis(0, dx / steps);
-      else v[0] = 0;
-      const nz = this.pos[2] + dz / steps;
-      if (!guard || this.hasGroundBelow(this.pos[0], nz)) this.moveAxis(2, dz / steps);
-      else v[2] = 0;
-    }
+    const px0 = this.pos[0], pz0 = this.pos[2];
+    const edgeGuard = this.sneaking && !this.flying && !liquid && this.onGround;
+    const guard = edgeGuard ? (axis, dd) => (axis === 0 ? this.hasGroundBelow(this.pos[0] + dd, this.pos[2]) : this.hasGroundBelow(this.pos[0], this.pos[2] + dd)) : null;
+    this.stepped = 0;
+    bodyMove(this.world, this, dx, dy, dz, this.flying ? 0 : 0.6, guard);
+    // smooth the camera over automatic steps
+    if (this.stepped) this.eyeSmooth += this.stepped;
+    this.eyeSmooth *= Math.exp(-dt * 14);
     if (this.flying && this.onGround && !jump) this.flying = false;
 
-    // view bobbing / sprint FOV
+    // fall tracking
+    if (this.onGround || liquid || this.flying || this.onLadder) {
+      if (this.onGround && this.fallStart !== null && !liquid && !this.flying) this.landed = Math.max(0, this.fallStart - this.pos[1]);
+      this.fallStart = null;
+    } else if (this.fallStart === null || this.pos[1] > this.fallStart) this.fallStart = this.pos[1];
+
+    const moved = Math.hypot(this.pos[0] - px0, this.pos[2] - pz0);
+    this.distWalked += moved;
+    if (this.onGround) this.stepDist += moved;
+
+    // view bobbing / sprint FOV / sneak camera
     const hs = Math.hypot(v[0], v[2]);
     const walking = this.onGround && !this.flying && hs > 0.5;
     this.bobAmount += ((walking ? Math.min(hs / 4.3, 1.4) : 0) - this.bobAmount) * (1 - Math.exp(-dt * 8));
     if (walking) this.bobPhase += dt * hs * 1.35;
     this.fovBoost += ((this.sprinting && hs > 3 ? (this.flying ? 12 : 8) : 0) - this.fovBoost) * (1 - Math.exp(-dt * 7));
-    if (this.pos[1] < -20) { this.pos[1] = CH + 10; this.vel[1] = 0; }
-    this.updateWaterState();
+    this.sneakOffset += ((this.sneaking && !this.flying ? 0.14 : 0) - this.sneakOffset) * (1 - Math.exp(-dt * 14));
+    if (this.pos[1] < -40 && this.creative) { this.pos[1] = CH + 10; this.vel[1] = 0; }
+    this.updateEnvState();
   }
 
   lookDir() {
     return [-Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), -Math.cos(this.yaw) * Math.cos(this.pitch)];
   }
 
-  // Amanatides-Woo voxel traversal. Returns { pos, normal, id } or null.
+  // Amanatides-Woo voxel traversal against block shapes. Returns { pos, normal, id, dist } or null.
   raycast(maxDist) {
     const o = this.eyePos(), d = this.lookDir();
     let x = Math.floor(o[0]), y = Math.floor(o[1]), z = Math.floor(o[2]);
@@ -202,22 +309,68 @@ class Player {
     let tmz = sz > 0 ? (z + 1 - o[2]) * tdz : sz < 0 ? (o[2] - z) * tdz : Infinity;
     let normal = [0, 0, 0];
     let t = 0;
-    for (let i = 0; i < 64 && t <= maxDist; i++) {
+    for (let i = 0; i < 80 && t <= maxDist; i++) {
       if (y >= 0 && y < CH) {
         const id = this.world.getBlock(x, y, z);
-        if (id !== B.AIR && id !== B.WATER) return { pos: [x, y, z], normal, id };
+        if (id !== B.AIR && id !== B.WATER && id !== B.LAVA) {
+          const box = blockShape(this.world, id, x, y, z);
+          const hit = rayBox(o, d, x + box[0], y + box[1], z + box[2], x + box[3], y + box[4], z + box[5]);
+          if (hit && hit.t <= maxDist) return { pos: [x, y, z], normal: hit.n, id, dist: hit.t, box };
+        }
       }
       if (tmx < tmy && tmx < tmz) { x += sx; t = tmx; tmx += tdx; normal = [-sx, 0, 0]; }
       else if (tmy < tmz) { y += sy; t = tmy; tmy += tdy; normal = [0, -sy, 0]; }
       else { z += sz; t = tmz; tmz += tdz; normal = [0, 0, -sz]; }
     }
+    void normal;
     return null;
   }
 
-  intersectsBlock(bx, by, bz) {
+  intersectsBlock(bx, by, bz, h = 1) {
     const p = this.pos;
     return p[0] + PLAYER_HALF_W > bx && p[0] - PLAYER_HALF_W < bx + 1 &&
-      p[1] + PLAYER_H > by && p[1] < by + 1 &&
+      p[1] + PLAYER_H > by && p[1] < by + h &&
       p[2] + PLAYER_HALF_W > bz && p[2] - PLAYER_HALF_W < bz + 1;
   }
+}
+
+// Selection / hit box of a block in block-local coordinates.
+function blockShape(world, id, x, y, z) {
+  switch (BLOCK_RT[id]) {
+    case RT_SLAB: return [0, 0, 0, 1, 0.5, 1];
+    case RT_BED: return [0, 0, 0, 1, 9 / 16, 1];
+    case RT_FARMLAND: return [0, 0, 0, 1, 15 / 16, 1];
+    case RT_TORCH: return [6 / 16, 0, 6 / 16, 10 / 16, 10 / 16, 10 / 16];
+    case RT_CROSS: return [2 / 16, 0, 2 / 16, 14 / 16, id >= B.WHEAT_0 && id <= B.WHEAT_2 ? 0.3 + (id - B.WHEAT_0) * 0.2 : 13 / 16, 14 / 16];
+    case RT_WALL_TORCH: case RT_LADDER: {
+      // the supporting wall sits on the side opposite the facing
+      const ladder = BLOCK_RT[id] === RT_LADDER;
+      const f = world.getFacing(x, y, z);
+      const t = ladder ? 2 / 16 : 5 / 16;
+      const lo = ladder ? 0 : 3 / 16, hi = ladder ? 1 : 13 / 16;
+      const a = ladder ? 0 : 0.3, b = ladder ? 1 : 0.7;
+      if (f === 0) return [0, lo, a, t, hi, b];
+      if (f === 1) return [1 - t, lo, a, 1, hi, b];
+      if (f === 4) return [a, lo, 0, b, hi, t];
+      return [a, lo, 1 - t, b, hi, 1];
+    }
+    default: return [0, 0, 0, 1, 1, 1];
+  }
+}
+
+// Slab-method ray/box intersection. Returns { t, n } of the entry face or null.
+function rayBox(o, d, x0, y0, z0, x1, y1, z1) {
+  let tmin = -Infinity, tmax = Infinity, n = null;
+  const lo = [x0, y0, z0], hi = [x1, y1, z1];
+  for (let a = 0; a < 3; a++) {
+    if (Math.abs(d[a]) < 1e-9) { if (o[a] < lo[a] || o[a] > hi[a]) return null; continue; }
+    let t1 = (lo[a] - o[a]) / d[a], t2 = (hi[a] - o[a]) / d[a];
+    let s = -1;
+    if (t1 > t2) { const tt = t1; t1 = t2; t2 = tt; s = 1; }
+    if (t1 > tmin) { tmin = t1; n = [0, 0, 0]; n[a] = d[a] > 0 ? -1 : 1; void s; }
+    if (t2 < tmax) tmax = t2;
+    if (tmin > tmax) return null;
+  }
+  if (tmax < 0) return null;
+  return { t: Math.max(0, tmin), n: n || [0, 1, 0] };
 }

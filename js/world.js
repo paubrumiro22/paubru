@@ -1,13 +1,22 @@
 'use strict';
-// Chunk storage, terrain generation (biomes, caves, ores, trees, plants) and player edits.
+// Chunk storage, terrain generation (biomes, caves, lava, ores, trees, plants), block facing,
+// block entities (chests, furnaces) and player edits.
 
 const CS = 16;          // chunk width/depth
 const CH = 128;         // world height
 const SEA = 52;         // sea level (top water block y)
 const CAVE_STEP = 4;    // cave noise sampled every 4 blocks, trilinear in between
+const LAVA_Y = 10;      // carved cave space at or below this level fills with lava
+const FLAT_Y = 50;      // grass level of flat worlds
 
 function chunkKey(cx, cz) { return (cx + 32768) * 65536 + (cz + 32768); }
 function blockIndex(x, y, z) { return (y * CS + z) * CS + x; }
+function posKey(x, y, z) { return ((x + 1048576) * 2097152 + (z + 1048576)) * 128 + y; }
+function keyPos(k) {
+  const y = k % 128, r = (k - y) / 128;
+  const z = (r % 2097152) - 1048576, x = Math.floor(r / 2097152) - 1048576;
+  return [x, y, z];
+}
 
 class Chunk {
   constructor(cx, cz) {
@@ -16,6 +25,7 @@ class Chunk {
     this.heightmap = new Uint8Array(CS * CS);     // highest non-air y per column
     this.grassTint = new Uint8Array(CS * CS * 3);
     this.foliageTint = new Uint8Array(CS * CS * 3);
+    this.light = null;        // sky<<4 | block light, filled by the mesher
     this.maxY = 0;
     this.mesh = null;         // GPU buffers, owned by the renderer
     this.needsMesh = true;
@@ -34,8 +44,10 @@ class Chunk {
 const BIOME = { OCEAN: 0, BEACH: 1, PLAINS: 2, FOREST: 3, DESERT: 4, SNOWY: 5, MOUNTAIN: 6 };
 
 class WorldGen {
-  constructor(seed) {
+  constructor(seed, type) {
     this.seed = seed | 0;
+    this.preset = WORLD_PRESETS[type] || null;
+    this.type = this.preset || type === 'flat' ? type : 'default';
     const s = this.seed;
     this.nCont = new SimplexNoise(s + 11);
     this.nEro = new SimplexNoise(s + 23);
@@ -47,9 +59,12 @@ class WorldGen {
     this.nCaveA = new SimplexNoise(s + 97);
     this.nCaveB = new SimplexNoise(s + 101);
     this.nCaveC = new SimplexNoise(s + 113);
+    this.nPatch = new SimplexNoise(s + 131);
   }
 
   height(x, z) {
+    if (this.preset) return this.preset.height(this, x, z);
+    if (this.type === 'flat') return FLAT_Y;
     const c = this.nCont.fbm2(x * 0.0016, z * 0.0016, 4);
     const e = this.nEro.fbm2(x * 0.0028, z * 0.0028, 3);
     const ridge = 1 - Math.abs(this.nPeak.fbm2(x * 0.0042, z * 0.0042, 4));
@@ -63,6 +78,7 @@ class WorldGen {
   }
 
   climate(x, z) {
+    if (this.type === 'flat') return { temp: 0.05, hum: 0 };
     return {
       temp: this.nTemp.fbm2(x * 0.0011, z * 0.0011, 3),
       hum: this.nHum.fbm2(x * 0.0014 + 100, z * 0.0014 - 100, 3),
@@ -70,6 +86,8 @@ class WorldGen {
   }
 
   biome(h, temp, hum) {
+    if (this.preset) return BIOME.PLAINS;
+    if (this.type === 'flat') return BIOME.PLAINS;
     if (h < SEA - 2) return BIOME.OCEAN;
     if (h >= SEA + 34) return BIOME.MOUNTAIN;
     if (temp < -0.22) return BIOME.SNOWY;
@@ -106,6 +124,7 @@ class WorldGen {
   }
 
   canCarve(y, h) {
+    if (this.type === 'flat') return false;
     if (y <= 4) return false;
     if (y > h) return false;
     // keep a lid under the sea and near shores so water does not drain into caves
@@ -113,7 +132,21 @@ class WorldGen {
     return true;
   }
 
+  generateFlat(chunk) {
+    const b = chunk.blocks;
+    for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+      for (let y = 0; y <= FLAT_Y; y++) {
+        const id = y === 0 ? B.BEDROCK : y < FLAT_Y - 3 ? B.STONE : y < FLAT_Y ? B.DIRT : B.GRASS;
+        b[(y * CS + z) * CS + x] = id;
+      }
+      for (let k = 0; k < 3; k++) chunk.grassTint[(z * CS + x) * 3 + k] = chunk.foliageTint[(z * CS + x) * 3 + k] = [186, 214, 150][k];
+    }
+    chunk.maxY = 0;
+    for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) chunk.recomputeHeight(x, z);
+  }
+
   generate(chunk) {
+    if (this.type === 'flat') { this.generateFlat(chunk); return; }
     const { cx, cz } = chunk;
     const ox = cx * CS, oz = cz * CS;
     const blocks = chunk.blocks;
@@ -145,47 +178,28 @@ class WorldGen {
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
       const wx = ox + x, wz = oz + z;
       const h = heights[(z + P) * HW + x + P];
-      const { temp, hum } = this.climate(wx, wz);
-      const biome = this.biome(h, temp, hum);
-      biomes[z * CS + x] = biome;
       const slope = Math.max(
         Math.abs(heights[(z + P) * HW + x + P + 1] - heights[(z + P) * HW + x + P - 1]),
         Math.abs(heights[(z + P + 1) * HW + x + P] - heights[(z + P - 1) * HW + x + P]));
-
+      const c = this.preset ? this.preset.column(this, wx, wz, h, slope) : this.defaultColumn(wx, wz, h, slope);
+      biomes[z * CS + x] = c.biome;
       // biome tints (stored as multiplier * 200)
-      const t01 = clamp(temp * 0.5 + 0.5, 0, 1), h01 = clamp(hum * 0.5 + 0.5, 0, 1);
-      const cold = [0.72, 0.9, 0.86], warm = [1.12, 1.02, 0.62], lush = [0.8, 1.06, 0.72];
-      const gt = mixc(mixc(cold, warm, t01), lush, h01 * 0.6);
-      const ft = mixc(gt, [0.78, 1.0, 0.7], 0.35);
       for (let k = 0; k < 3; k++) {
-        chunk.grassTint[(z * CS + x) * 3 + k] = clamp(gt[k] * 200, 0, 255);
-        chunk.foliageTint[(z * CS + x) * 3 + k] = clamp(ft[k] * 200, 0, 255);
+        chunk.grassTint[(z * CS + x) * 3 + k] = clamp(c.tint[0][k] * 200, 0, 255);
+        chunk.foliageTint[(z * CS + x) * 3 + k] = clamp(c.tint[1][k] * 200, 0, 255);
       }
-
-      let top, filler, fillerDepth = 3;
-      switch (biome) {
-        case BIOME.OCEAN: top = h < SEA - 8 ? B.GRAVEL : B.SAND; filler = B.SAND; break;
-        case BIOME.BEACH: top = B.SAND; filler = B.SAND; break;
-        case BIOME.DESERT: top = B.SAND; filler = B.SAND; fillerDepth = 4; break;
-        case BIOME.SNOWY: top = h <= SEA + 1 ? B.SAND : B.SNOWY_GRASS; filler = B.DIRT; break;
-        case BIOME.MOUNTAIN: top = h > SEA + 50 ? B.SNOW : (slope > 2 ? B.STONE : B.GRASS); filler = slope > 2 ? B.STONE : B.DIRT; break;
-        default: top = slope > 4 ? B.STONE : B.GRASS; filler = slope > 4 ? B.STONE : B.DIRT;
-      }
-      if (biome !== BIOME.MOUNTAIN && biome !== BIOME.OCEAN && slope > 5 && h > SEA + 6) { top = B.STONE; filler = B.STONE; }
-
-      const col = z * CS + x;
       for (let y = 0; y <= h; y++) {
         let id;
         if (y === 0) id = B.BEDROCK;
         else if (y < 4 && hash3(wx, y, wz, this.seed) < 0.5 - y * 0.12) id = B.BEDROCK;
-        else if (y === h) id = top;
-        else if (y > h - fillerDepth) id = filler;
-        else if (biome === BIOME.DESERT && y > h - fillerDepth - 4) id = B.SANDSTONE;
-        else id = B.STONE;
-        if (id !== B.BEDROCK && this.canCarve(y, h) && caveLerp(x, y, z) < 0) id = B.AIR;
+        else if (y === h) id = c.top;
+        else if (y > h - c.depth) id = c.filler;
+        else if (c.under && y > h - c.depth - c.underDepth) id = c.under;
+        else id = (c.band && c.band(y)) || c.stone;
+        if (id !== B.BEDROCK && this.canCarve(y, h) && !(c.level > h && y >= h - 6) && caveLerp(x, y, z) < 0) id = y <= LAVA_Y ? B.LAVA : B.AIR;
         blocks[(y * CS + z) * CS + x] = id;
       }
-      for (let y = h + 1; y <= SEA; y++) blocks[(y * CS + z) * CS + x] = B.WATER;
+      for (let y = h + 1; y <= c.level; y++) blocks[(y * CS + z) * CS + x] = c.ice && y === c.level ? B.ICE : c.liquid;
       // expose dirt under carved surface as grass
       if (h > SEA && blocks[(h * CS + z) * CS + x] === B.AIR) {
         for (let y = h - 1; y > 1; y--) {
@@ -194,20 +208,45 @@ class WorldGen {
           if (blocks[i] !== B.AIR) break;
         }
       }
-      void col;
     }
 
     this.placeOres(chunk, ox, oz);
     this.placePlants(chunk, heights, HW, P, biomes, ox, oz);
+    this.placeCaveDecor(chunk, heights, HW, P, ox, oz);
     this.placeTrees(chunk, ox, oz);
 
     chunk.maxY = 0;
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) chunk.recomputeHeight(x, z);
   }
 
+  defaultColumn(wx, wz, h, slope) {
+    const { temp, hum } = this.climate(wx, wz);
+    const biome = this.biome(h, temp, hum);
+    const t01 = clamp(temp * 0.5 + 0.5, 0, 1), h01 = clamp(hum * 0.5 + 0.5, 0, 1);
+    const cold = [0.72, 0.9, 0.86], warm = [1.12, 1.02, 0.62], lush = [0.8, 1.06, 0.72];
+    const gt = mixc(mixc(cold, warm, t01), lush, h01 * 0.6);
+    const ft = mixc(gt, [0.78, 1.0, 0.7], 0.35);
+    let top, filler, depth = 3, under = 0;
+    switch (biome) {
+      case BIOME.OCEAN: top = h < SEA - 8 ? B.GRAVEL : B.SAND; filler = B.SAND; break;
+      case BIOME.BEACH: top = B.SAND; filler = B.SAND; break;
+      case BIOME.DESERT: top = B.SAND; filler = B.SAND; depth = 4; under = B.SANDSTONE; break;
+      case BIOME.SNOWY: top = h <= SEA + 1 ? B.SAND : B.SNOWY_GRASS; filler = B.DIRT; break;
+      case BIOME.MOUNTAIN: top = h > SEA + 50 ? B.SNOW : (slope > 2 ? B.STONE : B.GRASS); filler = slope > 2 ? B.STONE : B.DIRT; break;
+      default: top = slope > 4 ? B.STONE : B.GRASS; filler = slope > 4 ? B.STONE : B.DIRT;
+    }
+    if (biome !== BIOME.MOUNTAIN && biome !== BIOME.OCEAN && slope > 5 && h > SEA + 6) { top = B.STONE; filler = B.STONE; }
+    // clay beds on shallow sea floors
+    if (h < SEA && h > SEA - 7 && this.nPatch.noise2D(wx * 0.07, wz * 0.07) > 0.5) { top = B.CLAY; filler = B.CLAY; depth = 2; }
+    return { top, filler, depth, under, underDepth: 4, stone: B.STONE, band: null, liquid: B.WATER, level: SEA, ice: false, tint: [gt, ft], biome };
+  }
+
   placeOres(chunk, ox, oz) {
     const rng = mulberry32((this.seed ^ Math.imul(chunk.cx, 73856093) ^ Math.imul(chunk.cz, 19349663)) | 0);
-    const ores = [[B.COAL_ORE, 14, 8, 100], [B.IRON_ORE, 8, 6, 64], [B.GOLD_ORE, 3, 5, 32], [B.DIAMOND_ORE, 2, 4, 16]];
+    const ores = [
+      [B.GRANITE, 2, 26, 90], [B.DIORITE, 2, 26, 90], [B.ANDESITE, 2, 26, 90], [B.GRAVEL, 2, 18, 80], [B.DIRT, 2, 18, 80],
+      [B.COAL_ORE, 14, 9, 100], [B.IRON_ORE, 9, 7, 64], [B.GOLD_ORE, 3, 6, 32], [B.DIAMOND_ORE, 2, 5, 16],
+    ];
     const b = chunk.blocks;
     for (const [id, veins, size, maxY] of ores) {
       for (let v = 0; v < veins; v++) {
@@ -229,20 +268,61 @@ class WorldGen {
     const b = chunk.blocks;
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
       const h = heights[(z + P) * HW + x + P];
-      if (h + 1 >= CH) continue;
+      if (h + 3 >= CH) continue;
       const ground = b[(h * CS + z) * CS + x];
       const above = (h + 1) * CS * CS + z * CS + x;
-      if (b[above] !== B.AIR) continue;
+      if (b[above] !== B.AIR && !(this.preset && b[above] === B.WATER)) continue;
       const biome = biomes[z * CS + x];
-      const r = hash3(ox + x, h, oz + z, this.seed + 5);
+      const wx = ox + x, wz = oz + z;
+      const r = hash3(wx, h, wz, this.seed + 5);
+      if (this.preset) {
+        const pl = this.preset.plant(this, wx, wz, h, ground, r);
+        if (pl) for (let i = 0; i < pl.ids.length && h + 1 + i < CH; i++) {
+          const k = ((h + 1 + i) * CS + z) * CS + x;
+          if (b[k] === B.AIR || (pl.water && b[k] === B.WATER)) b[k] = pl.ids[i];
+        }
+        continue;
+      }
+      // sugar cane on shores next to water
+      if ((ground === B.GRASS || ground === B.SAND || ground === B.DIRT) && h === SEA && r < 0.18) {
+        const wet = heights[(z + P) * HW + x + P + 1] < SEA || heights[(z + P) * HW + x + P - 1] < SEA ||
+          heights[(z + P + 1) * HW + x + P] < SEA || heights[(z + P - 1) * HW + x + P] < SEA;
+        if (wet) {
+          const n = 1 + Math.floor(hash3(wx, 9, wz, this.seed) * 3);
+          for (let i = 1; i <= n; i++) b[((h + i) * CS + z) * CS + x] = B.SUGAR_CANE;
+          continue;
+        }
+      }
       if (ground === B.GRASS) {
-        const grassChance = biome === BIOME.PLAINS ? 0.3 : biome === BIOME.FOREST ? 0.16 : 0.1;
-        if (r < 0.018) b[above] = B.ROSE;
-        else if (r < 0.04) b[above] = B.DANDELION;
-        else if (r < 0.04 + grassChance) b[above] = B.TALLGRASS;
-      } else if (ground === B.SAND && biome === BIOME.DESERT && r < 0.006 && h > SEA + 1) {
-        const n = 1 + Math.floor(hash3(ox + x, 7, oz + z, this.seed) * 3);
-        for (let i = 1; i <= n && h + i < CH; i++) b[((h + i) * CS + z) * CS + x] = B.CACTUS;
+        const grassChance = biome === BIOME.PLAINS ? 0.3 : biome === BIOME.FOREST ? 0.18 : 0.1;
+        if (r < 0.014) b[above] = B.ROSE;
+        else if (r < 0.03) b[above] = B.DANDELION;
+        else if (r < 0.036 && biome === BIOME.PLAINS) b[above] = B.TULIP;
+        else if (r < 0.042 && biome !== BIOME.DESERT) b[above] = B.BLUEBELL;
+        else if (r < 0.0445 && biome === BIOME.FOREST) b[above] = hash3(wx, 3, wz, this.seed) < 0.5 ? B.RED_MUSHROOM : B.BROWN_MUSHROOM;
+        else if (r < 0.0457 && (biome === BIOME.PLAINS || biome === BIOME.FOREST)) b[above] = hash3(wx, 4, wz, this.seed) < 0.7 ? B.PUMPKIN : B.MELON;
+        else if (r < 0.05 + grassChance) b[above] = biome === BIOME.FOREST && hash3(wx, 6, wz, this.seed) < 0.3 ? B.FERN : B.TALLGRASS;
+      } else if (ground === B.SNOWY_GRASS && r < 0.06) {
+        b[above] = B.FERN;
+      } else if (ground === B.SAND && biome === BIOME.DESERT && h > SEA + 1) {
+        if (r < 0.006) {
+          const n = 1 + Math.floor(hash3(wx, 7, wz, this.seed) * 3);
+          for (let i = 1; i <= n; i++) b[((h + i) * CS + z) * CS + x] = B.CACTUS;
+        } else if (r < 0.016) b[above] = B.DEAD_BUSH;
+      }
+    }
+  }
+
+  // Mushrooms on dark cave floors.
+  placeCaveDecor(chunk, heights, HW, P, ox, oz) {
+    const b = chunk.blocks;
+    for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+      const h = heights[(z + P) * HW + x + P];
+      for (let y = LAVA_Y + 2; y < h - 4; y++) {
+        const i = (y * CS + z) * CS + x;
+        if (b[i] !== B.AIR || b[i - CS * CS] !== B.STONE) continue;
+        const r = hash3(ox + x, y, oz + z, this.seed + 17);
+        if (r < 0.006) b[i] = r < 0.003 ? B.RED_MUSHROOM : B.BROWN_MUSHROOM;
       }
     }
   }
@@ -250,7 +330,19 @@ class WorldGen {
   // Trees are decided on a jittered grid, so every chunk can reproduce the parts of
   // neighbouring trees that overhang it without cross-chunk writes.
   placeTrees(chunk, ox, oz) {
-    const cell = 5, R = 3;
+    const P = this.preset;
+    const cell = P ? P.trees.cell : 5, R = P ? P.trees.R : 3;
+    const b = chunk.blocks;
+    const get = (wx, wy, wz) => {
+      const lx = wx - ox, lz = wz - oz;
+      if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || wy < 0 || wy >= CH) return -1;
+      return b[(wy * CS + lz) * CS + lx];
+    };
+    const set = (wx, wy, wz, id) => {
+      const lx = wx - ox, lz = wz - oz;
+      if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || wy < 1 || wy >= CH) return;
+      b[(wy * CS + lz) * CS + lx] = id;
+    };
     const gx0 = Math.floor((ox - R) / cell), gx1 = Math.floor((ox + CS + R) / cell);
     const gz0 = Math.floor((oz - R) / cell), gz1 = Math.floor((oz + CS + R) / cell);
     for (let gz = gz0; gz <= gz1; gz++) for (let gx = gx0; gx <= gx1; gx++) {
@@ -258,6 +350,16 @@ class WorldGen {
       const tz = gz * cell + Math.floor(hash3(gx, 2, gz, this.seed) * cell);
       if (tx < ox - R || tx >= ox + CS + R || tz < oz - R || tz >= oz + CS + R) continue;
       const h = this.height(tx, tz);
+      if (P) {
+        if (h > CH - 32) continue;
+        const t = P.tree(this, tx, tz, h, hash3(gx, 3, gz, this.seed));
+        if (!t) continue;
+        const sl = Math.max(Math.abs(this.height(tx + 1, tz) - this.height(tx - 1, tz)), Math.abs(this.height(tx, tz + 1) - this.height(tx, tz - 1)));
+        if (sl > 2) continue;
+        if (this.canCarve(h, h) && this.caveAt(tx, h, tz) < 0) continue;
+        buildTree(get, set, tx, h + 1, tz, t.kind, hash3(gx, 5, gz, this.seed), this.seed, t.dir);
+        continue;
+      }
       if (h <= SEA + 1 || h > SEA + 44) continue;
       const { temp, hum } = this.climate(tx, tz);
       const biome = this.biome(h, temp, hum);
@@ -272,62 +374,113 @@ class WorldGen {
       let kind = 'oak';
       if (biome === BIOME.SNOWY || (biome === BIOME.MOUNTAIN && h > SEA + 20)) kind = 'spruce';
       else if (biome === BIOME.FOREST && r < 0.3) kind = 'birch';
-      this.buildTree(chunk, ox, oz, tx, h + 1, tz, kind, hash3(gx, 5, gz, this.seed));
+      buildTree(get, set, tx, h + 1, tz, kind, hash3(gx, 5, gz, this.seed), this.seed);
     }
   }
+}
 
-  buildTree(chunk, ox, oz, x, y, z, kind, r) {
-    const b = chunk.blocks;
-    const set = (wx, wy, wz, id, force) => {
-      const lx = wx - ox, lz = wz - oz;
-      if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || wy < 1 || wy >= CH) return;
-      const i = (wy * CS + lz) * CS + lx;
-      const cur = b[i];
-      if (force ? (cur === B.AIR || BLOCK_RT[cur] === RT_CROSS || BLOCK_RT[cur] === RT_CUTOUT) : (cur === B.AIR || BLOCK_RT[cur] === RT_CROSS)) b[i] = id;
-    };
-    const lx = x - ox, lz = z - oz;
-    if (lx >= 0 && lx < CS && lz >= 0 && lz < CS && y - 1 >= 0) {
-      const gi = ((y - 1) * CS + lz) * CS + lx;
-      if (b[gi] === B.GRASS || b[gi] === B.SNOWY_GRASS) b[gi] = B.DIRT;
+// Shared by world generation and growing saplings. get() returns -1 outside the writable area.
+function buildTree(get, set, x, y, z, kind, r, seed, dir) {
+  const canLog = (id) => id === B.AIR || (id >= 0 && (BLOCK_RT[id] === RT_CROSS || BLOCK_RT[id] === RT_CUTOUT));
+  const canLeaf = (id) => id === B.AIR || (id >= 0 && BLOCK_RT[id] === RT_CROSS && id !== B.SUGAR_CANE);
+  const log = (wx, wy, wz, id) => { const c = get(wx, wy, wz); if (c >= 0 && canLog(c)) set(wx, wy, wz, id); };
+  const leaf = (wx, wy, wz, id) => { const c = get(wx, wy, wz); if (c >= 0 && canLeaf(c)) set(wx, wy, wz, id); };
+  const g = get(x, y - 1, z);
+  if (g === B.GRASS || g === B.SNOWY_GRASS) set(x, y - 1, z, B.DIRT);
+  if (kind === 'palm') {
+    // leaning trunk and a crown of drooping fronds
+    const hgt = 6 + Math.floor(r * 4);
+    const a = dir !== undefined ? dir : hash3(x, y, z, seed + 3) * Math.PI * 2;
+    const lx = Math.cos(a), lz = Math.sin(a);
+    let px = x, pz = z, ox = 0, oz = 0;
+    for (let i = 0; i < hgt; i++) {
+      if (i > 2) { const k = (i - 2) / (hgt - 2); ox = lx * k * k * 3; oz = lz * k * k * 3; }
+      px = x + Math.round(ox); pz = z + Math.round(oz);
+      log(px, y + i, pz, B.PALM_LOG);
     }
-    if (kind === 'spruce') {
-      const hgt = 7 + Math.floor(r * 4);
-      for (let i = 0; i < hgt; i++) set(x, y + i, z, B.SPRUCE_LOG, true);
-      let rad = 0;
-      for (let i = hgt; i >= 2; i--) {
-        const yy = y + i;
-        for (let dz = -rad; dz <= rad; dz++) for (let dx = -rad; dx <= rad; dx++) {
-          if (Math.abs(dx) + Math.abs(dz) > rad + (rad > 1 ? 1 : 0)) continue;
-          set(x + dx, yy, z + dz, B.SPRUCE_LEAVES, false);
-        }
-        rad = rad >= 3 ? 1 : rad + 1;
-        if (i === hgt) rad = 1;
-      }
-      set(x, y + hgt, z, B.SPRUCE_LEAVES, false);
-      return;
-    }
-    const log = kind === 'birch' ? B.BIRCH_LOG : B.LOG;
-    const leaves = kind === 'birch' ? B.BIRCH_LEAVES : B.LEAVES;
-    const hgt = (kind === 'birch' ? 5 : 4) + Math.floor(r * 3);
-    for (let i = 0; i < hgt; i++) set(x, y + i, z, log, true);
     const top = y + hgt;
-    for (let yy = top - 3; yy <= top; yy++) {
-      const rad = yy >= top - 1 ? 1 : 2;
-      for (let dz = -rad; dz <= rad; dz++) for (let dx = -rad; dx <= rad; dx++) {
-        const corner = Math.abs(dx) === rad && Math.abs(dz) === rad;
-        if (corner && (yy === top || hash3(x + dx, yy, z + dz, this.seed + 9) < 0.5)) continue;
-        set(x + dx, yy, z + dz, leaves, false);
+    leaf(px, top, pz, B.PALM_LEAVES);
+    leaf(px, top - 1, pz, B.PALM_LEAVES);
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const len = dx && dz ? 3 : 4;
+      for (let k = 1; k <= len; k++) {
+        const fy = top - (k >= 3 ? 1 : 0) - (k >= 4 ? 1 : 0);
+        leaf(px + dx * k, fy, pz + dz * k, B.PALM_LEAVES);
+        if (k === len) leaf(px + dx * k, fy - 1, pz + dz * k, B.PALM_LEAVES);
       }
+    }
+    return;
+  }
+  if (kind === 'dead') {
+    const hgt = 3 + Math.floor(r * 3);
+    for (let i = 0; i < hgt; i++) log(x, y + i, z, B.LOG);
+    const bx = r < 0.5 ? 1 : -1;
+    log(x + bx, y + hgt - 1, z, B.LOG); log(x + bx * 2, y + hgt, z, B.LOG);
+    if (r > 0.3) { log(x, y + hgt - 2, z - bx, B.LOG); log(x, y + hgt - 1, z - bx * 2, B.LOG); }
+    return;
+  }
+  if (kind === 'giant') {
+    const hgt = 13 + Math.floor(r * 8);
+    for (let i = -1; i < hgt; i++) for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) log(x + dx, y + i, z + dz, B.LOG);
+    for (const [dx, dz] of [[-1, 0], [2, 1], [1, -1], [0, 2]]) { log(x + dx, y, z + dz, B.LOG); if (hash3(x + dx, y, z + dz, seed) < 0.5) log(x + dx, y + 1, z + dz, B.LOG); }
+    const blob = (cx, cy, cz, rad) => {
+      const R = Math.ceil(rad);
+      for (let dy = -R; dy <= R; dy++) for (let dz = -R; dz <= R; dz++) for (let dx = -R; dx <= R; dx++) {
+        const dd = (dx * dx + dz * dz) / (rad * rad) + (dy * dy) / (rad * rad * 0.45);
+        if (dd > 1 || (dd > 0.7 && hash3(cx + dx, cy + dy, cz + dz, seed + 5) < 0.45)) continue;
+        leaf(cx + dx, cy + dy, cz + dz, B.LEAVES);
+      }
+    };
+    blob(x, y + hgt, z, 5.2);
+    for (let b = 0; b < 4; b++) {
+      const a = (b / 4) * Math.PI * 2 + r * 3, len = 3 + ((b + Math.floor(r * 7)) % 2);
+      const by = y + hgt - 4 - (b % 2) * 2;
+      const ex = x + Math.round(Math.cos(a) * len), ez = z + Math.round(Math.sin(a) * len);
+      for (let s = 1; s <= len; s++) log(x + Math.round(Math.cos(a) * s), by + Math.floor(s / 2), z + Math.round(Math.sin(a) * s), B.LOG);
+      blob(ex, by + 2, ez, 3.2);
+    }
+    return;
+  }
+  if (kind === 'spruce') {
+    const hgt = 7 + Math.floor(r * 4);
+    for (let i = 0; i < hgt; i++) log(x, y + i, z, B.SPRUCE_LOG);
+    let rad = 0;
+    for (let i = hgt; i >= 2; i--) {
+      const yy = y + i;
+      for (let dz = -rad; dz <= rad; dz++) for (let dx = -rad; dx <= rad; dx++) {
+        if (Math.abs(dx) + Math.abs(dz) > rad + (rad > 1 ? 1 : 0)) continue;
+        leaf(x + dx, yy, z + dz, B.SPRUCE_LEAVES);
+      }
+      rad = rad >= 3 ? 1 : rad + 1;
+      if (i === hgt) rad = 1;
+    }
+    leaf(x, y + hgt, z, B.SPRUCE_LEAVES);
+    return;
+  }
+  const logId = kind === 'birch' ? B.BIRCH_LOG : B.LOG;
+  const leaves = kind === 'birch' ? B.BIRCH_LEAVES : B.LEAVES;
+  const hgt = (kind === 'birch' ? 5 : 4) + Math.floor(r * 3);
+  for (let i = 0; i < hgt; i++) log(x, y + i, z, logId);
+  const top = y + hgt;
+  for (let yy = top - 3; yy <= top; yy++) {
+    const rad = yy >= top - 1 ? 1 : 2;
+    for (let dz = -rad; dz <= rad; dz++) for (let dx = -rad; dx <= rad; dx++) {
+      const corner = Math.abs(dx) === rad && Math.abs(dz) === rad;
+      if (corner && (yy === top || hash3(x + dx, yy, z + dz, seed + 9) < 0.5)) continue;
+      leaf(x + dx, yy, z + dz, leaves);
     }
   }
 }
 
 class World {
-  constructor(seed) {
+  constructor(seed, type) {
     this.seed = seed;
-    this.gen = new WorldGen(seed);
+    this.type = type === 'flat' || WORLD_PRESETS[type] ? type : 'default';
+    this.gen = new WorldGen(seed, this.type);
     this.chunks = new Map();
     this.edits = new Map();   // chunkKey -> Map(blockIndex -> id)
+    this.facing = new Map();  // posKey -> face index (0 +X, 1 -X, 4 +Z, 5 -Z)
+    this.blockEntities = new Map(); // posKey -> { type, ... }
     this.editsDirty = false;
   }
 
@@ -341,7 +494,22 @@ class World {
     return c.blocks[(y * CS + (z & 15)) * CS + (x & 15)];
   }
 
+  // Packed sky<<4 | block light (full daylight where the chunk has no light data yet).
+  getLight(x, y, z) {
+    if (y >= CH) return 0xf0;
+    if (y < 0) return 0;
+    const c = this.chunks.get(chunkKey(x >> 4, z >> 4));
+    if (!c || !c.light) return 0xf0;
+    return c.light[(y * CS + (z & 15)) * CS + (x & 15)];
+  }
+
   isLoaded(x, z) { return this.chunks.has(chunkKey(x >> 4, z >> 4)); }
+
+  getFacing(x, y, z) {
+    const f = this.facing.get(posKey(x, y, z));
+    if (f !== undefined) return f;
+    return [0, 1, 4, 5][Math.floor(hash3(x, y, z, 7) * 4)];
+  }
 
   generateChunk(cx, cz) {
     const c = new Chunk(cx, cz);
@@ -362,14 +530,17 @@ class World {
   }
 
   // Returns the list of chunks that must be re-meshed (edited chunk first).
-  setBlock(x, y, z, id) {
+  setBlock(x, y, z, id, facing) {
     if (y < 0 || y >= CH) return null;
     const cx = x >> 4, cz = z >> 4;
     const c = this.getChunk(cx, cz);
     if (!c) return null;
     const lx = x & 15, lz = z & 15;
     const idx = (y * CS + lz) * CS + lx;
-    if (c.blocks[idx] === id) return null;
+    const pk = posKey(x, y, z);
+    if (facing !== undefined) this.facing.set(pk, facing);
+    else if (!(FACING_BLOCKS.has(id) && FACING_BLOCKS.has(c.blocks[idx]))) this.facing.delete(pk);
+    if (c.blocks[idx] === id) return facing !== undefined ? [c] : null;
     c.blocks[idx] = id;
     c.recomputeHeight(lx, lz);
     const key = chunkKey(cx, cz);
@@ -414,6 +585,29 @@ class World {
         if (idx >= 0 && idx < CS * CS * CH && id >= 0 && id < 256 && BLOCK_NAME[id] !== undefined) m.set(idx, id);
       }
       this.edits.set(key, m);
+    }
+  }
+
+  serializeExtras() {
+    const facing = [];
+    for (const [k, f] of this.facing) facing.push(k, f);
+    const be = [];
+    for (const [k, e] of this.blockEntities) be.push([k, e]);
+    return { facing, be };
+  }
+
+  loadExtras(obj) {
+    this.facing.clear();
+    this.blockEntities.clear();
+    if (!obj || typeof obj !== 'object') return;
+    if (Array.isArray(obj.facing)) for (let i = 0; i + 1 < obj.facing.length; i += 2) {
+      const k = Number(obj.facing[i]), f = obj.facing[i + 1] | 0;
+      if (Number.isFinite(k) && [0, 1, 4, 5].includes(f)) this.facing.set(k, f);
+    }
+    if (Array.isArray(obj.be)) for (const pair of obj.be) {
+      if (!Array.isArray(pair) || pair.length !== 2 || !Number.isFinite(Number(pair[0]))) continue;
+      const e = pair[1];
+      if (e && typeof e === 'object' && typeof e.type === 'string') this.blockEntities.set(Number(pair[0]), e);
     }
   }
 }

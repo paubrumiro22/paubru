@@ -1,16 +1,22 @@
 'use strict';
 // Builds chunk meshes: flood-filled sky/block light over a padded region, smooth lighting,
-// per-vertex ambient occlusion, and separate opaque / cutout / water vertex streams.
+// per-vertex ambient occlusion, shaped blocks (slabs, torches, ladders, beds) and separate
+// opaque / cutout / water vertex streams. The light it computes is kept per chunk so
+// entities and mob spawning can read it.
 //
-// Vertex layout (16 bytes):
-//   u16 x*16, y*16, z*16, textureLayer
+// Vertex layout (20 bytes):
+//   u16 x*64, y*64, z*64, textureLayer
 //   u8  normalIndex | flags<<3, ao(0-3), skyLight(0-255), blockLight(0-255)
-//   u8  tintR, tintG, tintB (1.0 = 200), uvBits (bit0 = u, bit1 = v)
+//   u8  tintR, tintG, tintB (1.0 = 200), unused
+//   u8  u*16, v*16, unused, unused
 
 const LP = 14;                 // light padding around the chunk
 const RS = CS + 2 * LP;        // padded width
 const RSS = RS * RS;
 const PH = CH + 2;             // padded height (y = -1 .. CH)
+const POS_SCALE = 64;          // vertex position units per block
+const P4 = POS_SCALE / 16;     // per 1/16 of a block
+const VERT_BYTES = 20;
 const padBlocks = new Uint8Array(RSS * PH);
 const skyL = new Uint8Array(RSS * PH);
 const blkL = new Uint8Array(RSS * PH);
@@ -24,22 +30,23 @@ class MeshBuilder {
   constructor(cap) { this.alloc(cap); this.count = 0; }
   alloc(cap) {
     const old = this.u8;
-    this.buf = new ArrayBuffer(cap * 16);
+    this.buf = new ArrayBuffer(cap * VERT_BYTES);
     this.u16 = new Uint16Array(this.buf);
     this.u8 = new Uint8Array(this.buf);
-    if (old) this.u8.set(old.subarray(0, this.count * 16));
+    if (old) this.u8.set(old.subarray(0, this.count * VERT_BYTES));
     this.cap = cap;
   }
   ensure(n) { if (this.count + n > this.cap) this.alloc(Math.max(this.cap * 2, this.count + n)); }
-  v(x, y, z, layer, nf, ao, sky, blk, r, g, b, uv) {
+  v(x, y, z, layer, nf, ao, sky, blk, r, g, b, u, vv) {
     const o = this.count++;
-    const i16 = o * 8, i8 = o * 16;
+    const i16 = o * 10, i8 = o * VERT_BYTES;
     this.u16[i16] = x; this.u16[i16 + 1] = y; this.u16[i16 + 2] = z; this.u16[i16 + 3] = layer;
     const u8 = this.u8;
     u8[i8 + 8] = nf; u8[i8 + 9] = ao; u8[i8 + 10] = sky; u8[i8 + 11] = blk;
-    u8[i8 + 12] = r; u8[i8 + 13] = g; u8[i8 + 14] = b; u8[i8 + 15] = uv;
+    u8[i8 + 12] = r; u8[i8 + 13] = g; u8[i8 + 14] = b; u8[i8 + 15] = 0;
+    u8[i8 + 16] = u; u8[i8 + 17] = vv; u8[i8 + 18] = 0; u8[i8 + 19] = 0;
   }
-  data() { return this.u8.subarray(0, this.count * 16); }
+  data() { return this.u8.subarray(0, this.count * VERT_BYTES); }
 }
 
 const meshOpaque = new MeshBuilder(1 << 15);
@@ -47,6 +54,7 @@ const meshCutout = new MeshBuilder(1 << 14);
 const meshWater = new MeshBuilder(1 << 13);
 
 const DIRS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+const OPPOSITE = [1, 0, 3, 2, 5, 4];
 const FACE_CORNERS = [
   [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]],
   [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]],
@@ -55,10 +63,14 @@ const FACE_CORNERS = [
   [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]],
   [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]],
 ];
-const CORNER_UV = [2, 3, 1, 0];              // BL, BR, TR, TL
 const AXIS_STRIDE = [1, RSS, RS];            // x, y, z in padded index space
 const DIR_OFFSET = DIRS.map(([x, y, z]) => x * AXIS_STRIDE[0] + y * AXIS_STRIDE[1] + z * AXIS_STRIDE[2]);
 const FACE_TANGENT_AXES = [[1, 2], [1, 2], [0, 2], [0, 2], [0, 1], [0, 1]];
+
+// Texture coordinates (0..1) of a point inside a block for face d. Matches the tangent
+// frames used for normal mapping in the shaders.
+function faceU(d, x, y, z) { return d === 0 ? 1 - z : d === 1 ? z : d === 5 ? 1 - x : x; }
+function faceV(d, x, y, z) { return d === 2 ? z : d === 3 ? 1 - z : 1 - y; }
 
 // Precomputed per face/corner: offsets of the two side cells and the corner cell.
 const AO_OFFSETS = FACE_CORNERS.map((corners, d) => corners.map((c) => {
@@ -67,6 +79,8 @@ const AO_OFFSETS = FACE_CORNERS.map((corners, d) => corners.map((c) => {
   const s1 = da * AXIS_STRIDE[a], s2 = db * AXIS_STRIDE[b];
   return [s1, s2, s1 + s2];
 }));
+const CORNER_U = FACE_CORNERS.map((cs, d) => cs.map((c) => Math.round(faceU(d, c[0], c[1], c[2]) * 16)));
+const CORNER_V = FACE_CORNERS.map((cs, d) => cs.map((c) => Math.round(faceV(d, c[0], c[1], c[2]) * 16)));
 
 function fillPadded(world, cx, cz, top) {
   padBlocks.fill(0);
@@ -158,6 +172,82 @@ function computeLight(top) {
   if (tail) propagate(blkL, head, tail, top);
 }
 
+function storeLight(chunk, top) {
+  const L = chunk.light || (chunk.light = new Uint8Array(CS * CS * CH));
+  for (let y = 0; y < CH; y++) {
+    const base = y * CS * CS;
+    if (y > top) { L.fill(0xf0, base, base + CS * CS); continue; }
+    for (let z = 0; z < CS; z++) {
+      let p = pidx(LP, y, z + LP);
+      const o = base + z * CS;
+      for (let x = 0; x < CS; x++, p++) L[o + x] = (skyL[p] << 4) | blkL[p];
+    }
+  }
+}
+
+// ---- shaped blocks ----
+// Emits the faces of an axis-aligned box given in 1/16 units inside block (x, y, z).
+// uvFn(d, k, u, v) may remap texture coordinates (bed rotation, torch tops).
+const _box = [0, 0, 0, 0, 0, 0];
+function emitBox(builder, p, x, y, z, bx0, by0, bz0, bx1, by1, bz1, layerOf, flags, tint, uvFn) {
+  _box[0] = bx0; _box[1] = by0; _box[2] = bz0; _box[3] = bx1; _box[4] = by1; _box[5] = bz1;
+  for (let d = 0; d < 6; d++) {
+    const onEdge = d === 0 ? bx1 === 16 : d === 1 ? bx0 === 0 : d === 2 ? by1 === 16 : d === 3 ? by0 === 0 : d === 4 ? bz1 === 16 : bz0 === 0;
+    const nIdx = p + DIR_OFFSET[d];
+    if (onEdge && BLOCK_OPAQUE[padBlocks[nIdx]]) continue;
+    const layer = layerOf(d);
+    if (layer < 0) continue;
+    const li = onEdge ? nIdx : p;
+    const s = Math.round(Math.max(skyL[li], skyL[p]) * 17), b2 = Math.round(Math.max(blkL[li], blkL[p]) * 17);
+    builder.ensure(4);
+    const corners = FACE_CORNERS[d];
+    for (let k = 0; k < 4; k++) {
+      const c = corners[k];
+      const fx = (c[0] ? bx1 : bx0) / 16, fy = (c[1] ? by1 : by0) / 16, fz = (c[2] ? bz1 : bz0) / 16;
+      let u = faceU(d, fx, fy, fz), v = faceV(d, fx, fy, fz);
+      if (uvFn) { const r = uvFn(d, k, u, v, fx, fy, fz); u = r[0]; v = r[1]; }
+      builder.v((x * 16 + fx * 16) * P4, (y * 16 + fy * 16) * P4, (z * 16 + fz * 16) * P4, layer, d | (flags << 3), 3, s, b2,
+        tint[0], tint[1], tint[2], Math.round(u * 16), Math.round(v * 16));
+    }
+  }
+}
+
+// Free-form quad (positions in blocks, relative to the chunk) for tilted wall torches.
+function emitQuad(builder, pts, uvs, layer, nf, s, b2, tint) {
+  builder.ensure(4);
+  for (let k = 0; k < 4; k++) {
+    const q = pts[k];
+    builder.v(Math.round(q[0] * POS_SCALE), Math.round(q[1] * POS_SCALE), Math.round(q[2] * POS_SCALE), layer, nf, 3, s, b2,
+      tint[0], tint[1], tint[2], Math.round(uvs[k][0] * 16), Math.round(uvs[k][1] * 16));
+  }
+}
+
+const WHITE_TINT = [200, 200, 200];
+// outward normal of a wall-mounted block's face index -> [dx, dz]
+const FACE_DXZ = { 0: [1, 0], 1: [-1, 0], 4: [0, 1], 5: [0, -1] };
+
+function wallTorch(builder, p, x, y, z, facing, layer, flags) {
+  // the torch leans away from the wall it hangs on
+  const [nx, nz] = FACE_DXZ[facing] || [0, 1];
+  const tx = -nz, tz = nx; // tangent along the wall
+  const tilt = 0.38, h = 10 / 16, w = 1 / 16;
+  const base = [x + 0.5 - nx * 0.5 + nx * 0.06, y + 3.5 / 16, z + 0.5 - nz * 0.5 + nz * 0.06];
+  const up = [nx * Math.sin(tilt), Math.cos(tilt), nz * Math.sin(tilt)];
+  const out = [nx * Math.cos(tilt), -Math.sin(tilt), nz * Math.cos(tilt)];
+  const at = (a, b, c) => [base[0] + tx * a + out[0] * b + up[0] * c, base[1] + out[1] * b + up[1] * c, base[2] + tz * a + out[2] * b + up[2] * c];
+  const s = Math.round(skyL[p] * 17), b2 = Math.round(blkL[p] * 17);
+  const nfSide = 6 | (flags << 3);
+  const u0 = 7 / 16, u1 = 9 / 16, vTop = 6 / 16, vBot = 1;
+  // four sides: offsets along tangent (a) and out (b)
+  const sides = [[[-w, -w], [w, -w]], [[w, -w], [w, w]], [[w, w], [-w, w]], [[-w, w], [-w, -w]]];
+  for (const [[a0, b0], [a1, b1]] of sides) {
+    emitQuad(builder, [at(a0, b0, 0), at(a1, b1, 0), at(a1, b1, h), at(a0, b0, h)],
+      [[u0, vBot], [u1, vBot], [u1, vTop], [u0, vTop]], layer, nfSide, s, b2, WHITE_TINT);
+  }
+  emitQuad(builder, [at(-w, w, h), at(w, w, h), at(w, -w, h), at(-w, -w, h)],
+    [[u0, 8 / 16], [u1, 8 / 16], [u1, 6 / 16], [u0, 6 / 16]], layer, 2 | (flags << 3), s, b2, WHITE_TINT);
+}
+
 function buildChunkMesh(world, chunk) {
   const cx = chunk.cx, cz = chunk.cz;
   let top = 0;
@@ -168,11 +258,14 @@ function buildChunkMesh(world, chunk) {
   top = Math.min(CH - 1, top + 1);
   fillPadded(world, cx, cz, top);
   computeLight(top);
+  storeLight(chunk, top);
 
   meshOpaque.count = 0; meshCutout.count = 0; meshWater.count = 0;
   const pb = padBlocks;
   const ao = [0, 0, 0, 0], sk = [0, 0, 0, 0], bl = [0, 0, 0, 0];
   const maxY = Math.min(chunk.maxY, CH - 1);
+  const ox = cx * CS, oz = cz * CS;
+  const tintBuf = [200, 200, 200];
 
   for (let y = 0; y <= maxY; y++) {
     for (let z = 0; z < CS; z++) {
@@ -191,36 +284,76 @@ function buildChunkMesh(world, chunk) {
 
         if (rt === RT_CROSS) {
           if (tintType === TINT_GRASS) { tr = chunk.grassTint[col * 3]; tg = chunk.grassTint[col * 3 + 1]; tb = chunk.grassTint[col * 3 + 2]; }
-          const wx = cx * CS + x, wz = cz * CS + z;
-          const jx = Math.floor(hash3(wx, y, wz, 77) * 5) - 2, jz = Math.floor(hash3(wx, y, wz, 91) * 5) - 2;
-          const x0 = x * 16 + 2 + jx, x1 = x * 16 + 14 + jx, z0 = z * 16 + 2 + jz, z1 = z * 16 + 14 + jz;
-          const y0 = y * 16, y1 = y * 16 + 16;
+          const wx = ox + x, wz = oz + z;
+          const jit = id === B.SUGAR_CANE || (id >= B.WHEAT_0 && id <= B.WHEAT_3) ? 0 : 1;
+          const jx = jit * (Math.floor(hash3(wx, y, wz, 77) * 5) - 2), jz = jit * (Math.floor(hash3(wx, y, wz, 91) * 5) - 2);
+          const x0 = (x * 16 + 2 + jx) * P4, x1 = (x * 16 + 14 + jx) * P4, z0 = (z * 16 + 2 + jz) * P4, z1 = (z * 16 + 14 + jz) * P4;
+          const y0 = y * POS_SCALE, y1 = (y + 1) * POS_SCALE;
           const s = Math.round(skyL[p] * 17), b2 = Math.round(blkL[p] * 17);
           const layer = BLOCK_TEX[id * 6 + 2];
           const nf = 6 | (flags << 3);
           meshCutout.ensure(8);
-          meshCutout.v(x0, y0, z0, layer, nf, 3, s, b2, tr, tg, tb, 2);
-          meshCutout.v(x1, y0, z1, layer, nf, 3, s, b2, tr, tg, tb, 3);
-          meshCutout.v(x1, y1, z1, layer, nf, 3, s, b2, tr, tg, tb, 1);
-          meshCutout.v(x0, y1, z0, layer, nf, 3, s, b2, tr, tg, tb, 0);
-          meshCutout.v(x0, y0, z1, layer, nf, 3, s, b2, tr, tg, tb, 2);
-          meshCutout.v(x1, y0, z0, layer, nf, 3, s, b2, tr, tg, tb, 3);
-          meshCutout.v(x1, y1, z0, layer, nf, 3, s, b2, tr, tg, tb, 1);
-          meshCutout.v(x0, y1, z1, layer, nf, 3, s, b2, tr, tg, tb, 0);
+          meshCutout.v(x0, y0, z0, layer, nf, 3, s, b2, tr, tg, tb, 0, 16);
+          meshCutout.v(x1, y0, z1, layer, nf, 3, s, b2, tr, tg, tb, 16, 16);
+          meshCutout.v(x1, y1, z1, layer, nf, 3, s, b2, tr, tg, tb, 16, 0);
+          meshCutout.v(x0, y1, z0, layer, nf, 3, s, b2, tr, tg, tb, 0, 0);
+          meshCutout.v(x0, y0, z1, layer, nf, 3, s, b2, tr, tg, tb, 0, 16);
+          meshCutout.v(x1, y0, z0, layer, nf, 3, s, b2, tr, tg, tb, 16, 16);
+          meshCutout.v(x1, y1, z0, layer, nf, 3, s, b2, tr, tg, tb, 16, 0);
+          meshCutout.v(x0, y1, z1, layer, nf, 3, s, b2, tr, tg, tb, 0, 0);
+          continue;
+        }
+
+        if (rt >= RT_SLAB) {
+          const tex = (d) => BLOCK_TEX[id * 6 + d];
+          if (rt === RT_SLAB) emitBox(meshOpaque, p, x, y, z, 0, 0, 0, 16, 8, 16, tex, flags, WHITE_TINT, null);
+          else if (rt === RT_FARMLAND) emitBox(meshOpaque, p, x, y, z, 0, 0, 0, 16, 15, 16, tex, flags, WHITE_TINT, null);
+          else if (rt === RT_TORCH) {
+            emitBox(meshCutout, p, x, y, z, 7, 0, 7, 9, 10, 9, tex, flags, WHITE_TINT,
+              (d, k, u, v) => (d === 2 ? [u, v - 1 / 16] : [u, v]));
+          } else if (rt === RT_WALL_TORCH) {
+            wallTorch(meshCutout, p, x, y, z, world.getFacing(ox + x, y, oz + z), BLOCK_TEX[id * 6], flags);
+          } else if (rt === RT_LADDER) {
+            const f = world.getFacing(ox + x, y, oz + z);
+            const [nx, nz] = FACE_DXZ[f] || [0, 1];
+            // quad 1/16 in front of the wall behind it (wall is at -normal)
+            const off = 0.95 / 16;
+            const px = nx ? (nx > 0 ? off : 1 - off) : null, pz = nz ? (nz > 0 ? off : 1 - off) : null;
+            const s = Math.round(skyL[p] * 17), b2 = Math.round(blkL[p] * 17);
+            const pts = [];
+            for (const c of FACE_CORNERS[f]) pts.push([x + (px !== null ? px : c[0]), y + c[1], z + (pz !== null ? pz : c[2])]);
+            const uvs = FACE_CORNERS[f].map((c) => [faceU(f, c[0], c[1], c[2]), faceV(f, c[0], c[1], c[2])]);
+            emitQuad(meshCutout, pts, uvs, BLOCK_TEX[id * 6], f | (flags << 3), s, b2, WHITE_TINT);
+          } else if (rt === RT_BED) {
+            const f = world.getFacing(ox + x, y, oz + z);
+            const alongX = f === 0 || f === 1;
+            const layerOf = (d) => (d === 2 ? tex(2) : d === 3 ? tex(3) : ((alongX ? d < 2 : d >= 4) ? BLOCK_FRONT[id] : tex(0)));
+            emitBox(meshOpaque, p, x, y, z, 0, 0, 0, 16, 9, 16, layerOf, flags, WHITE_TINT, (d, k, u, v, fx, fy, fz) => {
+              if (d !== 2) return [u, v];
+              // pillow (texture top) points to the facing side
+              if (f === 5) return [fx, fz];
+              if (f === 4) return [1 - fx, 1 - fz];
+              if (f === 0) return [fz, 1 - fx];
+              return [1 - fz, fx];
+            });
+          }
           continue;
         }
 
         const isWater = rt === RT_WATER;
+        const isLava = rt === RT_LAVA;
         const isCactus = rt === RT_CACTUS;
-        const waterTopLow = isWater && pb[p + RSS] !== B.WATER;
+        const liquidTopLow = (isWater || isLava) && pb[p + RSS] !== id;
         const builder = isWater ? meshWater : (rt === RT_CUTOUT ? meshCutout : meshOpaque);
+        const facing = FACING_BLOCKS.has(id) ? world.getFacing(ox + x, y, oz + z) : -1;
 
         for (let d = 0; d < 6; d++) {
           const nIdx = p + DIR_OFFSET[d];
           const nb = pb[nIdx];
           // visibility
-          if (isWater) {
-            if (nb === B.WATER || BLOCK_OPAQUE[nb]) continue;
+          if (isWater || isLava) {
+            if (nb === id || BLOCK_OPAQUE[nb]) continue;
+            if (isLava && d !== 2 && nb === B.WATER) continue;
           } else if (isCactus) {
             if (d === 2 && (nb === B.CACTUS || BLOCK_OPAQUE[nb])) continue;
             if (d === 3 && BLOCK_OPAQUE[nb]) continue;
@@ -232,23 +365,25 @@ function buildChunkMesh(world, chunk) {
             if (BLOCK_OPAQUE[nb]) continue;
           }
 
-          const layer = BLOCK_TEX[id * 6 + d];
+          const layer = d === facing ? BLOCK_FRONT[id] : BLOCK_TEX[id * 6 + d];
           let r = tr, g = tg, b = tb;
           if (tintType === TINT_GRASS && d === 2) {
             r = chunk.grassTint[col * 3]; g = chunk.grassTint[col * 3 + 1]; b = chunk.grassTint[col * 3 + 2];
           }
           const corners = FACE_CORNERS[d];
+          const cu = CORNER_U[d], cv = CORNER_V[d];
 
-          if (isWater || isCactus) {
-            const s = Math.round((isWater ? skyL[nIdx] : Math.max(skyL[p], skyL[nIdx])) * 17);
-            const b2 = Math.round((isWater ? blkL[nIdx] : Math.max(blkL[p], blkL[nIdx])) * 17);
+          if (isWater || isLava || isCactus) {
+            const s = Math.round((isCactus ? Math.max(skyL[p], skyL[nIdx]) : skyL[nIdx]) * 17);
+            const b2 = Math.round((isCactus ? Math.max(blkL[p], blkL[nIdx]) : Math.max(blkL[nIdx], isLava ? 15 : 0)) * 17);
             builder.ensure(4);
             for (let k = 0; k < 4; k++) {
               const c = corners[k];
-              let vx = (x + c[0]) * 16, vy = (y + c[1]) * 16, vz = (z + c[2]) * 16;
-              if (isCactus) { vx = x * 16 + (c[0] ? 15 : 1); vz = z * 16 + (c[2] ? 15 : 1); }
-              if (waterTopLow && c[1]) vy -= 2;
-              builder.v(vx, vy, vz, layer, d | (flags << 3), 3, s, b2, r, g, b, CORNER_UV[k]);
+              let vx = (x + c[0]) * POS_SCALE, vy = (y + c[1]) * POS_SCALE, vz = (z + c[2]) * POS_SCALE;
+              let vv = cv[k];
+              if (isCactus) { vx = (x * 16 + (c[0] ? 15 : 1)) * P4; vz = (z * 16 + (c[2] ? 15 : 1)) * P4; }
+              if (liquidTopLow && c[1]) { vy -= 2 * P4; if (d !== 2 && d !== 3) vv = 2; }
+              builder.v(vx, vy, vz, layer, d | (flags << 3), 3, s, b2, r, g, b, cu[k], vv);
             }
             continue;
           }
@@ -274,12 +409,13 @@ function buildChunkMesh(world, chunk) {
           for (let j = 0; j < 4; j++) {
             const k = (start + j) & 3;
             const c = corners[k];
-            builder.v((x + c[0]) * 16, (y + c[1]) * 16, (z + c[2]) * 16, layer, nf, ao[k], sk[k], bl[k], r, g, b, CORNER_UV[k]);
+            builder.v((x + c[0]) * POS_SCALE, (y + c[1]) * POS_SCALE, (z + c[2]) * POS_SCALE, layer, nf, ao[k], sk[k], bl[k], r, g, b, cu[k], cv[k]);
           }
         }
       }
     }
   }
+  void tintBuf;
   return { opaque: meshOpaque, cutout: meshCutout, water: meshWater };
 }
 
