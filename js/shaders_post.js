@@ -103,6 +103,8 @@ uniform float uRaysOn;
 uniform float uUnderwater;
 uniform float uTime;
 uniform float uSaturation;
+uniform float uWeather;
+uniform float uFlash;
 in vec2 vUV;
 layout(location = 0) out vec4 outColor;
 
@@ -131,8 +133,12 @@ void main() {
   vec3 c = texture(uScene, uv).rgb / HDR_SCALE;
   if (uBloomOn > 0.5) c += texture(uBloom, uv).rgb / HDR_SCALE * uBloomStrength;
   if (uRaysOn > 0.5) c += texture(uRays, uv).rgb / HDR_SCALE;
-  c *= uExposure;
+  c *= uExposure * (1.0 + 5.0 * uFlash);
+  c += vec3(0.55, 0.6, 0.8) * uFlash;
   c = acesFitted(c);
+  // rain and storms tint the picture towards a cool grey
+  float lw = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c = mix(c, vec3(lw) * vec3(0.92, 0.97, 1.06), 0.35 * uWeather);
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   c = max(mix(vec3(l), c, uSaturation), 0.0);
   c = toSRGB(c);

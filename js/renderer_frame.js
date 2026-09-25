@@ -37,7 +37,7 @@ Object.assign(Renderer.prototype, {
     this.camForward = f;
     this.near = 0.06;
     // high up (flying) the ground below must stay inside the far plane
-    this.zFar = Math.max(260, this.settings.renderDistance * CS + 80, cam.pos[1] - 40 + this.settings.renderDistance * CS);
+    this.zFar = Math.max(260, this.rd() * CS + 80, cam.pos[1] - 40 + this.rd() * CS);
     this.view = M4.fromBasis(this.view || M4.create(), r, u, back, [0, 0, 0]);
     this.proj = M4.perspective(this.proj || M4.create(), (cam.fov * Math.PI) / 180, aspect, this.near, this.zFar);
     this.viewProj = M4.multiply(this.viewProj || M4.create(), this.proj, this.view);
@@ -62,7 +62,10 @@ Object.assign(Renderer.prototype, {
     return true;
   },
 
-  updateAtmosphere(dayTime, time, eyeSky, dt) {
+  // render distance in chunks, widened a little while flying (rangeBoost is fractional)
+  rd() { return this.settings.renderDistance + (this.rangeBoost || 0); },
+
+  updateAtmosphere(dayTime, time, eyeSky, dt, weather = 0) {
     const a = dayTime * Math.PI * 2;
     const sunDir = V3.norm([Math.cos(a), Math.sin(a), 0.3]);
     const moonDir = [-sunDir[0], -sunDir[1], -sunDir[2]];
@@ -82,6 +85,9 @@ Object.assign(Renderer.prototype, {
       lightDir = moonDir;
       lightColor = [0.075 * moonUp, 0.095 * moonUp, 0.14 * moonUp];
     }
+    // overcast: dimmer, flatter light
+    const wk = 1 - 0.74 * weather;
+    lightColor = lightColor.map((v) => v * wk);
     const skyScale = 1.9;
     // ambient from the same sky model (cached, it only changes slowly)
     const key = Math.round(dayTime * 2000);
@@ -91,20 +97,21 @@ Object.assign(Renderer.prototype, {
       this.ambSky = irr.map((v) => v * skyScale);
     }
     const nightFloor = [0.018, 0.022, 0.036];
-    const ambUp = this.ambSky.map((v, i) => v * 0.3 + nightFloor[i]);
+    const grey = (this.ambSky[0] + this.ambSky[1] + this.ambSky[2]) / 3;
+    const ambUp = this.ambSky.map((v, i) => (v + (grey - v) * 0.6 * weather) * 0.3 * (1 - 0.3 * weather) + nightFloor[i]);
     const ambDown = ambUp.map((v, i) => v * 0.32 + lightColor[i] * 0.05 * Math.max(lightDir[1], 0));
     const lum = 0.2126 * ambUp[0] + 0.7152 * ambUp[1] + 0.0722 * ambUp[2] + 0.2 * (lightColor[0] + lightColor[1] + lightColor[2]) / 3;
     const waterFog = [0.012 * lum + 0.0015, 0.07 * lum + 0.004, 0.085 * lum + 0.006];
 
     const dawn = Math.exp(-Math.pow((sunDir[1] - 0.05) / 0.18, 2));
-    const fogDensity = 0.0021 + 0.0032 * dawn;
+    const fogDensity = (0.0021 + 0.0032 * dawn) * (1 + 3.2 * weather) + 0.002 * weather;
     const dayF = smoothstep(-0.12, 0.2, sunDir[1]);
     const target = lerp(2.4, 0.6, dayF) * (1 + 2.4 * (1 - eyeSky));
     this.exposure += (target - this.exposure) * (1 - Math.exp(-dt * 1.6));
 
     this.atmo = {
       sunDir, moonDir, lightDir, lightColor, sunColor, ambUp, ambDown, waterFog, fogDensity, night, skyScale,
-      sunI, moonI, dawn, cloudCover: 0.42 + 0.1 * Math.sin(time * 0.004), time,
+      sunI, moonI, dawn, cloudCover: Math.min(0.95, 0.42 + 0.1 * Math.sin(time * 0.004) + 0.5 * weather), time, weather,
     };
   },
 
@@ -121,7 +128,7 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uCamPos', '3f', this.camPos[0], this.camPos[1], this.camPos[2]);
     this.setU(prog, 'uTime', '1f', A.time);
     this.setU(prog, 'uFogDensity', '1f', A.fogDensity);
-    this.setU(prog, 'uFar', '1f', this.settings.renderDistance * CS);
+    this.setU(prog, 'uFar', '1f', this.rd() * CS);
     this.setU(prog, 'uUnderwater', '1f', underwater ? 1 : 0);
     this.setU(prog, 'uSkyScale', '1f', A.skyScale);
     this.setU(prog, 'uNight', '1f', A.night);
@@ -211,7 +218,7 @@ Object.assign(Renderer.prototype, {
     const S = this.settings;
     this.frame++;
     this.updateCamera(p.cam);
-    this.updateAtmosphere(p.dayTime, p.time, p.eyeSky, p.dt);
+    this.updateAtmosphere(p.dayTime, p.time, p.eyeSky, p.dt, p.weather || 0);
     const A = this.atmo;
     const W = this.width, H = this.height;
     const cp = this.camPos;
@@ -221,7 +228,7 @@ Object.assign(Renderer.prototype, {
 
     // --- visibility ---
     const visible = [], shadowList = [];
-    const rd = S.renderDistance * CS + 8;
+    const rd = this.rd() * CS + 8;
     const shadowReach = (SHADOW_PRESETS[S.shadows] || SHADOW_PRESETS.high).range + 24;
     for (const c of p.chunks) {
       if (!c.mesh) continue;
@@ -486,7 +493,9 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uRaysOn', '1f', raysOn ? 1 : 0);
     this.setU(prog, 'uUnderwater', '1f', p.underwater ? 1 : 0);
     this.setU(prog, 'uTime', '1f', A.time);
-    this.setU(prog, 'uSaturation', '1f', 1.04);
+    this.setU(prog, 'uSaturation', '1f', 1.04 - 0.3 * (p.weather || 0));
+    this.setU(prog, 'uWeather', '1f', p.weather || 0);
+    this.setU(prog, 'uFlash', '1f', p.flash || 0);
     this.drawFullscreen();
 
     // --- FXAA to screen ---

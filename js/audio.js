@@ -227,6 +227,11 @@ const SYNTH = {
   },
   beep(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.09, { wave: 'square', f0: 1320 * p, gain: 0.06, filter: ['lowpass', 3000, 1] }); },
   canopy(ctx, o, t) { Sound.noise(ctx, o, t, 0.5, { type: 'bandpass', freq: 500, freqEnd: 1400, q: 2, gain: 0.25, attack: 0.05 }); Sound.tone(ctx, o, t + 0.4, 0.1, { f0: 300, f1: 180, gain: 0.2 }); },
+  thunder(ctx, o, t, p) {
+    Sound.noise(ctx, o, t, 0.25, { type: 'lowpass', freq: 2200 * p, gain: 0.9, attack: 0.003 });
+    Sound.noise(ctx, o, t + 0.05, 3.2, { type: 'lowpass', freq: 520 * p, freqEnd: 90, gain: 1.0, attack: 0.08, rate: 0.6 });
+    Sound.tone(ctx, o, t + 0.05, 2.2, { f0: 55 * p, f1: 32, gain: 0.5, attack: 0.1 });
+  },
   chime(ctx, o, t) { [659, 784, 988, 1319].forEach((f, i) => Sound.tone(ctx, o, t + i * 0.07, 0.8, { f0: f, gain: 0.06, wave: 'triangle' })); },
 };
 

@@ -264,6 +264,7 @@ const ER = {
     for (const mob of Ents.mobs) if (near(mob.pos[0], mob.pos[2], Math.min(rd, 80))) this.mob(null, mob, cp);
     Vehicles.renderAll(cp, extra.cockpit);
     Net.render(cp);
+    Weather.render(cp);
     if (G.player.parachute) this.parachute(G.player.pos, cp);
 
     for (const it of Ents.items) {
@@ -393,6 +394,22 @@ const ER = {
     if (p.glow) this.light = [1, 1];
     else this.lightAt(p.x, p.y, p.z);
     this.color = [p.r, p.g, p.b];
+    if (p.streak) {
+      // a thin quad stretched along the velocity (rain, meteors)
+      const x = p.x - cp[0], y = p.y - cp[1], z = p.z - cp[2];
+      const tx = -p.vx * p.streak, ty = -p.vy * p.streak, tz = -p.vz * p.streak;
+      // side vector: velocity x view direction
+      let sx = ty * z - tz * y, sy = tz * x - tx * z, sz = tx * y - ty * x;
+      const sl = Math.hypot(sx, sy, sz) || 1;
+      sx *= size / sl; sy *= size / sl; sz *= size / sl;
+      const nx = -bs.f[0], ny = -bs.f[1], nz = -bs.f[2];
+      const u0 = 0.4, u1 = 0.6;
+      this.v(x - sx, y - sy, z - sz, u0, 0.5, p.layer, nx, ny, nz);
+      this.v(x + sx, y + sy, z + sz, u1, 0.5, p.layer, nx, ny, nz);
+      this.v(x + tx + sx, y + ty + sy, z + tz + sz, u1, 0.45, p.layer, nx, ny, nz);
+      this.v(x + tx - sx, y + ty - sy, z + tz - sz, u0, 0.45, p.layer, nx, ny, nz);
+      return;
+    }
     const rx = bs.r[0] * size, ry = bs.r[1] * size, rz = bs.r[2] * size;
     const ux = bs.u[0] * size, uy = bs.u[1] * size, uz = bs.u[2] * size;
     const x = p.x - cp[0], y = p.y - cp[1], z = p.z - cp[2];

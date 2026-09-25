@@ -10,6 +10,7 @@ const DAY_LENGTH = 1200; // seconds per full day
 const DEFAULT_SETTINGS = {
   renderDistance: 8, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
   renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
+  weather: 'auto', events: true,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -80,7 +81,11 @@ function streamCenter() {
 }
 
 function updateChunks(budgetMs) {
-  const R = G.settings.renderDistance;
+  // a jet in the air sees further: stream a wider ring and let the renderer fade it in
+  const boost = G.vehicle && !G.vehicle.onGround ? 3 : 0;
+  const r = G.renderer;
+  r.rangeBoost = (r.rangeBoost || 0) + (boost - (r.rangeBoost || 0)) * 0.02;
+  const R = G.settings.renderDistance + Math.round(r.rangeBoost);
   if (G.offsetsR !== R) buildOffsets(R);
   const c0 = streamCenter();
   const pcx = Math.floor(c0[0] / CS), pcz = Math.floor(c0[1] / CS);
@@ -672,6 +677,7 @@ const STARTER_CREATIVE = [B.GRASS, B.COBBLE, B.PLANKS, B.GLASS, B.STONE_BRICKS, 
 function newWorld(seed, save, opts = {}) {
   if (G.world) for (const c of G.world.chunks.values()) G.renderer.freeChunk(c);
   ChunkWorkers.reset();
+  Weather.reset();
   if (G.vehicle) G.vehicle = null;
   Ents.clear();
   G.region = null;

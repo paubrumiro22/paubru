@@ -16,6 +16,8 @@ const SETTINGS_UI = [
   { key: 'fxaa', label: 'Anti-aliasing (FXAA)', type: 'check' },
   { key: 'bobbing', label: 'View bobbing', type: 'check' },
   { key: 'dynamicRes', label: 'Dynamic resolution (smoother)', type: 'check' },
+  { key: 'weather', label: 'Weather', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow']] },
+  { key: 'events', label: 'World events (meteor showers, eruptions)', type: 'check' },
 ];
 
 // ---------- errors ----------
@@ -52,6 +54,7 @@ function loadSettings() {
   st.sensitivity = clamp(st.sensitivity, 0.2, 3);
   st.brightness = clamp(st.brightness, 0.6, 1.8);
   st.volume = clamp(st.volume, 0, 1);
+  if (!['auto', ...WEATHER_KINDS].includes(st.weather)) st.weather = 'auto';
 }
 function saveSettings() { storageSet(SETTINGS_KEY, G.settings); }
 
@@ -664,6 +667,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
+    if (!paused) Weather.update(dt, cam);
     Sound.setListener(cam.pos, cam.yaw);
     const showHand = !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle;
     const ents = ER.build(G.renderer, cam, {
@@ -672,6 +676,7 @@ function frame(now) {
     });
     G.renderer.render({
       cam, dayTime: G.dayTime, time: G.time, dt, eyeSky: G.eyeSky, underwater: !G.vehicle && !G.onTitle && p.eyeInWater,
+      weather: Weather.overcast, flash: Weather.flash,
       chunks: G.world.chunks.values(), selection: hit && !G.hudHidden ? hit.pos : null, selectionBox: hit ? hit.box : null, entities: ents,
     });
     Vehicles.drawHud();

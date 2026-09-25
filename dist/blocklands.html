@@ -5548,6 +5548,8 @@ uniform float uRaysOn;
 uniform float uUnderwater;
 uniform float uTime;
 uniform float uSaturation;
+uniform float uWeather;
+uniform float uFlash;
 in vec2 vUV;
 layout(location = 0) out vec4 outColor;
 
@@ -5576,8 +5578,12 @@ void main() {
   vec3 c = texture(uScene, uv).rgb / HDR_SCALE;
   if (uBloomOn > 0.5) c += texture(uBloom, uv).rgb / HDR_SCALE * uBloomStrength;
   if (uRaysOn > 0.5) c += texture(uRays, uv).rgb / HDR_SCALE;
-  c *= uExposure;
+  c *= uExposure * (1.0 + 5.0 * uFlash);
+  c += vec3(0.55, 0.6, 0.8) * uFlash;
   c = acesFitted(c);
+  // rain and storms tint the picture towards a cool grey
+  float lw = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c = mix(c, vec3(lw) * vec3(0.92, 0.97, 1.06), 0.35 * uWeather);
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   c = max(mix(vec3(l), c, uSaturation), 0.0);
   c = toSRGB(c);
@@ -6082,7 +6088,7 @@ Object.assign(Renderer.prototype, {
     this.camForward = f;
     this.near = 0.06;
     // high up (flying) the ground below must stay inside the far plane
-    this.zFar = Math.max(260, this.settings.renderDistance * CS + 80, cam.pos[1] - 40 + this.settings.renderDistance * CS);
+    this.zFar = Math.max(260, this.rd() * CS + 80, cam.pos[1] - 40 + this.rd() * CS);
     this.view = M4.fromBasis(this.view || M4.create(), r, u, back, [0, 0, 0]);
     this.proj = M4.perspective(this.proj || M4.create(), (cam.fov * Math.PI) / 180, aspect, this.near, this.zFar);
     this.viewProj = M4.multiply(this.viewProj || M4.create(), this.proj, this.view);
@@ -6107,7 +6113,10 @@ Object.assign(Renderer.prototype, {
     return true;
   },
 
-  updateAtmosphere(dayTime, time, eyeSky, dt) {
+  // render distance in chunks, widened a little while flying (rangeBoost is fractional)
+  rd() { return this.settings.renderDistance + (this.rangeBoost || 0); },
+
+  updateAtmosphere(dayTime, time, eyeSky, dt, weather = 0) {
     const a = dayTime * Math.PI * 2;
     const sunDir = V3.norm([Math.cos(a), Math.sin(a), 0.3]);
     const moonDir = [-sunDir[0], -sunDir[1], -sunDir[2]];
@@ -6127,6 +6136,9 @@ Object.assign(Renderer.prototype, {
       lightDir = moonDir;
       lightColor = [0.075 * moonUp, 0.095 * moonUp, 0.14 * moonUp];
     }
+    // overcast: dimmer, flatter light
+    const wk = 1 - 0.74 * weather;
+    lightColor = lightColor.map((v) => v * wk);
     const skyScale = 1.9;
     // ambient from the same sky model (cached, it only changes slowly)
     const key = Math.round(dayTime * 2000);
@@ -6136,20 +6148,21 @@ Object.assign(Renderer.prototype, {
       this.ambSky = irr.map((v) => v * skyScale);
     }
     const nightFloor = [0.018, 0.022, 0.036];
-    const ambUp = this.ambSky.map((v, i) => v * 0.3 + nightFloor[i]);
+    const grey = (this.ambSky[0] + this.ambSky[1] + this.ambSky[2]) / 3;
+    const ambUp = this.ambSky.map((v, i) => (v + (grey - v) * 0.6 * weather) * 0.3 * (1 - 0.3 * weather) + nightFloor[i]);
     const ambDown = ambUp.map((v, i) => v * 0.32 + lightColor[i] * 0.05 * Math.max(lightDir[1], 0));
     const lum = 0.2126 * ambUp[0] + 0.7152 * ambUp[1] + 0.0722 * ambUp[2] + 0.2 * (lightColor[0] + lightColor[1] + lightColor[2]) / 3;
     const waterFog = [0.012 * lum + 0.0015, 0.07 * lum + 0.004, 0.085 * lum + 0.006];
 
     const dawn = Math.exp(-Math.pow((sunDir[1] - 0.05) / 0.18, 2));
-    const fogDensity = 0.0021 + 0.0032 * dawn;
+    const fogDensity = (0.0021 + 0.0032 * dawn) * (1 + 3.2 * weather) + 0.002 * weather;
     const dayF = smoothstep(-0.12, 0.2, sunDir[1]);
     const target = lerp(2.4, 0.6, dayF) * (1 + 2.4 * (1 - eyeSky));
     this.exposure += (target - this.exposure) * (1 - Math.exp(-dt * 1.6));
 
     this.atmo = {
       sunDir, moonDir, lightDir, lightColor, sunColor, ambUp, ambDown, waterFog, fogDensity, night, skyScale,
-      sunI, moonI, dawn, cloudCover: 0.42 + 0.1 * Math.sin(time * 0.004), time,
+      sunI, moonI, dawn, cloudCover: Math.min(0.95, 0.42 + 0.1 * Math.sin(time * 0.004) + 0.5 * weather), time, weather,
     };
   },
 
@@ -6166,7 +6179,7 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uCamPos', '3f', this.camPos[0], this.camPos[1], this.camPos[2]);
     this.setU(prog, 'uTime', '1f', A.time);
     this.setU(prog, 'uFogDensity', '1f', A.fogDensity);
-    this.setU(prog, 'uFar', '1f', this.settings.renderDistance * CS);
+    this.setU(prog, 'uFar', '1f', this.rd() * CS);
     this.setU(prog, 'uUnderwater', '1f', underwater ? 1 : 0);
     this.setU(prog, 'uSkyScale', '1f', A.skyScale);
     this.setU(prog, 'uNight', '1f', A.night);
@@ -6256,7 +6269,7 @@ Object.assign(Renderer.prototype, {
     const S = this.settings;
     this.frame++;
     this.updateCamera(p.cam);
-    this.updateAtmosphere(p.dayTime, p.time, p.eyeSky, p.dt);
+    this.updateAtmosphere(p.dayTime, p.time, p.eyeSky, p.dt, p.weather || 0);
     const A = this.atmo;
     const W = this.width, H = this.height;
     const cp = this.camPos;
@@ -6266,7 +6279,7 @@ Object.assign(Renderer.prototype, {
 
     // --- visibility ---
     const visible = [], shadowList = [];
-    const rd = S.renderDistance * CS + 8;
+    const rd = this.rd() * CS + 8;
     const shadowReach = (SHADOW_PRESETS[S.shadows] || SHADOW_PRESETS.high).range + 24;
     for (const c of p.chunks) {
       if (!c.mesh) continue;
@@ -6531,7 +6544,9 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uRaysOn', '1f', raysOn ? 1 : 0);
     this.setU(prog, 'uUnderwater', '1f', p.underwater ? 1 : 0);
     this.setU(prog, 'uTime', '1f', A.time);
-    this.setU(prog, 'uSaturation', '1f', 1.04);
+    this.setU(prog, 'uSaturation', '1f', 1.04 - 0.3 * (p.weather || 0));
+    this.setU(prog, 'uWeather', '1f', p.weather || 0);
+    this.setU(prog, 'uFlash', '1f', p.flash || 0);
     this.drawFullscreen();
 
     // --- FXAA to screen ---
@@ -7869,6 +7884,11 @@ const SYNTH = {
   },
   beep(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.09, { wave: 'square', f0: 1320 * p, gain: 0.06, filter: ['lowpass', 3000, 1] }); },
   canopy(ctx, o, t) { Sound.noise(ctx, o, t, 0.5, { type: 'bandpass', freq: 500, freqEnd: 1400, q: 2, gain: 0.25, attack: 0.05 }); Sound.tone(ctx, o, t + 0.4, 0.1, { f0: 300, f1: 180, gain: 0.2 }); },
+  thunder(ctx, o, t, p) {
+    Sound.noise(ctx, o, t, 0.25, { type: 'lowpass', freq: 2200 * p, gain: 0.9, attack: 0.003 });
+    Sound.noise(ctx, o, t + 0.05, 3.2, { type: 'lowpass', freq: 520 * p, freqEnd: 90, gain: 1.0, attack: 0.08, rate: 0.6 });
+    Sound.tone(ctx, o, t + 0.05, 2.2, { f0: 55 * p, f1: 32, gain: 0.5, attack: 0.1 });
+  },
   chime(ctx, o, t) { [659, 784, 988, 1319].forEach((f, i) => Sound.tone(ctx, o, t + i * 0.07, 0.8, { f0: f, gain: 0.06, wave: 'triangle' })); },
 };
 
@@ -8506,14 +8526,22 @@ const Particles = {
       p.life -= dt;
       if (p.life <= 0) continue;
       p.vy -= p.grav * dt;
+      if (p.drift) { p.vx += (Math.random() - 0.5) * dt * 3; p.vz += (Math.random() - 0.5) * dt * 3; }
       if (p.wander) { p.vx += (Math.random() - 0.5) * dt * 4; p.vy += (Math.random() - 0.5) * dt * 3; p.vz += (Math.random() - 0.5) * dt * 4; }
       const dr = Math.pow(p.drag, dt * 20);
       p.vx *= dr; p.vy *= dr; p.vz *= dr;
       const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt, nz = p.z + p.vz * dt;
       if (p.bubble && w.getBlock(Math.floor(nx), Math.floor(ny), Math.floor(nz)) !== B.WATER) continue;
+      if (p.trail && Math.random() < dt * 12) this.list.length < 2400 && this.add(this.base(p.x, p.y, p.z, { vy: 0.4, life: 1.4, max: 1.4, size: rand(0.25, 0.45),
+        layer: T.p_smoke, r: 0.25, g: 0.23, b: 0.22, blend: true, drag: 0.95, grow: 2.2, collide: false }));
       if (p.collide) {
         const id = w.getBlock(Math.floor(nx), Math.floor(ny - p.size * 0.5), Math.floor(nz));
-        if (BLOCK_SOLID[id] && (ny - p.size * 0.5) - Math.floor(ny - p.size * 0.5) < BLOCK_HEIGHT[id] / 16) {
+        const liquid = (p.splash || p.melt) && IS_LIQUID(id);
+        if (liquid || (BLOCK_SOLID[id] && (ny - p.size * 0.5) - Math.floor(ny - p.size * 0.5) < BLOCK_HEIGHT[id] / 16)) {
+          // rain vanishes on impact, snow settles and melts, lava bombs burst
+          if (p.splash) continue;
+          if (p.trail) { this.smoke(p.x, p.y + 0.3, p.z, 3, 0.4, true); continue; }
+          if (p.melt) { p.melt = false; p.wander = false; p.vx = p.vz = 0; p.life = Math.min(p.life, 1.2); }
           p.vy = 0; p.vx *= 0.6; p.vz *= 0.6;
           p.x += p.vx * dt; p.z += p.vz * dt;
           L[j++] = p;
@@ -8988,6 +9016,7 @@ const ER = {
     for (const mob of Ents.mobs) if (near(mob.pos[0], mob.pos[2], Math.min(rd, 80))) this.mob(null, mob, cp);
     Vehicles.renderAll(cp, extra.cockpit);
     Net.render(cp);
+    Weather.render(cp);
     if (G.player.parachute) this.parachute(G.player.pos, cp);
 
     for (const it of Ents.items) {
@@ -9117,6 +9146,22 @@ const ER = {
     if (p.glow) this.light = [1, 1];
     else this.lightAt(p.x, p.y, p.z);
     this.color = [p.r, p.g, p.b];
+    if (p.streak) {
+      // a thin quad stretched along the velocity (rain, meteors)
+      const x = p.x - cp[0], y = p.y - cp[1], z = p.z - cp[2];
+      const tx = -p.vx * p.streak, ty = -p.vy * p.streak, tz = -p.vz * p.streak;
+      // side vector: velocity x view direction
+      let sx = ty * z - tz * y, sy = tz * x - tx * z, sz = tx * y - ty * x;
+      const sl = Math.hypot(sx, sy, sz) || 1;
+      sx *= size / sl; sy *= size / sl; sz *= size / sl;
+      const nx = -bs.f[0], ny = -bs.f[1], nz = -bs.f[2];
+      const u0 = 0.4, u1 = 0.6;
+      this.v(x - sx, y - sy, z - sz, u0, 0.5, p.layer, nx, ny, nz);
+      this.v(x + sx, y + sy, z + sz, u1, 0.5, p.layer, nx, ny, nz);
+      this.v(x + tx + sx, y + ty + sy, z + tz + sz, u1, 0.45, p.layer, nx, ny, nz);
+      this.v(x + tx - sx, y + ty - sy, z + tz - sz, u0, 0.45, p.layer, nx, ny, nz);
+      return;
+    }
     const rx = bs.r[0] * size, ry = bs.r[1] * size, rz = bs.r[2] * size;
     const ux = bs.u[0] * size, uy = bs.u[1] * size, uz = bs.u[2] * size;
     const x = p.x - cp[0], y = p.y - cp[1], z = p.z - cp[2];
@@ -9157,8 +9202,6 @@ const JET_PARTS_SRC = [
   [-0.46, 2.08, 3.2, 0.46, 2.66, 3.32, 'hullDark', { canopy: true }],
   [-0.4, 2.08, 1.2, 0.4, 2.4, 1.9, 'hull'],
   // seen from the seat: glare shield and canopy frame
-  [-0.4, 1.95, 3.95, 0.4, 2.3, 4.25, 'hullDark', { inside: true }],
-  [-0.3, 2.3, 4.05, 0.3, 2.31, 4.2, 'glass', { inside: true }],
   [0.4, 2.08, 1.9, 0.46, 2.16, 5.0, 'hullDark', { m: true, inside: true }],
   [-0.36, 2.44, 4.95, 0.36, 2.5, 5.05, 'hullDark', { inside: true }],
   [0.31, 2.08, 4.9, 0.37, 2.47, 5.05, 'hullDark', { m: true, inside: true }],
@@ -9780,7 +9823,7 @@ const Vehicles = {
     let pos;
     let roll = 0;
     if (this.camMode === 'cockpit') {
-      pos = v.toWorld([0, 0.98, 3.1]);
+      pos = v.toWorld([0, 0.8, 3.1]);
       roll = -v.roll * 0.55;
     } else {
       const dist = 15 + v.speed * 0.035;
@@ -9923,6 +9966,224 @@ const Vehicles = {
 </script>
 <script>
 'use strict';
+// Weather and world events. Rain or snow (snow where it is cold: snowy biomes, high mountains,
+// the snowy peaks place) fall around the camera as particles; storms add lightning bolts,
+// thunder and flashes. Events: meteor showers on clear nights and eruptions of the volcano.
+
+const WEATHER_KINDS = ['clear', 'rain', 'storm', 'snow'];
+
+const Weather = {
+  kind: 'clear', amount: 0, timer: 90,
+  flash: 0, bolts: [], nextBolt: 4,
+  event: null, eventTimer: 120,
+  loop: null,
+
+  // 0..1 overcast strength the renderer uses
+  get overcast() { return this.amount * (this.kind === 'storm' ? 1 : 0.8); },
+
+  set(kind, silent) {
+    if (!WEATHER_KINDS.includes(kind)) kind = 'clear';
+    if (kind === this.kind) return;
+    this.kind = kind;
+    this.timer = rand(150, 420);
+    if (!silent && G.ui && kind !== 'clear') G.ui.toast({ rain: '\ud83c\udf27\ufe0f It started raining', storm: '\u26c8\ufe0f A storm is coming', snow: '\u2744\ufe0f It is snowing' }[kind]);
+  },
+
+  // Is the column around (x, z) cold enough for snow?
+  cold(x, z) {
+    const g = G.world.gen;
+    if (g.type === 'flat') return false;
+    const own = g.regionOwner(Math.floor(x), Math.floor(z));
+    if (own) return own.p === WORLD_PRESETS.peaks;
+    const h = g.height(Math.floor(x), Math.floor(z));
+    const { temp, hum } = g.climate(x, z);
+    const b = g.biome(h, temp, hum);
+    return b === BIOME.SNOWY || (b === BIOME.MOUNTAIN && h > SEA + 30);
+  },
+
+  update(dt, cam) {
+    const mode = G.settings.weather || 'auto';
+    if (mode !== 'auto') { if (this.kind !== mode) this.set(mode, true); }
+    else {
+      this.timer -= dt;
+      if (this.timer <= 0) {
+        const r = Math.random();
+        this.set(this.kind !== 'clear' ? 'clear' : r < 0.55 ? 'rain' : r < 0.85 ? 'storm' : 'snow');
+      }
+    }
+    const wet = this.kind !== 'clear';
+    this.amount += ((wet ? 1 : 0) - this.amount) * (1 - Math.exp(-dt * 0.35));
+    const p = cam.pos;
+    const snow = this.kind === 'snow' || (wet && this.cold(p[0], p[2]));
+    if (this.amount > 0.05 && wet) this.precipitate(dt, p, snow);
+    this.storm(dt, p);
+    this.events(dt, p);
+    this.flash = Math.max(0, this.flash - dt * 3.2);
+    this.sound(snow ? 0 : this.amount * (wet ? 1 : 0), p);
+  },
+
+  // Rain streaks or snow flakes spawned in a box around the camera, stopped by roofs.
+  precipitate(dt, p, snow) {
+    const w = G.world;
+    const n = Math.floor((snow ? 420 : 900) * this.amount * dt * (this.kind === 'storm' ? 1.5 : 1));
+    for (let i = 0; i < n; i++) {
+      const x = p[0] + rand(-18, 18), z = p[2] + rand(-18, 18);
+      const top = w.surfaceHeight(Math.floor(x), Math.floor(z));
+      const y = p[1] + rand(4, 16);
+      if (top >= 0 && top + 1 > y) continue;
+      if (snow) {
+        const l = rand(3, 6);
+        Particles.add(Particles.base(x, y, z, { vx: rand(-0.6, 0.6), vy: rand(-1.8, -1.1), vz: rand(-0.6, 0.6), life: l, max: l, size: rand(0.07, 0.12),
+          layer: T.p_smoke, r: 1.6, g: 1.65, b: 1.75, blend: true, drag: 1, drift: true, melt: true }));
+      } else {
+        const l = 1.2;
+        const wind = this.kind === 'storm' ? 4 : 1.2;
+        Particles.add(Particles.base(x, y, z, { vx: wind, vy: rand(-26, -20), vz: wind * 0.4, life: l, max: l, size: 0.018,
+          layer: T.p_smoke, r: 0.72, g: 0.8, b: 0.92, blend: true, drag: 1, streak: 0.045, splash: true }));
+      }
+    }
+  },
+
+  storm(dt, p) {
+    for (const b of this.bolts) b.t -= dt;
+    this.bolts = this.bolts.filter((b) => b.t > 0);
+    if (this.kind !== 'storm' || this.amount < 0.6) return;
+    this.nextBolt -= dt;
+    if (this.nextBolt > 0) return;
+    this.nextBolt = rand(3, 11);
+    this.strike(p[0] + rand(-110, 110), p[2] + rand(-110, 110));
+  },
+
+  // A lightning bolt from the clouds to the ground at (x, z), with flash and delayed thunder.
+  strike(x, z) {
+    const w = G.world;
+    const ground = Math.max(w.surfaceHeight(Math.floor(x), Math.floor(z)) + 1, SEA + 1);
+    const pts = [[x, ground + 110, z]];
+    let cx = x, cz = z;
+    for (let y = ground + 110; y > ground; y -= rand(4, 9)) {
+      cx += rand(-2.5, 2.5); cz += rand(-2.5, 2.5);
+      pts.push([cx, Math.max(ground, y), cz]);
+    }
+    pts.push([x, ground, z]);
+    // a couple of forks
+    const forks = [];
+    for (let f = 0; f < 3; f++) {
+      const s = 2 + Math.floor(Math.random() * (pts.length - 4));
+      let [fx, fy, fz] = pts[s];
+      const fork = [[fx, fy, fz]];
+      for (let k = 0; k < 4; k++) { fx += rand(-5, 5); fy -= rand(3, 7); fz += rand(-5, 5); fork.push([fx, fy, fz]); }
+      forks.push(fork);
+    }
+    this.bolts.push({ pts, forks, t: 0.35 });
+    this.flash = 1;
+    const cam = G.renderer && G.renderer.camPos ? G.renderer.camPos : G.player.pos;
+    const d = Math.hypot(x - cam[0], z - cam[2]);
+    setTimeout(() => sfx('thunder', null, clamp(1.4 - d / 200, 0.3, 1.2), rand(0.85, 1.1)), Math.min(2500, d * 6));
+    if (d < 40) G.shake = Math.max(G.shake, 0.4);
+    Particles.smoke(x, ground + 0.5, z, 10, 0.8, true);
+    for (let i = 0; i < 10; i++) Particles.flame(x + rand(-0.6, 0.6), ground + rand(0, 1), z + rand(-0.6, 0.6));
+  },
+
+  events(dt, p) {
+    if (!G.settings.events) { this.event = null; return; }
+    const e = this.event;
+    if (e) {
+      e.t += dt;
+      if (e.kind === 'meteors') {
+        if (Math.random() < dt * 9) this.meteor(p);
+        if (e.t > 40 || isDaytime()) this.event = null;
+      } else if (e.kind === 'eruption') {
+        this.eruptionTick(dt, e);
+        if (e.t > 22) this.event = null;
+      }
+      return;
+    }
+    this.eventTimer -= dt;
+    if (this.eventTimer > 0) return;
+    this.eventTimer = rand(150, 300);
+    const own = G.regionOwn;
+    if (own && own.p === WORLD_PRESETS.volcano) this.start('eruption');
+    else if (!isDaytime() && this.kind === 'clear') this.start('meteors');
+  },
+
+  start(kind) {
+    if (kind === 'eruption') {
+      const r = G.world.gen.regions.find((q) => q.key === 'volcano');
+      const ox = r ? r.x : 0, oz = r ? r.z : 0;
+      this.event = { kind, t: 0, x: ox + VOLC.x, z: oz + VOLC.z };
+      G.ui && G.ui.banner('\ud83c\udf0b', 'Eruption!');
+      sfx('explode', null, 1.2, 0.5);
+      G.shake = Math.max(G.shake, 0.6);
+    } else {
+      this.event = { kind: 'meteors', t: 0 };
+      G.ui && G.ui.banner('\u2604\ufe0f', 'Meteor shower');
+    }
+  },
+
+  meteor(p) {
+    const a = rand(0, Math.PI * 2), d = rand(80, 200);
+    const x = p[0] + Math.cos(a) * d, z = p[2] + Math.sin(a) * d, y = p[1] + rand(90, 150);
+    const dir = rand(0, Math.PI * 2), sp = rand(70, 120);
+    const l = rand(0.6, 1.2);
+    Particles.add(Particles.base(x, y, z, { vx: Math.cos(dir) * sp, vy: -rand(15, 40), vz: Math.sin(dir) * sp, life: l, max: l, size: rand(0.5, 0.9),
+      layer: T.p_crit, r: 1, g: 0.95, b: 0.8, glow: true, drag: 1, collide: false, streak: 0.12, shrink: true }));
+  },
+
+  eruptionTick(dt, e) {
+    const top = VOLC.crater + 6;
+    for (let i = 0; i < 3; i++) if (Math.random() < dt * 20) Particles.plume(e.x + rand(-6, 6), VOLC.crater + 8, e.z + rand(-6, 6));
+    // lava bombs arcing out of the crater
+    if (Math.random() < dt * 14) {
+      const a = rand(0, Math.PI * 2), s = rand(8, 22);
+      const l = rand(2.5, 4.5);
+      Particles.add(Particles.base(e.x + rand(-4, 4), top, e.z + rand(-4, 4), { vx: Math.cos(a) * s, vy: rand(22, 38), vz: Math.sin(a) * s, life: l, max: l,
+        size: rand(0.5, 1.1), layer: T.p_flame, glow: true, grav: 18, drag: 1, collide: true, trail: true }));
+    }
+    if (Math.random() < dt * 1.5) { sfx('explode', [e.x, top, e.z], 1, rand(0.4, 0.6)); G.shake = Math.max(G.shake, 0.15); }
+  },
+
+  // continuous rain hiss
+  sound(level, p) {
+    const ctx = Sound.ctx;
+    if (!ctx || ctx.state !== 'running') return;
+    if (!this.loop && level > 0.05) {
+      const src = ctx.createBufferSource(); src.buffer = Sound.noiseBuf; src.loop = true;
+      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2600; f.Q.value = 0.5;
+      const g = ctx.createGain(); g.gain.value = 0.0001;
+      src.connect(f); f.connect(g); g.connect(Sound.master); src.start();
+      this.loop = { src, g };
+    }
+    if (this.loop) {
+      const covered = G.eyeSky < 0.3 ? 0.35 : 1;
+      this.loop.g.gain.setTargetAtTime(0.0001 + level * 0.22 * covered * (this.kind === 'storm' ? 1.4 : 1), ctx.currentTime, 0.3);
+    }
+  },
+
+  // bolts as self-lit segments
+  render(cp) {
+    if (!this.bolts.length) return;
+    const uv = () => Vehicles.swatchUV('navWhite');
+    for (const b of this.bolts) {
+      const k = Math.min(1, b.t / 0.12);
+      ER.light = [1, 1]; ER.color = [0.75, 0.82, 1]; ER.ov = 2 + 6 * k;
+      for (const line of [b.pts, ...b.forks]) {
+        for (let i = 0; i + 1 < line.length; i++) {
+          const a = line[i], c = line[i + 1];
+          const d = [c[0] - a[0], c[1] - a[1], c[2] - a[2]], len = Math.hypot(d[0], d[1], d[2]) || 1;
+          const m = XF.chain(XF.t(a[0] - cp[0], a[1] - cp[1], a[2] - cp[2]), XF.ry(Math.atan2(d[0], d[2])), XF.rx(-Math.asin(d[1] / len)));
+          const w = line === b.pts ? 0.16 : 0.08;
+          ER.box(m, -w, -w, 0, w, w, len, uv);
+        }
+      }
+    }
+    ER.ov = 0; ER.color = [1, 1, 1];
+  },
+
+  reset() { this.bolts = []; this.flash = 0; this.event = null; },
+};
+</script>
+<script>
+'use strict';
 // Game state, chunk streaming, block edits (support, falling, drops), random ticks (crops,
 // saplings, grass), furnaces and chests, explosions, sleeping, spawning and persistence.
 
@@ -9934,6 +10195,7 @@ const DAY_LENGTH = 1200; // seconds per full day
 const DEFAULT_SETTINGS = {
   renderDistance: 8, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
   renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
+  weather: 'auto', events: true,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -10004,7 +10266,11 @@ function streamCenter() {
 }
 
 function updateChunks(budgetMs) {
-  const R = G.settings.renderDistance;
+  // a jet in the air sees further: stream a wider ring and let the renderer fade it in
+  const boost = G.vehicle && !G.vehicle.onGround ? 3 : 0;
+  const r = G.renderer;
+  r.rangeBoost = (r.rangeBoost || 0) + (boost - (r.rangeBoost || 0)) * 0.02;
+  const R = G.settings.renderDistance + Math.round(r.rangeBoost);
   if (G.offsetsR !== R) buildOffsets(R);
   const c0 = streamCenter();
   const pcx = Math.floor(c0[0] / CS), pcz = Math.floor(c0[1] / CS);
@@ -10596,6 +10862,7 @@ const STARTER_CREATIVE = [B.GRASS, B.COBBLE, B.PLANKS, B.GLASS, B.STONE_BRICKS, 
 function newWorld(seed, save, opts = {}) {
   if (G.world) for (const c of G.world.chunks.values()) G.renderer.freeChunk(c);
   ChunkWorkers.reset();
+  Weather.reset();
   if (G.vehicle) G.vehicle = null;
   Ents.clear();
   G.region = null;
@@ -12454,6 +12721,8 @@ const SETTINGS_UI = [
   { key: 'fxaa', label: 'Anti-aliasing (FXAA)', type: 'check' },
   { key: 'bobbing', label: 'View bobbing', type: 'check' },
   { key: 'dynamicRes', label: 'Dynamic resolution (smoother)', type: 'check' },
+  { key: 'weather', label: 'Weather', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow']] },
+  { key: 'events', label: 'World events (meteor showers, eruptions)', type: 'check' },
 ];
 
 // ---------- errors ----------
@@ -12490,6 +12759,7 @@ function loadSettings() {
   st.sensitivity = clamp(st.sensitivity, 0.2, 3);
   st.brightness = clamp(st.brightness, 0.6, 1.8);
   st.volume = clamp(st.volume, 0, 1);
+  if (!['auto', ...WEATHER_KINDS].includes(st.weather)) st.weather = 'auto';
 }
 function saveSettings() { storageSet(SETTINGS_KEY, G.settings); }
 
@@ -13102,6 +13372,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
+    if (!paused) Weather.update(dt, cam);
     Sound.setListener(cam.pos, cam.yaw);
     const showHand = !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle;
     const ents = ER.build(G.renderer, cam, {
@@ -13110,6 +13381,7 @@ function frame(now) {
     });
     G.renderer.render({
       cam, dayTime: G.dayTime, time: G.time, dt, eyeSky: G.eyeSky, underwater: !G.vehicle && !G.onTitle && p.eyeInWater,
+      weather: Weather.overcast, flash: Weather.flash,
       chunks: G.world.chunks.values(), selection: hit && !G.hudHidden ? hit.pos : null, selectionBox: hit ? hit.box : null, entities: ents,
     });
     Vehicles.drawHud();

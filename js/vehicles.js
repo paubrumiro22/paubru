@@ -25,8 +25,6 @@ const JET_PARTS_SRC = [
   [-0.46, 2.08, 3.2, 0.46, 2.66, 3.32, 'hullDark', { canopy: true }],
   [-0.4, 2.08, 1.2, 0.4, 2.4, 1.9, 'hull'],
   // seen from the seat: glare shield and canopy frame
-  [-0.4, 1.95, 3.95, 0.4, 2.3, 4.25, 'hullDark', { inside: true }],
-  [-0.3, 2.3, 4.05, 0.3, 2.31, 4.2, 'glass', { inside: true }],
   [0.4, 2.08, 1.9, 0.46, 2.16, 5.0, 'hullDark', { m: true, inside: true }],
   [-0.36, 2.44, 4.95, 0.36, 2.5, 5.05, 'hullDark', { inside: true }],
   [0.31, 2.08, 4.9, 0.37, 2.47, 5.05, 'hullDark', { m: true, inside: true }],
@@ -648,7 +646,7 @@ const Vehicles = {
     let pos;
     let roll = 0;
     if (this.camMode === 'cockpit') {
-      pos = v.toWorld([0, 0.98, 3.1]);
+      pos = v.toWorld([0, 0.8, 3.1]);
       roll = -v.roll * 0.55;
     } else {
       const dist = 15 + v.speed * 0.035;

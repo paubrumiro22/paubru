@@ -582,14 +582,22 @@ const Particles = {
       p.life -= dt;
       if (p.life <= 0) continue;
       p.vy -= p.grav * dt;
+      if (p.drift) { p.vx += (Math.random() - 0.5) * dt * 3; p.vz += (Math.random() - 0.5) * dt * 3; }
       if (p.wander) { p.vx += (Math.random() - 0.5) * dt * 4; p.vy += (Math.random() - 0.5) * dt * 3; p.vz += (Math.random() - 0.5) * dt * 4; }
       const dr = Math.pow(p.drag, dt * 20);
       p.vx *= dr; p.vy *= dr; p.vz *= dr;
       const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt, nz = p.z + p.vz * dt;
       if (p.bubble && w.getBlock(Math.floor(nx), Math.floor(ny), Math.floor(nz)) !== B.WATER) continue;
+      if (p.trail && Math.random() < dt * 12) this.list.length < 2400 && this.add(this.base(p.x, p.y, p.z, { vy: 0.4, life: 1.4, max: 1.4, size: rand(0.25, 0.45),
+        layer: T.p_smoke, r: 0.25, g: 0.23, b: 0.22, blend: true, drag: 0.95, grow: 2.2, collide: false }));
       if (p.collide) {
         const id = w.getBlock(Math.floor(nx), Math.floor(ny - p.size * 0.5), Math.floor(nz));
-        if (BLOCK_SOLID[id] && (ny - p.size * 0.5) - Math.floor(ny - p.size * 0.5) < BLOCK_HEIGHT[id] / 16) {
+        const liquid = (p.splash || p.melt) && IS_LIQUID(id);
+        if (liquid || (BLOCK_SOLID[id] && (ny - p.size * 0.5) - Math.floor(ny - p.size * 0.5) < BLOCK_HEIGHT[id] / 16)) {
+          // rain vanishes on impact, snow settles and melts, lava bombs burst
+          if (p.splash) continue;
+          if (p.trail) { this.smoke(p.x, p.y + 0.3, p.z, 3, 0.4, true); continue; }
+          if (p.melt) { p.melt = false; p.wander = false; p.vx = p.vz = 0; p.life = Math.min(p.life, 1.2); }
           p.vy = 0; p.vx *= 0.6; p.vz *= 0.6;
           p.x += p.vx * dt; p.z += p.vz * dt;
           L[j++] = p;
