@@ -19,7 +19,10 @@ const Act = {
     const p = G.player;
     const hit = p.raycast(this.reach());
     const mob = Ents.raycastMob(p.eyePos(), p.lookDir(), this.mobReach());
-    if (mob && (!hit || mob.dist < hit.dist)) return { mob: mob.mob, dist: mob.dist };
+    const veh = Vehicles.raycast(p.eyePos(), p.lookDir(), this.reach() + 1);
+    const hd = hit ? hit.dist : Infinity, md = mob ? mob.dist : Infinity;
+    if (veh && veh.dist < hd && veh.dist < md) return { vehicle: veh.vehicle, dist: veh.dist };
+    if (mob && mob.dist < hd) return { mob: mob.mob, dist: mob.dist };
     return hit ? { block: hit } : null;
   },
 
@@ -180,6 +183,15 @@ const Act = {
       const lk = G.player.lookDir();
       facing = Math.abs(lk[0]) > Math.abs(lk[2]) ? (lk[0] > 0 ? 0 : 1) : (lk[2] > 0 ? 4 : 5);
     } else if (FACING_BLOCKS.has(placeId)) facing = this.faceToward(x, z);
+    if (placeId === B.DOOR) {
+      // two blocks tall, standing on something solid
+      if (y + 1 >= CH || !BLOCK_REPLACE[w.getBlock(x, y + 1, z)] || !BLOCK_SOLID[w.getBlock(x, y - 1, z)]) return false;
+      if (this.entityBlocks(x, y, z, 2)) return false;
+      editBlocks([[x, y, z, B.DOOR, facing], [x, y + 1, z, B.DOOR_TOP, facing]]);
+      sfx('place_1', [x + 0.5, y + 0.5, z + 0.5], 1, 0.9);
+      this.consume(); this.swingHand();
+      return true;
+    }
     if (BLOCK_SOLID[id] && this.entityBlocks(x, y, z, BLOCK_HEIGHT[id] / 16)) return false;
     if (BLOCK_SUPPORT[id] && !canStay(id, x, y, z, facing)) return false;
     if (cur === B.WATER && (BLOCK_RT[id] === RT_CROSS || id === B.TORCH || id === B.WALL_TORCH)) return false;
@@ -209,6 +221,23 @@ const Act = {
     const d = held && ITEM_DEF[held.id];
     const p = G.player;
     const t = this.target;
+    // climb into an aircraft
+    if (t && t.vehicle) {
+      if (initial) Vehicles.board(t.vehicle);
+      return initial;
+    }
+    // put an aircraft down on the ground in front of the player
+    if (held && held.id === I.JET && initial && t && t.block) {
+      const [x, y, z] = t.block.pos;
+      if (t.block.normal[1] !== 1) return false;
+      const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
+      const top = y + BLOCK_HEIGHT[t.block.id] / 16;
+      const j = Vehicles.spawnJet(x + 0.5 + fx * 4, top + JET_GEAR_H + 0.02, z + 0.5 + fz * 4, Math.atan2(fx, fz));
+      Particles.poof(j.pos[0], j.pos[1], j.pos[2], 3, 2);
+      sfx('place_8', j.pos, 1, 0.7);
+      this.consume(); this.swingHand();
+      return true;
+    }
     // entity interactions
     if (t && t.mob) {
       const m = t.mob;
@@ -231,6 +260,8 @@ const Act = {
         case B.FURNACE: case B.FURNACE_LIT: G.ui.openFurnace(x, y, z); return true;
         case B.CHEST: G.ui.openChest(x, y, z); return true;
         case B.BED: trySleep(x, y, z); return true;
+        case B.DOOR: case B.DOOR_TOP: case B.DOOR_OPEN: case B.DOOR_OPEN_TOP: case B.TRAPDOOR: case B.TRAPDOOR_OPEN:
+          toggleDoor(x, y, z); this.swingHand(); return true;
         case B.TNT:
           if (held && held.id === I.FLINT_STEEL) {
             igniteTNT(x, y, z); sfx('ignite', [x + 0.5, y + 0.5, z + 0.5], 1, 1);

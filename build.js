@@ -18,10 +18,11 @@ const headKept = head
   .join('\n')
   .trim();
 
-const inlined = body.replace(/<script src="([^"]+)"><\/script>/g, (_, src) => {
+// attributes such as data-w (sources shared with the chunk workers) are kept
+const inlined = body.replace(/<script src="([^"]+)"([^>]*)><\/script>/g, (_, src, attrs) => {
   const code = fs.readFileSync(path.join(root, src), 'utf8');
   if (/<\/script/i.test(code)) throw new Error(src + ' contains a closing script tag');
-  return '<script>\n' + code.trim() + '\n</script>';
+  return '<script' + attrs + '>\n' + code.trim() + '\n</script>';
 });
 
 // The host page may not declare a charset: keep the output pure ASCII.
@@ -33,7 +34,7 @@ const asciiHtml = (html) => html.replace(/[\u0080-\uffff]/g, (c, i, str) => {
 });
 const scripts = [];
 let out = headKept + '\n' + inlined.trim() + '\n';
-out = out.replace(/<script>([\s\S]*?)<\/script>/g, (_, code) => { scripts.push(asciiJs(code)); return '<script>@@SCRIPT' + (scripts.length - 1) + '@@</script>'; });
+out = out.replace(/<script([^>]*)>([\s\S]*?)<\/script>/g, (_, attrs, code) => { scripts.push(asciiJs(code)); return '<script' + attrs + '>@@SCRIPT' + (scripts.length - 1) + '@@</script>'; });
 out = asciiHtml(out).replace(/@@SCRIPT(\d+)@@/g, (_, i) => scripts[Number(i)]);
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 const file = path.join(root, 'dist', 'blocklands.html');

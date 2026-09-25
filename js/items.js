@@ -11,6 +11,7 @@ const I = {
   ROTTEN_FLESH: 289, STEW: 290, BONE_MEAL: 291, SHEARS: 292, MELON_SLICE: 293, GOLDEN_APPLE: 294,
   TOOL0: 300,   // 300..324: material * 5 + type
   ARMOR0: 330,  // 330..345: material * 4 + slot
+  JET: 350,
 };
 
 const TOOL_MATS = [
@@ -46,12 +47,15 @@ function defItem(id, name, o = {}) {
 }
 
 // ---- block items ----
-const NO_ITEM_BLOCKS = new Set([B.AIR, B.WATER, B.LAVA, B.FURNACE_LIT, B.WALL_TORCH, B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.WHEAT_3]);
+const NO_ITEM_BLOCKS = new Set([B.AIR, B.WATER, B.LAVA, B.FURNACE_LIT, B.WALL_TORCH, B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.WHEAT_3,
+  B.DOOR_TOP, B.DOOR_OPEN, B.DOOR_OPEN_TOP, B.TRAPDOOR_OPEN]);
 for (let id = 1; id < 256; id++) {
   if (BLOCK_NAME[id] === undefined || NO_ITEM_BLOCKS.has(id)) continue;
   const rt = BLOCK_RT[id];
   const o = { block: id, cat: BLOCK_CAT[id] || 'building' };
   if (rt === RT_CROSS || rt === RT_TORCH || rt === RT_LADDER) { o.render = 'sprite'; o.layer = BLOCK_TEX[id * 6 + 2]; }
+  else if (rt === RT_DOOR) { o.render = 'sprite'; o.layer = defTex('i_door'); }
+  else if (rt === RT_TRAPDOOR) { o.render = 'sprite'; o.layer = BLOCK_TEX[id * 6 + 2]; }
   else if (rt === RT_SLAB) o.render = 'slab';
   else if (rt === RT_BED) o.render = 'bed';
   else o.render = 'cube';
@@ -100,6 +104,7 @@ defItem(I.BONE_MEAL, 'Bone Meal', { sprite: 'i_bone_meal', cat: M });
 defItem(I.SHEARS, 'Shears', { sprite: 'i_shears', stack: 1, dur: 238, tool: TOOL_SHEARS, speed: 5, tier: 0, cat: TL });
 defItem(I.MELON_SLICE, 'Melon Slice', { sprite: 'i_melon_slice', food: [2, 1.2], cat: F });
 defItem(I.GOLDEN_APPLE, 'Golden Apple', { sprite: 'i_golden_apple', food: [4, 9.6], always: true, regen: 5, cat: F });
+defItem(I.JET, 'Fighter Jet', { sprite: 'i_jet', stack: 1, cat: 'transport' });
 
 TOOL_MATS.forEach((m, mi) => TOOL_KINDS.forEach((k, ki) => {
   defItem(I.TOOL0 + mi * 5 + ki, m.name + ' ' + k.name, {
@@ -159,6 +164,9 @@ function blockDrops(id, toolItem, rnd) {
     case B.DIAMOND_ORE: return [[I.DIAMOND, 1]];
     case B.FURNACE_LIT: return [[B.FURNACE, 1]];
     case B.WALL_TORCH: return [[B.TORCH, 1]];
+    case B.DOOR: case B.DOOR_OPEN: return [[B.DOOR, 1]];
+    case B.DOOR_TOP: case B.DOOR_OPEN_TOP: return [];
+    case B.TRAPDOOR_OPEN: return [[B.TRAPDOOR, 1]];
     case B.GRAVEL: return [[rnd() < 0.12 ? I.FLINT : B.GRAVEL, 1]];
     case B.BOOKSHELF: return [[I.BOOK, 3]];
     case B.MELON: return [[I.MELON_SLICE, 3 + Math.floor(rnd() * 5)]];
@@ -257,6 +265,9 @@ shaped(B.MELON, 1, ['MMM', 'MMM', 'MMM'], { M: I.MELON_SLICE });
   [B.STONE_BRICK_SLAB, B.STONE_BRICKS], [B.SANDSTONE_SLAB, B.SANDSTONE]].forEach(([slab, src]) => shaped(slab, 6, ['XXX'], { X: src }, 'slabs'));
 shaped(B.GLOWSTONE, 1, ['GTG', 'TGT', 'GTG'], { G: I.GUNPOWDER, T: B.TORCH });
 shapeless(B.WOOL, 1, [I.STRING, I.STRING, I.STRING, I.STRING]);
+shaped(B.DOOR, 3, ['PP', 'PP', 'PP'], { P: TAG.planks });
+shaped(B.TRAPDOOR, 2, ['PPP', 'PPP'], { P: TAG.planks });
+shaped(I.JET, 1, [' G ', 'IFI', 'I I'], { G: B.GLASS, I: B.IRON_BLOCK, F: B.FURNACE });
 
 // Match a crafting grid (array of item ids, row-major, size gw x gh) against the recipes.
 function matchRecipe(grid, gw, gh) {
@@ -316,7 +327,7 @@ function recipeFits(r, gw) { return r.shaped ? r.w <= gw && r.h <= gw : r.ings.l
 const CREATIVE_TABS = [
   { key: 'building', name: 'Building' }, { key: 'nature', name: 'Nature' }, { key: 'functional', name: 'Functional' },
   { key: 'tools', name: 'Tools' }, { key: 'combat', name: 'Combat' }, { key: 'food', name: 'Food' },
-  { key: 'materials', name: 'Materials' },
+  { key: 'materials', name: 'Materials' }, { key: 'transport', name: 'Vehicles' },
 ];
 function creativeItems(tab) {
   const out = [];

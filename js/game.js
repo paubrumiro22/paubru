@@ -9,7 +9,7 @@ const DAY_LENGTH = 1200; // seconds per full day
 
 const DEFAULT_SETTINGS = {
   renderDistance: 8, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
-  renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true,
+  renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -34,6 +34,7 @@ const G = {
   fps: 0, frameMs: 0, fpsAcc: 0, fpsFrames: 0, lastDebug: 0,
   eyeSky: 1, lastTime: 0, shake: 0,
   worldSpawn: [0.5, 80, 0.5], spawnPoint: null, sleeping: null,
+  vehicle: null, region: null, regionOwn: null, regionT: 0, online: false, onTitle: true,
   unlocked: false, lockPending: false, drag: { active: false, moved: 0, t: 0, mining: false },
   tickAcc: 0, furnaceAcc: 0, caveSoundT: 20,
 };
@@ -62,14 +63,68 @@ function meshChunk(c) {
   const res = buildChunkMesh(G.world, c);
   G.renderer.uploadChunk(c, res);
   c.needsMesh = false;
+  // anything a worker is still building for this chunk is now out of date
+  c.meshVer = (c.meshVer || 0) + 1;
+  c.meshInFlight = false;
+}
+
+// Where terrain streams around: the player, or the aircraft they are flying.
+function streamCenter() {
+  const v = G.vehicle;
+  if (v) {
+    // look ahead along the flight path so the ground in front is ready in time
+    const ahead = clamp(v.speed * 1.2, 0, 70);
+    return [v.pos[0] + v.fwd[0] * ahead, v.pos[2] + v.fwd[2] * ahead];
+  }
+  return [G.player.pos[0], G.player.pos[2]];
 }
 
 function updateChunks(budgetMs) {
-  const t0 = performance.now();
   const R = G.settings.renderDistance;
   if (G.offsetsR !== R) buildOffsets(R);
+  const c0 = streamCenter();
+  const pcx = Math.floor(c0[0] / CS), pcz = Math.floor(c0[1] / CS);
+  if (ChunkWorkers.ok) updateChunksAsync(R, pcx, pcz, budgetMs);
+  else updateChunksSync(R, pcx, pcz, budgetMs);
+  // unload far chunks now and then
+  if ((G.frameCount & 63) === 0) {
+    const w = G.world;
+    const lim = R + 4;
+    const ppx = Math.floor(G.player.pos[0] / CS), ppz = Math.floor(G.player.pos[2] / CS);
+    for (const [key, c] of w.chunks) {
+      const far = (cx, cz) => Math.abs(c.cx - cx) > lim || Math.abs(c.cz - cz) > lim;
+      if (far(pcx, pcz) && far(ppx, ppz)) {
+        G.renderer.freeChunk(c);
+        w.chunks.delete(key);
+      }
+    }
+  }
+}
+
+// Workers generate and mesh; the main thread only hands out jobs and uploads results.
+function updateChunksAsync(R, pcx, pcz, budgetMs) {
+  const t0 = performance.now();
+  const w = G.world, CW = ChunkWorkers;
+  for (const [dx, dz] of G.offsets) {
+    if (!CW.canGen()) break;
+    const cx = pcx + dx, cz = pcz + dz;
+    if (!w.getChunk(cx, cz)) CW.gen(w, cx, cz);
+  }
+  let synced = 0;
+  for (const [dx, dz, d] of G.offsets) {
+    if (d > R + 0.5) break;
+    const c = w.getChunk(pcx + dx, pcz + dz);
+    if (!c || !c.needsMesh || c.meshInFlight || !neighborsLoaded(c.cx, c.cz)) continue;
+    // the few chunks right around the player are rebuilt at once (edits, explosions)
+    if (d < 1.5 && synced < 2 && performance.now() - t0 < budgetMs) { meshChunk(c); synced++; continue; }
+    if (!CW.canMesh()) break;
+    CW.mesh(w, c);
+  }
+}
+
+function updateChunksSync(R, pcx, pcz, budgetMs) {
+  const t0 = performance.now();
   const w = G.world;
-  const pcx = Math.floor(G.player.pos[0] / CS), pcz = Math.floor(G.player.pos[2] / CS);
   let work = 0;
   for (const [dx, dz] of G.offsets) {
     if (work > 0 && performance.now() - t0 > budgetMs * 0.45) break;
@@ -84,16 +139,6 @@ function updateChunks(budgetMs) {
     meshChunk(c);
     work++;
   }
-  // unload far chunks now and then
-  if ((G.frameCount & 63) === 0) {
-    const lim = R + 4;
-    for (const [key, c] of w.chunks) {
-      if (Math.abs(c.cx - pcx) > lim || Math.abs(c.cz - pcz) > lim) {
-        G.renderer.freeChunk(c);
-        w.chunks.delete(key);
-      }
-    }
-  }
 }
 
 // ---------- block edits ----------
@@ -102,6 +147,7 @@ function editBlock(x, y, z, id, facing) {
   const old = w.getBlock(x, y, z);
   const list = w.setBlock(x, y, z, id, facing);
   if (!list) return false;
+  Net.edit(x, y, z, id, facing);
   if (old !== id) cleanupBlockEntity(x, y, z, old, id);
   const c = list[0];
   const lx = x & 15, lz = z & 15;
@@ -124,6 +170,7 @@ function editBlocks(list) {
     const old = w.getBlock(x, y, z);
     const res = w.setBlock(x, y, z, id, facing);
     if (!res) continue;
+    Net.edit(x, y, z, id, facing);
     if (old !== id) cleanupBlockEntity(x, y, z, old, id);
     for (const c of res) dirty.add(c);
   }
@@ -204,11 +251,37 @@ function waterRefill(x, y, z) {
   return [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]].some(([dx, dy, dz]) => w.getBlock(x + dx, y + dy, z + dz) === B.WATER) ? B.WATER : B.AIR;
 }
 
+// Opens or closes a door (both halves) or a trapdoor.
+function toggleDoor(x, y, z) {
+  const w = G.world;
+  const id = w.getBlock(x, y, z);
+  if (id === B.TRAPDOOR || id === B.TRAPDOOR_OPEN) {
+    const open = id === B.TRAPDOOR;
+    editBlock(x, y, z, open ? B.TRAPDOOR_OPEN : B.TRAPDOOR);
+    sfx(open ? 'door_open' : 'door_close', [x + 0.5, y + 0.5, z + 0.5], 1, 1.15);
+    return;
+  }
+  if (!DOOR_IDS.has(id)) return;
+  const by = isDoorTop(id) ? y - 1 : y;
+  const open = !isOpenDoor(id);
+  const edits = [[x, by, z, open ? B.DOOR_OPEN : B.DOOR]];
+  if (DOOR_IDS.has(w.getBlock(x, by + 1, z))) edits.push([x, by + 1, z, open ? B.DOOR_OPEN_TOP : B.DOOR_TOP]);
+  editBlocks(edits);
+  const c = w.getChunk(x >> 4, z >> 4);
+  if (c && neighborsLoaded(c.cx, c.cz)) meshChunk(c);
+  sfx(open ? 'door_open' : 'door_close', [x + 0.5, by + 1, z + 0.5], 1, 1);
+}
+
 // Removes a block like a player would: drops, particles, sound and neighbour updates.
 function destroyBlock(x, y, z, opts = {}) {
   const w = G.world;
   const id = w.getBlock(x, y, z);
   if (id === B.AIR || IS_LIQUID(id)) return false;
+  if (DOOR_IDS.has(id)) {
+    // the other half of a door goes with it
+    const oy = isDoorTop(id) ? y - 1 : y + 1;
+    if (DOOR_IDS.has(w.getBlock(x, oy, z))) editBlock(x, oy, z, B.AIR);
+  }
   let fill = waterRefill(x, y, z);
   if (id === B.ICE && G.mode === 'survival') fill = B.WATER;
   if (opts.drops) {
@@ -285,6 +358,12 @@ function randomTicks(dt) {
   G.tickAcc += dt;
   if (G.tickAcc < 0.05) return;
   G.tickAcc = 0;
+  // growth happens on every player's machine on its own: nothing to share
+  Net.capture = false;
+  try { randomTicksNow(); } finally { Net.capture = true; }
+}
+
+function randomTicksNow() {
   const w = G.world;
   const pcx = Math.floor(G.player.pos[0] / CS), pcz = Math.floor(G.player.pos[2] / CS);
   for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
@@ -349,8 +428,10 @@ function tickFurnaces(dt) {
     if (be.burn < 0) be.burn = 0;
     const id = w.getBlock(x, y, z);
     const lit = be.burn > 0;
+    Net.capture = false;
     if (lit && id === B.FURNACE) editBlock(x, y, z, B.FURNACE_LIT);
     else if (!lit && id === B.FURNACE_LIT) editBlock(x, y, z, B.FURNACE);
+    Net.capture = true;
     if (changed && G.ui) G.ui.containerChanged(k);
     if (lit && Math.random() < dt * 2) Particles.smoke(x + 0.5, y + 1.05, z + 0.5, 1, 0.2, true);
   }
@@ -365,7 +446,16 @@ function igniteTNT(x, y, z, fuse = 4) {
   sfx('fuse', [x + 0.5, y + 0.5, z + 0.5], 1, 1);
 }
 
-function explode(x, y, z, power, source) {
+// `seed` is given when replaying another player's explosion, so both craters match.
+function explode(x, y, z, power, source, seed) {
+  const remote = seed !== undefined;
+  if (!remote) { seed = (Math.random() * 2147483647) | 0; Net.explosion(x, y, z, power, seed); }
+  const was = Net.capture;
+  Net.capture = false;
+  try { explodeNow(x, y, z, power, source, mulberry32(seed), remote); } finally { Net.capture = was; }
+}
+
+function explodeNow(x, y, z, power, source, rng, remote) {
   const w = G.world;
   sfx('explode', [x, y, z], 1.5, rand(0.8, 1.05));
   Particles.explosion(x, y, z, power);
@@ -378,7 +468,7 @@ function explode(x, y, z, power, source) {
     let dx = i / 15 * 2 - 1, dy = j / 15 * 2 - 1, dz = k / 15 * 2 - 1;
     const l = Math.hypot(dx, dy, dz);
     dx /= l; dy /= l; dz /= l;
-    let inten = power * (0.7 + Math.random() * 0.6);
+    let inten = power * (0.7 + rng() * 0.6);
     let px = x, py = y, pz = z;
     while (inten > 0) {
       const bx = Math.floor(px), by = Math.floor(py), bz = Math.floor(pz);
@@ -394,8 +484,15 @@ function explode(x, y, z, power, source) {
   }
   const edits = [];
   for (const [bx, by, bz, id] of destroyed.values()) {
-    if (id === B.TNT) { edits.push([bx, by, bz, B.AIR]); Ents.tnts.push(new PrimedTNT(bx, by, bz, rand(0.5, 1.5))); continue; }
-    if (G.mode === 'survival' && Math.random() < 1 / power) {
+    if (id === B.TNT) {
+      edits.push([bx, by, bz, B.AIR]);
+      // replayed blasts only show the fuse: the player who set it off shares the next boom
+      const t = new PrimedTNT(bx, by, bz, 0.5 + rng());
+      t.fake = remote;
+      Ents.tnts.push(t);
+      continue;
+    }
+    if (G.mode === 'survival' && !remote && Math.random() < 1 / power) {
       for (const [it, n] of blockDrops(id, 0, Math.random)) Ents.spawnItem({ id: it, count: n }, bx + 0.5, by + 0.5, bz + 0.5);
     }
     edits.push([bx, by, bz, waterRefill(bx, by, bz)]);
@@ -483,9 +580,56 @@ function respawn() {
   p.fallStart = null; p.landed = 0;
   G.ui.hideDeath();
   G.ui.invDirty();
-  const pcx = Math.floor(p.pos[0] / CS), pcz = Math.floor(p.pos[2] / CS);
-  for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (!G.world.getChunk(pcx + dx, pcz + dz)) G.world.generateChunk(pcx + dx, pcz + dz);
+  prepareArea(p.pos[0], p.pos[2], 1);
   liftOutOfBlocks(p);
+}
+
+// Makes sure the chunks around a spot exist and are meshed (after a teleport or respawn).
+function prepareArea(x, z, r = 1) {
+  const w = G.world;
+  const pcx = Math.floor(x / CS), pcz = Math.floor(z / CS);
+  for (let dz = -r - 1; dz <= r + 1; dz++) for (let dx = -r - 1; dx <= r + 1; dx++) if (!w.getChunk(pcx + dx, pcz + dz)) w.generateChunk(pcx + dx, pcz + dz);
+  for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+    const c = w.getChunk(pcx + dx, pcz + dz);
+    if (c && (c.needsMesh || !c.mesh)) meshChunk(c);
+  }
+}
+
+// Teleport to one of the themed places of this world ("volcano", "beach"...).
+function travelTo(key) {
+  const g = G.world.gen;
+  const sp = regionSpawn(g, key);
+  if (!sp) { G.ui.toast('Themed places only exist in default worlds'); return false; }
+  if (G.vehicle) Vehicles.dismount(true);
+  const p = G.player;
+  const x = Math.floor(sp.pos[0]), z = Math.floor(sp.pos[2]);
+  p.pos = [x + 0.5, g.height(x, z) + 1, z + 0.5];
+  p.vel = [0, 0, 0];
+  p.yaw = sp.yaw; p.pitch = sp.pitch;
+  p.fallStart = null; p.landed = 0;
+  G.dayTime = sp.time;
+  Particles.list.length = 0;
+  prepareArea(p.pos[0], p.pos[2], 2);
+  liftOutOfBlocks(p);
+  G.region = null;
+  sfx('portal', null, 0.8, 1);
+  if (typeof Net !== 'undefined') Net.teleported();
+  return true;
+}
+
+// Themed place the player stands in (for the arrival banner and ambience).
+function updateRegion(dt) {
+  G.regionT -= dt;
+  if (G.regionT > 0) return;
+  G.regionT = 0.3;
+  const p = G.player.pos;
+  const own = G.world.gen.regionOwner(Math.floor(p[0]), Math.floor(p[2]));
+  const key = own && own.t < 0.45 ? Object.keys(WORLD_PRESETS).find((k) => WORLD_PRESETS[k] === own.p) : null;
+  if (key !== G.region) {
+    G.region = key;
+    G.regionOwn = own;
+    if (key && !G.world.gen.preset) G.ui.banner(WORLD_PRESETS[key].icon, WORLD_PRESETS[key].name);
+  } else G.regionOwn = own;
 }
 
 function setGameMode(mode) {
@@ -500,10 +644,11 @@ function setGameMode(mode) {
 function saveWorld() {
   if (!G.world || !G.player) return;
   const p = G.player;
-  const ok = storageSet(SAVE_KEY, {
+  const ok = storageSet(G.online ? ONLINE_SAVE_KEY : SAVE_KEY, {
     v: 2, seed: G.world.seed, type: G.world.type, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
     dayTime: G.dayTime, mode: G.mode, difficulty: G.difficulty, rules: G.rules, worldSpawn: G.worldSpawn, spawnPoint: G.spawnPoint,
     player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, flying: p.flying }, inv: G.inv.serialize(), stats: G.stats.serialize(),
+    vehicles: Vehicles.serialize(),
   });
   if (!ok && G.ui) G.ui.toast('Could not save: browser storage is full');
   G.world.editsDirty = false;
@@ -522,11 +667,14 @@ function loadSave() {
   return null;
 }
 
-const STARTER_CREATIVE = [B.GRASS, B.COBBLE, B.PLANKS, B.GLASS, B.STONE_BRICKS, B.TORCH, B.LOG, B.GLOWSTONE, B.TNT];
+const STARTER_CREATIVE = [B.GRASS, B.COBBLE, B.PLANKS, B.GLASS, B.STONE_BRICKS, B.TORCH, B.DOOR, B.TNT, I.JET];
 
 function newWorld(seed, save, opts = {}) {
   if (G.world) for (const c of G.world.chunks.values()) G.renderer.freeChunk(c);
+  ChunkWorkers.reset();
+  if (G.vehicle) G.vehicle = null;
   Ents.clear();
+  G.region = null;
   const type = save ? save.type : opts.type;
   G.world = new World(seed, type);
   G.player = new Player(G.world);
@@ -556,6 +704,7 @@ function newWorld(seed, save, opts = {}) {
     if (Array.isArray(save.spawnPoint) && save.spawnPoint.every(Number.isFinite)) G.spawnPoint = save.spawnPoint;
     G.inv.load(save.inv);
     G.stats.load(save.stats);
+    Vehicles.load(save.vehicles);
   } else {
     G.player.pos = G.worldSpawn.slice();
     G.player.yaw = -0.6;

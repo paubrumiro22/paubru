@@ -324,6 +324,10 @@ function buildChunkMesh(world, chunk) {
             for (const c of FACE_CORNERS[f]) pts.push([x + (px !== null ? px : c[0]), y + c[1], z + (pz !== null ? pz : c[2])]);
             const uvs = FACE_CORNERS[f].map((c) => [faceU(f, c[0], c[1], c[2]), faceV(f, c[0], c[1], c[2])]);
             emitQuad(meshCutout, pts, uvs, BLOCK_TEX[id * 6], f | (flags << 3), s, b2, WHITE_TINT);
+          } else if (rt === RT_DOOR || rt === RT_TRAPDOOR) {
+            const f = world.getFacing(ox + x, y, oz + z);
+            const bx = rt === RT_DOOR ? doorPanel(f, isOpenDoor(id)) : trapdoorPanel(f, isOpenDoor(id));
+            emitBox(meshCutout, p, x, y, z, bx[0], bx[1], bx[2], bx[3], bx[4], bx[5], tex, flags, WHITE_TINT, null);
           } else if (rt === RT_BED) {
             const f = world.getFacing(ox + x, y, oz + z);
             const alongX = f === 0 || f === 1;

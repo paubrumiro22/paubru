@@ -82,8 +82,17 @@ const MOB_MODELS = {
   player: [
     { id: 'arm', box: [-2, -12, -2, 2, 0, 2] },
   ],
+  // other players online; shirt and sleeves take each player's colour
+  avatar: [
+    { id: 'body', box: [-4, 12, -2, 4, 24, 2], tint: true },
+    { id: 'head', box: [-4, 24, -4, 4, 32, 4], pivot: [0, 24, 0], role: 'head' },
+    { id: 'armL', box: [-8, 12, -2, -4, 24, 2], pivot: [-6, 22, 0], uv: 'arm', role: 'armL', tint: true },
+    { id: 'armR', box: [4, 12, -2, 8, 24, 2], pivot: [6, 22, 0], uv: 'arm', role: 'armR', tint: true },
+    { id: 'legL', box: [-4, 0, -2, 0, 12, 2], pivot: [-2, 12, 0], uv: 'leg', role: 'legA' },
+    { id: 'legR', box: [0, 0, -2, 4, 12, 2], pivot: [2, 12, 0], uv: 'leg', role: 'legB' },
+  ],
 };
-const MOB_SKIN_SLOT = { pig: 0, cow: 1, sheep: 2, chicken: 3, zombie: 4, skeleton: 5, spider: 6, fusecap: 7, player: 8 };
+const MOB_SKIN_SLOT = { pig: 0, cow: 1, sheep: 2, chicken: 3, zombie: 4, skeleton: 5, spider: 6, fusecap: 7, player: 8, avatar: 11 };
 
 // Box UV layout: row 1 [gap d][top w][bottom w], row 2 [left d][front w][right d][back w].
 function boxFaces(u, v, w, h, d) {
@@ -260,10 +269,87 @@ function paintSkins() {
     rect(partFaces('player', 'arm').bottom, () => [skinC, 0.92]);
   }
 
+  // online avatar: neutral light shirt (tinted per player), jeans, hair and a friendly face
+  {
+    const skinC = [222, 170, 132], shirt = [236, 236, 236], jeans = [58, 72, 118], hair = [70, 46, 30];
+    const head = partFaces('avatar', 'head');
+    allFaces(head, () => [skinC, 0.94 + rng() * 0.06]);
+    rect(head.top, () => [hair, 0.9 + rng() * 0.15]);
+    rect(head.back, (x, y) => [y < 6 ? hair : skinC, 0.92 + rng() * 0.1]);
+    for (const k of ['left', 'right']) rect(head[k], (x, y) => [y < 3 ? hair : skinC, 0.93 + rng() * 0.08]);
+    rect(head.front, (x, y) => [y < 2 ? hair : skinC, 0.95 + rng() * 0.05]);
+    const f = head.front;
+    for (const ex of [1, 5]) { px(f[0] + ex, f[1] + 4, [250, 250, 250]); px(f[0] + ex + 1, f[1] + 4, [48, 90, 160]); }
+    for (let x = 3; x < 5; x++) px(f[0] + x, f[1] + 6, [150, 90, 80]);
+    allFaces(partFaces('avatar', 'body'), (x, y) => [shirt, (y === 0 ? 0.85 : 1) * (0.93 + rng() * 0.07)]);
+    allFaces(partFaces('avatar', 'arm'), (x, y, w, h) => [y >= h - 3 ? [255, 214, 186] : shirt, 0.92 + rng() * 0.08]);
+    allFaces(partFaces('avatar', 'leg'), (x, y, w, h) => [y >= h - 2 ? [40, 36, 36] : jeans, 0.88 + rng() * 0.12]);
+  }
+
+  paintJetSwatches(px, rng);
+
   const cv = document.createElement('canvas');
   cv.width = ATLAS_W; cv.height = ATLAS_H;
   cv.getContext('2d').putImageData(img, 0, 0);
   return cv;
+}
+
+// ---- fighter jet paint: 32x32 swatches stretched over each box face ----
+const JET_SWATCHES = ['hull', 'hullDark', 'belly', 'glass', 'nozzle', 'intake', 'white', 'red',
+  'tire', 'metal', 'glow', 'navRed', 'navGreen', 'navWhite', 'roundel', 'tail'];
+const JET_SWATCH_RECT = {};
+JET_SWATCHES.forEach((n, i) => {
+  const slot = 9 + (i >> 3), k = i & 7;
+  const x = (slot % 4) * SKIN_W + (k & 3) * 32, y = Math.floor(slot / 4) * SKIN_H + (k >> 2) * 32;
+  JET_SWATCH_RECT[n] = [x + 1, y + 1, 30, 30];
+});
+
+function paintJetSwatches(px, rng) {
+  const at = (n) => JET_SWATCH_RECT[n];
+  const fill = (n, fn) => { const [x0, y0] = at(n); for (let y = -1; y < 31; y++) for (let x = -1; x < 31; x++) { const r = fn(clamp(x, 0, 29), clamp(y, 0, 29)); px(x0 + x, y0 + y, r[0], r[1]); } };
+  // panel lines and rivets on painted metal
+  const panels = (base) => (x, y) => {
+    let f = 0.95 + rng() * 0.05;
+    if (x === 9 || x === 21 || y === 14) f *= 0.84;
+    if ((x === 11 || x === 19) && y % 4 === 1) f *= 0.9;
+    if (x === 0 || y === 0) f *= 1.04;
+    return [base, f];
+  };
+  fill('hull', panels([128, 138, 150]));
+  fill('hullDark', panels([88, 96, 108]));
+  fill('belly', panels([172, 178, 186]));
+  fill('glass', (x, y) => {
+    const c = mixc([90, 124, 146], [24, 36, 50], y / 29);
+    const glint = Math.abs(x - y * 0.6 - 6) < 1.5 ? 1.5 : 1;
+    return [c, glint];
+  });
+  fill('nozzle', (x, y) => [((x >> 2) + (y >> 2)) % 2 ? [74, 70, 66] : [98, 92, 84], 0.9 + rng() * 0.08]);
+  fill('intake', (x, y) => [[18, 18, 22], 0.9 + (y / 29) * 0.3]);
+  fill('white', (x, y) => [[228, 228, 222], (x === 14 ? 0.86 : 1) * (0.97 + rng() * 0.03)]);
+  fill('red', () => [[196, 40, 36], 0.95 + rng() * 0.05]);
+  fill('tire', (x, y) => [[28, 28, 30], y % 5 === 0 ? 0.7 : 1]);
+  fill('metal', (x, y) => [[168, 170, 176], 0.9 + (x / 29) * 0.2]);
+  fill('glow', (x, y) => {
+    const d = Math.hypot(x - 14.5, y - 14.5) / 20;
+    return [mixc([255, 250, 225], [255, 128, 34], clamp(d, 0, 1)), 1];
+  });
+  fill('navRed', () => [[255, 70, 50], 1]);
+  fill('navGreen', () => [[70, 255, 120], 1]);
+  fill('navWhite', () => [[255, 255, 255], 1]);
+  fill('roundel', (x, y) => {
+    const d = Math.hypot(x - 14.5, y - 14.5);
+    if (d < 4) return [[200, 40, 36], 1];
+    if (d < 8) return [[236, 236, 232], 1];
+    if (d < 12) return [[36, 64, 150], 1];
+    return panels([128, 138, 150])(x, y);
+  });
+  fill('tail', (x, y) => {
+    // a red chevron band and a dark tip on the fins
+    if (y < 5) return [[80, 88, 98], 1];
+    const band = y - 10 - Math.abs(x - 15) * 0.35;
+    if (band > 0 && band < 5) return [[196, 40, 36], 1];
+    return panels([128, 138, 150])(x, y);
+  });
 }
 
 // ---- extruded item sprites ----

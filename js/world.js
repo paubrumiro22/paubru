@@ -60,11 +60,32 @@ class WorldGen {
     this.nCaveB = new SimplexNoise(s + 101);
     this.nCaveC = new SimplexNoise(s + 113);
     this.nPatch = new SimplexNoise(s + 131);
+    // themed places scattered through the regular world (see presets.js)
+    this.regions = this.type === 'default' ? placeRegions(this.seed) : [];
   }
 
   height(x, z) {
     if (this.preset) return this.preset.height(this, x, z);
     if (this.type === 'flat') return FLAT_Y;
+    const base = this.baseHeight(x, z);
+    const R = regionBlend(this, x, z);
+    if (!R) return base;
+    const hp = R.r.p.height(this, x - R.r.x, z - R.r.z);
+    return Math.floor(hp + (base - hp) * R.t);
+  }
+
+  // The owner of a column: a themed place (with local coordinates) or null for the default rules.
+  regionOwner(x, z) {
+    if (this.preset) return { p: this.preset, x: 0, z: 0, t: 0 };
+    if (!this.regions.length) return null;
+    const R = regionBlend(this, x, z);
+    if (!R) return null;
+    // the handover line wobbles so the border between the two looks natural
+    if (R.t > 0.5 + this.nDet.noise2D(x * 0.05, z * 0.05) * 0.18) return null;
+    return { p: R.r.p, x: R.r.x, z: R.r.z, t: R.t };
+  }
+
+  baseHeight(x, z) {
     const c = this.nCont.fbm2(x * 0.0016, z * 0.0016, 4);
     const e = this.nEro.fbm2(x * 0.0028, z * 0.0028, 3);
     const ridge = 1 - Math.abs(this.nPeak.fbm2(x * 0.0042, z * 0.0042, 4));
@@ -175,13 +196,21 @@ class WorldGen {
     };
 
     const biomes = new Uint8Array(CS * CS);
+    const owners = new Array(CS * CS);
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
       const wx = ox + x, wz = oz + z;
       const h = heights[(z + P) * HW + x + P];
       const slope = Math.max(
         Math.abs(heights[(z + P) * HW + x + P + 1] - heights[(z + P) * HW + x + P - 1]),
         Math.abs(heights[(z + P + 1) * HW + x + P] - heights[(z + P - 1) * HW + x + P]));
-      const c = this.preset ? this.preset.column(this, wx, wz, h, slope) : this.defaultColumn(wx, wz, h, slope);
+      const own = this.regionOwner(wx, wz);
+      owners[z * CS + x] = own;
+      let c;
+      if (own) {
+        c = own.p.column(this, wx - own.x, wz - own.z, h, slope);
+        // near the edge of a place its raised lakes and rivers would stand as walls of water
+        if (own.t > 0.08 && c.level > Math.max(h, SEA)) c.level = Math.max(h, SEA);
+      } else c = this.defaultColumn(wx, wz, h, slope);
       biomes[z * CS + x] = c.biome;
       // biome tints (stored as multiplier * 200)
       for (let k = 0; k < 3; k++) {
@@ -211,7 +240,7 @@ class WorldGen {
     }
 
     this.placeOres(chunk, ox, oz);
-    this.placePlants(chunk, heights, HW, P, biomes, ox, oz);
+    this.placePlants(chunk, heights, HW, P, biomes, ox, oz, owners);
     this.placeCaveDecor(chunk, heights, HW, P, ox, oz);
     this.placeTrees(chunk, ox, oz);
 
@@ -264,19 +293,20 @@ class WorldGen {
     }
   }
 
-  placePlants(chunk, heights, HW, P, biomes, ox, oz) {
+  placePlants(chunk, heights, HW, P, biomes, ox, oz, owners) {
     const b = chunk.blocks;
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
       const h = heights[(z + P) * HW + x + P];
       if (h + 3 >= CH) continue;
       const ground = b[(h * CS + z) * CS + x];
       const above = (h + 1) * CS * CS + z * CS + x;
-      if (b[above] !== B.AIR && !(this.preset && b[above] === B.WATER)) continue;
+      const own = owners[z * CS + x];
+      if (b[above] !== B.AIR && !(own && b[above] === B.WATER)) continue;
       const biome = biomes[z * CS + x];
       const wx = ox + x, wz = oz + z;
       const r = hash3(wx, h, wz, this.seed + 5);
-      if (this.preset) {
-        const pl = this.preset.plant(this, wx, wz, h, ground, r);
+      if (own) {
+        const pl = own.p.plant(this, wx - own.x, wz - own.z, h, ground, r);
         if (pl) for (let i = 0; i < pl.ids.length && h + 1 + i < CH; i++) {
           const k = ((h + 1 + i) * CS + z) * CS + x;
           if (b[k] === B.AIR || (pl.water && b[k] === B.WATER)) b[k] = pl.ids[i];
@@ -329,9 +359,20 @@ class WorldGen {
 
   // Trees are decided on a jittered grid, so every chunk can reproduce the parts of
   // neighbouring trees that overhang it without cross-chunk writes.
+  // Trees of the default terrain plus those of any themed place overlapping this chunk.
   placeTrees(chunk, ox, oz) {
-    const P = this.preset;
+    if (this.preset) { this.placeTreeLayer(chunk, ox, oz, { p: this.preset, x: 0, z: 0 }); return; }
+    const near = this.regions.filter((r) => Math.abs(r.x - (ox + 8)) < REGION_OUT + 60 && Math.abs(r.z - (oz + 8)) < REGION_OUT + 60);
+    this.placeTreeLayer(chunk, ox, oz, null, near.length > 0);
+    for (const r of near) this.placeTreeLayer(chunk, ox, oz, r);
+  }
+
+  // One jittered grid of tree candidates. `reg` = themed place owning its trees (null: default
+  // rules); candidates whose column belongs to someone else are skipped.
+  placeTreeLayer(chunk, ox, oz, reg, checkOwner) {
+    const P = reg ? reg.p : null;
     const cell = P ? P.trees.cell : 5, R = P ? P.trees.R : 3;
+    const rx = reg ? reg.x : 0, rz = reg ? reg.z : 0;
     const b = chunk.blocks;
     const get = (wx, wy, wz) => {
       const lx = wx - ox, lz = wz - oz;
@@ -343,16 +384,23 @@ class WorldGen {
       if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || wy < 1 || wy >= CH) return;
       b[(wy * CS + lz) * CS + lx] = id;
     };
-    const gx0 = Math.floor((ox - R) / cell), gx1 = Math.floor((ox + CS + R) / cell);
-    const gz0 = Math.floor((oz - R) / cell), gz1 = Math.floor((oz + CS + R) / cell);
+    // grid in the place's local coordinates, so a place grows the same trees wherever it is
+    const lox = ox - rx, loz = oz - rz;
+    const gx0 = Math.floor((lox - R) / cell), gx1 = Math.floor((lox + CS + R) / cell);
+    const gz0 = Math.floor((loz - R) / cell), gz1 = Math.floor((loz + CS + R) / cell);
     for (let gz = gz0; gz <= gz1; gz++) for (let gx = gx0; gx <= gx1; gx++) {
-      const tx = gx * cell + Math.floor(hash3(gx, 1, gz, this.seed) * cell);
-      const tz = gz * cell + Math.floor(hash3(gx, 2, gz, this.seed) * cell);
+      const lx = gx * cell + Math.floor(hash3(gx, 1, gz, this.seed) * cell);
+      const lz = gz * cell + Math.floor(hash3(gx, 2, gz, this.seed) * cell);
+      const tx = lx + rx, tz = lz + rz;
       if (tx < ox - R || tx >= ox + CS + R || tz < oz - R || tz >= oz + CS + R) continue;
+      if (reg && !this.preset) {
+        const own = this.regionOwner(tx, tz);
+        if (!own || own.x !== rx || own.z !== rz) continue;
+      } else if (checkOwner && this.regionOwner(tx, tz)) continue;
       const h = this.height(tx, tz);
       if (P) {
         if (h > CH - 32) continue;
-        const t = P.tree(this, tx, tz, h, hash3(gx, 3, gz, this.seed));
+        const t = P.tree(this, lx, lz, h, hash3(gx, 3, gz, this.seed));
         if (!t) continue;
         const sl = Math.max(Math.abs(this.height(tx + 1, tz) - this.height(tx - 1, tz)), Math.abs(this.height(tx, tz + 1) - this.height(tx, tz - 1)));
         if (sl > 2) continue;
@@ -514,6 +562,12 @@ class World {
   generateChunk(cx, cz) {
     const c = new Chunk(cx, cz);
     this.gen.generate(c);
+    return this.addChunk(c);
+  }
+
+  // A chunk generated here or in a worker joins the world: player edits are replayed on it.
+  addChunk(c) {
+    const cx = c.cx, cz = c.cz;
     const e = this.edits.get(chunkKey(cx, cz));
     if (e) {
       for (const [idx, id] of e) c.blocks[idx] = id;

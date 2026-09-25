@@ -15,6 +15,7 @@ const SETTINGS_UI = [
   { key: 'bloom', label: 'Bloom', type: 'check' },
   { key: 'fxaa', label: 'Anti-aliasing (FXAA)', type: 'check' },
   { key: 'bobbing', label: 'View bobbing', type: 'check' },
+  { key: 'dynamicRes', label: 'Dynamic resolution (smoother)', type: 'check' },
 ];
 
 // ---------- errors ----------
@@ -108,7 +109,7 @@ function setSetting(key, value) {
   if (key === 'shadows' || key === 'clouds') {
     try { G.renderer.applySettings(); } catch (e) { showError('Could not apply graphics settings', e); }
   }
-  if (key === 'renderScale') resize();
+  if (key === 'renderScale' || key === 'dynamicRes') resize();
 }
 
 function refreshGameUI() {
@@ -116,9 +117,81 @@ function refreshGameUI() {
   $('difficultySel').value = String(G.difficulty);
   $('keepInvCheck').checked = G.rules.keepInventory;
   $('mobsCheck').checked = G.rules.mobSpawning;
-  $('seedVal').textContent = String(G.world ? G.world.seed : '');
+  $('seedVal').textContent = G.online ? 'online world' : String(G.world ? G.world.seed : '');
   const wt = G.world ? G.world.type : 'default';
   $('worldTypeVal').textContent = WORLD_PRESETS[wt] ? WORLD_PRESETS[wt].name : wt;
+  buildPlaces($('placesGridMenu'));
+  Net.refreshUI();
+}
+
+// Cards for the themed places of the current world, with distance and direction.
+function buildPlaces(el, after) {
+  el.innerHTML = '';
+  const g = G.world.gen;
+  if (!g.regions.length) {
+    const s = document.createElement('span');
+    s.style.color = 'var(--muted)';
+    s.textContent = g.preset ? 'This is a single-place world from an older version. Create a new world to explore all eight places.' : 'Flat worlds have no themed places.';
+    el.append(s);
+    return;
+  }
+  const p = G.player.pos;
+  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  for (const r of g.regions) {
+    const dx = r.x - p[0], dz = r.z - p[2];
+    const d = Math.hypot(dx, dz);
+    const dir = dirs[((Math.round(Math.atan2(dx, -dz) / (Math.PI / 4)) % 8) + 8) % 8];
+    const b = document.createElement('button');
+    b.className = 'place';
+    const i = document.createElement('span'); i.className = 'pi'; i.textContent = r.p.icon;
+    const n = document.createElement('b'); n.textContent = r.p.name;
+    const s = document.createElement('small'); s.textContent = d < REGION_IN ? 'You are here' : (d / 1000).toFixed(1) + ' km ' + dir;
+    b.append(i, n, s);
+    b.addEventListener('click', () => {
+      Sound.init();
+      if (travelTo(r.key)) { if (after) after(); requestLock(); }
+    });
+    el.append(b);
+  }
+}
+
+function worldLabel() {
+  if (G.online) return 'Online world · ' + (Net.peers.size + 1) + ' player' + (Net.peers.size ? 's' : '');
+  return (G.mode === 'creative' ? 'Creative' : 'Survival') + ' world · seed ' + G.world.seed;
+}
+
+// ---------- title screen ----------
+function showTitle() {
+  if (G.dead) return;
+  G.onTitle = true;
+  G.playing = false;
+  if (G.unlocked) leaveUnlockedPlay();
+  if (document.pointerLockElement) document.exitPointerLock();
+  if (G.screenOpen) UI.closeScreen(true);
+  saveWorld();
+  $('menu').classList.add('hidden');
+  $('hud').classList.add('hidden');
+  $('placesPanel').classList.add('hidden');
+  $('title').classList.remove('hidden');
+  $('tPlayLabel').textContent = G.started ? 'Continue' : 'Play';
+  $('tWorld').textContent = worldLabel();
+  G.titleYaw = G.player.yaw;
+}
+
+function leaveTitle() {
+  G.onTitle = false;
+  $('title').classList.add('hidden');
+  $('placesPanel').classList.add('hidden');
+}
+
+function showCredits() {
+  const c = $('credits');
+  c.classList.remove('hidden');
+  const roll = $('creditsRoll');
+  roll.style.animation = 'none';
+  void roll.offsetWidth;
+  roll.style.animation = '';
+  sfx('chime', null, 1, 0.8);
 }
 
 // ---------- menu / pointer lock ----------
@@ -166,6 +239,7 @@ function leaveUnlockedPlay() {
 
 function requestLock() {
   Sound.init();
+  if (G.onTitle) leaveTitle();
   if (G.stats.dead) return;
   if (G.unlocked) { G.playing = true; hideMenu(); return; }
   if (typeof G.canvas.requestPointerLock !== 'function') { enterUnlockedPlay(); return; }
@@ -186,7 +260,27 @@ function requestLock() {
 
 // ---------- input ----------
 const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'KeyR', 'KeyT', 'F1', 'F3', 'Tab',
-  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyV', 'KeyG', 'Enter']);
+
+// Keys that mean something else while flying. Returns true when handled.
+function vehicleKey(code) {
+  const v = G.vehicle;
+  switch (code) {
+    case 'ShiftLeft': case 'ShiftRight': Vehicles.dismount(false); return true;
+    case 'KeyV':
+      Vehicles.camMode = Vehicles.camMode === 'chase' ? 'cockpit' : 'chase';
+      UI.toast(Vehicles.camMode === 'chase' ? 'Chase camera' : 'Cockpit camera');
+      return true;
+    case 'KeyG':
+      if (v.onGround) { UI.toast('The gear stays down on the ground'); return true; }
+      v.gearManual = !(v.gearManual !== undefined ? v.gearManual : v.gearDown);
+      sfx('canopy', null, 0.6, 1.3);
+      UI.toast(v.gearManual ? 'Gear down' : 'Gear up');
+      return true;
+    case 'Space': case 'KeyF': case 'KeyQ': case 'KeyR': return true;
+    default: return false;
+  }
+}
 
 function onKeyDown(e) {
   if (G.dead) return;
@@ -212,6 +306,8 @@ function onKeyDown(e) {
   const now = performance.now();
   const p = G.player;
   const creative = G.mode === 'creative';
+  if (e.code === 'Enter' && Net.on) { Net.openChat(); return; }
+  if (G.vehicle && vehicleKey(e.code)) return;
   switch (e.code) {
     case 'KeyW':
       if (now - G.lastW < 280) G.input.sprintHeld = true;
@@ -249,7 +345,9 @@ function releaseAllInput() {
 
 function primaryDown(now) {
   G.mouse.left = true;
+  if (G.vehicle) return;
   const t = Act.target;
+  if (t && t.vehicle) { Vehicles.hit(t.vehicle); Act.swingHand(); return; }
   if (t && t.mob) { Act.attack(t.mob); Act.attackCd = 0.45; }
   else if (!t) { Act.swingHand(); sfx('swing', null, 0.5, 1); }
   G.mouse.nextBreak = Math.min(G.mouse.nextBreak, now);
@@ -280,6 +378,7 @@ function bindInput() {
     Sound.init();
     const now = performance.now();
     if (G.unlocked && e.button === 0) { G.drag.active = true; G.drag.moved = 0; G.drag.t = now; G.drag.mining = false; return; }
+    if (G.vehicle) { if (e.button === 0) G.mouse.left = true; else if (e.button === 2) G.mouse.right = true; return; }
     if (e.button === 0) primaryDown(now);
     else if (e.button === 2) { G.mouse.right = true; if (Act.useItem(true)) G.mouse.nextPlace = now + 260; }
     else if (e.button === 1) Act.pickBlock();
@@ -304,6 +403,7 @@ function bindInput() {
   document.addEventListener('contextmenu', (e) => e.preventDefault());
   document.addEventListener('wheel', (e) => {
     if (!G.playing || G.screenOpen || !e.deltaY) return;
+    if (G.vehicle) { G.vehicle.throttle = clamp(G.vehicle.throttle - Math.sign(e.deltaY) * 0.1, 0, 1); return; }
     UI.selectSlot(G.inv.selected + (e.deltaY > 0 ? 1 : -1));
   }, { passive: true });
   G.canvas.addEventListener('click', () => { if (!G.playing && G.started && !G.screenOpen && !G.stats.dead && $('menu').classList.contains('hidden')) requestLock(); });
@@ -315,7 +415,7 @@ function bindInput() {
     G.playing = locked;
     releaseAllInput();
     if (locked) { G.started = true; hideMenu(); }
-    else if (!G.screenOpen && !G.stats.dead) { showMenu(); saveWorld(); }
+    else if (!G.screenOpen && !G.stats.dead && !G.onTitle && $('chatInput').classList.contains('hidden')) { showMenu(); saveWorld(); }
   });
   // Browsers without the promise form only report failures through this event.
   document.addEventListener('pointerlockerror', () => { if (!G.lockPending) enterUnlockedPlay(); });
@@ -331,28 +431,36 @@ function bindInput() {
     refreshGameUI();
     UI.toast(G.mode === 'creative' ? 'Creative mode' : 'Survival mode');
   }));
-  // typing a place name in the seed box picks the matching themed world
+  // typing a place name in the seed box offers to travel there in this same world
   const seedIn = $('seedInput');
+  const placeTyped = () => (G.world.gen.regions.length ? presetFromText(seedIn.value) : null);
   seedIn.addEventListener('input', () => {
-    const k = presetFromText(seedIn.value);
+    const k = placeTyped();
     const chip = $('presetChip');
-    if (k) { $('worldTypeSel').value = k; chip.textContent = WORLD_PRESETS[k].icon + ' ' + WORLD_PRESETS[k].name; chip.classList.add('on'); }
+    if (k) { chip.textContent = 'Travel to ' + WORLD_PRESETS[k].icon + ' ' + WORLD_PRESETS[k].name + ' in this world'; chip.classList.add('on'); }
     else chip.classList.remove('on');
+    disarm();
   });
-  seedIn.addEventListener('keydown', (e) => { if (e.code === 'Enter') { e.preventDefault(); newBtn.dataset.armed = '1'; newBtn.click(); } });
-  document.querySelectorAll('#presetList button').forEach((b) => b.addEventListener('click', () => {
-    seedIn.value = b.dataset.seed;
-    seedIn.dispatchEvent(new Event('input'));
-    seedIn.focus();
-  }));
+  seedIn.addEventListener('keydown', (e) => {
+    if (e.code !== 'Enter') return;
+    e.preventDefault();
+    if (placeTyped()) newBtn.click();
+    else { newBtn.dataset.armed = '1'; newBtn.click(); }
+  });
   $('difficultySel').addEventListener('change', (e) => { G.difficulty = Number(e.target.value); });
   $('keepInvCheck').addEventListener('change', (e) => { G.rules.keepInventory = e.target.checked; });
   $('mobsCheck').addEventListener('change', (e) => { G.rules.mobSpawning = e.target.checked; });
   // Two-step confirmation in the page itself (embedded viewers suppress window.confirm).
   let armTimer = 0;
   const newBtn = $('newWorldBtn');
-  const disarm = () => { clearTimeout(armTimer); newBtn.dataset.armed = ''; newBtn.textContent = 'New world'; };
+  function disarm() { clearTimeout(armTimer); newBtn.dataset.armed = ''; newBtn.textContent = placeTyped() ? 'Travel' : 'New world'; }
   newBtn.addEventListener('click', () => {
+    const place = placeTyped();
+    if (place) {
+      if (travelTo(place)) { seedIn.value = ''; disarm(); $('presetChip').classList.remove('on'); requestLock(); }
+      return;
+    }
+    if (G.online) { UI.toast('Leave the online world to create a new one'); return; }
     if (!newBtn.dataset.armed) {
       newBtn.dataset.armed = '1';
       newBtn.textContent = 'Replace world?';
@@ -361,17 +469,65 @@ function bindInput() {
     }
     disarm();
     const raw = $('seedInput').value.trim();
-    const preset = presetFromText(raw);
     let seed;
     if (!raw) seed = (Math.random() * 2147483647) | 0;
     else if (/^-?\d+$/.test(raw)) seed = Number(raw) | 0;
     else { seed = 0; for (let i = 0; i < raw.length; i++) seed = (Math.imul(seed, 31) + raw.charCodeAt(i)) | 0; }
-    const type = preset || $('worldTypeSel').value;
+    const type = $('worldTypeSel').value;
     newWorld(seed, null, { type, mode: G.mode });
+    prepareArea(G.player.pos[0], G.player.pos[2], 2);
+    liftOutOfBlocks(G.player);
     refreshGameUI();
     saveWorld();
-    UI.toast((WORLD_PRESETS[type] ? WORLD_PRESETS[type].name + ' · ' : 'New world · ') + 'seed ' + seed);
+    UI.toast('New world · seed ' + seed);
     requestLock();
+  });
+
+  // title screen
+  $('tPlay').addEventListener('click', () => requestLock());
+  $('tOptions').addEventListener('click', () => { sfx('click', null, 1, 1); $('title').classList.add('hidden'); showMenu(); });
+  $('tOnline').addEventListener('click', () => { sfx('click', null, 1, 1); $('title').classList.add('hidden'); showMenu(); $('mpName').scrollIntoView({ block: 'center' }); });
+  $('tPlaces').addEventListener('click', () => { sfx('click', null, 1, 1); buildPlaces($('placesGridTitle'), leaveTitle); $('placesPanel').classList.remove('hidden'); });
+  $('placesBack').addEventListener('click', () => $('placesPanel').classList.add('hidden'));
+  $('tJet').addEventListener('click', () => {
+    Sound.init();
+    const j = Vehicles.spawnAhead();
+    if (j) Vehicles.board(j);
+    requestLock();
+  });
+  $('tCredits').addEventListener('click', showCredits);
+  const hideCredits = () => $('credits').classList.add('hidden');
+  $('credits').addEventListener('click', hideCredits);
+  $('creditsRoll').addEventListener('animationend', hideCredits);
+  $('titleBtn').addEventListener('click', () => { sfx('click', null, 1, 1); showTitle(); });
+  $('jetBtn').addEventListener('click', () => {
+    const j = Vehicles.spawnAhead();
+    if (!j) { UI.toast('No room for a jet in front of you'); return; }
+    UI.toast('Fighter jet ready: right-click it to climb in');
+    requestLock();
+  });
+
+  // online
+  const colors = $('mpColors');
+  NET_COLORS.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.style.background = 'rgb(' + c.join(',') + ')';
+    b.title = 'Colour ' + (i + 1);
+    b.addEventListener('click', () => { Net.color = i; Net.saveProfile(); Net.refreshUI(); Net.sendT = 0; });
+    colors.append(b);
+  });
+  $('mpName').addEventListener('change', (e) => { Net.name = safeName(e.target.value); Net.saveProfile(); Net.refreshUI(); Net.sendT = 0; });
+  $('mpJoinBtn').addEventListener('click', () => {
+    Sound.init();
+    if (Net.on) Net.leave(); else Net.join();
+    refreshGameUI();
+    if (Net.on) requestLock();
+  });
+  const chat = $('chatInput');
+  chat.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.code === 'Enter') { Net.say(chat.value); chat.classList.add('hidden'); chat.blur(); G.canvas.focus(); }
+    else if (e.code === 'Escape') { chat.classList.add('hidden'); chat.blur(); }
   });
 
   window.addEventListener('resize', resize);
@@ -383,11 +539,25 @@ function bindInput() {
   });
 }
 
+// Dynamic resolution: when frames run long for a while the 3D view renders a little smaller,
+// and grows back once there is headroom again. The HUD stays sharp either way.
+function adaptResolution(dt) {
+  if (!G.settings.dynamicRes || !G.playing) return;
+  const a = G.dynRes || (G.dynRes = { scale: 1, slow: 0, fast: 0, cool: 0 });
+  a.cool -= dt;
+  const ms = dt * 1000;
+  if (ms > 21) a.slow += dt; else a.slow = Math.max(0, a.slow - dt * 0.5);
+  if (ms < 13.5) a.fast += dt; else a.fast = 0;
+  if (a.cool > 0) return;
+  if (a.slow > 1.2 && a.scale > 0.6) { a.scale = Math.round((a.scale - 0.1) * 10) / 10; a.slow = 0; a.cool = 2; resize(); }
+  else if (a.fast > 4 && a.scale < 1) { a.scale = Math.round((a.scale + 0.1) * 10) / 10; a.fast = 0; a.cool = 3; resize(); }
+}
+
 function resize() {
   if (!G.renderer) return;
   const gl = G.renderer.gl;
   const maxSize = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE) || 4096, 8192);
-  const s = G.settings.renderScale;
+  const s = G.settings.renderScale * (G.dynRes && G.settings.dynamicRes ? G.dynRes.scale : 1);
   const w = clamp(Math.round(window.innerWidth * s), 1, maxSize);
   const h = clamp(Math.round(window.innerHeight * s), 1, maxSize);
   G.renderer.resize(w, h);
@@ -433,58 +603,80 @@ function frame(now) {
     const active = G.playing && !G.screenOpen && !st.dead && !G.sleeping;
 
     if (!paused) {
+      const flying = !!G.vehicle;
       if (active) {
         const k = G.input.keys;
         const turn = (k.has('ArrowLeft') ? 1 : 0) - (k.has('ArrowRight') ? 1 : 0);
         const tilt = (k.has('ArrowUp') ? 1 : 0) - (k.has('ArrowDown') ? 1 : 0);
         if (turn) p.yaw = ((p.yaw + turn * 2.2 * dt + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
         if (tilt) p.pitch = clamp(p.pitch + tilt * 1.8 * dt, -1.5605, 1.5605);
-        // free-cursor mode: holding still turns into mining
-        if (G.unlocked && G.drag.active && !G.drag.mining && G.drag.moved < 6 && now - G.drag.t > 260) { G.drag.mining = true; G.mouse.left = true; }
-        G.input.noSprint = G.mode === 'survival' && st.food <= 6;
-        G.input.slow = !!(Act.eat || Act.bow);
-        p.update(dt, G.input);
-      } else if (!st.dead) p.update(dt, NO_KEYS);
-      Act.target = active ? Act.pick() : null;
-      if (active) { Act.updateMining(dt, now); Act.updateUse(dt, now); }
+        if (flying) {
+          Vehicles.pilot(dt, G.input, { gun: G.mouse.left || k.has('KeyF'), missile: G.mouse.right || k.has('KeyR') });
+        } else {
+          // free-cursor mode: holding still turns into mining
+          if (G.unlocked && G.drag.active && !G.drag.mining && G.drag.moved < 6 && now - G.drag.t > 260) { G.drag.mining = true; G.mouse.left = true; }
+          G.input.noSprint = G.mode === 'survival' && st.food <= 6;
+          G.input.slow = !!(Act.eat || Act.bow);
+          p.update(dt, G.input);
+        }
+      } else if (flying) Vehicles.pilot(dt, NO_KEYS, {});
+      else if (!st.dead) p.update(dt, NO_KEYS);
+      Act.target = active && !G.vehicle ? Act.pick() : null;
+      if (active && !G.vehicle) { Act.updateMining(dt, now); Act.updateUse(dt, now); }
       else { Act.mine.pos = null; Act.eat = null; Act.bow = null; }
       Act.updateHand(dt);
       Act.updateSounds(dt);
       st.update(dt, p);
       Ents.update(dt);
+      Vehicles.update(dt);
       tickFurnaces(dt);
       randomTicks(dt);
       updateSleep(dt);
-      const fast = active && G.input.keys.has('KeyT') && G.mode === 'creative';
+      updateRegion(dt);
+      const fast = active && G.input.keys.has('KeyT') && G.mode === 'creative' && !G.vehicle;
       if (G.settings.dayCycle || fast) G.dayTime = (G.dayTime + (dt / DAY_LENGTH) * (fast ? 60 : 1)) % 1;
-      const pr = G.world.gen.preset;
-      if (pr && pr.ambient) pr.ambient(dt, p.pos);
+      const own = G.regionOwn;
+      if (own && own.p.ambient) own.p.ambient(dt, p.pos, own.x, own.z);
       // ambience underground
       G.caveSoundT -= dt;
       if (G.caveSoundT <= 0) { G.caveSoundT = rand(40, 100); if (G.eyeSky < 0.2) sfx('cave', null, 0.7, 1); }
     }
+    Net.update(dt);
 
     updateChunks(G.playing ? 7 : 12);
 
     const hit = Act.target && Act.target.block;
-    const eye = p.eyePos();
     G.shake *= Math.exp(-dt * 3);
-    let roll = st.hurtTilt * 0.13;
-    if (st.dead) { eye[1] -= 1.1; roll = 0.5; }
-    if (G.sleeping) eye[1] -= 1.0;
-    if (G.shake > 0.01) {
-      eye[0] += (Math.random() - 0.5) * G.shake * 0.25; eye[1] += (Math.random() - 0.5) * G.shake * 0.25; eye[2] += (Math.random() - 0.5) * G.shake * 0.25;
+    let cam;
+    if (G.onTitle) {
+      // slow cinematic turn around the spawn point
+      const eye = p.eyePos();
+      G.titleYaw = (G.titleYaw || 0) + dt * 0.035;
+      cam = { pos: [eye[0], eye[1] + 5, eye[2]], yaw: G.titleYaw, pitch: -0.1 + Math.sin(G.time * 0.05) * 0.04, roll: 0, fov: 70 };
+    } else if (G.vehicle) {
+      cam = Vehicles.camera(dt);
+    } else {
+      const eye = p.eyePos();
+      let roll = st.hurtTilt * 0.13;
+      if (st.dead) { eye[1] -= 1.1; roll = 0.5; }
+      if (G.sleeping) eye[1] -= 1.0;
+      cam = { pos: eye, yaw: p.yaw, pitch: p.pitch, roll, fov: G.settings.fov + p.fovBoost - (Act.bow ? Math.min(1, Act.bow.t) * 12 : 0) };
     }
-    G.eyeSky = sampleSkyExposure(G.world, eye[0], eye[1], eye[2]);
-    Sound.setListener(eye, p.yaw);
-    const cam = { pos: eye, yaw: p.yaw, pitch: p.pitch, roll, fov: G.settings.fov + p.fovBoost - (Act.bow ? Math.min(1, Act.bow.t) * 12 : 0) };
-    const showHand = !G.hudHidden && !st.dead && !G.sleeping;
-    const ents = ER.build(G.renderer, cam, { crack: Act.crackInfo(), hand: showHand ? Act.handState() : null });
+    if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
+    G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
+    Sound.setListener(cam.pos, cam.yaw);
+    const showHand = !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle;
+    const ents = ER.build(G.renderer, cam, {
+      crack: G.vehicle ? null : Act.crackInfo(), hand: showHand ? Act.handState() : null,
+      cockpit: G.vehicle && Vehicles.camMode === 'cockpit' ? G.vehicle : null,
+    });
     G.renderer.render({
-      cam, dayTime: G.dayTime, time: G.time, dt, eyeSky: G.eyeSky, underwater: p.eyeInWater,
+      cam, dayTime: G.dayTime, time: G.time, dt, eyeSky: G.eyeSky, underwater: !G.vehicle && !G.onTitle && p.eyeInWater,
       chunks: G.world.chunks.values(), selection: hit && !G.hudHidden ? hit.pos : null, selectionBox: hit ? hit.box : null, entities: ents,
     });
+    Vehicles.drawHud();
     UI.update(dt);
+    adaptResolution(dt);
 
     // stats
     G.fpsAcc += dt; G.fpsFrames++;
@@ -517,7 +709,9 @@ function updateDebug() {
     'Entities ' + Ents.mobs.length + ' mobs, ' + Ents.items.length + ' items, ' + Particles.list.length + ' particles, ' + r.stats.entities + ' quads',
     'Triangles ' + (r.stats.triangles / 1e6).toFixed(2) + 'M   render ' + r.width + 'x' + r.height,
     'Time ' + formatClock(G.dayTime) + '   exposure ' + r.exposure.toFixed(2) + '   HDR ' + (r.hdrFormat.float ? 'RGBA16F' : 'RGBA8 (fallback)'),
-    'Seed ' + G.world.seed + ' (' + G.world.type + ')',
+    'Seed ' + G.world.seed + ' (' + G.world.type + ')' + (G.region ? '   place ' + G.region : ''),
+    'Workers ' + (ChunkWorkers.ok ? ChunkWorkers.list.length + ' (' + ChunkWorkers.stats.gen + ' gen, ' + ChunkWorkers.stats.mesh + ' mesh)' : 'off, main thread') +
+      '   scale ' + Math.round(G.settings.renderScale * (G.dynRes ? G.dynRes.scale : 1) * 100) + '%' + (Net.on ? '   online ' + (Net.peers.size + 1) : ''),
   ].join('\n');
 }
 
@@ -537,16 +731,21 @@ async function boot() {
     resize();
     G.ui = UI;
     UI.init();
+    const workers = ChunkWorkers.init();
+    Net.init();
     const save = loadSave();
     newWorld(save ? save.seed : (Math.random() * 2147483647) | 0, save, { mode: 'survival', type: 'default' });
     setLoad(0.1, 'Generating terrain');
-    await preload((f) => setLoad(0.1 + f * 0.9, 'Generating terrain · ' + Math.round(f * 100) + '%'));
+    await preload((f) => setLoad(0.1 + f * 0.85, 'Generating terrain · ' + Math.round(f * 100) + '%'));
+    setLoad(0.97, 'Starting background workers');
+    await Promise.race([workers, new Promise((r) => setTimeout(r, 2500))]);
     buildSettingsUI();
     bindInput();
     UI.invDirty();
     UI.updateHud(true);
     $('loading').classList.add('hidden');
-    showMenu();
+    refreshGameUI();
+    showTitle();
     G.lastTime = performance.now();
     requestAnimationFrame(frame);
   } catch (e) {

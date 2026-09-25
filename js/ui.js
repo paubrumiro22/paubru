@@ -72,7 +72,7 @@ const UI = {
       if (e.target === $('screen') && this.cursor) { this.dropStack(this.cursor, e.button === 2 ? 1 : this.cursor.count); this.render(); }
     });
     $('respawnBtn').addEventListener('click', () => { respawn(); requestLock(); });
-    $('deathMenuBtn').addEventListener('click', () => { respawn(); showMenu(); });
+    $('deathMenuBtn').addEventListener('click', () => { respawn(); showTitle(); });
   },
 
   // ------------------------------------------------------------------ HUD ----
@@ -165,12 +165,25 @@ const UI = {
     this.nameTimer = setTimeout(() => el.classList.remove('show'), 1500);
   },
 
-  toast(text) {
+  toast(text, ms = 2200) {
     const el = $('toast');
     el.textContent = text;
     el.classList.add('show');
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+    this.toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+  },
+
+  // Big title when arriving at a themed place.
+  banner(icon, name) {
+    const el = $('placeBanner');
+    el.innerHTML = '';
+    const i = document.createElement('span'); i.className = 'pb-icon'; i.textContent = icon;
+    const t = document.createElement('span'); t.className = 'pb-name'; t.textContent = name;
+    el.append(i, t);
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+    sfx('chime', null, 0.8, 1);
   },
 
   hurt() { this.lastHudKey = ''; },
@@ -562,7 +575,7 @@ const UI = {
     for (const t of all) {
       const b = document.createElement('button');
       b.className = 'ctab' + (this.creativeTab === t.key ? ' on' : '');
-      const iconId = { building: B.BRICKS, nature: B.GRASS, functional: B.CRAFTING_TABLE, tools: I.TOOL0 + 20, combat: I.TOOL0 + 23, food: I.APPLE, materials: I.DIAMOND, search: I.BOOK, inv: B.CHEST }[t.key];
+      const iconId = { building: B.BRICKS, nature: B.GRASS, functional: B.CRAFTING_TABLE, tools: I.TOOL0 + 20, combat: I.TOOL0 + 23, food: I.APPLE, materials: I.DIAMOND, transport: I.JET, search: I.BOOK, inv: B.CHEST }[t.key];
       b.innerHTML = `<i style="background-image:url(${iconURL(iconId)})"></i><span>${t.name}</span>`;
       b.addEventListener('click', () => { this.creativeTab = t.key; sfx('click', null, 1, 1); this.render(); });
       tabs.append(b);

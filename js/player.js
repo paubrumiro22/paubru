@@ -260,6 +260,13 @@ class Player {
         else if (this.sneaking) v[1] = Math.max(v[1], 0);
         else v[1] = Math.max(v[1], -2.6);
       }
+      if (this.parachute) {
+        // slow descent, gentle steering
+        if (v[1] < -4.2) v[1] += (-4.2 - v[1]) * (1 - Math.exp(-dt * 4));
+        const r2 = 1 - Math.exp(-dt * 1.5);
+        v[0] += (wx * 5 - v[0]) * r2; v[2] += (wz * 5 - v[2]) * r2;
+        this.fallStart = null;
+      }
     }
 
     const dx = v[0] * dt, dy = v[1] * dt, dz = v[2] * dt;
@@ -272,6 +279,7 @@ class Player {
     if (this.stepped) this.eyeSmooth += this.stepped;
     this.eyeSmooth *= Math.exp(-dt * 14);
     if (this.flying && this.onGround && !jump) this.flying = false;
+    if (this.parachute && (this.onGround || liquid || this.flying)) { this.parachute = false; this.fallStart = null; this.landed = 0; }
 
     // fall tracking
     if (this.onGround || liquid || this.flying || this.onLadder) {
@@ -342,6 +350,8 @@ function blockShape(world, id, x, y, z) {
     case RT_FARMLAND: return [0, 0, 0, 1, 15 / 16, 1];
     case RT_TORCH: return [6 / 16, 0, 6 / 16, 10 / 16, 10 / 16, 10 / 16];
     case RT_CROSS: return [2 / 16, 0, 2 / 16, 14 / 16, id >= B.WHEAT_0 && id <= B.WHEAT_2 ? 0.3 + (id - B.WHEAT_0) * 0.2 : 13 / 16, 14 / 16];
+    case RT_DOOR: return doorPanel(world.getFacing(x, y, z), isOpenDoor(id)).map((v) => v / 16);
+    case RT_TRAPDOOR: return trapdoorPanel(world.getFacing(x, y, z), isOpenDoor(id)).map((v) => v / 16);
     case RT_WALL_TORCH: case RT_LADDER: {
       // the supporting wall sits on the side opposite the facing
       const ladder = BLOCK_RT[id] === RT_LADDER;

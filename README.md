@@ -12,7 +12,10 @@ Un juego de bloques para el navegador, al estilo Minecraft pero con gráficos y 
 - **Creativo**: inventario por pestañas con buscador, vuelo, rotura instantánea, papelera.
 - **Más de 110 bloques**: lava, antorchas (de suelo y pared), escaleras de mano, losas, lana de 16 colores, bloques de mineral, corales, terracotas, basalto, magma…
 - **Animaciones**: mano y objeto en primera persona (golpear, equipar, comer, tensar el arco), grietas al picar, partículas, mobs que caminan, se giran y caen al morir, inclinación de cámara al recibir daño y temblor en explosiones.
-- **Mundos temáticos**: escribe un lugar en la semilla — *playa paradisíaca*, *volcán*, *oasis*, *montañas nevadas*, *bosque*, *cañón*, *islas*, *pradera* — y aparecerás en ese paisaje, a la hora del día en que mejor se ve.
+- **Lugares en el mismo mundo**: cada mundo esconde ocho paisajes a unos 1,4 km del centro — *playa paradisíaca*, *volcán*, *oasis*, *montañas nevadas*, *bosque*, *cañón*, *islas*, *pradera*. Puedes ir andando o volando, o viajar al instante desde "Places" (o escribiendo el lugar en la caja de semilla). Al llegar aparece un cartel con el nombre.
+- **Avión de caza**: se sube con clic derecho, sigue la dirección de la cámara, tiene tren de aterrizaje, postquemador, cañón, misiles, HUD, cámara exterior o de cabina, y paracaídas al saltar. Está en la pestaña creativa "Vehicles", en el menú y en la pantalla de inicio.
+- **Multijugador online**: en claude.ai, todas las personas que abren el juego comparten un mundo (se ven, ven sus bloques, explosiones, aviones y chat). Fuera de claude.ai funciona entre pestañas del mismo navegador.
+- **Pantalla de inicio y créditos** ("Creado por Pau Bru"), puertas y trampillas, resolución dinámica y generación del terreno en segundo plano (Web Workers) para que vaya más fluido.
 
 ## Jugar
 - Abre `index.html` en Chrome o Edge de escritorio, o sirve la carpeta con `python -m http.server 5190` y entra en http://localhost:5190.
@@ -36,6 +39,9 @@ Un juego de bloques para el navegador, al estilo Minecraft pero con gráficos y 
 | T (mantener) | Adelantar el tiempo (creativo) |
 | Flechas | Mirar alrededor |
 | F3 / F1 | Información de depuración / ocultar interfaz |
-| Esc | Menú: modo de juego, dificultad, gráficos, sonido y mundo |
+| Esc | Menú: lugares, avión, online, modo de juego, gráficos, sonido y mundo |
+| Enter | Chat (online) |
+
+En el avión: ratón para dirigir, W/S potencia (S con 0 % frena), Espacio postquemador, A/D alabeo, clic izquierdo cañón, clic derecho misil, V cámara, G tren de aterrizaje, Shift bajar o eyectarse.
 
 En el inventario: clic para coger o soltar, clic derecho para dividir o dejar de uno en uno, arrastrar para repartir, Shift+clic para mover rápido, números 1–9 para intercambiar con la barra y doble clic para juntar.

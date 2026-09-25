@@ -195,6 +195,7 @@ const ER = {
         const c = WOOL_COLORS[mob.woolColor][1];
         this.color = [c[0] / 234, c[1] / 236, c[2] / 237];
       }
+      if (p.tint && mob.tint) this.color = mob.tint;
       const b = p.box;
       this.box(mm, b[0], b[1], b[2], b[3], b[4], b[5], uvOf);
       this.color = [1, 1, 1];
@@ -261,6 +262,9 @@ const ER = {
     const near = (x, z, lim) => Math.abs(x - cp[0]) < lim && Math.abs(z - cp[2]) < lim;
 
     for (const mob of Ents.mobs) if (near(mob.pos[0], mob.pos[2], Math.min(rd, 80))) this.mob(null, mob, cp);
+    Vehicles.renderAll(cp, extra.cockpit);
+    Net.render(cp);
+    if (G.player.parachute) this.parachute(G.player.pos, cp);
 
     for (const it of Ents.items) {
       if (!near(it.pos[0], it.pos[2], 48)) continue;
@@ -338,13 +342,45 @@ const ER = {
       this.alpha = 1;
     }
 
-    if (extra.hand) {
+    if (extra.hand && !G.vehicle) {
       const start = this.quads();
       this.hand(cam, extra.hand);
       out.hand = [start, this.quads() - start];
     }
     out.quads = this.quads();
     return out;
+  },
+
+  // Striped canopy and cords above someone floating down.
+  parachute(pos, cp) {
+    const c = [pos[0], pos[1] + 7, pos[2]];
+    this.lightAt(c[0], c[1], c[2]);
+    this.color = [1, 1, 1]; this.ov = 0;
+    const red = BLOCK_TEX[(B.WOOL + 14) * 6], white = BLOCK_TEX[B.WOOL * 6];
+    const N = 12, R = 3.2;
+    // two rings of sloping gores make the dome
+    const rings = [[0, 1.0, 1.7, 0.55], [1.7, 0.55, R, -0.55]];
+    const base = XF.t(c[0] - cp[0], c[1] - cp[1], c[2] - cp[2]);
+    for (let i = 0; i < N; i++) {
+      const a = (i + 0.5) / N * Math.PI * 2;
+      const layer = i % 2 ? red : white;
+      for (const [r0, y0, r1, y1] of rings) {
+        const len = Math.hypot(r1 - r0, y1 - y0), slope = Math.atan2(y0 - y1, r1 - r0);
+        const w = Math.PI * (r0 + r1) / N * 0.56;
+        const m = XF.chain(base, XF.ry(a), XF.t(0, y0, r0), XF.rx(slope));
+        this.box(m, -w, -0.04, 0, w, 0.04, len, () => [layer, 0, 0, 1, 1]);
+      }
+    }
+    // cords
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + 0.3;
+      const top = [c[0] + Math.cos(a) * R * 0.95, c[1] - 0.55, c[2] + Math.sin(a) * R * 0.95];
+      const bot = [pos[0], pos[1] + 1.6, pos[2]];
+      const d = [bot[0] - top[0], bot[1] - top[1], bot[2] - top[2]], len = Math.hypot(d[0], d[1], d[2]);
+      const yaw = Math.atan2(d[0], d[2]), pitch = Math.asin(d[1] / len);
+      const m = XF.chain(XF.t(top[0] - cp[0], top[1] - cp[1], top[2] - cp[2]), XF.ry(yaw), XF.rx(-pitch));
+      this.box(m, -0.015, -0.015, 0, 0.015, 0.015, len, () => [white, 0, 0, 0.1, 0.1]);
+    }
   },
 
   particle(p, cp, bs) {

@@ -153,13 +153,13 @@ const WORLD_PRESETS = {
       const x = VOLC.x + VOLC.R + 24, z = 18;
       return { pos: [x + 0.5, this.height(g, x, z) + 1, z + 0.5], yaw: Math.PI / 2 - 0.15, pitch: 0.2 };
     },
-    ambient(dt, p) {
+    ambient(dt, p, ox, oz) {
       // smoke plume over the crater and ash drifting down around the player
-      const w = G.world;
-      if (w.isLoaded(VOLC.x, VOLC.z) || Math.hypot(p[0] - VOLC.x, p[2] - VOLC.z) < G.settings.renderDistance * CS + 40) {
-        for (let i = 0; i < 2; i++) if (Math.random() < dt * 16) Particles.plume(VOLC.x + rand(-5, 5), VOLC.crater + 8, VOLC.z + rand(-5, 5));
+      const vx = ox + VOLC.x, vz = oz + VOLC.z;
+      if (Math.hypot(p[0] - vx, p[2] - vz) < G.settings.renderDistance * CS + 40) {
+        for (let i = 0; i < 2; i++) if (Math.random() < dt * 16) Particles.plume(vx + rand(-5, 5), VOLC.crater + 8, vz + rand(-5, 5));
       }
-      if (Math.random() < dt * 12) Particles.ash(p[0] + rand(-10, 10), p[1] + rand(4, 9), p[2] + rand(-10, 10));
+      if (Math.hypot(p[0] - vx, p[2] - vz) < VOLC.R * 2.2 && Math.random() < dt * 12) Particles.ash(p[0] + rand(-10, 10), p[1] + rand(4, 9), p[2] + rand(-10, 10));
     },
   },
 
@@ -355,4 +355,43 @@ function presetFromText(text) {
   if (!t) return null;
   for (const [k, p] of Object.entries(WORLD_PRESETS)) if (p.words.some((w) => t.includes(w))) return k;
   return null;
+}
+
+// ---- themed places inside the normal world ----
+// Every default world holds one copy of each preset on a ring around the origin. Inside
+// REGION_IN blocks of a place its own terrain rules apply (in local coordinates, so it looks
+// exactly like the standalone preset); out to REGION_OUT it blends into the regular terrain.
+const REGION_RING = 1400, REGION_IN = 240, REGION_OUT = 370;
+const REGION_ORDER = ['beach', 'meadow', 'volcano', 'forest', 'peaks', 'islands', 'canyon', 'oasis'];
+
+function placeRegions(seed) {
+  const a0 = hash3(seed, 3, 7, 1234) * Math.PI * 2;
+  return REGION_ORDER.map((key, i) => {
+    const a = a0 + (i / REGION_ORDER.length) * Math.PI * 2;
+    // snap to the chunk grid so local and world chunk borders line up
+    const x = Math.round(Math.cos(a) * REGION_RING / CS) * CS, z = Math.round(Math.sin(a) * REGION_RING / CS) * CS;
+    return { key, p: WORLD_PRESETS[key], x, z };
+  });
+}
+
+// Nearest themed place around (x, z) with its blend factor t (0 = fully the place, 1 = outside).
+function regionBlend(g, x, z) {
+  let best = null, bd = Infinity;
+  for (const r of g.regions) {
+    const d = Math.hypot(x - r.x, z - r.z);
+    if (d < bd) { bd = d; best = r; }
+  }
+  if (!best || bd >= REGION_OUT + 40) return null;
+  const a = Math.atan2(z - best.z, x - best.x);
+  const d = bd * (1 + g.nPatch.fbm2(Math.cos(a) * 1.7 + 11, Math.sin(a) * 1.7 - 5, 2) * 0.12);
+  const t = smoothstep(REGION_IN, REGION_OUT, d);
+  return t >= 1 ? null : { r: best, t };
+}
+
+// Where to stand when travelling to a place, in world coordinates.
+function regionSpawn(g, key) {
+  const r = g.regions.find((q) => q.key === key);
+  if (!r) return null;
+  const sp = r.p.spawn(g);
+  return { pos: [sp.pos[0] + r.x, sp.pos[1], sp.pos[2] + r.z], yaw: sp.yaw, pitch: sp.pitch, time: r.p.time, region: r };
 }

@@ -417,7 +417,8 @@ class PrimedTNT {
     bodyMove(G.world, this, v[0] * dt, v[1] * dt, v[2] * dt, 0, null);
     if (Math.random() < dt * 10) Particles.smoke(this.pos[0], this.pos[1] + 1.05, this.pos[2], 1, 0.4);
     this.fuse -= dt;
-    if (this.fuse <= 0) { this.removed = true; explode(this.pos[0], this.pos[1] + 0.5, this.pos[2], 4, this); }
+    // a TNT shown for someone else's chain reaction vanishes: their blast arrives over the network
+    if (this.fuse <= 0) { this.removed = true; if (!this.fake || !Net.on) explode(this.pos[0], this.pos[1] + 0.5, this.pos[2], 4, this); }
   }
 }
 
@@ -607,7 +608,7 @@ const Ents = {
   mobs: [], items: [], arrows: [], tnts: [], falling: [],
   spawnTimer: 0, passiveTimer: 1,
 
-  clear() { this.mobs.length = 0; this.items.length = 0; this.arrows.length = 0; this.tnts.length = 0; this.falling.length = 0; Particles.list.length = 0; },
+  clear() { this.mobs.length = 0; this.items.length = 0; this.arrows.length = 0; this.tnts.length = 0; this.falling.length = 0; Particles.list.length = 0; Vehicles.clear(); },
 
   spawnItem(stack, x, y, z, vel, delay) {
     if (!stack || !stack.id || stack.count <= 0) return null;

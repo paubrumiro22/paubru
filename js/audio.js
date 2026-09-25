@@ -211,4 +211,70 @@ const SYNTH = {
   fusecap_say(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.2, { f0: 480 * p, f1: 720 * p, gain: 0.15 }); },
   fusecap_hurt(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.2, { f0: 700 * p, f1: 420 * p, gain: 0.2, wave: 'triangle' }); },
   fusecap_death(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.5, { f0: 600 * p, f1: 180 * p, gain: 0.2, wave: 'triangle' }); },
+  portal(ctx, o, t) {
+    Sound.noise(ctx, o, t, 1.3, { type: 'bandpass', freq: 300, freqEnd: 3800, q: 1.2, gain: 0.4, attack: 0.25 });
+    [523, 659, 784, 1047].forEach((f, i) => Sound.tone(ctx, o, t + 0.1 + i * 0.09, 0.9, { f0: f, gain: 0.07, vib: [6, 4] }));
+  },
+  door_open(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.28, { wave: 'sawtooth', f0: 150 * p, f1: 210 * p, filter: ['bandpass', 650, 5], gain: 0.2 }); Sound.noise(ctx, o, t, 0.1, { type: 'bandpass', freq: 700, gain: 0.25 }); },
+  door_close(ctx, o, t, p) { Sound.noise(ctx, o, t + 0.05, 0.12, { type: 'lowpass', freq: 700 * p, gain: 0.55 }); Sound.tone(ctx, o, t + 0.05, 0.12, { f0: 120, f1: 70, gain: 0.3, wave: 'triangle' }); },
+  gun(ctx, o, t) {
+    Sound.noise(ctx, o, t, 0.07, { type: 'bandpass', freq: 1400, q: 0.8, gain: 0.35 });
+    Sound.tone(ctx, o, t, 0.06, { wave: 'square', f0: 140, f1: 70, gain: 0.12, filter: ['lowpass', 900, 1] });
+  },
+  missile(ctx, o, t) {
+    Sound.noise(ctx, o, t, 1.6, { type: 'bandpass', freq: 900, freqEnd: 2400, q: 0.7, gain: 0.55, attack: 0.03 });
+    Sound.tone(ctx, o, t, 0.25, { wave: 'sawtooth', f0: 90, f1: 40, gain: 0.3, filter: ['lowpass', 500, 1] });
+  },
+  beep(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.09, { wave: 'square', f0: 1320 * p, gain: 0.06, filter: ['lowpass', 3000, 1] }); },
+  canopy(ctx, o, t) { Sound.noise(ctx, o, t, 0.5, { type: 'bandpass', freq: 500, freqEnd: 1400, q: 2, gain: 0.25, attack: 0.05 }); Sound.tone(ctx, o, t + 0.4, 0.1, { f0: 300, f1: 180, gain: 0.2 }); },
+  chime(ctx, o, t) { [659, 784, 988, 1319].forEach((f, i) => Sound.tone(ctx, o, t + i * 0.07, 0.8, { f0: f, gain: 0.06, wave: 'triangle' })); },
+};
+
+// Continuous turbine: a whine that follows the throttle, broadband roar and an afterburner rumble.
+const Engine = {
+  on: false, nodes: null,
+  start() {
+    const ctx = Sound.ctx;
+    if (this.on || !ctx || ctx.state !== 'running') return;
+    this.on = true;
+    const out = ctx.createGain();
+    out.gain.value = 0.0001;
+    out.connect(Sound.master);
+    const mk = (type, freq, q) => { const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; return f; };
+    const roarSrc = ctx.createBufferSource(); roarSrc.buffer = Sound.noiseBuf; roarSrc.loop = true;
+    const roarF = mk('lowpass', 700, 0.7), roarG = ctx.createGain(); roarG.gain.value = 0.5;
+    roarSrc.connect(roarF); roarF.connect(roarG); roarG.connect(out);
+    const hissSrc = ctx.createBufferSource(); hissSrc.buffer = Sound.noiseBuf; hissSrc.loop = true; hissSrc.playbackRate.value = 1.3;
+    const hissF = mk('bandpass', 3500, 1.2), hissG = ctx.createGain(); hissG.gain.value = 0.1;
+    hissSrc.connect(hissF); hissF.connect(hissG); hissG.connect(out);
+    const whine = ctx.createOscillator(); whine.type = 'sawtooth'; whine.frequency.value = 400;
+    const whineF = mk('bandpass', 1800, 6), whineG = ctx.createGain(); whineG.gain.value = 0.05;
+    whine.connect(whineF); whineF.connect(whineG); whineG.connect(out);
+    const burnSrc = ctx.createBufferSource(); burnSrc.buffer = Sound.noiseBuf; burnSrc.loop = true; burnSrc.playbackRate.value = 0.6;
+    const burnF = mk('lowpass', 260, 0.9), burnG = ctx.createGain(); burnG.gain.value = 0.0001;
+    burnSrc.connect(burnF); burnF.connect(burnG); burnG.connect(out);
+    const t = ctx.currentTime;
+    for (const s of [roarSrc, hissSrc, whine, burnSrc]) s.start(t);
+    this.nodes = { out, roarF, roarG, hissG, whine, whineF, whineG, burnG, srcs: [roarSrc, hissSrc, whine, burnSrc] };
+  },
+  update(throttle, burner, speed, dist) {
+    if (!this.on) return;
+    const n = this.nodes, t = Sound.ctx.currentTime, k = 0.12;
+    const near = clamp(1 - dist / 90, 0, 1);
+    n.out.gain.setTargetAtTime(0.0001 + (0.25 + 0.55 * throttle) * near, t, k);
+    n.roarF.frequency.setTargetAtTime(380 + throttle * 1100 + speed * 6, t, k);
+    n.whine.frequency.setTargetAtTime(260 + throttle * 900, t, 0.4);
+    n.whineF.frequency.setTargetAtTime(900 + throttle * 2600, t, 0.4);
+    n.whineG.gain.setTargetAtTime(0.03 + throttle * 0.05, t, k);
+    n.hissG.gain.setTargetAtTime(0.03 + Math.min(1, speed / 70) * 0.12, t, k);
+    n.burnG.gain.setTargetAtTime(burner ? 0.9 : 0.0001, t, 0.18);
+  },
+  stop() {
+    if (!this.on) return;
+    this.on = false;
+    const n = this.nodes, ctx = Sound.ctx;
+    n.out.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.25);
+    setTimeout(() => { try { for (const s of n.srcs) s.stop(); n.out.disconnect(); } catch (e) { /* ignore */ } }, 1500);
+    this.nodes = null;
+  },
 };

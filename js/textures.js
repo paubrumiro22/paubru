@@ -11,7 +11,6 @@ function put(d, x, y, c, f = 1, a = 255) {
 }
 function getc(d, x, y) { const i = (((y & TM) * TS) + (x & TM)) << 2; return [d[i], d[i + 1], d[i + 2], d[i + 3]]; }
 function alphaAt(d, x, y) { return x < 0 || y < 0 || x > TM || y > TM ? 0 : d[((y * TS + x) << 2) + 3]; }
-function mixc(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
 function shadec(c, f) { return [c[0] * f, c[1] * f, c[2] * f]; }
 function quant(f, steps) { return Math.round(f * steps) / steps; }
 function fillTile(d, fn) { for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) fn(x, y, y * TS + x); }
@@ -774,6 +773,57 @@ gen('ladder', (d, rng) => {
   for (let r = 3; r < TS; r += 8) for (let x = 7; x < 25; x++) { put(d, x, r, [150, 110, 66], 1.1); put(d, x, r + 1, [150, 110, 66], 0.9); put(d, x, r + 2, [150, 110, 66], 0.7); }
 }, { smooth: 0.2, bump: 1.4 });
 
+// Doors: vertical boards in a darker frame; the upper half has a four-pane window.
+function genDoor(d, rng, upper) {
+  const base = [168, 128, 80];
+  const grain = fbm(rng, 2, 3, 0.5, 16);
+  clearTile(d, base);
+  fillTile(d, (x, y, k) => {
+    const board = x >> 3, bx = x & 7;
+    let f = (0.9 + ((board * 37) % 7) * 0.02) * (0.9 + grain[k] * 0.2);
+    if (bx === 7) f *= 0.7; else if (bx === 0) f *= 1.06;
+    const frame = x < 3 || x > TM - 3 || (upper ? y < 3 : y > TM - 3);
+    if (frame) f = (x === 0 || x === TM || y === 0 || y === TM ? 0.62 : 0.78) * (0.95 + rng() * 0.08);
+    put(d, x, y, base, quant(f, 12));
+  });
+  if (upper) {
+    // window: two by two panes with a mullion cross
+    for (let y = 6; y < 22; y++) for (let x = 6; x < 26; x++) {
+      if (x === 15 || x === 16 || y === 13 || y === 14) { put(d, x, y, [120, 86, 52], 0.9); continue; }
+      if (x === 6 || y === 6 || x === 25 || y === 21) { put(d, x, y, [96, 68, 40]); continue; }
+      const i = (y * TS + x) * 4;
+      d[i] = 200; d[i + 1] = 228; d[i + 2] = 238; d[i + 3] = (x + y) % 9 === 0 ? 120 : 0;
+    }
+    for (let x = 6; x < 26; x++) put(d, x, 22, [70, 50, 30]);
+  } else {
+    // two raised panels and a handle
+    for (const [y0, y1] of [[5, 13], [17, 27]]) for (let y = y0; y <= y1; y++) for (let x = 7; x <= 24; x++) {
+      const edge = x === 7 || x === 24 || y === y0 || y === y1;
+      if (edge) put(d, x, y, base, y === y0 || x === 7 ? 1.14 : 0.66);
+    }
+    put(d, 26, 15, [70, 70, 74]); put(d, 26, 16, [150, 150, 156]); put(d, 27, 16, [110, 110, 116]); put(d, 26, 17, [70, 70, 74]);
+  }
+}
+gen('door_lower', (d, rng) => genDoor(d, rng, false), { smooth: 0.24, bump: 1.4 });
+gen('door_upper', (d, rng) => genDoor(d, rng, true), { smooth: 0.24, bump: 1.4 });
+gen('trapdoor', (d, rng) => {
+  const base = [160, 122, 76];
+  const grain = fbm(rng, 2, 3, 0.5, 16);
+  clearTile(d, base);
+  fillTile(d, (x, y, k) => {
+    let f = 0.92 + grain[k] * 0.16;
+    if ((x & 7) === 7) f *= 0.72;
+    if (x < 2 || y < 2 || x > TM - 2 || y > TM - 2) f *= 0.72;
+    put(d, x, y, base, quant(f, 12));
+  });
+  // four little square openings
+  for (const [cx, cy] of [[9, 9], [22, 9], [9, 22], [22, 22]]) for (let y = cy - 3; y <= cy + 2; y++) for (let x = cx - 3; x <= cx + 2; x++) {
+    const i = (y * TS + x) * 4;
+    if (x === cx - 3 || y === cy - 3) { put(d, x, y, base, 0.55); continue; }
+    d[i + 3] = 0;
+  }
+}, { smooth: 0.24, bump: 1.4 });
+
 gen('bed_top', (d, rng) => {
   fillTile(d, (x, y) => {
     if (x < 2 || x > TM - 2) { put(d, x, y, [120, 84, 50], x === 0 || x === TM ? 0.8 : 1); return; }
@@ -1299,6 +1349,24 @@ sprite('i_melon_slice', (d) => {
   sprEllipse(d, 16, 10, 13, 16, 0, [214, 50, 50], (x, y) => y >= 10);
   sprEllipse(d, 16, 10, 13, 16, 0, [90, 150, 40], (x, y) => y >= 10 && ((x + 0.5 - 16) / 13) ** 2 + ((y + 0.5 - 10) / 16) ** 2 > 0.72);
   for (const [x, y] of [[12, 15], [18, 14], [15, 19], [20, 19]]) put(d, x, y, [30, 20, 20]);
+});
+sprite('i_door', (d) => {
+  sprRect(d, 9, 3, 23, 29, [150, 112, 68]);
+  sprRect(d, 9, 3, 23, 5, [118, 86, 50]);
+  sprRect(d, 11, 6, 21, 14, [196, 226, 236]);
+  sprRect(d, 15, 6, 17, 14, [118, 86, 50]); sprRect(d, 11, 9, 21, 11, [118, 86, 50]);
+  sprRect(d, 11, 17, 21, 26, [134, 98, 58]);
+  sprRect(d, 19, 18, 20, 20, [60, 60, 64]);
+});
+// top view of a twin-tail fighter jet
+sprite('i_jet', (d) => {
+  const hull = (x, y) => shadec([150, 160, 172], 0.92 + ((x * 7 + y * 3) % 5) * 0.03);
+  sprPoly(d, [[16, 1], [18, 7], [18.5, 12], [29, 21], [29, 23.5], [19, 22], [19, 25], [23, 29], [23, 30.5], [9, 30.5], [9, 29], [13, 25], [13, 22], [3, 23.5], [3, 21], [13.5, 12], [14, 7]], hull);
+  sprPoly(d, [[16, 4.5], [17.3, 8.5], [17.3, 12], [14.7, 12], [14.7, 8.5]], [40, 70, 96]);
+  sprSeg(d, 16, 13, 16, 29, 0.8, [112, 120, 130]);
+  sprDisc(d, 8, 21.3, 1.8, [40, 70, 170]); sprDisc(d, 8, 21.3, 0.9, [210, 50, 40]);
+  sprDisc(d, 24, 21.3, 1.8, [40, 70, 170]); sprDisc(d, 24, 21.3, 0.9, [210, 50, 40]);
+  sprRect(d, 14, 29, 15, 31, [255, 150, 60]); sprRect(d, 17, 29, 18, 31, [255, 150, 60]);
 });
 
 // ------------------------------------------------------------ pipeline ----

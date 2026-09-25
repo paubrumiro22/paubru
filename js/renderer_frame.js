@@ -36,7 +36,8 @@ Object.assign(Renderer.prototype, {
     const back = [-f[0], -f[1], -f[2]];
     this.camForward = f;
     this.near = 0.06;
-    this.zFar = Math.max(260, this.settings.renderDistance * CS + 80);
+    // high up (flying) the ground below must stay inside the far plane
+    this.zFar = Math.max(260, this.settings.renderDistance * CS + 80, cam.pos[1] - 40 + this.settings.renderDistance * CS);
     this.view = M4.fromBasis(this.view || M4.create(), r, u, back, [0, 0, 0]);
     this.proj = M4.perspective(this.proj || M4.create(), (cam.fov * Math.PI) / 180, aspect, this.near, this.zFar);
     this.viewProj = M4.multiply(this.viewProj || M4.create(), this.proj, this.view);

@@ -241,6 +241,83 @@
   .deathbox p { color: #f3c9c2; margin: 0 0 22px; font-size: 16px; }
   .deathbox .row { justify-content: center; }
 
+  /* Title screen: the live world turns slowly behind the logo */
+  #title { background: linear-gradient(180deg, rgba(4, 7, 12, 0.1) 0%, rgba(4, 7, 12, 0) 38%, rgba(4, 7, 12, 0.55) 78%, rgba(4, 7, 12, 0.85) 100%); place-items: stretch; padding: 0; }
+  .title-inner { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px 16px 70px; min-height: 100%; }
+  .logo { margin: 0; font: 700 clamp(46px, 10vw, 112px)/0.95 var(--display); letter-spacing: 0.04em; text-align: center;
+    color: #f4f7fb; text-shadow: 0 6px 0 rgba(20, 30, 44, 0.85), 0 14px 40px rgba(0, 0, 0, 0.55); animation: logoIn .9s cubic-bezier(.2, 1.3, .4, 1) both, float 6s ease-in-out 1s infinite; }
+  .logo span { color: var(--accent); background: linear-gradient(100deg, #f2b94b 30%, #fff1c8 45%, #f2b94b 60%); background-size: 250% 100%;
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite;
+    text-shadow: none; filter: drop-shadow(0 6px 0 rgba(20, 30, 44, 0.85)); }
+  @keyframes logoIn { from { transform: translateY(-30px) scale(1.12); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+  @keyframes shine { from { background-position: 150% 0; } to { background-position: -100% 0; } }
+  .subtitle { margin: 4px 0 26px; color: #d5dee8; font: 400 13px/1 var(--display); letter-spacing: 0.32em; text-transform: uppercase; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6); animation: fadein 1.2s .4s both; }
+  .title-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: min(460px, 100%); animation: rise .8s .5s both; }
+  .title-buttons button { background: rgba(10, 15, 22, 0.62); backdrop-filter: blur(10px); border-color: var(--line-strong); padding: 13px 18px; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 9px; }
+  .title-buttons button:hover { background: rgba(30, 40, 54, 0.8); transform: translateY(-1px); }
+  .title-buttons button.primary { grid-column: 1 / -1; font-size: 19px; padding: 16px; background: var(--accent); color: var(--accent-ink); }
+  .title-buttons button.primary:hover { background: var(--accent-hover); }
+  .title-buttons svg { width: 18px; height: 18px; flex: none; }
+  @keyframes rise { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .tworld { color: var(--muted); font-size: 12px; margin-top: 8px; text-shadow: 0 1px 4px #000; animation: fadein 1s 1s both; }
+  .title-foot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; color: #c9d3de; font-size: 13px; text-shadow: 0 1px 4px #000; }
+  .title-foot b { color: #fff; }
+  .title-foot button { padding: 5px 12px; font-size: 12px; background: rgba(10, 15, 22, 0.5); }
+
+  /* Credits roll */
+  #credits { background: radial-gradient(ellipse at 50% 40%, #0b1119, #020305 75%); overflow: hidden; cursor: pointer; z-index: 10; }
+  .roll { position: absolute; left: 50%; top: 100%; width: min(620px, calc(100vw - 32px)); transform: translateX(-50%); text-align: center; animation: roll 30s linear forwards; }
+  #credits.hidden .roll { animation: none; }
+  @keyframes roll { from { transform: translate(-50%, 0); } to { transform: translate(-50%, calc(-100% - 100vh)); } }
+  .roll .logo { font-size: clamp(40px, 8vw, 76px); animation: none; margin-bottom: 60px; }
+  .roll .by { font: 400 14px var(--display); letter-spacing: 0.3em; color: var(--muted); text-transform: uppercase; }
+  .roll .who { font: 700 clamp(34px, 7vw, 64px)/1.1 var(--display); color: var(--accent); margin: 10px 0 70px; letter-spacing: 0.06em; text-shadow: 0 0 40px rgba(242, 185, 75, 0.35); }
+  .roll dl { margin: 0 0 46px; }
+  .roll dt { font: 400 11px var(--display); letter-spacing: 0.26em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .roll dd { margin: 0 0 26px; font-size: 18px; color: #eef3f8; }
+  .roll .thanks { font: 700 26px var(--display); color: #fff; margin-top: 60px; }
+  .credits-close { position: fixed; top: 16px; right: 16px; z-index: 2; }
+
+  /* Places */
+  .places { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+  .place { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; text-align: left; border-radius: 11px; background: rgba(255, 255, 255, 0.06); }
+  .place .pi { font-size: 22px; line-height: 1.1; }
+  .place b { font-size: 14px; }
+  .place small { color: var(--muted); font-size: 12px; }
+  .place:hover { background: rgba(242, 185, 75, 0.16); border-color: rgba(242, 185, 75, 0.55); }
+  #placesPanel .panel { width: min(720px, 100%); }
+  .jetbtn { margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .menu-top { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  /* Arrival banner */
+  #placeBanner { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; opacity: 0; pointer-events: none; }
+  #placeBanner.show { animation: banner 4.2s ease-out forwards; }
+  #placeBanner .pb-icon { font-size: 44px; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5)); }
+  #placeBanner .pb-name { font: 700 clamp(26px, 5vw, 46px)/1 var(--display); letter-spacing: 0.08em; color: #fff; text-shadow: 0 4px 0 rgba(0, 0, 0, 0.45), 0 0 30px rgba(0, 0, 0, 0.5); }
+  @keyframes banner { 0% { opacity: 0; transform: translate(-50%, 12px); } 12% { opacity: 1; transform: translate(-50%, 0); } 75% { opacity: 1; } 100% { opacity: 0; } }
+
+  /* Flight */
+  #flightHud { width: 100%; height: 100%; }
+  body.piloting #crosshair, body.piloting #bottombar, body.piloting #blockname { visibility: hidden; }
+  body.piloting #toast { top: auto; bottom: 170px; max-width: calc(100vw - 32px); text-align: center; }
+
+  /* Online */
+  #nametags { position: absolute; inset: 0; overflow: hidden; }
+  .ntag { position: absolute; left: 0; top: 0; padding: 2px 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.5); color: #fff; font: 600 13px var(--body); white-space: nowrap; border-bottom: 2px solid var(--c, #fff); }
+  #chatLog { position: absolute; left: 12px; bottom: 120px; width: min(420px, 60vw); display: flex; flex-direction: column; gap: 3px; font-size: 14px; }
+  .cline { background: rgba(0, 0, 0, 0.45); padding: 3px 9px; border-radius: 6px; text-shadow: 0 1px 2px #000; transition: opacity 1s; }
+  .cline.fade { opacity: 0; }
+  #chatInput { position: fixed; left: 12px; bottom: 84px; width: min(420px, 60vw); z-index: 5; }
+  #playerList { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+  #playerList div { background: rgba(0, 0, 0, 0.42); padding: 3px 10px; border-radius: 7px; display: flex; align-items: center; gap: 7px; }
+  #playerList i { width: 9px; height: 9px; border-radius: 50%; }
+  .mprow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  #mpColors { display: flex; gap: 5px; }
+  #mpColors button { width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
+  #mpColors button.on { border-color: #fff; }
+  #mpStatus { color: var(--muted); font-size: 13px; }
+
   @media (max-width: 560px) {
     .slot { width: 36px; height: 36px; } .slot i { inset: 4px; }
     .brand h1 { font-size: 26px; } .panel { padding: 18px; }
@@ -270,7 +347,13 @@
   </div>
   <div id="debug" class="hidden"></div>
   <div id="toast"></div>
+  <div id="placeBanner"></div>
+  <div id="nametags"></div>
+  <div id="chatLog"></div>
+  <div id="playerList"></div>
 </div>
+<canvas id="flightHud" class="fx hidden"></canvas>
+<input type="text" id="chatInput" class="hidden" maxlength="120" placeholder="Say something… (Enter to send, Esc to cancel)">
 
 <div id="screen" class="overlay hidden"><div id="screenPanel" class="panel invpanel"></div></div>
 
@@ -291,13 +374,72 @@
   </div>
 </div>
 
+<div id="title" class="overlay title hidden">
+  <div class="title-inner">
+    <h1 class="logo">BLOCK<span>LANDS</span></h1>
+    <p class="subtitle">Survive · Build · Explore · Fly</p>
+    <div class="title-buttons">
+      <button id="tPlay" class="primary"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12.5-7.5z"/></svg><span id="tPlayLabel">Play</span></button>
+      <button id="tPlaces"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Places</button>
+      <button id="tOnline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18.5 14.8c1.6.8 2.6 2.4 3 5.2"/></svg>Online</button>
+      <button id="tJet"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 6 7.9 5.3v2L13.6 13l-.4 4.6 2.8 2.2V21l-4-1-4 1v-1.2l2.8-2.2-.4-4.6-7.9 2.3v-2L10.4 8z"/></svg>Fighter jet</button>
+      <button id="tOptions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Options</button>
+      <button id="tCredits"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20.5s-8-4.6-8-10.4A4.4 4.4 0 0 1 12 7.6a4.4 4.4 0 0 1 8 2.5c0 5.8-8 10.4-8 10.4z"/></svg>Credits</button>
+    </div>
+    <div class="tworld" id="tWorld"></div>
+  </div>
+  <footer class="title-foot"><span>Creado por <b>Pau Bru</b></span><span>Blocklands 3.0</span></footer>
+</div>
+
+<div id="credits" class="overlay hidden">
+  <button class="credits-close" id="creditsClose">Close</button>
+  <div class="roll" id="creditsRoll">
+    <h1 class="logo">BLOCK<span>LANDS</span></h1>
+    <div class="by">Creado por</div>
+    <div class="who">PAU BRU</div>
+    <dl><dt>Idea, diseño y dirección</dt><dd>Pau Bru</dd></dl>
+    <dl><dt>Mundos y lugares</dt><dd>Playa paradisíaca · Volcán · Oasis · Montañas nevadas<br>Bosque ancestral · Cañón rojo · Archipiélago · Pradera de flores</dd></dl>
+    <dl><dt>Hangar</dt><dd>Caza F-BL «Pau» con cañón, misiles y paracaídas</dd></dl>
+    <dl><dt>Motor gráfico</dt><dd>WebGL2 hecho a mano: cielo con dispersión atmosférica, sombras,<br>agua con reflejos, nubes volumétricas, rayos de luz y bloom</dd></dl>
+    <dl><dt>Arte y sonido</dt><dd>Texturas, modelos, criaturas y efectos generados por código.<br>Ningún archivo externo.</dd></dl>
+    <dl><dt>Multijugador</dt><dd>Un mundo compartido para todos los que abran el juego</dd></dl>
+    <div class="thanks">¡Gracias por jugar!</div>
+  </div>
+</div>
+
+<div id="placesPanel" class="overlay hidden">
+  <div class="panel">
+    <div class="brand"><h1>PLA<span>CES</span></h1></div>
+    <p class="tagline">Every world hides eight landscapes about 1.4 km from the centre. Walk or fly there, or travel instantly.</p>
+    <div class="places" id="placesGridTitle"></div>
+    <div class="row" style="margin-top:16px"><button id="placesBack">Back</button></div>
+  </div>
+</div>
+
 <div id="menu" class="overlay hidden">
   <div class="panel">
     <div class="brand"><h1>BLOCK<span>LANDS</span></h1></div>
-    <p class="tagline">Survive the night or build freely: mobs, crafting, farming and smelting under a physically based sky with soft shadows, reflective water and volumetric clouds.</p>
-    <div class="row">
+    <div class="menu-top">
       <button id="playBtn" class="primary">Play</button>
-      <span id="lockHint" style="color:var(--muted);font-size:13px">Click Play to capture the mouse. Press Esc to come back here.</span>
+      <button id="titleBtn">Title screen</button>
+      <span id="lockHint" style="color:var(--muted);font-size:13px">Press Esc to come back here.</span>
+    </div>
+
+    <h2>Places</h2>
+    <div class="places" id="placesGridMenu"></div>
+    <div class="jetbtn">
+      <button id="jetBtn">✈ Spawn a fighter jet</button>
+      <span style="color:var(--muted);font-size:13px">Right-click it to climb in. It also sits in the creative “Vehicles” tab.</span>
+    </div>
+
+    <h2>Online</h2>
+    <div class="field">
+      <div class="mprow">
+        <input type="text" id="mpName" maxlength="16" placeholder="Your name" style="width:170px">
+        <div id="mpColors"></div>
+        <button id="mpJoinBtn" disabled>Join online world</button>
+      </div>
+      <span id="mpStatus">Checking for other players…</span>
     </div>
 
     <h2>Game</h2>
@@ -332,23 +474,14 @@
     <div class="field" style="margin-top:12px">
       <label>Current world <b><span id="seedVal"></span> · <span id="worldTypeVal"></span></b></label>
       <div class="row">
-        <input type="text" id="seedInput" placeholder="Seed or a place: “playa paradisíaca”, “volcán”…" style="flex:1;min-width:0">
+        <input type="text" id="seedInput" placeholder="A seed for a new world, or a place to travel to: “volcán”, “playa”…" style="flex:1;min-width:0">
         <select id="worldTypeSel">
           <option value="default">Default</option><option value="flat">Flat</option>
-          <option value="beach">Paradise beach</option><option value="volcano">Volcano</option><option value="oasis">Desert oasis</option>
-          <option value="peaks">Snowy peaks</option><option value="forest">Ancient forest</option><option value="canyon">Red canyon</option>
-          <option value="islands">Archipelago</option><option value="meadow">Flower meadow</option>
         </select>
         <button id="newWorldBtn">New world</button>
       </div>
       <div class="presets">
         <span id="presetChip" class="chip"></span>
-        <div id="presetList">
-          <button data-seed="playa paradisíaca">🏝️ Playa paradisíaca</button><button data-seed="volcán">🌋 Volcán</button>
-          <button data-seed="oasis">🐪 Oasis</button><button data-seed="montañas nevadas">🏔️ Montañas nevadas</button>
-          <button data-seed="bosque ancestral">🌳 Bosque</button><button data-seed="cañón rojo">🏜️ Cañón</button>
-          <button data-seed="islas">⛵ Islas</button><button data-seed="pradera de flores">🌸 Pradera</button>
-        </div>
       </div>
     </div>
 
@@ -368,6 +501,19 @@
       <div><kbd>T</kbd>Fast-forward time (creative)</div>
       <div><kbd>Arrows</kbd>Look around (alternative)</div>
       <div><kbd>F3</kbd>Debug info · <kbd>F1</kbd>Hide HUD</div>
+      <div><kbd>Enter</kbd>Chat (online)</div>
+    </div>
+    <h2>Fighter jet</h2>
+    <div class="keys">
+      <div><kbd>RMB</kbd>on the jet: climb in</div>
+      <div><kbd>Mouse</kbd>Steer (the jet follows your view)</div>
+      <div><kbd>W</kbd>/<kbd>S</kbd>Throttle up / down, brake</div>
+      <div><kbd>Space</kbd>Afterburner</div>
+      <div><kbd>A</kbd>/<kbd>D</kbd>Roll</div>
+      <div><kbd>LMB</kbd>Cannon · <kbd>RMB</kbd>Missile</div>
+      <div><kbd>V</kbd>Chase / cockpit camera</div>
+      <div><kbd>G</kbd>Landing gear</div>
+      <div><kbd>Shift</kbd>Climb out / eject</div>
     </div>
   </div>
 </div>
@@ -381,14 +527,15 @@
   </div>
 </div>
 
-<script src="js/math.js"></script>
-<script src="js/noise.js"></script>
-<script src="js/blocks.js"></script>
+<script src="js/math.js" data-w></script>
+<script src="js/noise.js" data-w></script>
+<script src="js/blocks.js" data-w></script>
 <script src="js/items.js"></script>
 <script src="js/textures.js"></script>
-<script src="js/world.js"></script>
-<script src="js/presets.js"></script>
-<script src="js/mesher.js"></script>
+<script src="js/world.js" data-w></script>
+<script src="js/presets.js" data-w></script>
+<script src="js/mesher.js" data-w></script>
+<script src="js/workers.js"></script>
 <script src="js/atmosphere.js"></script>
 <script src="js/shaders_scene.js"></script>
 <script src="js/shaders_post.js"></script>
@@ -401,7 +548,9 @@
 <script src="js/audio.js"></script>
 <script src="js/entities.js"></script>
 <script src="js/entity_render.js"></script>
+<script src="js/vehicles.js"></script>
 <script src="js/game.js"></script>
+<script src="js/net.js"></script>
 <script src="js/interact.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>

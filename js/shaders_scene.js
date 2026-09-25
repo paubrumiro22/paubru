@@ -72,7 +72,8 @@ vec3 applyFog(vec3 col, vec3 rel) {
   float worldY = uCamPos.y + rel.y * 0.5;
   float heightF = exp(-max(worldY - 64.0, 0.0) * 0.018);
   float amt = 1.0 - exp(-dist * uFogDensity * (0.55 + 0.45 * heightF));
-  float edge = smoothstep(uFar * 0.7, uFar * 0.98, dist);
+  // loaded terrain ends at a horizontal radius, so the edge fade does too (clear view down from the air)
+  float edge = smoothstep(uFar * 0.7, uFar * 0.98, length(rel.xz));
   amt = max(amt, edge);
   return mix(col, fogColor(dir), amt);
 }
@@ -310,7 +311,9 @@ void main() {
   vec3 col = albedo * light;
   if (vUV.z > -0.5) col += albedo * 3.0 * texture(uEmitMap, vUV).r;
   float ov = vColor.a;
-  if (ov > 0.0) col = mix(col, vec3(0.9, 0.06, 0.04) * (0.15 + dot(light, vec3(0.33))), ov * 0.55);
+  // ov >= 2: self-lit (afterburners, tracers, navigation lights), strength ov - 2
+  if (ov >= 1.99) col = albedo * (ov - 2.0) * 3.0;
+  else if (ov > 0.0) col = mix(col, vec3(0.9, 0.06, 0.04) * (0.15 + dot(light, vec3(0.33))), ov * 0.55);
   else if (ov < 0.0) col = mix(col, vec3(2.2), -ov);
   col = applyFog(col, vRel);
   outColor = vec4(col * HDR_SCALE, uPass == 1 ? alb.a * vLight.z : 1.0);

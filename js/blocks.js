@@ -11,6 +11,9 @@ function defTex(name) {
   return T[name];
 }
 
+// effect layers painted in textures.js (mining cracks and particles)
+['crack', 'p_smoke', 'p_flame', 'p_crit', 'p_bubble'].forEach(defTex);
+
 const B = {
   AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, COBBLE: 4, SAND: 5, WATER: 6, LOG: 7, LEAVES: 8,
   PLANKS: 9, GLASS: 10, SNOWY_GRASS: 11, BEDROCK: 12, GRAVEL: 13, COAL_ORE: 14, IRON_ORE: 15,
@@ -29,6 +32,7 @@ const B = {
   WHITE_SAND: 98, RED_SAND: 99, PALM_LOG: 100, PALM_LEAVES: 101, BASALT: 102, MAGMA: 103, ASH: 104,
   CORAL: 105, // 105..107: pink, blue, yellow
   TERRACOTTA_C: 108, // 108..112: orange, yellow, white, brown, red
+  DOOR: 113, DOOR_TOP: 114, DOOR_OPEN: 115, DOOR_OPEN_TOP: 116, TRAPDOOR: 117, TRAPDOOR_OPEN: 118,
 };
 const CORAL_COLORS = [['Pink', [238, 118, 160]], ['Blue', [66, 122, 232]], ['Yellow', [242, 204, 64]]];
 const TERRACOTTA_COLORS = [['Orange', [166, 86, 40]], ['Yellow', [188, 136, 38]], ['White', [212, 180, 164]], ['Brown', [80, 54, 38]], ['Red', [146, 62, 48]]];
@@ -41,7 +45,7 @@ const WOOL_COLORS = [
 ];
 
 const RT_NONE = 0, RT_CUBE = 1, RT_CUTOUT = 2, RT_CROSS = 3, RT_WATER = 4, RT_CACTUS = 5, RT_LAVA = 6,
-  RT_SLAB = 7, RT_TORCH = 8, RT_WALL_TORCH = 9, RT_LADDER = 10, RT_BED = 11, RT_FARMLAND = 12;
+  RT_SLAB = 7, RT_TORCH = 8, RT_WALL_TORCH = 9, RT_LADDER = 10, RT_BED = 11, RT_FARMLAND = 12, RT_DOOR = 13, RT_TRAPDOOR = 14;
 const TINT_NONE = 0, TINT_GRASS = 1, TINT_FOLIAGE = 2;
 // 5 bits travel with every vertex (shader flags)
 const FLAG_WAVE_LEAVES = 1, FLAG_WAVE_PLANT = 2, FLAG_EMISSIVE = 4, FLAG_TRANSLUCENT = 8, FLAG_LAVA = 16;
@@ -200,9 +204,40 @@ defBlock(B.MAGMA, 'Magma Block', RT_CUBE, 'magma', with_(ROCK, { hard: 0.5, emit
 defBlock(B.ASH, 'Volcanic Ash', RT_CUBE, 'ash', { hard: 0.5, tool: TOOL_SHOVEL, snd: SND.SAND, cat: 'nature' });
 CORAL_COLORS.forEach(([name], i) => defBlock(B.CORAL + i, name + ' Coral', RT_CUBE, 'coral_' + i, with_(ROCK, { hard: 1.2, cat: 'nature' })));
 TERRACOTTA_COLORS.forEach(([name], i) => defBlock(B.TERRACOTTA_C + i, name + ' Terracotta', RT_CUBE, 'terracotta_' + i, with_(ROCK, { hard: 1.25 })));
+// Doors are two blocks tall; closed halves block the way, open ones swing against the frame.
+const DOORISH = { atten: 1, hard: 1.5, tool: TOOL_AXE, snd: SND.WOOD, cat: null };
+defBlock(B.DOOR, 'Oak Door', RT_DOOR, { top: 'planks', side: 'door_lower' }, with_(DOORISH, { solid: true, cat: 'functional' }));
+defBlock(B.DOOR_TOP, 'Oak Door', RT_DOOR, { top: 'planks', side: 'door_upper' }, with_(DOORISH, { solid: true }));
+defBlock(B.DOOR_OPEN, 'Oak Door', RT_DOOR, { top: 'planks', side: 'door_lower' }, with_(DOORISH, { solid: false }));
+defBlock(B.DOOR_OPEN_TOP, 'Oak Door', RT_DOOR, { top: 'planks', side: 'door_upper' }, with_(DOORISH, { solid: false }));
+defBlock(B.TRAPDOOR, 'Oak Trapdoor', RT_TRAPDOOR, 'trapdoor', with_(DOORISH, { solid: true, cat: 'functional' }));
+defBlock(B.TRAPDOOR_OPEN, 'Oak Trapdoor', RT_TRAPDOOR, 'trapdoor', with_(DOORISH, { solid: false }));
+BLOCK_HEIGHT[B.TRAPDOOR] = 3;
+
+// Door panel in 1/16 units. f = side the player stood on when placing it (0 +X, 1 -X, 4 +Z, 5 -Z):
+// closed, the panel sits on the far edge; open, it swings flat against a side of the frame.
+function doorPanel(f, open) {
+  const t = 3;
+  if (!open) {
+    if (f === 0) return [0, 0, 0, t, 16, 16];
+    if (f === 1) return [16 - t, 0, 0, 16, 16, 16];
+    if (f === 4) return [0, 0, 0, 16, 16, t];
+    return [0, 0, 16 - t, 16, 16, 16];
+  }
+  if (f === 0) return [0, 0, 0, 16, 16, t];
+  if (f === 1) return [0, 0, 16 - t, 16, 16, 16];
+  if (f === 4) return [16 - t, 0, 0, 16, 16, 16];
+  return [0, 0, 0, t, 16, 16];
+}
+function trapdoorPanel(f, open) { return open ? doorPanel(f, false) : [0, 0, 0, 16, 3, 16]; }
+
+const DOOR_IDS = new Set([B.DOOR, B.DOOR_TOP, B.DOOR_OPEN, B.DOOR_OPEN_TOP]);
+const isDoorTop = (id) => id === B.DOOR_TOP || id === B.DOOR_OPEN_TOP;
+const isOpenDoor = (id) => id === B.DOOR_OPEN || id === B.DOOR_OPEN_TOP || id === B.TRAPDOOR_OPEN;
 
 // Blocks whose front face turns towards the player when placed
-const FACING_BLOCKS = new Set([B.FURNACE, B.FURNACE_LIT, B.CHEST, B.JACK_O_LANTERN, B.BED, B.WALL_TORCH, B.LADDER]);
+const FACING_BLOCKS = new Set([B.FURNACE, B.FURNACE_LIT, B.CHEST, B.JACK_O_LANTERN, B.BED, B.WALL_TORCH, B.LADDER,
+  B.DOOR, B.DOOR_TOP, B.DOOR_OPEN, B.DOOR_OPEN_TOP, B.TRAPDOOR, B.TRAPDOOR_OPEN]);
 // A slab placed onto the same slab merges into this block
 const SLAB_FULL = {
   [B.STONE_SLAB]: B.SMOOTH_STONE, [B.COBBLE_SLAB]: B.COBBLE, [B.PLANK_SLAB]: B.PLANKS,
