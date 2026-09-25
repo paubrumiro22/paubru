@@ -551,7 +551,7 @@
     </div>
 
     <h2>Graphics &amp; sound</h2>
-    <div class="autoq"><button id="autoQualityBtn">Detect the best quality for this device</button><span id="autoQualityMsg"></span></div>
+    <div class="autoq"><label class="check"><input type="checkbox" id="autoQualityCheck"> Automatic quality</label><button id="autoQualityBtn">Detect the best quality for this device</button><span id="autoQualityMsg"></span></div>
     <div class="grid" id="settingsGrid"></div>
 
     <h2>World</h2>
@@ -13984,6 +13984,7 @@ const DEFAULT_SETTINGS = {
   renderDistance: 8, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
   renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
   weather: 'auto', events: true, wildlife: true, skin: 0, minimap: 'normal', autoTuned: false,
+  autoQuality: true, preAuto: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -14527,6 +14528,33 @@ function updateSleep(dt) {
 // ---------- spawn / respawn ----------
 function findSpawn(gen) {
   if (gen.preset) return gen.preset.spawn(gen).pos;
+  const base = findLandSpawn(gen);
+  return villageSpawn(gen, base) || base;
+}
+
+// Worlds with structures start at the edge of the nearest village (within ~1.6 km), on the side
+// facing where the plain search landed, so there is someone to meet from the first minute.
+function villageSpawn(gen, base) {
+  if (!gen.structs) return null;
+  const [bx, , bz] = base;
+  let best = null, bd = 1600;
+  for (const p of structuresIn(gen, bx - 1600, bz - 1600, bx + 1600, bz + 1600)) {
+    const d = Math.hypot(p.x - bx, p.z - bz);
+    if (p.type === 'village' && d < bd) { bd = d; best = p; }
+  }
+  if (!best) return null;
+  const a0 = Math.atan2(bz - best.z, bx - best.x);
+  for (let k = 0; k < 16; k++) {
+    const a = a0 + (k >> 1) * 0.4 * (k & 1 ? -1 : 1);
+    const r = (best.radius || 30) + 6;
+    const x = Math.round(best.x + Math.cos(a) * r), z = Math.round(best.z + Math.sin(a) * r);
+    const h = gen.height(x, z);
+    if (h > SEA && h < SEA + 34 && !structZone(gen, x, z)) return [x + 0.5, h + 1, z + 0.5];
+  }
+  return null;
+}
+
+function findLandSpawn(gen) {
   for (let r = 0; r < 60; r++) {
     const n = Math.max(1, r * 6);
     for (let i = 0; i < n; i++) {
@@ -18265,7 +18293,9 @@ function bindInput() {
   });
   $('tCredits').addEventListener('click', showCredits);
   $('autoQualityBtn').addEventListener('click', () => { sfx('click', null, 1, 1); AutoQuality.start(true); requestLock(); });
-  if (!G.settings.autoTuned) AutoQuality.start(false);
+  $('autoQualityCheck').checked = G.settings.autoQuality;
+  $('autoQualityCheck').addEventListener('change', (e) => AutoQuality.toggle(e.target.checked));
+  if (G.settings.autoQuality && !G.settings.autoTuned) AutoQuality.start(false);
   // two-step confirmation (embedded viewers suppress window.confirm)
   let upTimer = 0;
   $('upgradeBtn').addEventListener('click', () => {
@@ -18357,15 +18387,49 @@ const QUALITY_TIERS = [
   { name: 'Medium-low', ms: 24, set: { shadows: 'low', clouds: false, ssr: false, godrays: false, renderDistance: 6 } },
   { name: 'Medium', ms: 18.5, set: { shadows: 'low', clouds: true, ssr: true, godrays: false, renderDistance: 7 } },
 ];
+// With "Automatic quality" on it also keeps watching: a long stretch of slow frames later on
+// (a heavy area, another tab) measures again. Turning it off gives back the settings it replaced.
 const AutoQuality = {
   state: null,
+  slow: 0,
   start(manual) {
     this.state = { wait: manual ? 1.5 : 5, samples: [], manual };
+    this.slow = 0;
     if (manual) $('autoQualityMsg').textContent = 'Play for a few seconds while it measures\u2026';
+  },
+  toggle(on) {
+    sfx('click', null, 1, 1);
+    G.settings.autoQuality = on;
+    let msg;
+    if (on) {
+      this.start(false);
+      msg = 'Automatic quality on: it adjusts the graphics while you play';
+    } else {
+      this.state = null;
+      const prev = G.settings.preAuto;
+      G.settings.preAuto = null;
+      G.settings.autoTuned = false;
+      if (prev) {
+        for (const [k, v] of Object.entries(prev)) setSetting(k, v);
+        buildSettingsUI();
+        msg = 'Automatic quality off: your previous graphics settings are back';
+      } else msg = 'Automatic quality off: the graphics stay as you set them';
+    }
+    saveSettings();
+    $('autoQualityMsg').textContent = msg;
+  },
+  // Frames slower than ~28 fps for 25 seconds of play trigger a new measurement.
+  watch(dt) {
+    if (!G.settings.autoQuality || this.state) return;
+    const low = QUALITY_TIERS[0].set;
+    if (Object.keys(low).every((k) => G.settings[k] === low[k])) return; // nothing lower to go to
+    if (dt * 1000 > 36) this.slow += dt; else this.slow = Math.max(0, this.slow - dt * 0.25);
+    if (this.slow > 25) this.start(false);
   },
   update(dt) {
     const s = this.state;
-    if (!s || !G.playing || G.screenOpen || G.onTitle) return;
+    if (!G.playing || G.screenOpen || G.onTitle) return;
+    if (!s) { this.watch(dt); return; }
     if (s.wait > 0) { s.wait -= dt; return; }
     s.samples.push(dt * 1000);
     if (s.samples.length < 150) return;
@@ -18378,6 +18442,8 @@ const AutoQuality = {
     G.settings.autoTuned = true;
     let msg;
     if (tier) {
+      const prev = G.settings.preAuto || (G.settings.preAuto = {});
+      for (const k of Object.keys(tier.set)) if (!(k in prev)) prev[k] = G.settings[k];
       for (const [k, v] of Object.entries(tier.set)) setSetting(k, v);
       if (G.dynRes) { G.dynRes.scale = 1; resize(); }
       msg = 'Graphics set to ' + tier.name + ' for this device (' + Math.round(1000 / med) + ' fps measured)';

@@ -583,7 +583,9 @@ function bindInput() {
   });
   $('tCredits').addEventListener('click', showCredits);
   $('autoQualityBtn').addEventListener('click', () => { sfx('click', null, 1, 1); AutoQuality.start(true); requestLock(); });
-  if (!G.settings.autoTuned) AutoQuality.start(false);
+  $('autoQualityCheck').checked = G.settings.autoQuality;
+  $('autoQualityCheck').addEventListener('change', (e) => AutoQuality.toggle(e.target.checked));
+  if (G.settings.autoQuality && !G.settings.autoTuned) AutoQuality.start(false);
   // two-step confirmation (embedded viewers suppress window.confirm)
   let upTimer = 0;
   $('upgradeBtn').addEventListener('click', () => {
@@ -675,15 +677,49 @@ const QUALITY_TIERS = [
   { name: 'Medium-low', ms: 24, set: { shadows: 'low', clouds: false, ssr: false, godrays: false, renderDistance: 6 } },
   { name: 'Medium', ms: 18.5, set: { shadows: 'low', clouds: true, ssr: true, godrays: false, renderDistance: 7 } },
 ];
+// With "Automatic quality" on it also keeps watching: a long stretch of slow frames later on
+// (a heavy area, another tab) measures again. Turning it off gives back the settings it replaced.
 const AutoQuality = {
   state: null,
+  slow: 0,
   start(manual) {
     this.state = { wait: manual ? 1.5 : 5, samples: [], manual };
+    this.slow = 0;
     if (manual) $('autoQualityMsg').textContent = 'Play for a few seconds while it measures…';
+  },
+  toggle(on) {
+    sfx('click', null, 1, 1);
+    G.settings.autoQuality = on;
+    let msg;
+    if (on) {
+      this.start(false);
+      msg = 'Automatic quality on: it adjusts the graphics while you play';
+    } else {
+      this.state = null;
+      const prev = G.settings.preAuto;
+      G.settings.preAuto = null;
+      G.settings.autoTuned = false;
+      if (prev) {
+        for (const [k, v] of Object.entries(prev)) setSetting(k, v);
+        buildSettingsUI();
+        msg = 'Automatic quality off: your previous graphics settings are back';
+      } else msg = 'Automatic quality off: the graphics stay as you set them';
+    }
+    saveSettings();
+    $('autoQualityMsg').textContent = msg;
+  },
+  // Frames slower than ~28 fps for 25 seconds of play trigger a new measurement.
+  watch(dt) {
+    if (!G.settings.autoQuality || this.state) return;
+    const low = QUALITY_TIERS[0].set;
+    if (Object.keys(low).every((k) => G.settings[k] === low[k])) return; // nothing lower to go to
+    if (dt * 1000 > 36) this.slow += dt; else this.slow = Math.max(0, this.slow - dt * 0.25);
+    if (this.slow > 25) this.start(false);
   },
   update(dt) {
     const s = this.state;
-    if (!s || !G.playing || G.screenOpen || G.onTitle) return;
+    if (!G.playing || G.screenOpen || G.onTitle) return;
+    if (!s) { this.watch(dt); return; }
     if (s.wait > 0) { s.wait -= dt; return; }
     s.samples.push(dt * 1000);
     if (s.samples.length < 150) return;
@@ -696,6 +732,8 @@ const AutoQuality = {
     G.settings.autoTuned = true;
     let msg;
     if (tier) {
+      const prev = G.settings.preAuto || (G.settings.preAuto = {});
+      for (const k of Object.keys(tier.set)) if (!(k in prev)) prev[k] = G.settings[k];
       for (const [k, v] of Object.entries(tier.set)) setSetting(k, v);
       if (G.dynRes) { G.dynRes.scale = 1; resize(); }
       msg = 'Graphics set to ' + tier.name + ' for this device (' + Math.round(1000 / med) + ' fps measured)';

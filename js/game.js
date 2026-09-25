@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS = {
   renderDistance: 8, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
   renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
   weather: 'auto', events: true, wildlife: true, skin: 0, minimap: 'normal', autoTuned: false,
+  autoQuality: true, preAuto: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -554,6 +555,33 @@ function updateSleep(dt) {
 // ---------- spawn / respawn ----------
 function findSpawn(gen) {
   if (gen.preset) return gen.preset.spawn(gen).pos;
+  const base = findLandSpawn(gen);
+  return villageSpawn(gen, base) || base;
+}
+
+// Worlds with structures start at the edge of the nearest village (within ~1.6 km), on the side
+// facing where the plain search landed, so there is someone to meet from the first minute.
+function villageSpawn(gen, base) {
+  if (!gen.structs) return null;
+  const [bx, , bz] = base;
+  let best = null, bd = 1600;
+  for (const p of structuresIn(gen, bx - 1600, bz - 1600, bx + 1600, bz + 1600)) {
+    const d = Math.hypot(p.x - bx, p.z - bz);
+    if (p.type === 'village' && d < bd) { bd = d; best = p; }
+  }
+  if (!best) return null;
+  const a0 = Math.atan2(bz - best.z, bx - best.x);
+  for (let k = 0; k < 16; k++) {
+    const a = a0 + (k >> 1) * 0.4 * (k & 1 ? -1 : 1);
+    const r = (best.radius || 30) + 6;
+    const x = Math.round(best.x + Math.cos(a) * r), z = Math.round(best.z + Math.sin(a) * r);
+    const h = gen.height(x, z);
+    if (h > SEA && h < SEA + 34 && !structZone(gen, x, z)) return [x + 0.5, h + 1, z + 0.5];
+  }
+  return null;
+}
+
+function findLandSpawn(gen) {
   for (let r = 0; r < 60; r++) {
     const n = Math.max(1, r * 6);
     for (let i = 0; i < n; i++) {
