@@ -158,6 +158,9 @@ const GLSL_FACE_BASIS = `
 const vec3 NRM[7] = vec3[7](vec3(1,0,0), vec3(-1,0,0), vec3(0,1,0), vec3(0,-1,0), vec3(0,0,1), vec3(0,0,-1), vec3(0,1,0));
 const vec3 TAN[7] = vec3[7](vec3(0,0,-1), vec3(0,0,1), vec3(1,0,0), vec3(1,0,0), vec3(1,0,0), vec3(-1,0,0), vec3(1,0,0));
 const vec3 BIT[7] = vec3[7](vec3(0,-1,0), vec3(0,-1,0), vec3(0,0,1), vec3(0,0,-1), vec3(0,-1,0), vec3(0,-1,0), vec3(0,0,1));
+// sloped roof faces (arch.js slopeCode): +X -X +Z -Z, each facing up then down
+const float SQ = 0.70710678;
+const vec3 SLOPE_N[8] = vec3[8](vec3(SQ,SQ,0), vec3(SQ,-SQ,0), vec3(-SQ,SQ,0), vec3(-SQ,-SQ,0), vec3(0,SQ,SQ), vec3(0,-SQ,SQ), vec3(0,SQ,-SQ), vec3(0,-SQ,-SQ));
 `;
 
 const FS_TERRAIN = () => `#version 300 es
@@ -175,6 +178,7 @@ in vec3 vUV;
 in vec3 vTint;
 in float vAO;
 in vec2 vLight;
+in float vTintA;
 flat in int vNormal;
 flat in int vFlags;
 layout(location = 0) out vec4 outColor;
@@ -198,12 +202,19 @@ void main() {
   vec3 albedo = alb.rgb * vTint;
   bool plant = vNormal == 6;
   vec3 N0 = NRM[vNormal];
+  vec3 T0 = TAN[vNormal], B0 = BIT[vNormal];
+  int slope = int(vTintA * 255.0 + 0.5);
+  if (slope > 0 && slope <= 8 && !plant) {
+    N0 = SLOPE_N[slope - 1];
+    T0 = normalize(cross(vec3(0.0, 1.0, 0.0), N0));
+    B0 = cross(N0, T0);
+  }
   if (!gl_FrontFacing && !plant) N0 = -N0;
   vec4 nm = texture(uNormalMap, vUV);
   vec3 N = N0;
   if (!plant) {
     vec3 tn = nm.xyz * 2.0 - 1.0;
-    N = normalize(TAN[vNormal] * tn.x + BIT[vNormal] * tn.y + N0 * tn.z);
+    N = normalize(T0 * tn.x + B0 * tn.y + N0 * tn.z);
   }
   float smoothness = nm.a;
   float sky = vLight.x;

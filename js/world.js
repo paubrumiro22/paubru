@@ -733,7 +733,7 @@ class World {
     if (!obj || typeof obj !== 'object') return;
     if (Array.isArray(obj.facing)) for (let i = 0; i + 1 < obj.facing.length; i += 2) {
       const k = Number(obj.facing[i]), f = obj.facing[i + 1] | 0;
-      if (Number.isFinite(k) && [0, 1, 4, 5].includes(f)) this.facing.set(k, f);
+      if (Number.isFinite(k) && validFacing(f)) this.facing.set(k, f);
     }
     if (Array.isArray(obj.flow)) for (let i = 0; i + 1 < obj.flow.length; i += 2) {
       const k = Number(obj.flow[i]), l = obj.flow[i + 1] | 0;

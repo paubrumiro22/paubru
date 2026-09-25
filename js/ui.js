@@ -298,6 +298,7 @@ const UI = {
       else if (s.kind === 'crafting') this.renderCraftTop(top, this.craft3, 3, 'Crafting Table');
       else if (s.kind === 'furnace') this.renderFurnaceTop(top);
       else if (s.kind === 'chest') this.renderChestTop(top);
+      else if (s.kind === 'arch') this.renderArchTop(top);
       root.append(this.label('Inventory'));
       root.append(this.grid(main, 9, 'main'));
       const hb = this.grid(hot, 9, 'hotbar');
@@ -567,6 +568,59 @@ const UI = {
     top.append(box);
   },
 
+  // ---- architect's table: turn building blocks into stairs, roofs, panels, columns and arches ----
+  renderArchTop(top) {
+    const box = document.createElement('div');
+    box.className = 'archbox';
+    box.append(this.label("Architect's Table"));
+    const creative = G.mode === 'creative';
+    const mats = ARCH_MATS.map((m, i) => ({ m, i, have: G.inv.count(m.src) })).filter((e) => creative || e.have > 0);
+    if (this.archMat === undefined || !mats.some((e) => e.i === this.archMat)) this.archMat = mats.length ? mats[0].i : -1;
+    const row = document.createElement('div');
+    row.className = 'archmats';
+    for (const e of mats) {
+      const b = document.createElement('button');
+      b.className = 'archmat' + (e.i === this.archMat ? ' on' : '');
+      b.title = e.m.name;
+      b.innerHTML = `<i style="background-image:url(${iconURL(e.m.src)})"></i><span>${e.m.name}${creative ? '' : ' ×' + e.have}</span>`;
+      b.addEventListener('click', () => { this.archMat = e.i; sfx('click', null, 1, 1.1); this.render(); });
+      row.append(b);
+    }
+    box.append(row);
+    if (this.archMat < 0) {
+      const p = document.createElement('p');
+      p.className = 'archhint';
+      p.textContent = 'Bring planks, stone, bricks, sandstone, plaster, marble, roof tiles, slate or thatch to shape them.';
+      box.append(p);
+    } else {
+      const m = ARCH_MATS[this.archMat];
+      const refs = [];
+      for (const s of SHAPE_KINDS) {
+        const id = shapeId(m.key, s.key);
+        if (!id) continue;
+        refs.push({ get: () => mkStack(id, s.yield), set: () => {}, accept: () => false, section: 'arch', bookClick: (shift) => this.archMake(m, id, s.yield, shift) });
+      }
+      box.append(this.grid(refs, refs.length, 'archshapes'));
+      const p = document.createElement('p');
+      p.className = 'archhint';
+      p.textContent = 'Click a shape: 1 ' + m.name.toLowerCase() + ' block each. Shift-click makes up to 16. Roofs point away from you; aim at a ceiling or the top half of a wall to place them upside down.';
+      box.append(p);
+    }
+    top.append(box);
+  },
+
+  archMake(m, id, yieldN, shift) {
+    const creative = G.mode === 'creative';
+    const n = creative ? (shift ? 16 : 1) : Math.min(shift ? 16 : 1, G.inv.count(m.src));
+    if (n <= 0) return;
+    if (!creative) G.inv.remove(m.src, n);
+    const left = G.inv.add(mkStack(id, n * yieldN));
+    if (left > 0) this.giveBack(mkStack(id, left));
+    sfx('place_0', null, 0.6, 1.3);
+    this.invDirty();
+    this.render();
+  },
+
   // ---- creative ----
   renderCreative(root, hot) {
     const tabs = document.createElement('div');
@@ -575,7 +629,7 @@ const UI = {
     for (const t of all) {
       const b = document.createElement('button');
       b.className = 'ctab' + (this.creativeTab === t.key ? ' on' : '');
-      const iconId = { building: B.BRICKS, nature: B.GRASS, functional: B.CRAFTING_TABLE, tools: I.TOOL0 + 20, combat: I.TOOL0 + 23, food: I.APPLE, materials: I.DIAMOND, transport: I.JET, search: I.BOOK, inv: B.CHEST }[t.key];
+      const iconId = { building: B.BRICKS, architecture: shapeId('tiles', 'slope'), nature: B.GRASS, functional: B.CRAFTING_TABLE, tools: I.TOOL0 + 20, combat: I.TOOL0 + 23, food: I.APPLE, materials: I.DIAMOND, transport: I.JET, search: I.BOOK, inv: B.CHEST }[t.key];
       b.innerHTML = `<i style="background-image:url(${iconURL(iconId)})"></i><span>${t.name}</span>`;
       b.addEventListener('click', () => { this.creativeTab = t.key; sfx('click', null, 1, 1); this.render(); });
       tabs.append(b);

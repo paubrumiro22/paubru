@@ -8,21 +8,47 @@ const PLAYER_EYE = 1.62;
 const GRAVITY = 30;
 const JUMP_V = 8.9;
 
-// Height (in blocks) of the collision box at a cell, 0 when passable.
-function solidHeight(world, x, y, z) {
-  if (y < 0) return 1;
-  if (y >= CH) return 0;
-  if (!world.isLoaded(x, z)) return 1;
-  return BLOCK_HEIGHT[world.getBlock(x, y, z)] / 16;
+// Collision boxes of a cell in block-local units (null = passable). Plain blocks are one box of
+// their height; stairs, roofs, fences, walls, panes, lanterns and top slabs have their own.
+const HEIGHT_BOXES = [];
+for (let h = 0; h <= 32; h++) HEIGHT_BOXES.push([[0, 0, 0, 1, h / 16, 1]]);
+const UNIT_BOXES = HEIGHT_BOXES[16];
+function cellBoxes(world, x, y, z) {
+  if (y < 0) return UNIT_BOXES;
+  if (y >= CH) return null;
+  if (!world.isLoaded(x, z)) return UNIT_BOXES;
+  const id = world.getBlock(x, y, z);
+  if (!BLOCK_SOLID[id]) return null;
+  const rt = BLOCK_RT[id];
+  if (rt === RT_SHAPE || rt === RT_CONNECT || rt === RT_LANTERN || rt === RT_SLAB) {
+    const sb = specialBoxes(id, world.getFacing(x, y, z), (dx, dy, dz) => world.getBlock(x + dx, y + dy, z + dz), true);
+    if (sb) return sb;
+  }
+  const h = BLOCK_HEIGHT[id];
+  return h ? HEIGHT_BOXES[h] : null;
 }
 
+// Height (in blocks) of the collision boxes at a cell, 0 when passable.
+function solidHeight(world, x, y, z) {
+  const bx = cellBoxes(world, x, y, z);
+  if (!bx) return 0;
+  let top = 0;
+  for (const b of bx) if (b[4] > top) top = b[4];
+  return top;
+}
+
+const EPS = 1e-4;
 function boxCollides(world, px, py, pz, hw, h) {
-  const x0 = Math.floor(px - hw + 1e-4), x1 = Math.floor(px + hw - 1e-4);
-  const y0 = Math.floor(py + 1e-4), y1 = Math.floor(py + h - 1e-4);
-  const z0 = Math.floor(pz - hw + 1e-4), z1 = Math.floor(pz + hw - 1e-4);
+  const x0 = Math.floor(px - hw + EPS), x1 = Math.floor(px + hw - EPS);
+  const y0 = Math.floor(py + EPS) - 1, y1 = Math.floor(py + h - EPS);
+  const z0 = Math.floor(pz - hw + EPS), z1 = Math.floor(pz + hw - EPS);
   for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
-    const sh = solidHeight(world, x, y, z);
-    if (sh > 0 && py < y + sh - 1e-4) return true;
+    const bx = cellBoxes(world, x, y, z);
+    if (!bx) continue;
+    for (const b of bx) {
+      if (px - hw < x + b[3] - EPS && px + hw > x + b[0] + EPS && py < y + b[4] - EPS && py + h > y + b[1] + EPS &&
+        pz - hw < z + b[5] - EPS && pz + hw > z + b[2] + EPS) return true;
+    }
   }
   return false;
 }
@@ -32,24 +58,26 @@ function bodyMoveAxis(world, b, axis, d) {
   if (d === 0) return false;
   const p = b.pos, hw = b.hw, h = b.h;
   p[axis] += d;
-  const x0 = Math.floor(p[0] - hw + 1e-4), x1 = Math.floor(p[0] + hw - 1e-4);
-  const y0 = Math.floor(p[1] + 1e-4), y1 = Math.floor(p[1] + h - 1e-4);
-  const z0 = Math.floor(p[2] - hw + 1e-4), z1 = Math.floor(p[2] + hw - 1e-4);
+  const x0 = Math.floor(p[0] - hw + EPS), x1 = Math.floor(p[0] + hw - EPS);
+  const y0 = Math.floor(p[1] + EPS) - 1, y1 = Math.floor(p[1] + h - EPS);
+  const z0 = Math.floor(p[2] - hw + EPS), z1 = Math.floor(p[2] + hw - EPS);
   let limit = d > 0 ? Infinity : -Infinity;
   let hit = false;
+  const lo = [p[0] - hw, p[1], p[2] - hw], hi = [p[0] + hw, p[1] + h, p[2] + hw], ext = [hw, 0, hw];
   for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
-    const sh = solidHeight(world, x, y, z);
-    if (sh <= 0) continue;
-    const top = y + sh;
-    if (p[1] >= top - 1e-4) continue; // above this box
-    hit = true;
-    const bnd = axis === 0 ? x : axis === 1 ? y : z;
-    if (d > 0) {
-      const lim = axis === 1 ? bnd - h : bnd - hw;
-      if (lim < limit) limit = lim;
-    } else {
-      const lim = axis === 1 ? top : bnd + 1 + hw;
-      if (lim > limit) limit = lim;
+    const bx = cellBoxes(world, x, y, z);
+    if (!bx) continue;
+    for (const c of bx) {
+      const wl = [x + c[0], y + c[1], z + c[2]], wh = [x + c[3], y + c[4], z + c[5]];
+      if (!(lo[0] < wh[0] - EPS && hi[0] > wl[0] + EPS && lo[1] < wh[1] - EPS && hi[1] > wl[1] + EPS && lo[2] < wh[2] - EPS && hi[2] > wl[2] + EPS)) continue;
+      hit = true;
+      if (d > 0) {
+        const lim = axis === 1 ? wl[1] - h : wl[axis] - ext[axis];
+        if (lim < limit) limit = lim;
+      } else {
+        const lim = axis === 1 ? wh[1] : wh[axis] + ext[axis];
+        if (lim > limit) limit = lim;
+      }
     }
   }
   if (!hit) return false;
@@ -325,8 +353,15 @@ class Player {
         const id = this.world.getBlock(x, y, z);
         if (id !== B.AIR && id !== B.WATER && id !== B.LAVA) {
           const box = blockShape(this.world, id, x, y, z);
-          const hit = rayBox(o, d, x + box[0], y + box[1], z + box[2], x + box[3], y + box[4], z + box[5]);
-          if (hit && hit.t <= maxDist) return { pos: [x, y, z], normal: hit.n, id, dist: hit.t, box };
+          const parts = pickBoxes(this.world, id, x, y, z);
+          let hit = null;
+          if (parts) {
+            for (const b of parts) {
+              const h = rayBox(o, d, x + b[0], y + b[1], z + b[2], x + b[3], y + b[4], z + b[5]);
+              if (h && (!hit || h.t < hit.t)) hit = h;
+            }
+          } else hit = rayBox(o, d, x + box[0], y + box[1], z + box[2], x + box[3], y + box[4], z + box[5]);
+          if (hit && hit.t <= maxDist) return { pos: [x, y, z], normal: hit.n, id, dist: hit.t, box, point: [o[0] + d[0] * hit.t, o[1] + d[1] * hit.t, o[2] + d[2] * hit.t] };
         }
       }
       if (tmx < tmy && tmx < tmz) { x += sx; t = tmx; tmx += tdx; normal = [-sx, 0, 0]; }
@@ -345,10 +380,23 @@ class Player {
   }
 }
 
+// The separate boxes a ray can hit on shaped blocks (null: use blockShape's single box).
+function pickBoxes(world, id, x, y, z) {
+  const rt = BLOCK_RT[id];
+  if (rt !== RT_SHAPE && rt !== RT_CONNECT && rt !== RT_LANTERN) return null;
+  return specialBoxes(id, world.getFacing(x, y, z), (dx, dy, dz) => world.getBlock(x + dx, y + dy, z + dz), false);
+}
+
 // Selection / hit box of a block in block-local coordinates.
 function blockShape(world, id, x, y, z) {
+  const parts = pickBoxes(world, id, x, y, z);
+  if (parts) {
+    const u = [1, 1, 1, 0, 0, 0];
+    for (const b of parts) for (let k = 0; k < 3; k++) { u[k] = Math.min(u[k], b[k]); u[k + 3] = Math.max(u[k + 3], b[k + 3]); }
+    return u;
+  }
   switch (BLOCK_RT[id]) {
-    case RT_SLAB: return [0, 0, 0, 1, 0.5, 1];
+    case RT_SLAB: return world.getFacing(x, y, z) & 8 ? [0, 0.5, 0, 1, 1, 1] : [0, 0, 0, 1, 0.5, 1];
     case RT_BED: return [0, 0, 0, 1, 9 / 16, 1];
     case RT_FARMLAND: return [0, 0, 0, 1, 15 / 16, 1];
     case RT_TORCH: return [6 / 16, 0, 6 / 16, 10 / 16, 10 / 16, 10 / 16];

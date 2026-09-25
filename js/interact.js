@@ -135,6 +135,26 @@ const Act = {
     return Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 0 : 1) : (dz > 0 ? 4 : 5);
   },
 
+  // Orientation of a shaped block, slab or lantern being placed (see arch.js): the high side
+  // points where you look, and anything placed against a ceiling or the upper half of a wall
+  // goes upside down.
+  shapeFacing(id, hit, n) {
+    const lk = G.player.lookDir();
+    const upper = n[1] < 0 || (n[1] === 0 && hit.point && hit.point[1] - Math.floor(hit.point[1]) > 0.5);
+    const flip = upper ? 8 : 0;
+    if (id === B.LANTERN) return n[1] < 0 ? 8 : 0;
+    if (BLOCK_RT[id] === RT_SLAB) return flip;
+    const look = Math.abs(lk[0]) > Math.abs(lk[2]) ? (lk[0] > 0 ? 0 : 1) : (lk[2] > 0 ? 4 : 5);
+    const k = BLOCK_SHAPE[id];
+    if (k === SH_OUTER || k === SH_INNER) {
+      const sx = lk[0] >= 0, sz = lk[2] >= 0;
+      return (sx ? (sz ? 4 : 0) : (sz ? 1 : 5)) | flip;
+    }
+    if ((k === SH_PANEL || k === SH_ARCH) && n[1] === 0) return this.dirIndex([-n[0], 0, -n[2]]) | (k === SH_ARCH ? 0 : flip);
+    if (k === SH_PILLAR) return 0;
+    return look | flip;
+  },
+
   entityBlocks(x, y, z, h) {
     if (G.player.intersectsBlock(x, y, z, h)) return true;
     for (const m of Ents.mobs) {
@@ -154,8 +174,9 @@ const Act = {
     if (!placeId) return false;
     let [x, y, z] = hit.pos;
     const n = hit.normal;
-    // slab on slab -> full block
-    if (BLOCK_RT[placeId] === RT_SLAB && hit.id === placeId && n[1] === 1) {
+    // slab on slab -> full block (onto the top of a bottom slab or the underside of a top slab)
+    const hitTop = hit.id === placeId && (w.getFacing(x, y, z) & 8);
+    if (BLOCK_RT[placeId] === RT_SLAB && hit.id === placeId && ((n[1] === 1 && !hitTop) || (n[1] === -1 && hitTop))) {
       if (this.entityBlocks(x, y, z, 1)) return false;
       editBlock(x, y, z, SLAB_FULL[placeId]);
       sfx('place_' + BLOCK_SOUND[placeId], [x + 0.5, y + 0.5, z + 0.5], 1, 0.9);
@@ -182,6 +203,8 @@ const Act = {
     } else if (placeId === B.BED) {
       const lk = G.player.lookDir();
       facing = Math.abs(lk[0]) > Math.abs(lk[2]) ? (lk[0] > 0 ? 0 : 1) : (lk[2] > 0 ? 4 : 5);
+    } else if (BLOCK_RT[placeId] === RT_SHAPE || BLOCK_RT[placeId] === RT_SLAB || placeId === B.LANTERN) {
+      facing = this.shapeFacing(placeId, hit, n);
     } else if (FACING_BLOCKS.has(placeId)) facing = this.faceToward(x, z);
     if (placeId === B.DOOR) {
       // two blocks tall, standing on something solid
@@ -258,7 +281,8 @@ const Act = {
       switch (hit.id) {
         case B.CRAFTING_TABLE: G.ui.openCrafting(); return true;
         case B.FURNACE: case B.FURNACE_LIT: G.ui.openFurnace(x, y, z); return true;
-        case B.CHEST: G.ui.openChest(x, y, z); return true;
+        case B.CHEST: case B.BARREL: G.ui.openChest(x, y, z); return true;
+        case B.ARCH_TABLE: G.ui.open({ kind: 'arch' }); return true;
         case B.BED: trySleep(x, y, z); return true;
         case B.DOOR: case B.DOOR_TOP: case B.DOOR_OPEN: case B.DOOR_OPEN_TOP: case B.TRAPDOOR: case B.TRAPDOOR_OPEN:
           toggleDoor(x, y, z); this.swingHand(); return true;

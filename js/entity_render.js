@@ -83,7 +83,7 @@ const ER = {
   // A block (or part of one, box in 0..1 block units) with its own face textures.
   blockBox(m, id, bx) {
     bx = bx || [0, 0, 0, 1, 1, 1];
-    const facing = BLOCK_FRONT[id] !== 255 && id !== B.BED;
+    const facing = BLOCK_FRONT[id] !== NO_LAYER && id !== B.BED;
     const tint = BLOCK_TINT[id];
     const base = this.color.slice();
     for (const f of CUBE_FACES) {
@@ -96,6 +96,18 @@ const ER = {
       this.box(m, bx[0], bx[1], bx[2], bx[3], bx[4], bx[5], (ff) => (ff === f ? [layer, (x, y, z) => faceU(d, x, y, z), (x, y, z) => faceV(d, x, y, z)] : null));
     }
     this.color = base;
+  },
+
+  // A flat polygon (3 or 4 points in model space) with its own texture coordinates.
+  poly(m, pts, uvs, layer, n) {
+    if (this.vi + 4 > this.max) return;
+    const nx = m[0] * n[0] + m[1] * n[1] + m[2] * n[2], ny = m[4] * n[0] + m[5] * n[1] + m[6] * n[2], nz = m[8] * n[0] + m[9] * n[1] + m[10] * n[2];
+    const nl = Math.hypot(nx, ny, nz) || 1;
+    for (let k = 0; k < 4; k++) {
+      const i = Math.min(k, pts.length - 1), p = pts[i];
+      this.v(m[0] * p[0] + m[1] * p[1] + m[2] * p[2] + m[3], m[4] * p[0] + m[5] * p[1] + m[6] * p[2] + m[7], m[8] * p[0] + m[9] * p[1] + m[10] * p[2] + m[11],
+        uvs[i][0], uvs[i][1], layer, nx / nl, ny / nl, nz / nl);
+    }
   },
 
   sprite(m, layer) {
@@ -116,7 +128,11 @@ const ER = {
   item(m, id) {
     const d = ITEM_DEF[id];
     if (!d) return;
-    if (d.block && d.render !== 'sprite') {
+    if (d.render === 'shape' || d.render === 'connect') {
+      // stairs, roofs, arches, fences... drawn with their real faces
+      const mm = XF.mul(m, XF.t(-0.5, -0.5, -0.5));
+      for (const f of shapeIconFaces(d.block)) this.poly(mm, f.p, f.uv, f.layer, f.n);
+    } else if (d.block && d.render !== 'sprite') {
       const b = d.block;
       const h = d.render === 'slab' ? 0.5 : d.render === 'bed' ? 9 / 16 : 1;
       this.blockBox(XF.mul(m, XF.t(-0.5, -0.5, -0.5)), b, [0, 0, 0, 1, h, 1]);

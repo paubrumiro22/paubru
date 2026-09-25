@@ -189,7 +189,9 @@ function storeLight(chunk, top) {
 // Emits the faces of an axis-aligned box given in 1/16 units inside block (x, y, z).
 // uvFn(d, k, u, v) may remap texture coordinates (bed rotation, torch tops).
 const _box = [0, 0, 0, 0, 0, 0];
-function emitBox(builder, p, x, y, z, bx0, by0, bz0, bx1, by1, bz1, layerOf, flags, tint, uvFn) {
+// lightOut: light every face from the cell it looks into (shaped blocks, which may block light
+// themselves and so have none inside).
+function emitBox(builder, p, x, y, z, bx0, by0, bz0, bx1, by1, bz1, layerOf, flags, tint, uvFn, lightOut) {
   _box[0] = bx0; _box[1] = by0; _box[2] = bz0; _box[3] = bx1; _box[4] = by1; _box[5] = bz1;
   for (let d = 0; d < 6; d++) {
     const onEdge = d === 0 ? bx1 === 16 : d === 1 ? bx0 === 0 : d === 2 ? by1 === 16 : d === 3 ? by0 === 0 : d === 4 ? bz1 === 16 : bz0 === 0;
@@ -197,7 +199,7 @@ function emitBox(builder, p, x, y, z, bx0, by0, bz0, bx1, by1, bz1, layerOf, fla
     if (onEdge && BLOCK_OPAQUE[padBlocks[nIdx]]) continue;
     const layer = layerOf(d);
     if (layer < 0) continue;
-    const li = onEdge ? nIdx : p;
+    const li = onEdge || lightOut ? nIdx : p;
     const s = Math.round(Math.max(skyL[li], skyL[p]) * 17), b2 = Math.round(Math.max(blkL[li], blkL[p]) * 17);
     builder.ensure(4);
     const corners = FACE_CORNERS[d];
@@ -223,6 +225,70 @@ function emitQuad(builder, pts, uvs, layer, nf, s, b2, tint) {
 }
 
 const WHITE_TINT = [200, 200, 200];
+
+// A flat polygon of a shaped block (3 or 4 points in 1/16 units inside the cell). Axis-aligned
+// faces sit on the cell boundary and hide against opaque neighbours; slanted ones carry a slope
+// code in the spare tint byte so the shader lights them with the real sloped normal.
+const HDIR = (n) => (n[0] > 0.5 ? 0 : n[0] < -0.5 ? 1 : n[2] > 0.5 ? 4 : n[2] < -0.5 ? 5 : -1);
+function emitPoly(builder, p, x, y, z, poly, layer, flags) {
+  const n = poly.n;
+  let d = -1;
+  if (!poly.slant) d = n[0] > 0 ? 0 : n[0] < 0 ? 1 : n[1] > 0 ? 2 : n[1] < 0 ? 3 : n[2] > 0 ? 4 : 5;
+  if (d >= 0 && BLOCK_OPAQUE[padBlocks[p + DIR_OFFSET[d]]]) return;
+  let s, b2;
+  if (d >= 0) {
+    const li = p + DIR_OFFSET[d];
+    s = Math.max(skyL[li], skyL[p]); b2 = Math.max(blkL[li], blkL[p]);
+  } else {
+    const l1 = p + DIR_OFFSET[n[1] > 0 ? 2 : 3], hd = HDIR(n), l2 = hd >= 0 ? p + DIR_OFFSET[hd] : l1;
+    s = Math.max(skyL[l1], skyL[l2], skyL[p]); b2 = Math.max(blkL[l1], blkL[l2], blkL[p]);
+  }
+  s = Math.round(s * 17); b2 = Math.round(b2 * 17);
+  const P = poly.p;
+  // front faces wind counter-clockwise seen from outside
+  const ax = P[1][0] - P[0][0], ay = P[1][1] - P[0][1], az = P[1][2] - P[0][2];
+  const bx = P[2][0] - P[0][0], by = P[2][1] - P[0][1], bz = P[2][2] - P[0][2];
+  const flip = (ay * bz - az * by) * n[0] + (az * bx - ax * bz) * n[1] + (ax * by - ay * bx) * n[2] < 0;
+  const order = P.length === 3 ? (flip ? [2, 1, 0, 0] : [0, 1, 2, 2]) : (flip ? [3, 2, 1, 0] : [0, 1, 2, 3]);
+  const nf = (d >= 0 ? d : n[1] > 0 ? 2 : 3) | (flags << 3);
+  builder.ensure(4);
+  for (const k of order) {
+    const q = P[k];
+    let u, v;
+    if (poly.uv) { u = poly.uv[k][0]; v = poly.uv[k][1]; } else { u = faceU(d, q[0] / 16, q[1] / 16, q[2] / 16); v = faceV(d, q[0] / 16, q[1] / 16, q[2] / 16); }
+    builder.v((x * 16 + q[0]) * P4, (y * 16 + q[1]) * P4, (z * 16 + q[2]) * P4, layer, nf, 3, s, b2, 200, 200, 200,
+      Math.round(u * 16), Math.round(v * 16), 0, 0, poly.code);
+  }
+}
+
+// Shaped, connecting and lantern blocks.
+function emitArch(world, p, x, y, z, id, rt, flags, wx, wz) {
+  const tex = (d) => BLOCK_TEX[id * 6 + d];
+  const pb = padBlocks;
+  if (rt === RT_SHAPE) {
+    const k = BLOCK_SHAPE[id];
+    let boxes;
+    if (k === SH_PILLAR) boxes = pillarBoxes(pb[p - RSS] === id, pb[p + RSS] === id);
+    else {
+      const g = shapeGeom(k, world.getFacing(wx, y, wz));
+      for (const poly of g.polys) emitPoly(meshOpaque, p, x, y, z, poly, poly.slant ? tex(poly.n[1] > 0 ? 2 : 3) : tex(poly.n[0] > 0 ? 0 : poly.n[0] < 0 ? 1 : poly.n[1] > 0 ? 2 : poly.n[1] < 0 ? 3 : poly.n[2] > 0 ? 4 : 5), flags);
+      boxes = g.boxes;
+    }
+    for (const b of boxes) emitBox(meshOpaque, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], tex, flags, WHITE_TINT, null, true);
+    return;
+  }
+  if (rt === RT_CONNECT) {
+    const kd = BLOCK_CONNECT[id];
+    const boxes = connectBoxes(kd, connectsTo(kd, pb[p + 1]), connectsTo(kd, pb[p - 1]), connectsTo(kd, pb[p + RS]), connectsTo(kd, pb[p - RS]), false);
+    const builder = kd === CN_PANE ? meshCutout : meshOpaque;
+    for (const b of boxes) emitBox(builder, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], tex, flags, WHITE_TINT, null, false);
+    return;
+  }
+  if (rt === RT_LANTERN) {
+    const f = world.getFacing(wx, y, wz);
+    for (const b of lanternBoxes(f & 8)) emitBox(meshCutout, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], tex, flags, WHITE_TINT, null, false);
+  }
+}
 // outward normal of a wall-mounted block's face index -> [dx, dz]
 const FACE_DXZ = { 0: [1, 0], 1: [-1, 0], 4: [0, 1], 5: [0, -1] };
 
@@ -330,7 +396,10 @@ function buildChunkMesh(world, chunk) {
 
         if (rt >= RT_SLAB) {
           const tex = (d) => BLOCK_TEX[id * 6 + d];
-          if (rt === RT_SLAB) emitBox(meshOpaque, p, x, y, z, 0, 0, 0, 16, 8, 16, tex, flags, WHITE_TINT, null);
+          if (rt === RT_SLAB) {
+            const top = world.getFacing(ox + x, y, oz + z) & 8;
+            emitBox(meshOpaque, p, x, y, z, 0, top ? 8 : 0, 0, 16, top ? 16 : 8, 16, tex, flags, WHITE_TINT, null);
+          } else if (rt === RT_SHAPE || rt === RT_CONNECT || rt === RT_LANTERN) emitArch(world, p, x, y, z, id, rt, flags, ox + x, oz + z);
           else if (rt === RT_FARMLAND) emitBox(meshOpaque, p, x, y, z, 0, 0, 0, 16, 15, 16, tex, flags, WHITE_TINT, null);
           else if (rt === RT_TORCH) {
             emitBox(meshCutout, p, x, y, z, 7, 0, 7, 9, 10, 9, tex, flags, WHITE_TINT,

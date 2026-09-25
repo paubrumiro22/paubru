@@ -64,8 +64,9 @@ const BLOCK_ATTEN = new Uint8Array(256);   // light attenuation (15 = blocks lig
 const BLOCK_EMIT = new Uint8Array(256);
 const BLOCK_TINT = new Uint8Array(256);
 const BLOCK_FLAGS = new Uint8Array(256);
-const BLOCK_TEX = new Uint8Array(256 * 6); // per face: +X -X +Y -Y +Z -Z
-const BLOCK_FRONT = new Uint8Array(256).fill(255); // front layer of blocks that face the player
+const BLOCK_TEX = new Uint16Array(256 * 6); // per face: +X -X +Y -Y +Z -Z (texture array layer)
+const NO_LAYER = 0xffff;
+const BLOCK_FRONT = new Uint16Array(256).fill(NO_LAYER); // front layer of blocks that face the player
 const BLOCK_HARD = new Float32Array(256);  // seconds-ish; < 0 = unbreakable
 const BLOCK_TOOL = new Uint8Array(256);
 const BLOCK_TIER = new Uint8Array(256);    // minimum tool tier for drops (0 = hand is fine)

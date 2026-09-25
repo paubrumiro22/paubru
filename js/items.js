@@ -57,6 +57,9 @@ for (let id = 1; id < 256; id++) {
   else if (rt === RT_DOOR) { o.render = 'sprite'; o.layer = defTex('i_door'); }
   else if (rt === RT_TRAPDOOR) { o.render = 'sprite'; o.layer = BLOCK_TEX[id * 6 + 2]; }
   else if (rt === RT_SLAB) o.render = 'slab';
+  else if (rt === RT_SHAPE) o.render = 'shape';
+  else if (rt === RT_CONNECT) o.render = 'connect';
+  else if (rt === RT_LANTERN) { o.render = 'sprite'; o.layer = defTex('i_lantern'); }
   else if (rt === RT_BED) o.render = 'bed';
   else o.render = 'cube';
   if (id === B.BED) o.stack = 1;
@@ -268,6 +271,25 @@ shapeless(B.WOOL, 1, [I.STRING, I.STRING, I.STRING, I.STRING]);
 shaped(B.DOOR, 3, ['PP', 'PP', 'PP'], { P: TAG.planks });
 shaped(B.TRAPDOOR, 2, ['PPP', 'PPP'], { P: TAG.planks });
 shaped(I.JET, 1, [' G ', 'IFI', 'I I'], { G: B.GLASS, I: B.IRON_BLOCK, F: B.FURNACE });
+// architecture (shaped blocks come from the Architect's Table)
+shaped(B.ARCH_TABLE, 1, ['SS', 'PP'], { S: B.STONE_SLAB, P: TAG.planks });
+shaped(B.PLASTER, 4, ['SC', 'CS'], { S: [B.SAND, B.WHITE_SAND], C: B.CLAY });
+shaped(B.ROOF_TILES, 6, ['T T', ' T '], { T: [B.TERRACOTTA, B.TERRACOTTA_C, B.TERRACOTTA_C + 4] });
+shaped(B.THATCH, 1, ['WW', 'WW'], { W: I.WHEAT });
+shapeless(B.DIRT_PATH, 2, [B.DIRT, B.GRAVEL]);
+shaped(B.OAK_FENCE, 3, ['PSP', 'PSP'], { P: B.PLANKS, S: I.STICK });
+shaped(B.SPRUCE_FENCE, 3, ['PSP', 'PSP'], { P: B.SPRUCE_PLANKS, S: I.STICK });
+shaped(B.COBBLE_WALL, 6, ['CCC', 'CCC'], { C: B.COBBLE });
+shaped(B.STONE_BRICK_WALL, 6, ['CCC', 'CCC'], { C: B.STONE_BRICKS });
+shaped(B.GLASS_PANE, 16, ['GGG', 'GGG'], { G: B.GLASS });
+shaped(B.IRON_BARS, 16, ['III', 'III'], { I: I.IRON_INGOT });
+shaped(B.LANTERN, 1, [' I ', 'ITI', ' I '], { I: I.IRON_INGOT, T: B.TORCH });
+shaped(B.BARREL, 1, ['PSP', 'P P', 'PSP'], { P: TAG.planks, S: B.PLANK_SLAB });
+SMELT[B.DIORITE] = B.MARBLE;
+SMELT[B.ANDESITE] = B.SLATE;
+for (let id = B.SHAPE0; id < B.SHAPE_END; id++) if (ARCH_MATS[BLOCK_SHAPE_MAT[id]].o === WOOD) ITEM_DEF[id].fuel = 10;
+for (const id of [B.OAK_FENCE, B.SPRUCE_FENCE, B.BARREL, B.ARCH_TABLE]) ITEM_DEF[id].fuel = 15;
+ITEM_DEF[B.THATCH].fuel = 20;
 
 // Match a crafting grid (array of item ids, row-major, size gw x gh) against the recipes.
 function matchRecipe(grid, gw, gh) {
@@ -325,7 +347,7 @@ function recipeFits(r, gw) { return r.shaped ? r.w <= gw && r.h <= gw : r.ings.l
 
 // ---- creative tabs ----
 const CREATIVE_TABS = [
-  { key: 'building', name: 'Building' }, { key: 'nature', name: 'Nature' }, { key: 'functional', name: 'Functional' },
+  { key: 'building', name: 'Building' }, { key: 'architecture', name: 'Architecture' }, { key: 'nature', name: 'Nature' }, { key: 'functional', name: 'Functional' },
   { key: 'tools', name: 'Tools' }, { key: 'combat', name: 'Combat' }, { key: 'food', name: 'Food' },
   { key: 'materials', name: 'Materials' }, { key: 'transport', name: 'Vehicles' },
 ];

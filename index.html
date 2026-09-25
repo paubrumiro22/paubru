@@ -171,7 +171,13 @@
   @keyframes pop { from { transform: translateY(8px) scale(0.985); opacity: 0; } to { transform: none; opacity: 1; } }
   .invpanel h3 { font: 400 11px/1 var(--display); text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); margin: 14px 0 8px; }
   .invtop { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
-  .invtop > .craftbox h3, .invtop > .furnacebox h3, .invtop > .chestbox h3 { margin-top: 2px; }
+  .invtop > .craftbox h3, .invtop > .furnacebox h3, .invtop > .chestbox h3, .invtop > .archbox h3 { margin-top: 2px; }
+  .archbox { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+  .archmats { display: flex; flex-wrap: wrap; gap: 6px; }
+  .archmat { display: flex; align-items: center; gap: 6px; padding: 5px 9px 5px 5px; font-size: 12px; }
+  .archmat i { width: 22px; height: 22px; background-size: contain; image-rendering: pixelated; }
+  .archmat.on { border-color: var(--accent); background: rgba(242, 185, 75, 0.18); }
+  .archhint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
   .sgrid { display: grid; gap: 3px; }
   .sgrid.hotrow { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
   .invpanel .slot, #cursorStack { width: var(--slot); height: var(--slot); border-radius: 7px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.045); }
@@ -577,8 +583,10 @@
 <script src="js/math.js" data-w></script>
 <script src="js/noise.js" data-w></script>
 <script src="js/blocks.js" data-w></script>
+<script src="js/arch.js" data-w></script>
 <script src="js/items.js"></script>
 <script src="js/textures.js"></script>
+<script src="js/textures_arch.js"></script>
 <script src="js/world.js" data-w></script>
 <script src="js/presets.js" data-w></script>
 <script src="js/mesher.js" data-w></script>

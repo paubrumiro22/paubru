@@ -1488,6 +1488,67 @@ function tileCanvas(tiles, layer) {
   return c;
 }
 
+// Faces of a shaped / connecting block as seen in its icon: [{ p: [[x,y,z]...] (0..1), n, uv, layer }].
+function shapeIconFaces(bid) {
+  const faces = [];
+  const tex = (d) => BLOCK_TEX[bid * 6 + d];
+  const addBox = (b) => {
+    const [x0, y0, z0, x1, y1, z1] = b.map((v) => v / 16);
+    for (let d = 0; d < 6; d++) {
+      const p = FACE_CORNERS[d].map((c) => [c[0] ? x1 : x0, c[1] ? y1 : y0, c[2] ? z1 : z0]);
+      faces.push({ p, n: DIRS[d], uv: p.map((q) => [faceU(d, q[0], q[1], q[2]), faceV(d, q[0], q[1], q[2])]), layer: tex(d) });
+    }
+  };
+  if (BLOCK_RT[bid] === RT_CONNECT) {
+    for (const b of connectBoxes(BLOCK_CONNECT[bid], true, true, false, false, false)) addBox(b);
+    return faces;
+  }
+  const k = BLOCK_SHAPE[bid];
+  if (k === SH_PILLAR) { for (const b of pillarBoxes(false, false)) addBox(b); return faces; }
+  const g = shapeGeom(k, k === SH_OUTER || k === SH_INNER ? 0 : 5);
+  for (const b of g.boxes) addBox(b);
+  for (const q of g.polys) {
+    const p = q.p.map((v) => [v[0] / 16, v[1] / 16, v[2] / 16]);
+    const d = q.n[0] > 0 ? 0 : q.n[0] < 0 ? 1 : q.n[1] > 0 ? 2 : q.n[1] < 0 ? 3 : q.n[2] > 0 ? 4 : 5;
+    const uv = q.uv || p.map((v) => [faceU(d, v[0], v[1], v[2]), faceV(d, v[0], v[1], v[2])]);
+    faces.push({ p, n: q.n, uv, layer: q.slant ? tex(2) : tex(d), slant: q.slant });
+  }
+  return faces;
+}
+
+// Isometric drawing of arbitrary textured faces (same projection as the cube icons): back-facing
+// faces are dropped, the rest painted far to near, each texture mapped with an affine transform
+// and clipped to its polygon.
+function drawIsoShape(ctx, tiles, bid, size) {
+  const s = size / 48;
+  const P = (q) => [(3 + 21 * (q[0] + q[2])) * s, (13 + 11 * (q[2] - q[0]) + 22 * (1 - q[1])) * s];
+  const faces = shapeIconFaces(bid).filter((f) => -f.n[0] + f.n[1] + f.n[2] > 0.01);
+  faces.forEach((f) => { f.depth = f.p.reduce((a, q) => a - q[0] + q[1] + q[2], 0) / f.p.length; });
+  faces.sort((a, b) => a.depth - b.depth);
+  for (const f of faces) {
+    const S = f.p.map(P), T = f.uv.map((t) => [t[0] * TS, t[1] * TS]);
+    const du1 = T[1][0] - T[0][0], dv1 = T[1][1] - T[0][1], du2 = T[2][0] - T[0][0], dv2 = T[2][1] - T[0][1];
+    const det = du1 * dv2 - du2 * dv1;
+    if (Math.abs(det) < 1e-6) continue;
+    const dx1 = S[1][0] - S[0][0], dy1 = S[1][1] - S[0][1], dx2 = S[2][0] - S[0][0], dy2 = S[2][1] - S[0][1];
+    const a = (dx1 * dv2 - dx2 * dv1) / det, c = (dx2 * du1 - dx1 * du2) / det;
+    const b = (dy1 * dv2 - dy2 * dv1) / det, d = (dy2 * du1 - dy1 * du2) / det;
+    const e = S[0][0] - a * T[0][0] - c * T[0][1], g = S[0][1] - b * T[0][0] - d * T[0][1];
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.beginPath();
+    S.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])));
+    ctx.closePath();
+    ctx.clip();
+    ctx.setTransform(a, b, c, d, e, g);
+    ctx.drawImage(tileCanvas(tiles, f.layer), 0, 0);
+    const shade = f.slant ? (f.n[0] < 0 ? 0.2 : 0.08) : f.n[1] > 0.9 ? 0 : f.n[0] < 0 ? 0.26 : 0.44;
+    if (shade > 0) { ctx.fillStyle = `rgba(0,0,0,${shade})`; ctx.fillRect(0, 0, TS, TS); }
+    ctx.restore();
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
 // Isometric block icon or flat sprite for the UI; returns a canvas of size x size.
 function makeItemIcon(tiles, id, size = 64) {
   const cv = document.createElement('canvas');
@@ -1502,9 +1563,10 @@ function makeItemIcon(tiles, id, size = 64) {
     return cv;
   }
   const bid = def.block;
+  if (def.render === 'shape' || def.render === 'connect') { drawIsoShape(ctx, tiles, bid, size); return cv; }
   const h = def.render === 'slab' ? 0.5 : def.render === 'bed' ? 9 / 16 : 1;
   const s = size / 48, k = 16 / TS;
-  const layerOf = (d) => (FACING_BLOCKS.has(bid) && BLOCK_FRONT[bid] !== 255 && d === 4 && bid !== B.BED ? BLOCK_FRONT[bid] : BLOCK_TEX[bid * 6 + d]);
+  const layerOf = (d) => (FACING_BLOCKS.has(bid) && BLOCK_FRONT[bid] !== NO_LAYER && d === 4 && bid !== B.BED ? BLOCK_FRONT[bid] : BLOCK_TEX[bid * 6 + d]);
   const top = tileCanvas(tiles, BLOCK_TEX[bid * 6 + 2]);
   const left = tileCanvas(tiles, layerOf(4));
   const right = tileCanvas(tiles, BLOCK_TEX[bid * 6 + 0]);

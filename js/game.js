@@ -191,7 +191,7 @@ function cleanupBlockEntity(x, y, z, old, id) {
   const k = posKey(x, y, z);
   const be = G.world.blockEntities.get(k);
   if (!be) return;
-  const keep = (be.type === 'furnace' && (id === B.FURNACE || id === B.FURNACE_LIT)) || (be.type === 'chest' && id === B.CHEST);
+  const keep = (be.type === 'furnace' && (id === B.FURNACE || id === B.FURNACE_LIT)) || (be.type === 'chest' && (id === B.CHEST || id === B.BARREL));
   if (keep) return;
   for (const s of be.slots || []) if (s && s.id) Ents.spawnItem(cloneStack(s), x + 0.5, y + 0.5, z + 0.5);
   G.world.blockEntities.delete(k);

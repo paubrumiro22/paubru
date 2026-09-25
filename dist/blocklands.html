@@ -166,7 +166,13 @@
   @keyframes pop { from { transform: translateY(8px) scale(0.985); opacity: 0; } to { transform: none; opacity: 1; } }
   .invpanel h3 { font: 400 11px/1 var(--display); text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); margin: 14px 0 8px; }
   .invtop { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
-  .invtop > .craftbox h3, .invtop > .furnacebox h3, .invtop > .chestbox h3 { margin-top: 2px; }
+  .invtop > .craftbox h3, .invtop > .furnacebox h3, .invtop > .chestbox h3, .invtop > .archbox h3 { margin-top: 2px; }
+  .archbox { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+  .archmats { display: flex; flex-wrap: wrap; gap: 6px; }
+  .archmat { display: flex; align-items: center; gap: 6px; padding: 5px 9px 5px 5px; font-size: 12px; }
+  .archmat i { width: 22px; height: 22px; background-size: contain; image-rendering: pixelated; }
+  .archmat.on { border-color: var(--accent); background: rgba(242, 185, 75, 0.18); }
+  .archhint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
   .sgrid { display: grid; gap: 3px; }
   .sgrid.hotrow { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
   .invpanel .slot, #cursorStack { width: var(--slot); height: var(--slot); border-radius: 7px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.045); }
@@ -930,8 +936,9 @@ const BLOCK_ATTEN = new Uint8Array(256);   // light attenuation (15 = blocks lig
 const BLOCK_EMIT = new Uint8Array(256);
 const BLOCK_TINT = new Uint8Array(256);
 const BLOCK_FLAGS = new Uint8Array(256);
-const BLOCK_TEX = new Uint8Array(256 * 6); // per face: +X -X +Y -Y +Z -Z
-const BLOCK_FRONT = new Uint8Array(256).fill(255); // front layer of blocks that face the player
+const BLOCK_TEX = new Uint16Array(256 * 6); // per face: +X -X +Y -Y +Z -Z (texture array layer)
+const NO_LAYER = 0xffff;
+const BLOCK_FRONT = new Uint16Array(256).fill(NO_LAYER); // front layer of blocks that face the player
 const BLOCK_HARD = new Float32Array(256);  // seconds-ish; < 0 = unbreakable
 const BLOCK_TOOL = new Uint8Array(256);
 const BLOCK_TIER = new Uint8Array(256);    // minimum tool tier for drops (0 = hand is fine)
@@ -1116,6 +1123,290 @@ const IS_LIQUID = (id) => id === B.WATER || id === B.LAVA;
 
 function isValidBlock(id) { return Number.isInteger(id) && id > 0 && id < 256 && BLOCK_NAME[id] !== undefined; }
 </script>
+<script data-w>
+'use strict';
+// Architecture: shaped blocks in many materials (stairs, true sloped roofs with outer and inner
+// corners, vertical panels, columns with base and capital, quarter arches), connecting blocks
+// (fences, walls, glass panes, iron bars), lanterns and a few new materials (plaster, marble,
+// clay roof tiles, slate, thatch). Geometry lives here so the mesher, collisions, ray picking,
+// icons and held items all agree on it.
+//
+// Orientation: a shaped block stores a facing f in world.facing (0 +X, 1 -X, 4 +Z, 5 -Z) = the
+// side its high / back part is on. Bit 8 flips it upside down (ceilings, eaves, top slabs).
+// Shapes are described in a canonical frame with the back at -Z and rotated into place.
+
+// ---- new plain blocks ----
+Object.assign(B, {
+  PLASTER: 119, MARBLE: 120, ROOF_TILES: 121, SLATE: 122, THATCH: 123, DIRT_PATH: 124, LANTERN: 125, BARREL: 126,
+  ARCH_TABLE: 127, COBWEB: 128, OAK_FENCE: 129, SPRUCE_FENCE: 130, COBBLE_WALL: 131, STONE_BRICK_WALL: 132,
+  GLASS_PANE: 133, IRON_BARS: 134, ENCHANT_TABLE: 135, BREWING_STAND: 136, EMERALD_ORE: 137, EMERALD_BLOCK: 138,
+  SHAPE0: 140,
+});
+
+const RT_SHAPE = 15, RT_CONNECT = 16, RT_LANTERN = 17;
+const SH_STAIRS = 1, SH_SLOPE = 2, SH_OUTER = 3, SH_INNER = 4, SH_PANEL = 5, SH_PILLAR = 6, SH_ARCH = 7;
+const CN_FENCE = 1, CN_WALL = 2, CN_PANE = 3;
+const BLOCK_SHAPE = new Uint8Array(256);    // shape kind of a shaped block
+const BLOCK_SHAPE_MAT = new Uint8Array(256); // index into ARCH_MATS
+const BLOCK_CONNECT = new Uint8Array(256);   // connecting kind (fence, wall, pane)
+
+// valid stored facings: 0 1 4 5, plus 8 for upside down
+const FACINGS = [0, 1, 4, 5, 8, 9, 12, 13];
+function validFacing(f) { return FACINGS.includes(f); }
+
+const PLASTER_OPT = { hard: 1.2, tool: TOOL_PICK, snd: SND.STONE, blast: 5, cat: 'architecture' };
+defBlock(B.PLASTER, 'Plaster', RT_CUBE, 'plaster', PLASTER_OPT);
+defBlock(B.MARBLE, 'Marble', RT_CUBE, 'marble', with_(ROCK, { hard: 1.8, cat: 'architecture' }));
+defBlock(B.ROOF_TILES, 'Clay Roof Tiles', RT_CUBE, 'roof_tiles', with_(ROCK, { hard: 1.2, cat: 'architecture' }));
+defBlock(B.SLATE, 'Slate', RT_CUBE, 'slate', with_(ROCK, { hard: 1.5, cat: 'architecture' }));
+defBlock(B.THATCH, 'Thatch', RT_CUBE, 'thatch', { hard: 0.5, tool: TOOL_HOE, snd: SND.GRASS, cat: 'architecture' });
+defBlock(B.DIRT_PATH, 'Dirt Path', RT_FARMLAND, ['dirt_path', 'dirt', 'dirt_path_side'], { atten: 1, hard: 0.6, tool: TOOL_SHOVEL, snd: SND.DIRT, cat: 'nature' });
+defBlock(B.LANTERN, 'Lantern', RT_LANTERN, { top: 'lantern_top', side: 'lantern' }, { emit: 15, atten: 0, hard: 0.5, tool: TOOL_PICK, snd: SND.METAL, solid: false, cat: 'functional' });
+defBlock(B.BARREL, 'Barrel', RT_CUBE, { top: 'barrel_top', bottom: 'barrel_top', side: 'barrel_side' }, with_(WOOD, { hard: 2.5, cat: 'functional' }));
+defBlock(B.ARCH_TABLE, "Architect's Table", RT_CUBE, { top: 'arch_table_top', bottom: 'planks', side: 'arch_table_side' }, with_(WOOD, { hard: 2.5, cat: 'functional' }));
+defBlock(B.COBWEB, 'Cobweb', RT_CROSS, 'cobweb', { atten: 1, hard: 4, tool: TOOL_SWORD, snd: SND.WOOL, flags: FLAG_TRANSLUCENT, solid: false, cat: 'nature' });
+defBlock(B.EMERALD_ORE, 'Emerald Ore', RT_CUBE, 'emerald_ore', with_(ROCK, { hard: 3, tier: 3, cat: 'nature' }));
+defBlock(B.EMERALD_BLOCK, 'Block of Emerald', RT_CUBE, 'emerald_block', with_(ROCK, { hard: 5, tier: 3, snd: SND.METAL }));
+
+// connecting blocks
+function defConnect(id, name, kind, tex, o) {
+  defBlock(id, name, RT_CONNECT, tex, Object.assign({ atten: 0, cat: 'architecture' }, o, { solid: true }));
+  BLOCK_CONNECT[id] = kind;
+  BLOCK_HEIGHT[id] = kind === CN_PANE ? 16 : 24;
+}
+defConnect(B.OAK_FENCE, 'Oak Fence', CN_FENCE, 'planks', WOOD);
+defConnect(B.SPRUCE_FENCE, 'Spruce Fence', CN_FENCE, 'spruce_planks', WOOD);
+defConnect(B.COBBLE_WALL, 'Cobblestone Wall', CN_WALL, 'cobble', with_(ROCK, { hard: 2 }));
+defConnect(B.STONE_BRICK_WALL, 'Stone Brick Wall', CN_WALL, 'stone_bricks', ROCK);
+defConnect(B.GLASS_PANE, 'Glass Pane', CN_PANE, 'glass', { hard: 0.3, snd: SND.GLASS, flags: FLAG_TRANSLUCENT });
+defConnect(B.IRON_BARS, 'Iron Bars', CN_PANE, 'iron_bars', { hard: 5, tool: TOOL_PICK, tier: 1, snd: SND.METAL });
+BLOCK_SOLID[B.LANTERN] = 1; BLOCK_HEIGHT[B.LANTERN] = 9;
+
+// ---- shaped blocks: every material gets the roof and wall shapes; masonry and wood also get
+// columns and arches ----
+const ARCH_MATS = [
+  { key: 'oak', name: 'Oak', tex: 'planks', src: B.PLANKS, o: WOOD, pillar: true },
+  { key: 'spruce', name: 'Spruce', tex: 'spruce_planks', src: B.SPRUCE_PLANKS, o: WOOD, pillar: true },
+  { key: 'birch', name: 'Birch', tex: 'birch_planks', src: B.BIRCH_PLANKS, o: WOOD, pillar: false },
+  { key: 'cobble', name: 'Cobblestone', tex: 'cobble', src: B.COBBLE, o: with_(ROCK, { hard: 2 }), pillar: true },
+  { key: 'stone_brick', name: 'Stone Brick', tex: 'stone_bricks', src: B.STONE_BRICKS, o: ROCK, pillar: true },
+  { key: 'brick', name: 'Brick', tex: 'bricks', src: B.BRICKS, o: with_(ROCK, { hard: 2 }), pillar: true },
+  { key: 'sandstone', name: 'Sandstone', tex: ['sandstone_top', 'sandstone_bottom', 'sandstone_side'], src: B.SANDSTONE, o: with_(ROCK, { hard: 0.8 }), pillar: true },
+  { key: 'plaster', name: 'Plaster', tex: 'plaster', src: B.PLASTER, o: PLASTER_OPT, pillar: true },
+  { key: 'marble', name: 'Marble', tex: 'marble', src: B.MARBLE, o: with_(ROCK, { hard: 1.8 }), pillar: true },
+  { key: 'tiles', name: 'Clay Tile', tex: 'roof_tiles', src: B.ROOF_TILES, o: with_(ROCK, { hard: 1.2 }), pillar: false },
+  { key: 'slate', name: 'Slate', tex: 'slate', src: B.SLATE, o: with_(ROCK, { hard: 1.5 }), pillar: false },
+  { key: 'thatch', name: 'Thatch', tex: 'thatch', src: B.THATCH, o: { hard: 0.5, tool: TOOL_HOE, snd: SND.GRASS }, pillar: false },
+];
+const SHAPE_KINDS = [
+  { kind: SH_STAIRS, key: 'stairs', name: 'Stairs', atten: 15, yield: 1 },
+  { kind: SH_SLOPE, key: 'slope', name: 'Roof Slope', atten: 15, yield: 1 },
+  { kind: SH_OUTER, key: 'outer', name: 'Roof Outer Corner', atten: 15, yield: 1 },
+  { kind: SH_INNER, key: 'inner', name: 'Roof Inner Corner', atten: 15, yield: 1 },
+  { kind: SH_PANEL, key: 'panel', name: 'Wall Panel', atten: 1, yield: 2 },
+  { kind: SH_PILLAR, key: 'pillar', name: 'Column', atten: 1, yield: 1, pillarOnly: true },
+  { kind: SH_ARCH, key: 'arch', name: 'Arch', atten: 1, yield: 1, pillarOnly: true },
+];
+const SHAPE_OF = {};   // `${matKey}:${shapeKey}` -> block id
+{
+  let id = B.SHAPE0;
+  ARCH_MATS.forEach((m, mi) => {
+    for (const s of SHAPE_KINDS) {
+      if (s.pillarOnly && !m.pillar) continue;
+      defBlock(id, m.name + ' ' + s.name, RT_SHAPE, m.tex, Object.assign({}, m.o, { atten: s.atten, solid: true, cat: 'architecture' }));
+      BLOCK_SHAPE[id] = s.kind;
+      BLOCK_SHAPE_MAT[id] = mi;
+      BLOCK_HEIGHT[id] = 16;
+      SHAPE_OF[m.key + ':' + s.key] = id;
+      id++;
+    }
+  });
+  B.SHAPE_END = id;
+}
+function shapeId(mat, shape) { return SHAPE_OF[mat + ':' + shape] || 0; }
+for (let id = 0; id < 256; id++) if (BLOCK_SHAPE[id] || id === B.LANTERN) FACING_BLOCKS.add(id);
+
+// ---- geometry ----
+// Rotate / flip a canonical point (1/16 units, back at -Z) into facing f.
+function shapeXf(f, x, y, z) {
+  if (f & 8) y = 16 - y;
+  switch (f & 7) {
+    case 4: return [16 - x, y, 16 - z];
+    case 0: return [16 - z, y, x];
+    case 1: return [z, y, 16 - x];
+    default: return [x, y, z];
+  }
+}
+function shapeXfN(f, nx, ny, nz) {
+  if (f & 8) ny = -ny;
+  switch (f & 7) {
+    case 4: return [-nx, ny, -nz];
+    case 0: return [-nz, ny, nx];
+    case 1: return [nz, ny, -nx];
+    default: return [nx, ny, nz];
+  }
+}
+function xfBox(f, b) {
+  const a = shapeXf(f, b[0], b[1], b[2]), c = shapeXf(f, b[3], b[4], b[5]);
+  return [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.min(a[2], c[2]), Math.max(a[0], c[0]), Math.max(a[1], c[1]), Math.max(a[2], c[2])];
+}
+
+function archSlices() {
+  const out = [];
+  for (let i = 0; i < 8; i++) {
+    const dz = 16 - (2 * i + 1), R = 14;
+    const y0 = dz >= R ? 0 : Math.round(Math.sqrt(R * R - dz * dz));
+    out.push([0, y0, 2 * i, 16, 16, 2 * i + 2]);
+  }
+  return out;
+}
+const SLOPE_STEPS = [0, 1, 2, 3].map((k) => [0, 0, 4 * k, 16, 16 - 4 * k, 4 * k + 4]);
+const SLOPE_STEPS_X = [0, 1, 2, 3].map((k) => [4 * k, 0, 0, 4 * k + 4, 16 - 4 * k, 16]);
+const OUTER_STEPS = [0, 1, 2, 3].map((k) => [0, 0, 0, 16 - 4 * k, 4 * k + 4, 16 - 4 * k]);
+
+// Canonical description of each shape: render boxes, slanted polygons, collision boxes.
+// poly: { p: [[x,y,z]...], n: [nx,ny,nz], slant } \u2014 slant polygons get a sloped normal.
+const SHAPE_CANON = {
+  [SH_STAIRS]: { boxes: [[0, 0, 0, 16, 8, 16], [0, 8, 0, 16, 16, 8]] },
+  [SH_PANEL]: { boxes: [[0, 0, 0, 16, 16, 8]] },
+  [SH_ARCH]: { boxes: archSlices() },
+  [SH_PILLAR]: { boxes: [[3, 0, 3, 13, 16, 13]] },
+  [SH_SLOPE]: {
+    polys: [
+      { p: [[0, 0, 16], [16, 0, 16], [16, 0, 0], [0, 0, 0]], n: [0, -1, 0] },
+      { p: [[16, 0, 0], [16, 16, 0], [0, 16, 0], [0, 0, 0]], n: [0, 0, -1] },
+      { p: [[0, 16, 0], [16, 16, 0], [16, 0, 16], [0, 0, 16]], n: [0, 1, 1], slant: true },
+      { p: [[0, 0, 0], [0, 16, 0], [0, 0, 16]], n: [-1, 0, 0] },
+      { p: [[16, 0, 16], [16, 16, 0], [16, 0, 0]], n: [1, 0, 0] },
+    ],
+    coll: SLOPE_STEPS,
+  },
+  [SH_OUTER]: {
+    polys: [
+      { p: [[0, 0, 16], [16, 0, 16], [16, 0, 0], [0, 0, 0]], n: [0, -1, 0] },
+      { p: [[16, 0, 0], [0, 16, 0], [0, 0, 0]], n: [0, 0, -1] },
+      { p: [[0, 0, 0], [0, 16, 0], [0, 0, 16]], n: [-1, 0, 0] },
+      { p: [[0, 16, 0], [16, 0, 16], [0, 0, 16]], n: [0, 1, 1], slant: true },
+      { p: [[0, 16, 0], [16, 0, 0], [16, 0, 16]], n: [1, 1, 0], slant: true },
+    ],
+    coll: OUTER_STEPS,
+  },
+  [SH_INNER]: {
+    polys: [
+      { p: [[0, 0, 16], [16, 0, 16], [16, 0, 0], [0, 0, 0]], n: [0, -1, 0] },
+      { p: [[16, 0, 0], [16, 16, 0], [0, 16, 0], [0, 0, 0]], n: [0, 0, -1] },
+      { p: [[0, 0, 0], [0, 16, 0], [0, 16, 16], [0, 0, 16]], n: [-1, 0, 0] },
+      { p: [[16, 0, 16], [16, 16, 0], [16, 0, 0]], n: [1, 0, 0] },
+      { p: [[0, 0, 16], [0, 16, 16], [16, 0, 16]], n: [0, 0, 1] },
+      { p: [[0, 16, 0], [0, 16, 16], [16, 0, 16]], n: [1, 1, 0], slant: true },
+      { p: [[0, 16, 0], [16, 0, 16], [16, 16, 0]], n: [0, 1, 1], slant: true },
+    ],
+    coll: [...SLOPE_STEPS, ...SLOPE_STEPS_X],
+  },
+};
+
+// Sloped normals are sent to the shader as a code 1..8: (dir 0 +X, 1 -X, 2 +Z, 3 -Z) * 2 + down.
+function slopeCode(n) {
+  const dir = n[0] > 0.5 ? 0 : n[0] < -0.5 ? 1 : n[2] > 0.5 ? 2 : 3;
+  return 1 + dir * 2 + (n[1] < 0 ? 1 : 0);
+}
+
+const _shapeCache = new Map();
+// Oriented geometry of a shape: { boxes, polys: [{ p, n, slant, code, uv }], coll } (1/16 units).
+function shapeGeom(kind, f) {
+  const key = kind * 16 + (f & 15);
+  let g = _shapeCache.get(key);
+  if (g) return g;
+  const c = SHAPE_CANON[kind];
+  g = { boxes: (c.boxes || []).map((b) => xfBox(f, b)), polys: [], coll: null };
+  for (const q of c.polys || []) {
+    const pts = q.p.map((p) => shapeXf(f, p[0], p[1], p[2]));
+    const n = shapeXfN(f, q.n[0], q.n[1], q.n[2]);
+    // texture coordinates: slants run from the ridge (v 0) down the slope; flat faces use the world frame
+    let uv = null;
+    if (q.slant) uv = q.p.map((p) => (q.n[0] ? [p[2] / 16, p[0] / 16] : [p[0] / 16, p[2] / 16]));
+    g.polys.push({ p: pts, n, slant: !!q.slant, code: q.slant ? slopeCode(n) : 0, uv });
+  }
+  g.coll = (c.coll || c.boxes).map((b) => xfBox(f, b));
+  _shapeCache.set(key, g);
+  return g;
+}
+
+// Pillar parts depend on the blocks above and below (base and capital where the column ends).
+function pillarBoxes(below, above) {
+  const out = [[3, 0, 3, 13, 16, 13]];
+  if (!below) out.push([1, 0, 1, 15, 3, 15]);
+  if (!above) out.push([1, 13, 1, 15, 16, 15]);
+  return out;
+}
+
+// Connecting blocks: which of +X -X +Z -Z they join.
+function connectsTo(kind, nb) {
+  if (!nb) return false;
+  const k = BLOCK_CONNECT[nb];
+  if (k) return k === kind;
+  return !!BLOCK_OPAQUE[nb];
+}
+// Boxes (1/16) of a connecting block given its four neighbours; tall=true adds the 1.5 block
+// collision height of fences and walls.
+function connectBoxes(kind, px, nx, pz, nz, tall) {
+  const H = tall && kind !== CN_PANE ? 24 : 16;
+  const out = [];
+  if (kind === CN_FENCE) {
+    out.push([6, 0, 6, 10, tall ? H : 16, 10]);
+    const rail = (b) => { if (tall) out.push([b[0], 0, b[2], b[3], H, b[5]]); else { out.push([b[0], 6, b[2], b[3], 9, b[5]]); out.push([b[0], 12, b[2], b[3], 15, b[5]]); } };
+    if (px) rail([10, 0, 7, 16, 0, 9]);
+    if (nx) rail([0, 0, 7, 6, 0, 9]);
+    if (pz) rail([7, 0, 10, 9, 0, 16]);
+    if (nz) rail([7, 0, 0, 9, 0, 6]);
+  } else if (kind === CN_WALL) {
+    const straightX = px && nx && !pz && !nz, straightZ = pz && nz && !px && !nx;
+    const top = tall ? H : 13;
+    if (straightX) out.push([0, 0, 5, 16, top, 11]);
+    else if (straightZ) out.push([5, 0, 0, 11, top, 16]);
+    else {
+      out.push([4, 0, 4, 12, tall ? H : 16, 12]);
+      if (px) out.push([12, 0, 5, 16, top, 11]);
+      if (nx) out.push([0, 0, 5, 4, top, 11]);
+      if (pz) out.push([5, 0, 12, 11, top, 16]);
+      if (nz) out.push([5, 0, 0, 11, top, 4]);
+    }
+  } else {
+    out.push([7, 0, 7, 9, 16, 9]);
+    if (px) out.push([9, 0, 7, 16, 16, 9]);
+    if (nx) out.push([0, 0, 7, 7, 16, 9]);
+    if (pz) out.push([7, 0, 9, 9, 16, 16]);
+    if (nz) out.push([7, 0, 0, 9, 16, 7]);
+    if (!px && !nx && !pz && !nz) { out.push([0, 0, 7, 16, 16, 9]); }
+  }
+  return out;
+}
+
+function lanternBoxes(hanging) {
+  return hanging
+    ? [[5, 1, 5, 11, 8, 11], [6, 8, 6, 10, 10, 10], [7, 10, 7, 9, 16, 9]]
+    : [[5, 0, 5, 11, 7, 11], [6, 7, 6, 10, 9, 10]];
+}
+
+// Collision / picking boxes of any cell in block units, or null for plain full-height blocks.
+// get(dx, dy, dz) returns the neighbouring block id; facing is the stored orientation.
+function specialBoxes(id, facing, get, tall) {
+  const rt = BLOCK_RT[id];
+  if (rt === RT_SHAPE) {
+    const k = BLOCK_SHAPE[id];
+    if (k === SH_PILLAR) return pillarBoxes(get(0, -1, 0) === id, get(0, 1, 0) === id).slice(0, 1).map(div16);
+    return shapeGeom(k, facing).coll.map(div16);
+  }
+  if (rt === RT_CONNECT) {
+    const kd = BLOCK_CONNECT[id];
+    return connectBoxes(kd, connectsTo(kd, get(1, 0, 0)), connectsTo(kd, get(-1, 0, 0)), connectsTo(kd, get(0, 0, 1)), connectsTo(kd, get(0, 0, -1)), tall).map(div16);
+  }
+  if (rt === RT_LANTERN) return [lanternBoxes(facing & 8)[0]].map(div16);
+  if (rt === RT_SLAB && (facing & 8)) return [[0, 0.5, 0, 1, 1, 1]];
+  return null;
+}
+function div16(b) { return [b[0] / 16, b[1] / 16, b[2] / 16, b[3] / 16, b[4] / 16, b[5] / 16]; }
+</script>
 <script>
 'use strict';
 // Item registry (blocks + items), tools, armour, food, fuel, smelting, drops and recipes.
@@ -1176,6 +1467,9 @@ for (let id = 1; id < 256; id++) {
   else if (rt === RT_DOOR) { o.render = 'sprite'; o.layer = defTex('i_door'); }
   else if (rt === RT_TRAPDOOR) { o.render = 'sprite'; o.layer = BLOCK_TEX[id * 6 + 2]; }
   else if (rt === RT_SLAB) o.render = 'slab';
+  else if (rt === RT_SHAPE) o.render = 'shape';
+  else if (rt === RT_CONNECT) o.render = 'connect';
+  else if (rt === RT_LANTERN) { o.render = 'sprite'; o.layer = defTex('i_lantern'); }
   else if (rt === RT_BED) o.render = 'bed';
   else o.render = 'cube';
   if (id === B.BED) o.stack = 1;
@@ -1387,6 +1681,25 @@ shapeless(B.WOOL, 1, [I.STRING, I.STRING, I.STRING, I.STRING]);
 shaped(B.DOOR, 3, ['PP', 'PP', 'PP'], { P: TAG.planks });
 shaped(B.TRAPDOOR, 2, ['PPP', 'PPP'], { P: TAG.planks });
 shaped(I.JET, 1, [' G ', 'IFI', 'I I'], { G: B.GLASS, I: B.IRON_BLOCK, F: B.FURNACE });
+// architecture (shaped blocks come from the Architect's Table)
+shaped(B.ARCH_TABLE, 1, ['SS', 'PP'], { S: B.STONE_SLAB, P: TAG.planks });
+shaped(B.PLASTER, 4, ['SC', 'CS'], { S: [B.SAND, B.WHITE_SAND], C: B.CLAY });
+shaped(B.ROOF_TILES, 6, ['T T', ' T '], { T: [B.TERRACOTTA, B.TERRACOTTA_C, B.TERRACOTTA_C + 4] });
+shaped(B.THATCH, 1, ['WW', 'WW'], { W: I.WHEAT });
+shapeless(B.DIRT_PATH, 2, [B.DIRT, B.GRAVEL]);
+shaped(B.OAK_FENCE, 3, ['PSP', 'PSP'], { P: B.PLANKS, S: I.STICK });
+shaped(B.SPRUCE_FENCE, 3, ['PSP', 'PSP'], { P: B.SPRUCE_PLANKS, S: I.STICK });
+shaped(B.COBBLE_WALL, 6, ['CCC', 'CCC'], { C: B.COBBLE });
+shaped(B.STONE_BRICK_WALL, 6, ['CCC', 'CCC'], { C: B.STONE_BRICKS });
+shaped(B.GLASS_PANE, 16, ['GGG', 'GGG'], { G: B.GLASS });
+shaped(B.IRON_BARS, 16, ['III', 'III'], { I: I.IRON_INGOT });
+shaped(B.LANTERN, 1, [' I ', 'ITI', ' I '], { I: I.IRON_INGOT, T: B.TORCH });
+shaped(B.BARREL, 1, ['PSP', 'P P', 'PSP'], { P: TAG.planks, S: B.PLANK_SLAB });
+SMELT[B.DIORITE] = B.MARBLE;
+SMELT[B.ANDESITE] = B.SLATE;
+for (let id = B.SHAPE0; id < B.SHAPE_END; id++) if (ARCH_MATS[BLOCK_SHAPE_MAT[id]].o === WOOD) ITEM_DEF[id].fuel = 10;
+for (const id of [B.OAK_FENCE, B.SPRUCE_FENCE, B.BARREL, B.ARCH_TABLE]) ITEM_DEF[id].fuel = 15;
+ITEM_DEF[B.THATCH].fuel = 20;
 
 // Match a crafting grid (array of item ids, row-major, size gw x gh) against the recipes.
 function matchRecipe(grid, gw, gh) {
@@ -1444,7 +1757,7 @@ function recipeFits(r, gw) { return r.shaped ? r.w <= gw && r.h <= gw : r.ings.l
 
 // ---- creative tabs ----
 const CREATIVE_TABS = [
-  { key: 'building', name: 'Building' }, { key: 'nature', name: 'Nature' }, { key: 'functional', name: 'Functional' },
+  { key: 'building', name: 'Building' }, { key: 'architecture', name: 'Architecture' }, { key: 'nature', name: 'Nature' }, { key: 'functional', name: 'Functional' },
   { key: 'tools', name: 'Tools' }, { key: 'combat', name: 'Combat' }, { key: 'food', name: 'Food' },
   { key: 'materials', name: 'Materials' }, { key: 'transport', name: 'Vehicles' },
 ];
@@ -2949,6 +3262,67 @@ function tileCanvas(tiles, layer) {
   return c;
 }
 
+// Faces of a shaped / connecting block as seen in its icon: [{ p: [[x,y,z]...] (0..1), n, uv, layer }].
+function shapeIconFaces(bid) {
+  const faces = [];
+  const tex = (d) => BLOCK_TEX[bid * 6 + d];
+  const addBox = (b) => {
+    const [x0, y0, z0, x1, y1, z1] = b.map((v) => v / 16);
+    for (let d = 0; d < 6; d++) {
+      const p = FACE_CORNERS[d].map((c) => [c[0] ? x1 : x0, c[1] ? y1 : y0, c[2] ? z1 : z0]);
+      faces.push({ p, n: DIRS[d], uv: p.map((q) => [faceU(d, q[0], q[1], q[2]), faceV(d, q[0], q[1], q[2])]), layer: tex(d) });
+    }
+  };
+  if (BLOCK_RT[bid] === RT_CONNECT) {
+    for (const b of connectBoxes(BLOCK_CONNECT[bid], true, true, false, false, false)) addBox(b);
+    return faces;
+  }
+  const k = BLOCK_SHAPE[bid];
+  if (k === SH_PILLAR) { for (const b of pillarBoxes(false, false)) addBox(b); return faces; }
+  const g = shapeGeom(k, k === SH_OUTER || k === SH_INNER ? 0 : 5);
+  for (const b of g.boxes) addBox(b);
+  for (const q of g.polys) {
+    const p = q.p.map((v) => [v[0] / 16, v[1] / 16, v[2] / 16]);
+    const d = q.n[0] > 0 ? 0 : q.n[0] < 0 ? 1 : q.n[1] > 0 ? 2 : q.n[1] < 0 ? 3 : q.n[2] > 0 ? 4 : 5;
+    const uv = q.uv || p.map((v) => [faceU(d, v[0], v[1], v[2]), faceV(d, v[0], v[1], v[2])]);
+    faces.push({ p, n: q.n, uv, layer: q.slant ? tex(2) : tex(d), slant: q.slant });
+  }
+  return faces;
+}
+
+// Isometric drawing of arbitrary textured faces (same projection as the cube icons): back-facing
+// faces are dropped, the rest painted far to near, each texture mapped with an affine transform
+// and clipped to its polygon.
+function drawIsoShape(ctx, tiles, bid, size) {
+  const s = size / 48;
+  const P = (q) => [(3 + 21 * (q[0] + q[2])) * s, (13 + 11 * (q[2] - q[0]) + 22 * (1 - q[1])) * s];
+  const faces = shapeIconFaces(bid).filter((f) => -f.n[0] + f.n[1] + f.n[2] > 0.01);
+  faces.forEach((f) => { f.depth = f.p.reduce((a, q) => a - q[0] + q[1] + q[2], 0) / f.p.length; });
+  faces.sort((a, b) => a.depth - b.depth);
+  for (const f of faces) {
+    const S = f.p.map(P), T = f.uv.map((t) => [t[0] * TS, t[1] * TS]);
+    const du1 = T[1][0] - T[0][0], dv1 = T[1][1] - T[0][1], du2 = T[2][0] - T[0][0], dv2 = T[2][1] - T[0][1];
+    const det = du1 * dv2 - du2 * dv1;
+    if (Math.abs(det) < 1e-6) continue;
+    const dx1 = S[1][0] - S[0][0], dy1 = S[1][1] - S[0][1], dx2 = S[2][0] - S[0][0], dy2 = S[2][1] - S[0][1];
+    const a = (dx1 * dv2 - dx2 * dv1) / det, c = (dx2 * du1 - dx1 * du2) / det;
+    const b = (dy1 * dv2 - dy2 * dv1) / det, d = (dy2 * du1 - dy1 * du2) / det;
+    const e = S[0][0] - a * T[0][0] - c * T[0][1], g = S[0][1] - b * T[0][0] - d * T[0][1];
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.beginPath();
+    S.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])));
+    ctx.closePath();
+    ctx.clip();
+    ctx.setTransform(a, b, c, d, e, g);
+    ctx.drawImage(tileCanvas(tiles, f.layer), 0, 0);
+    const shade = f.slant ? (f.n[0] < 0 ? 0.2 : 0.08) : f.n[1] > 0.9 ? 0 : f.n[0] < 0 ? 0.26 : 0.44;
+    if (shade > 0) { ctx.fillStyle = `rgba(0,0,0,${shade})`; ctx.fillRect(0, 0, TS, TS); }
+    ctx.restore();
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
 // Isometric block icon or flat sprite for the UI; returns a canvas of size x size.
 function makeItemIcon(tiles, id, size = 64) {
   const cv = document.createElement('canvas');
@@ -2963,9 +3337,10 @@ function makeItemIcon(tiles, id, size = 64) {
     return cv;
   }
   const bid = def.block;
+  if (def.render === 'shape' || def.render === 'connect') { drawIsoShape(ctx, tiles, bid, size); return cv; }
   const h = def.render === 'slab' ? 0.5 : def.render === 'bed' ? 9 / 16 : 1;
   const s = size / 48, k = 16 / TS;
-  const layerOf = (d) => (FACING_BLOCKS.has(bid) && BLOCK_FRONT[bid] !== 255 && d === 4 && bid !== B.BED ? BLOCK_FRONT[bid] : BLOCK_TEX[bid * 6 + d]);
+  const layerOf = (d) => (FACING_BLOCKS.has(bid) && BLOCK_FRONT[bid] !== NO_LAYER && d === 4 && bid !== B.BED ? BLOCK_FRONT[bid] : BLOCK_TEX[bid * 6 + d]);
   const top = tileCanvas(tiles, BLOCK_TEX[bid * 6 + 2]);
   const left = tileCanvas(tiles, layerOf(4));
   const right = tileCanvas(tiles, BLOCK_TEX[bid * 6 + 0]);
@@ -2987,6 +3362,212 @@ function makeItemIcon(tiles, id, size = 64) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   return cv;
 }
+</script>
+<script>
+'use strict';
+// Textures for the architecture set and village furniture (plaster, marble, roof tiles, slate,
+// thatch, dirt paths, lanterns, barrels, the architect's table, cobwebs, iron bars, emerald).
+
+gen('plaster', (d, rng) => {
+  const f = fbm(rng, 3, 3), t = fbm(rng, 8, 2);
+  fillTile(d, (x, y, k) => {
+    // lime plaster: warm off-white, soft trowel swirls and the odd darker speck
+    let fa = 0.9 + f[k] * 0.08 + (t[k] - 0.5) * 0.05 + rng() * 0.025;
+    if (rng() < 0.012) fa *= 0.86;
+    put(d, x, y, [226, 219, 202], quant(fa, 28));
+  });
+}, { smooth: 0.12, bump: 0.5 });
+
+gen('marble', (d, rng) => {
+  const w1 = fbm(rng, 3, 3), w2 = fbm(rng, 4, 3);
+  fillTile(d, (x, y, k) => {
+    // polished white stone with grey veins that meander diagonally
+    const u = (x + y * 0.6) / TS * Math.PI * 2 + w1[k] * 7;
+    const vein = Math.abs(Math.sin(u)), vein2 = Math.abs(Math.sin(u * 2.3 + w2[k] * 5 + 1.3));
+    let c = [236, 234, 230], fa = 0.96 + w2[k] * 0.05;
+    if (vein < 0.06) { c = [150, 150, 158]; fa = 0.9 + rng() * 0.08; }
+    else if (vein < 0.16 || vein2 < 0.04) { c = [196, 196, 202]; }
+    put(d, x, y, c, quant(fa, 30));
+  });
+  bevelFrame(d, 0, 0, TM, TM, 1.04, 0.9);
+}, { smooth: 0.72, bump: 0.5 });
+
+gen('roof_tiles', (d, rng) => {
+  // overlapping barrel tiles: four courses, staggered, each tile shaded round and darker where
+  // the course above overlaps it
+  const tone = Array.from({ length: 32 }, () => 0.84 + rng() * 0.22);
+  fillTile(d, (x, y) => {
+    const row = y >> 3, ry = y & 7, xo = (x + (row & 1) * 4) & TM, tx = xo >> 3, rx = xo & 7;
+    let fa = tone[row * 4 + tx];
+    fa *= 0.8 + 0.3 * Math.sin((rx + 0.5) / 8 * Math.PI);    // round profile across the tile
+    if (ry === 0) fa *= 0.62;                                  // shadow under the course above
+    else if (ry === 1) fa *= 0.82;
+    else if (ry >= 6) fa *= 1.08;                              // lit lip
+    if (rx === 0) fa *= 0.7;
+    put(d, x, y, [178, 82, 52], quant(fa * (0.96 + rng() * 0.06), 16));
+  });
+}, { smooth: 0.28, bump: 2.2 });
+
+gen('slate', (d, rng) => {
+  // rectangular shingles of blue-grey slate in staggered courses
+  const tone = Array.from({ length: 32 }, () => 0.82 + rng() * 0.26);
+  const f = fbm(rng, 6, 2);
+  fillTile(d, (x, y, k) => {
+    const row = y >> 3, ry = y & 7, xo = (x + (row & 1) * 5) & TM, tx = Math.floor(xo / 6.4), rx = xo - Math.floor(tx * 6.4);
+    let fa = tone[row * 5 + tx] * (0.92 + f[k] * 0.14);
+    if (ry === 0) fa *= 0.58; else if (ry === 1) fa *= 0.84; else if (ry === 7) fa *= 1.07;
+    if (rx === 0) fa *= 0.72;
+    put(d, x, y, [84, 94, 108], quant(fa, 16));
+  });
+}, { smooth: 0.36, bump: 1.8 });
+
+gen('thatch', (d, rng) => {
+  // bundles of straw laid in layers: long strands down the slope, darker between layers
+  const strand = Array.from({ length: TS }, () => 0.8 + rng() * 0.35);
+  const f = fbm(rng, 2, 2, 0.5, 8);
+  fillTile(d, (x, y, k) => {
+    const band = y & 7;
+    let fa = strand[(x + (y >> 3) * 7) & TM] * (0.9 + f[k] * 0.16);
+    if (band === 0) fa *= 0.62; else if (band === 1) fa *= 0.82; else if (band >= 6) fa *= 1.06;
+    const c = rng() < 0.08 ? [150, 118, 58] : [204, 166, 86];
+    put(d, x, y, c, quant(fa, 14));
+  });
+}, { smooth: 0.05, bump: 2.4 });
+
+function genPath(d, rng, top) {
+  const f = fbm(rng, 4, 3);
+  fillTile(d, (x, y, k) => put(d, x, y, [150, 118, 76], quant(0.82 + f[k] * 0.26 + rng() * 0.08, 14)));
+  for (let i = 0; i < 30; i++) {
+    const cx = Math.floor(rng() * TS), cy = Math.floor(rng() * TS);
+    put(d, cx, cy, rng() < 0.5 ? [182, 170, 150] : [104, 84, 58], 0.9 + rng() * 0.15);
+    if (rng() < 0.4) put(d, cx + 1, cy, [168, 156, 138]);
+  }
+  void top;
+}
+gen('dirt_path', (d, rng) => genPath(d, rng, true), { smooth: 0.06, bump: 1.3 });
+gen('dirt_path_side', (d, rng) => {
+  genDirt(d, rng);
+  const pf = fbm(rng, 4, 3);
+  for (let x = 0; x < TS; x++) for (let y = 0; y < 3 + Math.floor(rng() * 2); y++) put(d, x, y, [150, 118, 76], quant(0.82 + pf[y * TS + x] * 0.26, 14));
+}, { smooth: 0.06, bump: 1.3 });
+
+// Lantern faces: the lantern box spans x 5..11 of the block, i.e. pixels 10..22 of the texture.
+gen('lantern', (d, rng, ctx) => {
+  clearTile(d, [40, 40, 44]);
+  const iron = [52, 54, 60];
+  fillTile(d, (x, y, k) => {
+    const frame = x <= 11 || x >= 20 || y <= 17 || y >= 30 || (y >= 2 && y <= 4) || (y >= 18 && y <= 19);
+    if (x < 9 || x > 22) return;
+    if (frame) { put(d, x, y, iron, 0.9 + rng() * 0.2); return; }
+    const glow = 1 - Math.abs(x - 15.5) / 7;
+    put(d, x, y, [255, 196, 96], 0.8 + glow * 0.3);
+    ctx.emit[k] = 0.75 + glow * 0.25;
+  });
+}, { smooth: 0.5, bump: 0.6 });
+gen('lantern_top', (d, rng) => {
+  fillTile(d, (x, y) => put(d, x, y, [52, 54, 60], 0.85 + rng() * 0.25));
+  sprDisc(d, 16, 16, 3, [34, 34, 38]);
+}, { smooth: 0.45, bump: 0.8 });
+
+gen('barrel_side', (d, rng) => {
+  const stave = Array.from({ length: 6 }, () => 0.84 + rng() * 0.22);
+  const g = fbm(rng, 16, 2, 0.5, 2);
+  fillTile(d, (x, y, k) => {
+    const s = Math.floor(x / 5.34), sx = x - Math.floor(s * 5.34);
+    let fa = stave[s] * (0.88 + g[k] * 0.2);
+    if (sx === 0) fa *= 0.66;
+    const hoop = (y >= 5 && y <= 7) || (y >= 24 && y <= 26);
+    if (hoop) { put(d, x, y, [86, 86, 92], (y === 5 || y === 24 ? 1.15 : y === 7 || y === 26 ? 0.7 : 0.95) * (0.95 + rng() * 0.1)); return; }
+    put(d, x, y, [150, 104, 58], quant(fa, 12));
+  });
+}, { smooth: 0.22, bump: 1.6 });
+gen('barrel_top', (d, rng) => {
+  genPlanks(d, rng, [158, 112, 64]);
+  fillTile(d, (x, y) => {
+    const r = Math.hypot(x + 0.5 - 16, y + 0.5 - 16);
+    if (r > 14.5) put(d, x, y, [86, 86, 92], 0.9 + rng() * 0.15);
+    else if (r > 13.2) put(d, x, y, [110, 76, 42]);
+  });
+  sprRect(d, 14, 14, 18, 18, [70, 48, 28]);
+}, { smooth: 0.22, bump: 1.4 });
+
+gen('arch_table_top', (d, rng) => {
+  genPlanks(d, rng, [170, 128, 80]);
+  // a blueprint pinned to the table, with a floor plan, and a set square
+  sprRect(d, 4, 3, 26, 22, [52, 94, 170]);
+  for (let x = 4; x < 26; x++) for (let y = 3; y < 22; y++) {
+    const line = (x === 7 || x === 22 || y === 6 || y === 18) && x >= 7 && x <= 22 && y >= 6 && y <= 18;
+    const inner = (x === 14 && y >= 6 && y <= 13) || (y === 13 && x >= 7 && x <= 14);
+    const grid = (x % 3 === 0 || y % 3 === 0) && rng() < 0.3;
+    if (line || inner) put(d, x, y, [226, 238, 255]);
+    else if (grid) put(d, x, y, [80, 124, 196]);
+  }
+  put(d, 18, 13, [226, 238, 255]); put(d, 19, 13, [226, 238, 255]);
+  sprPoly(d, [[20, 20], [30, 30], [20, 30]], [214, 200, 120]);
+  sprPoly(d, [[22, 25], [26, 29], [22, 29]], [170, 128, 80]);
+}, { smooth: 0.3, bump: 1.2 });
+gen('arch_table_side', (d, rng) => {
+  genPlanks(d, rng, [150, 110, 66]);
+  for (const x0 of [3, 17]) {
+    sprRect(d, x0, 10, x0 + 12, 20, [120, 86, 50]);
+    fillTile(d, (x, y) => { if (x >= x0 && x < x0 + 12 && (y === 10 || x === x0)) put(d, x, y, [170, 128, 80]); if (x >= x0 && x < x0 + 12 && (y === 19 || x === x0 + 11)) put(d, x, y, [84, 60, 34]); });
+    sprRect(d, x0 + 5, 14, x0 + 7, 16, [214, 196, 120]);
+  }
+  sprRect(d, 0, 0, TS, 3, [120, 86, 50]);
+}, { smooth: 0.24, bump: 1.4 });
+
+gen('cobweb', (d) => {
+  clearTile(d, [230, 232, 236]);
+  const c = [232, 234, 240];
+  for (let a = 0; a < 8; a++) {
+    const ang = a / 8 * Math.PI * 2 + 0.2;
+    sprSeg(d, 16, 16, 16 + Math.cos(ang) * 17, 16 + Math.sin(ang) * 17, 0.9, c);
+  }
+  for (const r of [4, 8, 12]) {
+    let prev = null;
+    for (let a = 0; a <= 8; a++) {
+      const ang = a / 8 * Math.PI * 2 + 0.2, rr = r + ((a * 7) % 3) * 0.6;
+      const p = [16 + Math.cos(ang) * rr, 16 + Math.sin(ang) * rr];
+      if (prev) sprSeg(d, prev[0], prev[1], p[0], p[1], 0.8, c);
+      prev = p;
+    }
+  }
+}, { bump: 0, smooth: 0.1 });
+
+gen('iron_bars', (d, rng) => {
+  clearTile(d, [120, 122, 128]);
+  fillTile(d, (x, y) => {
+    const bar = [6, 14, 22, 30].some((b) => x >= b && x < b + 4 && !(b === 30 && x > 31)) || x < 2;
+    const band = y === 2 || y === 3 || y === 28 || y === 29;
+    if (!bar && !band) return;
+    let fa = 0.9 + rng() * 0.1;
+    const bx = ((x + 2) & 7);
+    if (bar && bx === 0) fa *= 1.2; else if (bar && bx === 3) fa *= 0.7;
+    put(d, x, y, [120, 122, 128], fa);
+  });
+}, { smooth: 0.55, bump: 0.8 });
+
+gen('emerald_ore', (d, rng, c) => genOre(d, rng, c, [40, 196, 96], [160, 255, 186], [56, 96, 70]), { bump: 1.8 });
+gen('emerald_block', (d, rng) => {
+  const f = fbm(rng, 2, 2, 0.5, 8);
+  fillTile(d, (x, y, k) => {
+    let fa = 0.9 + f[k] * 0.14;
+    const a = (x + y) & 15; fa *= a < 8 ? 1.07 : 0.94;
+    put(d, x, y, [48, 190, 104], quant(fa, 18));
+  });
+  bevelFrame(d, 0, 0, TM, TM, 1.2, 0.7);
+  bevelFrame(d, 2, 2, TM - 2, TM - 2, 0.85, 1.1);
+}, { smooth: 0.7, bump: 1.4 });
+
+sprite('i_lantern', (d, rng, ctx) => {
+  sprSeg(d, 16, 1, 16, 6, 1.6, [60, 60, 66]);
+  sprRect(d, 11, 6, 21, 9, [52, 54, 60]);
+  sprRect(d, 10, 9, 22, 27, [52, 54, 60]);
+  sprRect(d, 12, 11, 20, 25, [255, 200, 100]);
+  sprRect(d, 14, 13, 18, 23, [255, 236, 170]);
+  sprRect(d, 9, 27, 23, 30, [44, 44, 50]);
+  for (let y = 11; y < 25; y++) for (let x = 12; x < 20; x++) ctx.emit[y * TS + x] = 1;
+});
 </script>
 <script data-w>
 'use strict';
@@ -3724,7 +4305,7 @@ class World {
     if (!obj || typeof obj !== 'object') return;
     if (Array.isArray(obj.facing)) for (let i = 0; i + 1 < obj.facing.length; i += 2) {
       const k = Number(obj.facing[i]), f = obj.facing[i + 1] | 0;
-      if (Number.isFinite(k) && [0, 1, 4, 5].includes(f)) this.facing.set(k, f);
+      if (Number.isFinite(k) && validFacing(f)) this.facing.set(k, f);
     }
     if (Array.isArray(obj.flow)) for (let i = 0; i + 1 < obj.flow.length; i += 2) {
       const k = Number(obj.flow[i]), l = obj.flow[i + 1] | 0;
@@ -4337,7 +4918,9 @@ function storeLight(chunk, top) {
 // Emits the faces of an axis-aligned box given in 1/16 units inside block (x, y, z).
 // uvFn(d, k, u, v) may remap texture coordinates (bed rotation, torch tops).
 const _box = [0, 0, 0, 0, 0, 0];
-function emitBox(builder, p, x, y, z, bx0, by0, bz0, bx1, by1, bz1, layerOf, flags, tint, uvFn) {
+// lightOut: light every face from the cell it looks into (shaped blocks, which may block light
+// themselves and so have none inside).
+function emitBox(builder, p, x, y, z, bx0, by0, bz0, bx1, by1, bz1, layerOf, flags, tint, uvFn, lightOut) {
   _box[0] = bx0; _box[1] = by0; _box[2] = bz0; _box[3] = bx1; _box[4] = by1; _box[5] = bz1;
   for (let d = 0; d < 6; d++) {
     const onEdge = d === 0 ? bx1 === 16 : d === 1 ? bx0 === 0 : d === 2 ? by1 === 16 : d === 3 ? by0 === 0 : d === 4 ? bz1 === 16 : bz0 === 0;
@@ -4345,7 +4928,7 @@ function emitBox(builder, p, x, y, z, bx0, by0, bz0, bx1, by1, bz1, layerOf, fla
     if (onEdge && BLOCK_OPAQUE[padBlocks[nIdx]]) continue;
     const layer = layerOf(d);
     if (layer < 0) continue;
-    const li = onEdge ? nIdx : p;
+    const li = onEdge || lightOut ? nIdx : p;
     const s = Math.round(Math.max(skyL[li], skyL[p]) * 17), b2 = Math.round(Math.max(blkL[li], blkL[p]) * 17);
     builder.ensure(4);
     const corners = FACE_CORNERS[d];
@@ -4371,6 +4954,70 @@ function emitQuad(builder, pts, uvs, layer, nf, s, b2, tint) {
 }
 
 const WHITE_TINT = [200, 200, 200];
+
+// A flat polygon of a shaped block (3 or 4 points in 1/16 units inside the cell). Axis-aligned
+// faces sit on the cell boundary and hide against opaque neighbours; slanted ones carry a slope
+// code in the spare tint byte so the shader lights them with the real sloped normal.
+const HDIR = (n) => (n[0] > 0.5 ? 0 : n[0] < -0.5 ? 1 : n[2] > 0.5 ? 4 : n[2] < -0.5 ? 5 : -1);
+function emitPoly(builder, p, x, y, z, poly, layer, flags) {
+  const n = poly.n;
+  let d = -1;
+  if (!poly.slant) d = n[0] > 0 ? 0 : n[0] < 0 ? 1 : n[1] > 0 ? 2 : n[1] < 0 ? 3 : n[2] > 0 ? 4 : 5;
+  if (d >= 0 && BLOCK_OPAQUE[padBlocks[p + DIR_OFFSET[d]]]) return;
+  let s, b2;
+  if (d >= 0) {
+    const li = p + DIR_OFFSET[d];
+    s = Math.max(skyL[li], skyL[p]); b2 = Math.max(blkL[li], blkL[p]);
+  } else {
+    const l1 = p + DIR_OFFSET[n[1] > 0 ? 2 : 3], hd = HDIR(n), l2 = hd >= 0 ? p + DIR_OFFSET[hd] : l1;
+    s = Math.max(skyL[l1], skyL[l2], skyL[p]); b2 = Math.max(blkL[l1], blkL[l2], blkL[p]);
+  }
+  s = Math.round(s * 17); b2 = Math.round(b2 * 17);
+  const P = poly.p;
+  // front faces wind counter-clockwise seen from outside
+  const ax = P[1][0] - P[0][0], ay = P[1][1] - P[0][1], az = P[1][2] - P[0][2];
+  const bx = P[2][0] - P[0][0], by = P[2][1] - P[0][1], bz = P[2][2] - P[0][2];
+  const flip = (ay * bz - az * by) * n[0] + (az * bx - ax * bz) * n[1] + (ax * by - ay * bx) * n[2] < 0;
+  const order = P.length === 3 ? (flip ? [2, 1, 0, 0] : [0, 1, 2, 2]) : (flip ? [3, 2, 1, 0] : [0, 1, 2, 3]);
+  const nf = (d >= 0 ? d : n[1] > 0 ? 2 : 3) | (flags << 3);
+  builder.ensure(4);
+  for (const k of order) {
+    const q = P[k];
+    let u, v;
+    if (poly.uv) { u = poly.uv[k][0]; v = poly.uv[k][1]; } else { u = faceU(d, q[0] / 16, q[1] / 16, q[2] / 16); v = faceV(d, q[0] / 16, q[1] / 16, q[2] / 16); }
+    builder.v((x * 16 + q[0]) * P4, (y * 16 + q[1]) * P4, (z * 16 + q[2]) * P4, layer, nf, 3, s, b2, 200, 200, 200,
+      Math.round(u * 16), Math.round(v * 16), 0, 0, poly.code);
+  }
+}
+
+// Shaped, connecting and lantern blocks.
+function emitArch(world, p, x, y, z, id, rt, flags, wx, wz) {
+  const tex = (d) => BLOCK_TEX[id * 6 + d];
+  const pb = padBlocks;
+  if (rt === RT_SHAPE) {
+    const k = BLOCK_SHAPE[id];
+    let boxes;
+    if (k === SH_PILLAR) boxes = pillarBoxes(pb[p - RSS] === id, pb[p + RSS] === id);
+    else {
+      const g = shapeGeom(k, world.getFacing(wx, y, wz));
+      for (const poly of g.polys) emitPoly(meshOpaque, p, x, y, z, poly, poly.slant ? tex(poly.n[1] > 0 ? 2 : 3) : tex(poly.n[0] > 0 ? 0 : poly.n[0] < 0 ? 1 : poly.n[1] > 0 ? 2 : poly.n[1] < 0 ? 3 : poly.n[2] > 0 ? 4 : 5), flags);
+      boxes = g.boxes;
+    }
+    for (const b of boxes) emitBox(meshOpaque, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], tex, flags, WHITE_TINT, null, true);
+    return;
+  }
+  if (rt === RT_CONNECT) {
+    const kd = BLOCK_CONNECT[id];
+    const boxes = connectBoxes(kd, connectsTo(kd, pb[p + 1]), connectsTo(kd, pb[p - 1]), connectsTo(kd, pb[p + RS]), connectsTo(kd, pb[p - RS]), false);
+    const builder = kd === CN_PANE ? meshCutout : meshOpaque;
+    for (const b of boxes) emitBox(builder, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], tex, flags, WHITE_TINT, null, false);
+    return;
+  }
+  if (rt === RT_LANTERN) {
+    const f = world.getFacing(wx, y, wz);
+    for (const b of lanternBoxes(f & 8)) emitBox(meshCutout, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], tex, flags, WHITE_TINT, null, false);
+  }
+}
 // outward normal of a wall-mounted block's face index -> [dx, dz]
 const FACE_DXZ = { 0: [1, 0], 1: [-1, 0], 4: [0, 1], 5: [0, -1] };
 
@@ -4478,7 +5125,10 @@ function buildChunkMesh(world, chunk) {
 
         if (rt >= RT_SLAB) {
           const tex = (d) => BLOCK_TEX[id * 6 + d];
-          if (rt === RT_SLAB) emitBox(meshOpaque, p, x, y, z, 0, 0, 0, 16, 8, 16, tex, flags, WHITE_TINT, null);
+          if (rt === RT_SLAB) {
+            const top = world.getFacing(ox + x, y, oz + z) & 8;
+            emitBox(meshOpaque, p, x, y, z, 0, top ? 8 : 0, 0, 16, top ? 16 : 8, 16, tex, flags, WHITE_TINT, null);
+          } else if (rt === RT_SHAPE || rt === RT_CONNECT || rt === RT_LANTERN) emitArch(world, p, x, y, z, id, rt, flags, ox + x, oz + z);
           else if (rt === RT_FARMLAND) emitBox(meshOpaque, p, x, y, z, 0, 0, 0, 16, 15, 16, tex, flags, WHITE_TINT, null);
           else if (rt === RT_TORCH) {
             emitBox(meshCutout, p, x, y, z, 7, 0, 7, 9, 10, 9, tex, flags, WHITE_TINT,
@@ -5073,6 +5723,9 @@ const GLSL_FACE_BASIS = `
 const vec3 NRM[7] = vec3[7](vec3(1,0,0), vec3(-1,0,0), vec3(0,1,0), vec3(0,-1,0), vec3(0,0,1), vec3(0,0,-1), vec3(0,1,0));
 const vec3 TAN[7] = vec3[7](vec3(0,0,-1), vec3(0,0,1), vec3(1,0,0), vec3(1,0,0), vec3(1,0,0), vec3(-1,0,0), vec3(1,0,0));
 const vec3 BIT[7] = vec3[7](vec3(0,-1,0), vec3(0,-1,0), vec3(0,0,1), vec3(0,0,-1), vec3(0,-1,0), vec3(0,-1,0), vec3(0,0,1));
+// sloped roof faces (arch.js slopeCode): +X -X +Z -Z, each facing up then down
+const float SQ = 0.70710678;
+const vec3 SLOPE_N[8] = vec3[8](vec3(SQ,SQ,0), vec3(SQ,-SQ,0), vec3(-SQ,SQ,0), vec3(-SQ,-SQ,0), vec3(0,SQ,SQ), vec3(0,-SQ,SQ), vec3(0,SQ,-SQ), vec3(0,-SQ,-SQ));
 `;
 
 const FS_TERRAIN = () => `#version 300 es
@@ -5090,6 +5743,7 @@ in vec3 vUV;
 in vec3 vTint;
 in float vAO;
 in vec2 vLight;
+in float vTintA;
 flat in int vNormal;
 flat in int vFlags;
 layout(location = 0) out vec4 outColor;
@@ -5113,12 +5767,19 @@ void main() {
   vec3 albedo = alb.rgb * vTint;
   bool plant = vNormal == 6;
   vec3 N0 = NRM[vNormal];
+  vec3 T0 = TAN[vNormal], B0 = BIT[vNormal];
+  int slope = int(vTintA * 255.0 + 0.5);
+  if (slope > 0 && slope <= 8 && !plant) {
+    N0 = SLOPE_N[slope - 1];
+    T0 = normalize(cross(vec3(0.0, 1.0, 0.0), N0));
+    B0 = cross(N0, T0);
+  }
   if (!gl_FrontFacing && !plant) N0 = -N0;
   vec4 nm = texture(uNormalMap, vUV);
   vec3 N = N0;
   if (!plant) {
     vec3 tn = nm.xyz * 2.0 - 1.0;
-    N = normalize(TAN[vNormal] * tn.x + BIT[vNormal] * tn.y + N0 * tn.z);
+    N = normalize(T0 * tn.x + B0 * tn.y + N0 * tn.z);
   }
   float smoothness = nm.a;
   float sky = vLight.x;
@@ -7735,21 +8396,47 @@ const PLAYER_EYE = 1.62;
 const GRAVITY = 30;
 const JUMP_V = 8.9;
 
-// Height (in blocks) of the collision box at a cell, 0 when passable.
-function solidHeight(world, x, y, z) {
-  if (y < 0) return 1;
-  if (y >= CH) return 0;
-  if (!world.isLoaded(x, z)) return 1;
-  return BLOCK_HEIGHT[world.getBlock(x, y, z)] / 16;
+// Collision boxes of a cell in block-local units (null = passable). Plain blocks are one box of
+// their height; stairs, roofs, fences, walls, panes, lanterns and top slabs have their own.
+const HEIGHT_BOXES = [];
+for (let h = 0; h <= 32; h++) HEIGHT_BOXES.push([[0, 0, 0, 1, h / 16, 1]]);
+const UNIT_BOXES = HEIGHT_BOXES[16];
+function cellBoxes(world, x, y, z) {
+  if (y < 0) return UNIT_BOXES;
+  if (y >= CH) return null;
+  if (!world.isLoaded(x, z)) return UNIT_BOXES;
+  const id = world.getBlock(x, y, z);
+  if (!BLOCK_SOLID[id]) return null;
+  const rt = BLOCK_RT[id];
+  if (rt === RT_SHAPE || rt === RT_CONNECT || rt === RT_LANTERN || rt === RT_SLAB) {
+    const sb = specialBoxes(id, world.getFacing(x, y, z), (dx, dy, dz) => world.getBlock(x + dx, y + dy, z + dz), true);
+    if (sb) return sb;
+  }
+  const h = BLOCK_HEIGHT[id];
+  return h ? HEIGHT_BOXES[h] : null;
 }
 
+// Height (in blocks) of the collision boxes at a cell, 0 when passable.
+function solidHeight(world, x, y, z) {
+  const bx = cellBoxes(world, x, y, z);
+  if (!bx) return 0;
+  let top = 0;
+  for (const b of bx) if (b[4] > top) top = b[4];
+  return top;
+}
+
+const EPS = 1e-4;
 function boxCollides(world, px, py, pz, hw, h) {
-  const x0 = Math.floor(px - hw + 1e-4), x1 = Math.floor(px + hw - 1e-4);
-  const y0 = Math.floor(py + 1e-4), y1 = Math.floor(py + h - 1e-4);
-  const z0 = Math.floor(pz - hw + 1e-4), z1 = Math.floor(pz + hw - 1e-4);
+  const x0 = Math.floor(px - hw + EPS), x1 = Math.floor(px + hw - EPS);
+  const y0 = Math.floor(py + EPS) - 1, y1 = Math.floor(py + h - EPS);
+  const z0 = Math.floor(pz - hw + EPS), z1 = Math.floor(pz + hw - EPS);
   for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
-    const sh = solidHeight(world, x, y, z);
-    if (sh > 0 && py < y + sh - 1e-4) return true;
+    const bx = cellBoxes(world, x, y, z);
+    if (!bx) continue;
+    for (const b of bx) {
+      if (px - hw < x + b[3] - EPS && px + hw > x + b[0] + EPS && py < y + b[4] - EPS && py + h > y + b[1] + EPS &&
+        pz - hw < z + b[5] - EPS && pz + hw > z + b[2] + EPS) return true;
+    }
   }
   return false;
 }
@@ -7759,24 +8446,26 @@ function bodyMoveAxis(world, b, axis, d) {
   if (d === 0) return false;
   const p = b.pos, hw = b.hw, h = b.h;
   p[axis] += d;
-  const x0 = Math.floor(p[0] - hw + 1e-4), x1 = Math.floor(p[0] + hw - 1e-4);
-  const y0 = Math.floor(p[1] + 1e-4), y1 = Math.floor(p[1] + h - 1e-4);
-  const z0 = Math.floor(p[2] - hw + 1e-4), z1 = Math.floor(p[2] + hw - 1e-4);
+  const x0 = Math.floor(p[0] - hw + EPS), x1 = Math.floor(p[0] + hw - EPS);
+  const y0 = Math.floor(p[1] + EPS) - 1, y1 = Math.floor(p[1] + h - EPS);
+  const z0 = Math.floor(p[2] - hw + EPS), z1 = Math.floor(p[2] + hw - EPS);
   let limit = d > 0 ? Infinity : -Infinity;
   let hit = false;
+  const lo = [p[0] - hw, p[1], p[2] - hw], hi = [p[0] + hw, p[1] + h, p[2] + hw], ext = [hw, 0, hw];
   for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
-    const sh = solidHeight(world, x, y, z);
-    if (sh <= 0) continue;
-    const top = y + sh;
-    if (p[1] >= top - 1e-4) continue; // above this box
-    hit = true;
-    const bnd = axis === 0 ? x : axis === 1 ? y : z;
-    if (d > 0) {
-      const lim = axis === 1 ? bnd - h : bnd - hw;
-      if (lim < limit) limit = lim;
-    } else {
-      const lim = axis === 1 ? top : bnd + 1 + hw;
-      if (lim > limit) limit = lim;
+    const bx = cellBoxes(world, x, y, z);
+    if (!bx) continue;
+    for (const c of bx) {
+      const wl = [x + c[0], y + c[1], z + c[2]], wh = [x + c[3], y + c[4], z + c[5]];
+      if (!(lo[0] < wh[0] - EPS && hi[0] > wl[0] + EPS && lo[1] < wh[1] - EPS && hi[1] > wl[1] + EPS && lo[2] < wh[2] - EPS && hi[2] > wl[2] + EPS)) continue;
+      hit = true;
+      if (d > 0) {
+        const lim = axis === 1 ? wl[1] - h : wl[axis] - ext[axis];
+        if (lim < limit) limit = lim;
+      } else {
+        const lim = axis === 1 ? wh[1] : wh[axis] + ext[axis];
+        if (lim > limit) limit = lim;
+      }
     }
   }
   if (!hit) return false;
@@ -8052,8 +8741,15 @@ class Player {
         const id = this.world.getBlock(x, y, z);
         if (id !== B.AIR && id !== B.WATER && id !== B.LAVA) {
           const box = blockShape(this.world, id, x, y, z);
-          const hit = rayBox(o, d, x + box[0], y + box[1], z + box[2], x + box[3], y + box[4], z + box[5]);
-          if (hit && hit.t <= maxDist) return { pos: [x, y, z], normal: hit.n, id, dist: hit.t, box };
+          const parts = pickBoxes(this.world, id, x, y, z);
+          let hit = null;
+          if (parts) {
+            for (const b of parts) {
+              const h = rayBox(o, d, x + b[0], y + b[1], z + b[2], x + b[3], y + b[4], z + b[5]);
+              if (h && (!hit || h.t < hit.t)) hit = h;
+            }
+          } else hit = rayBox(o, d, x + box[0], y + box[1], z + box[2], x + box[3], y + box[4], z + box[5]);
+          if (hit && hit.t <= maxDist) return { pos: [x, y, z], normal: hit.n, id, dist: hit.t, box, point: [o[0] + d[0] * hit.t, o[1] + d[1] * hit.t, o[2] + d[2] * hit.t] };
         }
       }
       if (tmx < tmy && tmx < tmz) { x += sx; t = tmx; tmx += tdx; normal = [-sx, 0, 0]; }
@@ -8072,10 +8768,23 @@ class Player {
   }
 }
 
+// The separate boxes a ray can hit on shaped blocks (null: use blockShape's single box).
+function pickBoxes(world, id, x, y, z) {
+  const rt = BLOCK_RT[id];
+  if (rt !== RT_SHAPE && rt !== RT_CONNECT && rt !== RT_LANTERN) return null;
+  return specialBoxes(id, world.getFacing(x, y, z), (dx, dy, dz) => world.getBlock(x + dx, y + dy, z + dz), false);
+}
+
 // Selection / hit box of a block in block-local coordinates.
 function blockShape(world, id, x, y, z) {
+  const parts = pickBoxes(world, id, x, y, z);
+  if (parts) {
+    const u = [1, 1, 1, 0, 0, 0];
+    for (const b of parts) for (let k = 0; k < 3; k++) { u[k] = Math.min(u[k], b[k]); u[k + 3] = Math.max(u[k + 3], b[k + 3]); }
+    return u;
+  }
   switch (BLOCK_RT[id]) {
-    case RT_SLAB: return [0, 0, 0, 1, 0.5, 1];
+    case RT_SLAB: return world.getFacing(x, y, z) & 8 ? [0, 0.5, 0, 1, 1, 1] : [0, 0, 0, 1, 0.5, 1];
     case RT_BED: return [0, 0, 0, 1, 9 / 16, 1];
     case RT_FARMLAND: return [0, 0, 0, 1, 15 / 16, 1];
     case RT_TORCH: return [6 / 16, 0, 6 / 16, 10 / 16, 10 / 16, 10 / 16];
@@ -9630,7 +10339,7 @@ const ER = {
   // A block (or part of one, box in 0..1 block units) with its own face textures.
   blockBox(m, id, bx) {
     bx = bx || [0, 0, 0, 1, 1, 1];
-    const facing = BLOCK_FRONT[id] !== 255 && id !== B.BED;
+    const facing = BLOCK_FRONT[id] !== NO_LAYER && id !== B.BED;
     const tint = BLOCK_TINT[id];
     const base = this.color.slice();
     for (const f of CUBE_FACES) {
@@ -9643,6 +10352,18 @@ const ER = {
       this.box(m, bx[0], bx[1], bx[2], bx[3], bx[4], bx[5], (ff) => (ff === f ? [layer, (x, y, z) => faceU(d, x, y, z), (x, y, z) => faceV(d, x, y, z)] : null));
     }
     this.color = base;
+  },
+
+  // A flat polygon (3 or 4 points in model space) with its own texture coordinates.
+  poly(m, pts, uvs, layer, n) {
+    if (this.vi + 4 > this.max) return;
+    const nx = m[0] * n[0] + m[1] * n[1] + m[2] * n[2], ny = m[4] * n[0] + m[5] * n[1] + m[6] * n[2], nz = m[8] * n[0] + m[9] * n[1] + m[10] * n[2];
+    const nl = Math.hypot(nx, ny, nz) || 1;
+    for (let k = 0; k < 4; k++) {
+      const i = Math.min(k, pts.length - 1), p = pts[i];
+      this.v(m[0] * p[0] + m[1] * p[1] + m[2] * p[2] + m[3], m[4] * p[0] + m[5] * p[1] + m[6] * p[2] + m[7], m[8] * p[0] + m[9] * p[1] + m[10] * p[2] + m[11],
+        uvs[i][0], uvs[i][1], layer, nx / nl, ny / nl, nz / nl);
+    }
   },
 
   sprite(m, layer) {
@@ -9663,7 +10384,11 @@ const ER = {
   item(m, id) {
     const d = ITEM_DEF[id];
     if (!d) return;
-    if (d.block && d.render !== 'sprite') {
+    if (d.render === 'shape' || d.render === 'connect') {
+      // stairs, roofs, arches, fences... drawn with their real faces
+      const mm = XF.mul(m, XF.t(-0.5, -0.5, -0.5));
+      for (const f of shapeIconFaces(d.block)) this.poly(mm, f.p, f.uv, f.layer, f.n);
+    } else if (d.block && d.render !== 'sprite') {
       const b = d.block;
       const h = d.render === 'slab' ? 0.5 : d.render === 'bed' ? 9 / 16 : 1;
       this.blockBox(XF.mul(m, XF.t(-0.5, -0.5, -0.5)), b, [0, 0, 0, 1, h, 1]);
@@ -11718,7 +12443,7 @@ function cleanupBlockEntity(x, y, z, old, id) {
   const k = posKey(x, y, z);
   const be = G.world.blockEntities.get(k);
   if (!be) return;
-  const keep = (be.type === 'furnace' && (id === B.FURNACE || id === B.FURNACE_LIT)) || (be.type === 'chest' && id === B.CHEST);
+  const keep = (be.type === 'furnace' && (id === B.FURNACE || id === B.FURNACE_LIT)) || (be.type === 'chest' && (id === B.CHEST || id === B.BARREL));
   if (keep) return;
   for (const s of be.slots || []) if (s && s.id) Ents.spawnItem(cloneStack(s), x + 0.5, y + 0.5, z + 0.5);
   G.world.blockEntities.delete(k);
@@ -12692,7 +13417,7 @@ const Net = {
       if (kind === 'b') {
         const [x, y, z, id, f] = [o[2], o[3], o[4], o[5], o[6]].map((n) => Number(n));
         if ([x, y, z].every(Number.isInteger) && y >= 0 && y < CH && (id === 0 || isValidBlock(id)) && Math.abs(x) < 3e5 && Math.abs(z) < 3e5) {
-          this.applyEdit(x, y, z, id, [0, 1, 4, 5].includes(f) ? f : undefined);
+          this.applyEdit(x, y, z, id, validFacing(f) ? f : undefined);
         }
       } else if (kind === 'x') {
         const [x, y, z, pw, seed] = [o[2], o[3], o[4], o[5], o[6]].map(Number);
@@ -12780,7 +13505,7 @@ const Net = {
         const t = timed ? Number(d.e[i + 5]) || 0 : 0;
         // keep whichever version of this block changed last
         if (timed && t <= (this.times.get(pk) || 0)) continue;
-        if (G.world.getBlock(x, y, z) !== id || !G.world.isLoaded(x, z)) { this.applyEdit(x, y, z, id, [0, 1, 4, 5].includes(f) ? f : undefined); changed++; }
+        if (G.world.getBlock(x, y, z) !== id || !G.world.isLoaded(x, z)) { this.applyEdit(x, y, z, id, validFacing(f) ? f : undefined); changed++; }
         if (timed) this.times.set(pk, t);
       }
       if (d.i === 0) {
@@ -13333,6 +14058,26 @@ const Act = {
     return Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 0 : 1) : (dz > 0 ? 4 : 5);
   },
 
+  // Orientation of a shaped block, slab or lantern being placed (see arch.js): the high side
+  // points where you look, and anything placed against a ceiling or the upper half of a wall
+  // goes upside down.
+  shapeFacing(id, hit, n) {
+    const lk = G.player.lookDir();
+    const upper = n[1] < 0 || (n[1] === 0 && hit.point && hit.point[1] - Math.floor(hit.point[1]) > 0.5);
+    const flip = upper ? 8 : 0;
+    if (id === B.LANTERN) return n[1] < 0 ? 8 : 0;
+    if (BLOCK_RT[id] === RT_SLAB) return flip;
+    const look = Math.abs(lk[0]) > Math.abs(lk[2]) ? (lk[0] > 0 ? 0 : 1) : (lk[2] > 0 ? 4 : 5);
+    const k = BLOCK_SHAPE[id];
+    if (k === SH_OUTER || k === SH_INNER) {
+      const sx = lk[0] >= 0, sz = lk[2] >= 0;
+      return (sx ? (sz ? 4 : 0) : (sz ? 1 : 5)) | flip;
+    }
+    if ((k === SH_PANEL || k === SH_ARCH) && n[1] === 0) return this.dirIndex([-n[0], 0, -n[2]]) | (k === SH_ARCH ? 0 : flip);
+    if (k === SH_PILLAR) return 0;
+    return look | flip;
+  },
+
   entityBlocks(x, y, z, h) {
     if (G.player.intersectsBlock(x, y, z, h)) return true;
     for (const m of Ents.mobs) {
@@ -13352,8 +14097,9 @@ const Act = {
     if (!placeId) return false;
     let [x, y, z] = hit.pos;
     const n = hit.normal;
-    // slab on slab -> full block
-    if (BLOCK_RT[placeId] === RT_SLAB && hit.id === placeId && n[1] === 1) {
+    // slab on slab -> full block (onto the top of a bottom slab or the underside of a top slab)
+    const hitTop = hit.id === placeId && (w.getFacing(x, y, z) & 8);
+    if (BLOCK_RT[placeId] === RT_SLAB && hit.id === placeId && ((n[1] === 1 && !hitTop) || (n[1] === -1 && hitTop))) {
       if (this.entityBlocks(x, y, z, 1)) return false;
       editBlock(x, y, z, SLAB_FULL[placeId]);
       sfx('place_' + BLOCK_SOUND[placeId], [x + 0.5, y + 0.5, z + 0.5], 1, 0.9);
@@ -13380,6 +14126,8 @@ const Act = {
     } else if (placeId === B.BED) {
       const lk = G.player.lookDir();
       facing = Math.abs(lk[0]) > Math.abs(lk[2]) ? (lk[0] > 0 ? 0 : 1) : (lk[2] > 0 ? 4 : 5);
+    } else if (BLOCK_RT[placeId] === RT_SHAPE || BLOCK_RT[placeId] === RT_SLAB || placeId === B.LANTERN) {
+      facing = this.shapeFacing(placeId, hit, n);
     } else if (FACING_BLOCKS.has(placeId)) facing = this.faceToward(x, z);
     if (placeId === B.DOOR) {
       // two blocks tall, standing on something solid
@@ -13456,7 +14204,8 @@ const Act = {
       switch (hit.id) {
         case B.CRAFTING_TABLE: G.ui.openCrafting(); return true;
         case B.FURNACE: case B.FURNACE_LIT: G.ui.openFurnace(x, y, z); return true;
-        case B.CHEST: G.ui.openChest(x, y, z); return true;
+        case B.CHEST: case B.BARREL: G.ui.openChest(x, y, z); return true;
+        case B.ARCH_TABLE: G.ui.open({ kind: 'arch' }); return true;
         case B.BED: trySleep(x, y, z); return true;
         case B.DOOR: case B.DOOR_TOP: case B.DOOR_OPEN: case B.DOOR_OPEN_TOP: case B.TRAPDOOR: case B.TRAPDOOR_OPEN:
           toggleDoor(x, y, z); this.swingHand(); return true;
@@ -13962,6 +14711,7 @@ const UI = {
       else if (s.kind === 'crafting') this.renderCraftTop(top, this.craft3, 3, 'Crafting Table');
       else if (s.kind === 'furnace') this.renderFurnaceTop(top);
       else if (s.kind === 'chest') this.renderChestTop(top);
+      else if (s.kind === 'arch') this.renderArchTop(top);
       root.append(this.label('Inventory'));
       root.append(this.grid(main, 9, 'main'));
       const hb = this.grid(hot, 9, 'hotbar');
@@ -14231,6 +14981,59 @@ const UI = {
     top.append(box);
   },
 
+  // ---- architect's table: turn building blocks into stairs, roofs, panels, columns and arches ----
+  renderArchTop(top) {
+    const box = document.createElement('div');
+    box.className = 'archbox';
+    box.append(this.label("Architect's Table"));
+    const creative = G.mode === 'creative';
+    const mats = ARCH_MATS.map((m, i) => ({ m, i, have: G.inv.count(m.src) })).filter((e) => creative || e.have > 0);
+    if (this.archMat === undefined || !mats.some((e) => e.i === this.archMat)) this.archMat = mats.length ? mats[0].i : -1;
+    const row = document.createElement('div');
+    row.className = 'archmats';
+    for (const e of mats) {
+      const b = document.createElement('button');
+      b.className = 'archmat' + (e.i === this.archMat ? ' on' : '');
+      b.title = e.m.name;
+      b.innerHTML = `<i style="background-image:url(${iconURL(e.m.src)})"></i><span>${e.m.name}${creative ? '' : ' \u00d7' + e.have}</span>`;
+      b.addEventListener('click', () => { this.archMat = e.i; sfx('click', null, 1, 1.1); this.render(); });
+      row.append(b);
+    }
+    box.append(row);
+    if (this.archMat < 0) {
+      const p = document.createElement('p');
+      p.className = 'archhint';
+      p.textContent = 'Bring planks, stone, bricks, sandstone, plaster, marble, roof tiles, slate or thatch to shape them.';
+      box.append(p);
+    } else {
+      const m = ARCH_MATS[this.archMat];
+      const refs = [];
+      for (const s of SHAPE_KINDS) {
+        const id = shapeId(m.key, s.key);
+        if (!id) continue;
+        refs.push({ get: () => mkStack(id, s.yield), set: () => {}, accept: () => false, section: 'arch', bookClick: (shift) => this.archMake(m, id, s.yield, shift) });
+      }
+      box.append(this.grid(refs, refs.length, 'archshapes'));
+      const p = document.createElement('p');
+      p.className = 'archhint';
+      p.textContent = 'Click a shape: 1 ' + m.name.toLowerCase() + ' block each. Shift-click makes up to 16. Roofs point away from you; aim at a ceiling or the top half of a wall to place them upside down.';
+      box.append(p);
+    }
+    top.append(box);
+  },
+
+  archMake(m, id, yieldN, shift) {
+    const creative = G.mode === 'creative';
+    const n = creative ? (shift ? 16 : 1) : Math.min(shift ? 16 : 1, G.inv.count(m.src));
+    if (n <= 0) return;
+    if (!creative) G.inv.remove(m.src, n);
+    const left = G.inv.add(mkStack(id, n * yieldN));
+    if (left > 0) this.giveBack(mkStack(id, left));
+    sfx('place_0', null, 0.6, 1.3);
+    this.invDirty();
+    this.render();
+  },
+
   // ---- creative ----
   renderCreative(root, hot) {
     const tabs = document.createElement('div');
@@ -14239,7 +15042,7 @@ const UI = {
     for (const t of all) {
       const b = document.createElement('button');
       b.className = 'ctab' + (this.creativeTab === t.key ? ' on' : '');
-      const iconId = { building: B.BRICKS, nature: B.GRASS, functional: B.CRAFTING_TABLE, tools: I.TOOL0 + 20, combat: I.TOOL0 + 23, food: I.APPLE, materials: I.DIAMOND, transport: I.JET, search: I.BOOK, inv: B.CHEST }[t.key];
+      const iconId = { building: B.BRICKS, architecture: shapeId('tiles', 'slope'), nature: B.GRASS, functional: B.CRAFTING_TABLE, tools: I.TOOL0 + 20, combat: I.TOOL0 + 23, food: I.APPLE, materials: I.DIAMOND, transport: I.JET, search: I.BOOK, inv: B.CHEST }[t.key];
       b.innerHTML = `<i style="background-image:url(${iconURL(iconId)})"></i><span>${t.name}</span>`;
       b.addEventListener('click', () => { this.creativeTab = t.key; sfx('click', null, 1, 1); this.render(); });
       tabs.append(b);

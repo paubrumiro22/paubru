@@ -433,7 +433,7 @@ const Net = {
       if (kind === 'b') {
         const [x, y, z, id, f] = [o[2], o[3], o[4], o[5], o[6]].map((n) => Number(n));
         if ([x, y, z].every(Number.isInteger) && y >= 0 && y < CH && (id === 0 || isValidBlock(id)) && Math.abs(x) < 3e5 && Math.abs(z) < 3e5) {
-          this.applyEdit(x, y, z, id, [0, 1, 4, 5].includes(f) ? f : undefined);
+          this.applyEdit(x, y, z, id, validFacing(f) ? f : undefined);
         }
       } else if (kind === 'x') {
         const [x, y, z, pw, seed] = [o[2], o[3], o[4], o[5], o[6]].map(Number);
@@ -521,7 +521,7 @@ const Net = {
         const t = timed ? Number(d.e[i + 5]) || 0 : 0;
         // keep whichever version of this block changed last
         if (timed && t <= (this.times.get(pk) || 0)) continue;
-        if (G.world.getBlock(x, y, z) !== id || !G.world.isLoaded(x, z)) { this.applyEdit(x, y, z, id, [0, 1, 4, 5].includes(f) ? f : undefined); changed++; }
+        if (G.world.getBlock(x, y, z) !== id || !G.world.isLoaded(x, z)) { this.applyEdit(x, y, z, id, validFacing(f) ? f : undefined); changed++; }
         if (timed) this.times.set(pk, t);
       }
       if (d.i === 0) {
