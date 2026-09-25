@@ -122,6 +122,7 @@ out vec3 vTint;
 out float vAO;
 out vec2 vLight;
 out vec2 vFlow;
+out float vTintA;
 flat out int vNormal;
 flat out int vFlags;
 void main() {
@@ -144,6 +145,7 @@ void main() {
   vUV = vec3(uv, aPos.w);
   vFlow = aUV.zw;
   vTint = aTint.rgb / 200.0;
+  vTintA = aTint.a / 255.0;
   vAO = aData.y / 3.0;
   vLight = aData.zw / 255.0;
   vNormal = nf & 7;
@@ -613,6 +615,7 @@ in vec3 vTint;
 in float vAO;
 in vec2 vLight;
 in vec2 vFlow;
+in float vTintA;
 flat in int vNormal;
 flat in int vFlags;
 layout(location = 0) out vec4 outColor;
@@ -764,8 +767,11 @@ void main() {
   if (linDepth(rd) < fragLin) { ruv = suv; rd = sceneD; }
   vec3 refr = texture(uSceneColor, ruv).rgb / HDR_SCALE;
   float rthick = rd >= 1.0 ? 80.0 : max(linDepth(rd) - fragLin, 0.0);
-  vec3 trans = exp(-vec3(0.33, 0.082, 0.058) * rthick);
-  vec3 scatterCol = vec3(0.014, 0.075, 0.09) * (uAmbUp * sky * sky * 1.6 + uLightColor * 0.22 * gate) + vec3(0.001, 0.003, 0.004);
+  // this water's look (WATER_STYLE): glow colour and how murky it is
+  vec3 wScatter = vTint * 0.2;
+  vec3 wAbsorb = mix(vec3(0.34, 0.05, 0.035), vec3(0.2, 0.22, 0.36), vTintA);
+  vec3 trans = exp(-wAbsorb * rthick);
+  vec3 scatterCol = wScatter * (uAmbUp * sky * sky * 1.6 + uLightColor * 0.22 * gate) + wScatter * vec3(0.07, 0.04, 0.045);
   vec3 under = refr * trans + scatterCol * (1.0 - trans);
 
   vec3 R = reflect(-V, N);

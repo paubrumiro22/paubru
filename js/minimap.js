@@ -72,7 +72,9 @@ const Minimap = {
       } else {
         // water: the deeper, the bluer
         const a = clamp(0.5 + (wy - y) * 0.05, 0.5, 0.9);
-        r = r * 0.6 * (1 - a) + 38 * a; g = g * 0.6 * (1 - a) + 92 * a; bl = bl * 0.6 * (1 - a) + 190 * a;
+        const wt = c.waterTint;
+        const wr = wt ? wt[i * 4] * 1.6 + 20 : 38, wg = wt ? wt[i * 4 + 1] * 1.2 + 30 : 92, wb = wt ? wt[i * 4 + 2] * 1.2 + 60 : 190;
+        r = r * 0.6 * (1 - a) + wr * a; g = g * 0.6 * (1 - a) + wg * a; bl = bl * 0.6 * (1 - a) + wb * a;
       }
       if (id === 0) { r = 18; g = 22; bl = 30; }
       d[o] = r * s; d[o + 1] = g * s; d[o + 2] = bl * s; d[o + 3] = 255;

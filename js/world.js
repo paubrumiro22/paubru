@@ -25,6 +25,7 @@ class Chunk {
     this.heightmap = new Uint8Array(CS * CS);     // highest non-air y per column
     this.grassTint = new Uint8Array(CS * CS * 3);
     this.foliageTint = new Uint8Array(CS * CS * 3);
+    this.waterTint = new Uint8Array(CS * CS * 4);  // water scatter colour ×1000 and murkiness ×255
     this.light = null;        // sky<<4 | block light, filled by the mesher
     this.maxY = 0;
     this.mesh = null;         // GPU buffers, owned by the renderer
@@ -42,6 +43,30 @@ class Chunk {
 }
 
 const BIOME = { OCEAN: 0, BEACH: 1, PLAINS: 2, FOREST: 3, DESERT: 4, SNOWY: 5, MOUNTAIN: 6 };
+
+// Water looks: [scatter r, g, b, murkiness 0..1]. The scatter colour is what the water glows with
+// in daylight; murkiness raises how fast light dies in green and blue (clear tropical water lets
+// the sand show through deep down, a forest pond turns olive a hand below the surface).
+const WATER_STYLE = {
+  ocean: [0.010, 0.058, 0.105, 0.14],
+  deep: [0.005, 0.030, 0.092, 0.10],
+  tropic: [0.020, 0.150, 0.132, 0.0],
+  lagoon: [0.034, 0.175, 0.150, 0.0],
+  cold: [0.010, 0.052, 0.078, 0.22],
+  river: [0.016, 0.088, 0.068, 0.36],
+  forest: [0.024, 0.066, 0.036, 0.62],
+  glacier: [0.036, 0.130, 0.150, 0.05],
+  muddy: [0.046, 0.052, 0.028, 0.8],
+  oasis: [0.018, 0.130, 0.120, 0.08],
+};
+function mixWater(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t]; }
+function storeWater(chunk, i, w) {
+  const o = i * 4;
+  chunk.waterTint[o] = clamp(Math.round(w[0] * 1000), 0, 255);
+  chunk.waterTint[o + 1] = clamp(Math.round(w[1] * 1000), 0, 255);
+  chunk.waterTint[o + 2] = clamp(Math.round(w[2] * 1000), 0, 255);
+  chunk.waterTint[o + 3] = clamp(Math.round(w[3] * 255), 0, 255);
+}
 
 class WorldGen {
   constructor(seed, type) {
@@ -161,6 +186,7 @@ class WorldGen {
         b[(y * CS + z) * CS + x] = id;
       }
       for (let k = 0; k < 3; k++) chunk.grassTint[(z * CS + x) * 3 + k] = chunk.foliageTint[(z * CS + x) * 3 + k] = [186, 214, 150][k];
+      storeWater(chunk, z * CS + x, WATER_STYLE.river);
     }
     chunk.maxY = 0;
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) chunk.recomputeHeight(x, z);
@@ -217,6 +243,8 @@ class WorldGen {
         chunk.grassTint[(z * CS + x) * 3 + k] = clamp(c.tint[0][k] * 200, 0, 255);
         chunk.foliageTint[(z * CS + x) * 3 + k] = clamp(c.tint[1][k] * 200, 0, 255);
       }
+      const pw = own && own.p.water;
+      storeWater(chunk, z * CS + x, c.water || (pw ? (typeof pw === 'function' ? pw(this, wx - own.x, wz - own.z, h) : pw) : this.waterFor(wx, wz, h, c)));
       for (let y = 0; y <= h; y++) {
         let id;
         if (y === 0) id = B.BEDROCK;
@@ -270,6 +298,23 @@ class WorldGen {
     const [x, y, z] = best;
     b[(y * CS + z) * CS + x] = B.WATER;
     chunk.springs = [ox + x, y, oz + z];
+  }
+
+  // Default water look of a column: oceans shade from deep blue through turquoise in warm shallows,
+  // inland water (lakes, streams, springs) is greener, and murkier in forests.
+  waterFor(wx, wz, h, c) {
+    const { temp, hum } = this.climate(wx, wz);
+    const cold = smoothstep(-0.12, -0.32, temp);
+    if (c.level > SEA || h >= SEA) {
+      let w = mixWater(WATER_STYLE.river, WATER_STYLE.forest, smoothstep(0.0, 0.4, hum) * 0.8);
+      if (temp > 0.2 && hum < 0.05) w = mixWater(w, WATER_STYLE.oasis, 0.5);
+      return mixWater(w, WATER_STYLE.glacier, cold * 0.7);
+    }
+    const warm = smoothstep(0.02, 0.32, temp);
+    const shallow = smoothstep(SEA - 14, SEA - 3, h);
+    let w = mixWater(WATER_STYLE.deep, WATER_STYLE.ocean, smoothstep(SEA - 22, SEA - 9, h));
+    w = mixWater(w, WATER_STYLE.tropic, warm * shallow);
+    return mixWater(w, WATER_STYLE.cold, cold);
   }
 
   defaultColumn(wx, wz, h, slope) {

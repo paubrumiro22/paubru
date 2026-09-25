@@ -101,7 +101,9 @@ Object.assign(Renderer.prototype, {
     const ambUp = this.ambSky.map((v, i) => (v + (grey - v) * 0.6 * weather) * 0.3 * (1 - 0.3 * weather) + nightFloor[i]);
     const ambDown = ambUp.map((v, i) => v * 0.32 + lightColor[i] * 0.05 * Math.max(lightDir[1], 0));
     const lum = 0.2126 * ambUp[0] + 0.7152 * ambUp[1] + 0.0722 * ambUp[2] + 0.2 * (lightColor[0] + lightColor[1] + lightColor[2]) / 3;
-    const waterFog = [0.012 * lum + 0.0015, 0.07 * lum + 0.004, 0.085 * lum + 0.006];
+    // under water the haze takes the colour of the water you are in (set by the frame loop)
+    const ws = this.waterScatter || [0.013, 0.07, 0.09];
+    const waterFog = ws.map((c) => c * 0.9 * lum + c * 0.08);
 
     const dawn = Math.exp(-Math.pow((sunDir[1] - 0.05) / 0.18, 2));
     const fogDensity = (0.0021 + 0.0032 * dawn) * (1 + 2.2 * weather) + 0.0016 * weather;

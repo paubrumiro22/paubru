@@ -37,13 +37,13 @@ class MeshBuilder {
     this.cap = cap;
   }
   ensure(n) { if (this.count + n > this.cap) this.alloc(Math.max(this.cap * 2, this.count + n)); }
-  v(x, y, z, layer, nf, ao, sky, blk, r, g, b, u, vv, fu = 0, fv = 0) {
+  v(x, y, z, layer, nf, ao, sky, blk, r, g, b, u, vv, fu = 0, fv = 0, ta = 0) {
     const o = this.count++;
     const i16 = o * 10, i8 = o * VERT_BYTES;
     this.u16[i16] = x; this.u16[i16 + 1] = y; this.u16[i16 + 2] = z; this.u16[i16 + 3] = layer;
     const u8 = this.u8;
     u8[i8 + 8] = nf; u8[i8 + 9] = ao; u8[i8 + 10] = sky; u8[i8 + 11] = blk;
-    u8[i8 + 12] = r; u8[i8 + 13] = g; u8[i8 + 14] = b; u8[i8 + 15] = 0;
+    u8[i8 + 12] = r; u8[i8 + 13] = g; u8[i8 + 14] = b; u8[i8 + 15] = ta;
     u8[i8 + 16] = u; u8[i8 + 17] = vv; u8[i8 + 18] = fu; u8[i8 + 19] = fv;
   }
   data() { return this.u8.subarray(0, this.count * VERT_BYTES); }
@@ -396,7 +396,13 @@ function buildChunkMesh(world, chunk) {
           }
 
           const layer = d === facing ? BLOCK_FRONT[id] : BLOCK_TEX[id * 6 + d];
-          let r = tr, g = tg, b = tb;
+          let r = tr, g = tg, b = tb, ta = 0;
+          if (isWater) {
+            // water carries its look: scatter colour ×1000 and murkiness (see WATER_STYLE)
+            const wt = chunk.waterTint;
+            if (wt) { r = wt[col * 4]; g = wt[col * 4 + 1]; b = wt[col * 4 + 2]; ta = wt[col * 4 + 3]; }
+            else { r = 10; g = 58; b = 105; ta = 36; }
+          }
           if (tintType === TINT_GRASS && d === 2) {
             r = chunk.grassTint[col * 3]; g = chunk.grassTint[col * 3 + 1]; b = chunk.grassTint[col * 3 + 2];
           }
@@ -429,7 +435,7 @@ function buildChunkMesh(world, chunk) {
                 vy = Math.round((y + hh) * POS_SCALE);
                 if (d !== 2 && d !== 3) vv = Math.round((1 - hh) * 16);
               }
-              builder.v(vx, vy, vz, layer, d | (flags << 3), 3, s, b2, r, g, b, cu[k], vv, fu, fv);
+              builder.v(vx, vy, vz, layer, d | (flags << 3), 3, s, b2, r, g, b, cu[k], vv, fu, fv, ta);
             }
             continue;
           }

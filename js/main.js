@@ -744,6 +744,14 @@ function frame(now) {
         walkAmt: Math.min(1, sp / 4.3), hurtTime: st.hurtTime || 0, dead: false, fuse: 0, age: G.time, fire: 0, aiming: 0,
         skin: G.settings.skin, tint: NET_COLORS[Net.color].map((c) => c / 255 * 1.1) };
     }
+    // colour of the water around the camera, for the underwater haze
+    if (!G.onTitle && p.eyeInWater && (G.frameCount & 7) === 0) {
+      const c = G.world.getChunk(Math.floor(cam.pos[0]) >> 4, Math.floor(cam.pos[2]) >> 4);
+      if (c && c.waterTint) {
+        const i = ((Math.floor(cam.pos[2]) & 15) * CS + (Math.floor(cam.pos[0]) & 15)) * 4;
+        G.renderer.waterScatter = [c.waterTint[i] / 1000, c.waterTint[i + 1] / 1000, c.waterTint[i + 2] / 1000];
+      }
+    }
     const ents = ER.build(G.renderer, cam, { self,
       crack: G.vehicle ? null : Act.crackInfo(), hand: showHand ? Act.handState() : null,
       cockpit: G.vehicle && Vehicles.camMode === 'cockpit' ? G.vehicle : null,

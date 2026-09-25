@@ -86,6 +86,7 @@ const WORLD_PRESETS = {
       }
       return null;
     },
+    water: (g, x, z, h) => (h > SEA - 7 ? WATER_STYLE.lagoon : mixWater(WATER_STYLE.lagoon, WATER_STYLE.tropic, smoothstep(SEA - 7, SEA - 16, h))),
     trees: { cell: 5, R: 9 },
     tree(g, x, z, h, r) {
       if (h < SEA + 1) return null;
@@ -141,6 +142,7 @@ const WORLD_PRESETS = {
       if (ground === B.GRASS && r < 0.14) return { ids: [B.TALLGRASS] };
       return null;
     },
+    water: WATER_STYLE.ocean,
     trees: { cell: 6, R: 4 },
     tree(g, x, z, h, r) {
       const { r: rr } = volcR(g, x, z);
@@ -191,6 +193,7 @@ const WORLD_PRESETS = {
       }
       return null;
     },
+    water: WATER_STYLE.oasis,
     trees: { cell: 5, R: 9 },
     tree(g, x, z, h, r) {
       const { r: pr } = pond(g, x, z, 0, -34, 15);
@@ -218,6 +221,7 @@ const WORLD_PRESETS = {
       return col({ top: B.SNOWY_GRASS, tint: COLD_TINT, biome: BIOME.SNOWY });
     },
     plant(g, x, z, h, ground, r) { return ground === B.SNOWY_GRASS && r < 0.08 ? { ids: [B.FERN] } : null; },
+    water: WATER_STYLE.glacier,
     trees: { cell: 5, R: 4 },
     tree(g, x, z, h, r) {
       const rr = Math.hypot(x, z);
@@ -240,6 +244,7 @@ const WORLD_PRESETS = {
       if (r < 0.49) return { ids: [B.ROSE] };
       return null;
     },
+    water: WATER_STYLE.forest,
     trees: { cell: 6, R: 10 },
     tree(g, x, z, h, r) {
       if (Math.hypot(x, z) < 10) return null;
@@ -281,6 +286,7 @@ const WORLD_PRESETS = {
       }
       return null;
     },
+    water: WATER_STYLE.muddy,
     trees: { cell: 7, R: 4 },
     tree(g, x, z, h, r) { return r < 0.04 && Math.abs(canyonPath(g, x, z)) > CANYON_W ? { kind: 'dead' } : null; },
     spawn(g) {
@@ -302,6 +308,7 @@ const WORLD_PRESETS = {
       return col({ tint: TROPIC_TINT, biome: BIOME.FOREST });
     },
     plant(g, x, z, h, ground, r) { return WORLD_PRESETS.beach.plant(g, x, z, h, ground, r); },
+    water: (g, x, z, h) => (h > SEA - 9 ? WATER_STYLE.lagoon : WATER_STYLE.tropic),
     trees: { cell: 5, R: 9 },
     tree(g, x, z, h, r) {
       if (h < SEA + 1) return null;
@@ -339,6 +346,7 @@ const WORLD_PRESETS = {
       if (r < 0.64) return { ids: [B.TALLGRASS] };
       return null;
     },
+    water: WATER_STYLE.river,
     trees: { cell: 6, R: 4 },
     tree(g, x, z, h, r) {
       if (Math.hypot(x, z) < 8 || pond(g, x, z, 38, 6, 13).r < 15) return null;

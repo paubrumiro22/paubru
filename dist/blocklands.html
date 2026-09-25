@@ -3016,6 +3016,7 @@ class Chunk {
     this.heightmap = new Uint8Array(CS * CS);     // highest non-air y per column
     this.grassTint = new Uint8Array(CS * CS * 3);
     this.foliageTint = new Uint8Array(CS * CS * 3);
+    this.waterTint = new Uint8Array(CS * CS * 4);  // water scatter colour \u00d71000 and murkiness \u00d7255
     this.light = null;        // sky<<4 | block light, filled by the mesher
     this.maxY = 0;
     this.mesh = null;         // GPU buffers, owned by the renderer
@@ -3033,6 +3034,30 @@ class Chunk {
 }
 
 const BIOME = { OCEAN: 0, BEACH: 1, PLAINS: 2, FOREST: 3, DESERT: 4, SNOWY: 5, MOUNTAIN: 6 };
+
+// Water looks: [scatter r, g, b, murkiness 0..1]. The scatter colour is what the water glows with
+// in daylight; murkiness raises how fast light dies in green and blue (clear tropical water lets
+// the sand show through deep down, a forest pond turns olive a hand below the surface).
+const WATER_STYLE = {
+  ocean: [0.010, 0.058, 0.105, 0.14],
+  deep: [0.005, 0.030, 0.092, 0.10],
+  tropic: [0.020, 0.150, 0.132, 0.0],
+  lagoon: [0.034, 0.175, 0.150, 0.0],
+  cold: [0.010, 0.052, 0.078, 0.22],
+  river: [0.016, 0.088, 0.068, 0.36],
+  forest: [0.024, 0.066, 0.036, 0.62],
+  glacier: [0.036, 0.130, 0.150, 0.05],
+  muddy: [0.046, 0.052, 0.028, 0.8],
+  oasis: [0.018, 0.130, 0.120, 0.08],
+};
+function mixWater(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t]; }
+function storeWater(chunk, i, w) {
+  const o = i * 4;
+  chunk.waterTint[o] = clamp(Math.round(w[0] * 1000), 0, 255);
+  chunk.waterTint[o + 1] = clamp(Math.round(w[1] * 1000), 0, 255);
+  chunk.waterTint[o + 2] = clamp(Math.round(w[2] * 1000), 0, 255);
+  chunk.waterTint[o + 3] = clamp(Math.round(w[3] * 255), 0, 255);
+}
 
 class WorldGen {
   constructor(seed, type) {
@@ -3152,6 +3177,7 @@ class WorldGen {
         b[(y * CS + z) * CS + x] = id;
       }
       for (let k = 0; k < 3; k++) chunk.grassTint[(z * CS + x) * 3 + k] = chunk.foliageTint[(z * CS + x) * 3 + k] = [186, 214, 150][k];
+      storeWater(chunk, z * CS + x, WATER_STYLE.river);
     }
     chunk.maxY = 0;
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) chunk.recomputeHeight(x, z);
@@ -3208,6 +3234,8 @@ class WorldGen {
         chunk.grassTint[(z * CS + x) * 3 + k] = clamp(c.tint[0][k] * 200, 0, 255);
         chunk.foliageTint[(z * CS + x) * 3 + k] = clamp(c.tint[1][k] * 200, 0, 255);
       }
+      const pw = own && own.p.water;
+      storeWater(chunk, z * CS + x, c.water || (pw ? (typeof pw === 'function' ? pw(this, wx - own.x, wz - own.z, h) : pw) : this.waterFor(wx, wz, h, c)));
       for (let y = 0; y <= h; y++) {
         let id;
         if (y === 0) id = B.BEDROCK;
@@ -3261,6 +3289,23 @@ class WorldGen {
     const [x, y, z] = best;
     b[(y * CS + z) * CS + x] = B.WATER;
     chunk.springs = [ox + x, y, oz + z];
+  }
+
+  // Default water look of a column: oceans shade from deep blue through turquoise in warm shallows,
+  // inland water (lakes, streams, springs) is greener, and murkier in forests.
+  waterFor(wx, wz, h, c) {
+    const { temp, hum } = this.climate(wx, wz);
+    const cold = smoothstep(-0.12, -0.32, temp);
+    if (c.level > SEA || h >= SEA) {
+      let w = mixWater(WATER_STYLE.river, WATER_STYLE.forest, smoothstep(0.0, 0.4, hum) * 0.8);
+      if (temp > 0.2 && hum < 0.05) w = mixWater(w, WATER_STYLE.oasis, 0.5);
+      return mixWater(w, WATER_STYLE.glacier, cold * 0.7);
+    }
+    const warm = smoothstep(0.02, 0.32, temp);
+    const shallow = smoothstep(SEA - 14, SEA - 3, h);
+    let w = mixWater(WATER_STYLE.deep, WATER_STYLE.ocean, smoothstep(SEA - 22, SEA - 9, h));
+    w = mixWater(w, WATER_STYLE.tropic, warm * shallow);
+    return mixWater(w, WATER_STYLE.cold, cold);
   }
 
   defaultColumn(wx, wz, h, slope) {
@@ -3782,6 +3827,7 @@ const WORLD_PRESETS = {
       }
       return null;
     },
+    water: (g, x, z, h) => (h > SEA - 7 ? WATER_STYLE.lagoon : mixWater(WATER_STYLE.lagoon, WATER_STYLE.tropic, smoothstep(SEA - 7, SEA - 16, h))),
     trees: { cell: 5, R: 9 },
     tree(g, x, z, h, r) {
       if (h < SEA + 1) return null;
@@ -3837,6 +3883,7 @@ const WORLD_PRESETS = {
       if (ground === B.GRASS && r < 0.14) return { ids: [B.TALLGRASS] };
       return null;
     },
+    water: WATER_STYLE.ocean,
     trees: { cell: 6, R: 4 },
     tree(g, x, z, h, r) {
       const { r: rr } = volcR(g, x, z);
@@ -3887,6 +3934,7 @@ const WORLD_PRESETS = {
       }
       return null;
     },
+    water: WATER_STYLE.oasis,
     trees: { cell: 5, R: 9 },
     tree(g, x, z, h, r) {
       const { r: pr } = pond(g, x, z, 0, -34, 15);
@@ -3914,6 +3962,7 @@ const WORLD_PRESETS = {
       return col({ top: B.SNOWY_GRASS, tint: COLD_TINT, biome: BIOME.SNOWY });
     },
     plant(g, x, z, h, ground, r) { return ground === B.SNOWY_GRASS && r < 0.08 ? { ids: [B.FERN] } : null; },
+    water: WATER_STYLE.glacier,
     trees: { cell: 5, R: 4 },
     tree(g, x, z, h, r) {
       const rr = Math.hypot(x, z);
@@ -3936,6 +3985,7 @@ const WORLD_PRESETS = {
       if (r < 0.49) return { ids: [B.ROSE] };
       return null;
     },
+    water: WATER_STYLE.forest,
     trees: { cell: 6, R: 10 },
     tree(g, x, z, h, r) {
       if (Math.hypot(x, z) < 10) return null;
@@ -3977,6 +4027,7 @@ const WORLD_PRESETS = {
       }
       return null;
     },
+    water: WATER_STYLE.muddy,
     trees: { cell: 7, R: 4 },
     tree(g, x, z, h, r) { return r < 0.04 && Math.abs(canyonPath(g, x, z)) > CANYON_W ? { kind: 'dead' } : null; },
     spawn(g) {
@@ -3998,6 +4049,7 @@ const WORLD_PRESETS = {
       return col({ tint: TROPIC_TINT, biome: BIOME.FOREST });
     },
     plant(g, x, z, h, ground, r) { return WORLD_PRESETS.beach.plant(g, x, z, h, ground, r); },
+    water: (g, x, z, h) => (h > SEA - 9 ? WATER_STYLE.lagoon : WATER_STYLE.tropic),
     trees: { cell: 5, R: 9 },
     tree(g, x, z, h, r) {
       if (h < SEA + 1) return null;
@@ -4035,6 +4087,7 @@ const WORLD_PRESETS = {
       if (r < 0.64) return { ids: [B.TALLGRASS] };
       return null;
     },
+    water: WATER_STYLE.river,
     trees: { cell: 6, R: 4 },
     tree(g, x, z, h, r) {
       if (Math.hypot(x, z) < 8 || pond(g, x, z, 38, 6, 13).r < 15) return null;
@@ -4132,13 +4185,13 @@ class MeshBuilder {
     this.cap = cap;
   }
   ensure(n) { if (this.count + n > this.cap) this.alloc(Math.max(this.cap * 2, this.count + n)); }
-  v(x, y, z, layer, nf, ao, sky, blk, r, g, b, u, vv, fu = 0, fv = 0) {
+  v(x, y, z, layer, nf, ao, sky, blk, r, g, b, u, vv, fu = 0, fv = 0, ta = 0) {
     const o = this.count++;
     const i16 = o * 10, i8 = o * VERT_BYTES;
     this.u16[i16] = x; this.u16[i16 + 1] = y; this.u16[i16 + 2] = z; this.u16[i16 + 3] = layer;
     const u8 = this.u8;
     u8[i8 + 8] = nf; u8[i8 + 9] = ao; u8[i8 + 10] = sky; u8[i8 + 11] = blk;
-    u8[i8 + 12] = r; u8[i8 + 13] = g; u8[i8 + 14] = b; u8[i8 + 15] = 0;
+    u8[i8 + 12] = r; u8[i8 + 13] = g; u8[i8 + 14] = b; u8[i8 + 15] = ta;
     u8[i8 + 16] = u; u8[i8 + 17] = vv; u8[i8 + 18] = fu; u8[i8 + 19] = fv;
   }
   data() { return this.u8.subarray(0, this.count * VERT_BYTES); }
@@ -4491,7 +4544,13 @@ function buildChunkMesh(world, chunk) {
           }
 
           const layer = d === facing ? BLOCK_FRONT[id] : BLOCK_TEX[id * 6 + d];
-          let r = tr, g = tg, b = tb;
+          let r = tr, g = tg, b = tb, ta = 0;
+          if (isWater) {
+            // water carries its look: scatter colour \u00d71000 and murkiness (see WATER_STYLE)
+            const wt = chunk.waterTint;
+            if (wt) { r = wt[col * 4]; g = wt[col * 4 + 1]; b = wt[col * 4 + 2]; ta = wt[col * 4 + 3]; }
+            else { r = 10; g = 58; b = 105; ta = 36; }
+          }
           if (tintType === TINT_GRASS && d === 2) {
             r = chunk.grassTint[col * 3]; g = chunk.grassTint[col * 3 + 1]; b = chunk.grassTint[col * 3 + 2];
           }
@@ -4524,7 +4583,7 @@ function buildChunkMesh(world, chunk) {
                 vy = Math.round((y + hh) * POS_SCALE);
                 if (d !== 2 && d !== 3) vv = Math.round((1 - hh) * 16);
               }
-              builder.v(vx, vy, vz, layer, d | (flags << 3), 3, s, b2, r, g, b, cu[k], vv, fu, fv);
+              builder.v(vx, vy, vz, layer, d | (flags << 3), 3, s, b2, r, g, b, cu[k], vv, fu, fv, ta);
             }
             continue;
           }
@@ -4586,8 +4645,8 @@ function chunkWorkerMain() {
       if (key !== genKey) { gen = new WorldGen(m.seed, m.type); genKey = key; }
       const c = new Chunk(m.cx, m.cz);
       gen.generate(c);
-      self.postMessage({ t: 'gen', epoch: m.epoch, cx: m.cx, cz: m.cz, blocks: c.blocks, heightmap: c.heightmap, grassTint: c.grassTint, foliageTint: c.foliageTint, maxY: c.maxY, springs: c.springs || null },
-        [c.blocks.buffer, c.heightmap.buffer, c.grassTint.buffer, c.foliageTint.buffer]);
+      self.postMessage({ t: 'gen', epoch: m.epoch, cx: m.cx, cz: m.cz, blocks: c.blocks, heightmap: c.heightmap, grassTint: c.grassTint, foliageTint: c.foliageTint, waterTint: c.waterTint, maxY: c.maxY, springs: c.springs || null },
+        [c.blocks.buffer, c.heightmap.buffer, c.grassTint.buffer, c.foliageTint.buffer, c.waterTint.buffer]);
     } else if (m.t === 'mesh') {
       const chunks = new Map();
       for (const n of m.nb) chunks.set(chunkKey(n.cx, n.cz), n);
@@ -4697,7 +4756,7 @@ const ChunkWorkers = {
       const top = Math.min(CH, n.maxY + 2) * CS * CS;
       const e = { cx: n.cx, cz: n.cz, maxY: n.maxY, blocks: new Uint8Array(CS * CS * CH) };
       e.blocks.set(n.blocks.subarray(0, top));
-      if (n === c) { e.grassTint = n.grassTint; e.foliageTint = n.foliageTint; }
+      if (n === c) { e.grassTint = n.grassTint; e.foliageTint = n.foliageTint; e.waterTint = n.waterTint; }
       nb.push(e);
     }
     // orientation of blocks inside this chunk that face somewhere specific
@@ -4735,7 +4794,7 @@ const ChunkWorkers = {
       const world = G.world;
       if (world.getChunk(m.cx, m.cz)) return;
       const c = new Chunk(m.cx, m.cz);
-      c.blocks = m.blocks; c.heightmap = m.heightmap; c.grassTint = m.grassTint; c.foliageTint = m.foliageTint; c.maxY = m.maxY;
+      c.blocks = m.blocks; c.heightmap = m.heightmap; c.grassTint = m.grassTint; c.foliageTint = m.foliageTint; c.waterTint = m.waterTint; c.maxY = m.maxY;
       if (m.springs) c.springs = m.springs;
       world.addChunk(c);
       this.stats.gen++;
@@ -4978,6 +5037,7 @@ out vec3 vTint;
 out float vAO;
 out vec2 vLight;
 out vec2 vFlow;
+out float vTintA;
 flat out int vNormal;
 flat out int vFlags;
 void main() {
@@ -5000,6 +5060,7 @@ void main() {
   vUV = vec3(uv, aPos.w);
   vFlow = aUV.zw;
   vTint = aTint.rgb / 200.0;
+  vTintA = aTint.a / 255.0;
   vAO = aData.y / 3.0;
   vLight = aData.zw / 255.0;
   vNormal = nf & 7;
@@ -5469,6 +5530,7 @@ in vec3 vTint;
 in float vAO;
 in vec2 vLight;
 in vec2 vFlow;
+in float vTintA;
 flat in int vNormal;
 flat in int vFlags;
 layout(location = 0) out vec4 outColor;
@@ -5620,8 +5682,11 @@ void main() {
   if (linDepth(rd) < fragLin) { ruv = suv; rd = sceneD; }
   vec3 refr = texture(uSceneColor, ruv).rgb / HDR_SCALE;
   float rthick = rd >= 1.0 ? 80.0 : max(linDepth(rd) - fragLin, 0.0);
-  vec3 trans = exp(-vec3(0.33, 0.082, 0.058) * rthick);
-  vec3 scatterCol = vec3(0.014, 0.075, 0.09) * (uAmbUp * sky * sky * 1.6 + uLightColor * 0.22 * gate) + vec3(0.001, 0.003, 0.004);
+  // this water's look (WATER_STYLE): glow colour and how murky it is
+  vec3 wScatter = vTint * 0.2;
+  vec3 wAbsorb = mix(vec3(0.34, 0.05, 0.035), vec3(0.2, 0.22, 0.36), vTintA);
+  vec3 trans = exp(-wAbsorb * rthick);
+  vec3 scatterCol = wScatter * (uAmbUp * sky * sky * 1.6 + uLightColor * 0.22 * gate) + wScatter * vec3(0.07, 0.04, 0.045);
   vec3 under = refr * trans + scatterCol * (1.0 - trans);
 
   vec3 R = reflect(-V, N);
@@ -6409,7 +6474,9 @@ Object.assign(Renderer.prototype, {
     const ambUp = this.ambSky.map((v, i) => (v + (grey - v) * 0.6 * weather) * 0.3 * (1 - 0.3 * weather) + nightFloor[i]);
     const ambDown = ambUp.map((v, i) => v * 0.32 + lightColor[i] * 0.05 * Math.max(lightDir[1], 0));
     const lum = 0.2126 * ambUp[0] + 0.7152 * ambUp[1] + 0.0722 * ambUp[2] + 0.2 * (lightColor[0] + lightColor[1] + lightColor[2]) / 3;
-    const waterFog = [0.012 * lum + 0.0015, 0.07 * lum + 0.004, 0.085 * lum + 0.006];
+    // under water the haze takes the colour of the water you are in (set by the frame loop)
+    const ws = this.waterScatter || [0.013, 0.07, 0.09];
+    const waterFog = ws.map((c) => c * 0.9 * lum + c * 0.08);
 
     const dawn = Math.exp(-Math.pow((sunDir[1] - 0.05) / 0.18, 2));
     const fogDensity = (0.0021 + 0.0032 * dawn) * (1 + 2.2 * weather) + 0.0016 * weather;
@@ -12986,7 +13053,9 @@ const Minimap = {
       } else {
         // water: the deeper, the bluer
         const a = clamp(0.5 + (wy - y) * 0.05, 0.5, 0.9);
-        r = r * 0.6 * (1 - a) + 38 * a; g = g * 0.6 * (1 - a) + 92 * a; bl = bl * 0.6 * (1 - a) + 190 * a;
+        const wt = c.waterTint;
+        const wr = wt ? wt[i * 4] * 1.6 + 20 : 38, wg = wt ? wt[i * 4 + 1] * 1.2 + 30 : 92, wb = wt ? wt[i * 4 + 2] * 1.2 + 60 : 190;
+        r = r * 0.6 * (1 - a) + wr * a; g = g * 0.6 * (1 - a) + wg * a; bl = bl * 0.6 * (1 - a) + wb * a;
       }
       if (id === 0) { r = 18; g = 22; bl = 30; }
       d[o] = r * s; d[o + 1] = g * s; d[o + 2] = bl * s; d[o + 3] = 255;
@@ -15212,6 +15281,14 @@ function frame(now) {
       self = { type: 'avatar', pos: p.pos, h: 1.8, bodyYaw: p.yaw + Math.PI, headYaw: p.yaw + Math.PI, headPitch: -p.pitch, walkPhase: G.selfWalk,
         walkAmt: Math.min(1, sp / 4.3), hurtTime: st.hurtTime || 0, dead: false, fuse: 0, age: G.time, fire: 0, aiming: 0,
         skin: G.settings.skin, tint: NET_COLORS[Net.color].map((c) => c / 255 * 1.1) };
+    }
+    // colour of the water around the camera, for the underwater haze
+    if (!G.onTitle && p.eyeInWater && (G.frameCount & 7) === 0) {
+      const c = G.world.getChunk(Math.floor(cam.pos[0]) >> 4, Math.floor(cam.pos[2]) >> 4);
+      if (c && c.waterTint) {
+        const i = ((Math.floor(cam.pos[2]) & 15) * CS + (Math.floor(cam.pos[0]) & 15)) * 4;
+        G.renderer.waterScatter = [c.waterTint[i] / 1000, c.waterTint[i + 1] / 1000, c.waterTint[i + 2] / 1000];
+      }
     }
     const ents = ER.build(G.renderer, cam, { self,
       crack: G.vehicle ? null : Act.crackInfo(), hand: showHand ? Act.handState() : null,

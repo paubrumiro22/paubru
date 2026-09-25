@@ -15,8 +15,8 @@ function chunkWorkerMain() {
       if (key !== genKey) { gen = new WorldGen(m.seed, m.type); genKey = key; }
       const c = new Chunk(m.cx, m.cz);
       gen.generate(c);
-      self.postMessage({ t: 'gen', epoch: m.epoch, cx: m.cx, cz: m.cz, blocks: c.blocks, heightmap: c.heightmap, grassTint: c.grassTint, foliageTint: c.foliageTint, maxY: c.maxY, springs: c.springs || null },
-        [c.blocks.buffer, c.heightmap.buffer, c.grassTint.buffer, c.foliageTint.buffer]);
+      self.postMessage({ t: 'gen', epoch: m.epoch, cx: m.cx, cz: m.cz, blocks: c.blocks, heightmap: c.heightmap, grassTint: c.grassTint, foliageTint: c.foliageTint, waterTint: c.waterTint, maxY: c.maxY, springs: c.springs || null },
+        [c.blocks.buffer, c.heightmap.buffer, c.grassTint.buffer, c.foliageTint.buffer, c.waterTint.buffer]);
     } else if (m.t === 'mesh') {
       const chunks = new Map();
       for (const n of m.nb) chunks.set(chunkKey(n.cx, n.cz), n);
@@ -126,7 +126,7 @@ const ChunkWorkers = {
       const top = Math.min(CH, n.maxY + 2) * CS * CS;
       const e = { cx: n.cx, cz: n.cz, maxY: n.maxY, blocks: new Uint8Array(CS * CS * CH) };
       e.blocks.set(n.blocks.subarray(0, top));
-      if (n === c) { e.grassTint = n.grassTint; e.foliageTint = n.foliageTint; }
+      if (n === c) { e.grassTint = n.grassTint; e.foliageTint = n.foliageTint; e.waterTint = n.waterTint; }
       nb.push(e);
     }
     // orientation of blocks inside this chunk that face somewhere specific
@@ -164,7 +164,7 @@ const ChunkWorkers = {
       const world = G.world;
       if (world.getChunk(m.cx, m.cz)) return;
       const c = new Chunk(m.cx, m.cz);
-      c.blocks = m.blocks; c.heightmap = m.heightmap; c.grassTint = m.grassTint; c.foliageTint = m.foliageTint; c.maxY = m.maxY;
+      c.blocks = m.blocks; c.heightmap = m.heightmap; c.grassTint = m.grassTint; c.foliageTint = m.foliageTint; c.waterTint = m.waterTint; c.maxY = m.maxY;
       if (m.springs) c.springs = m.springs;
       world.addChunk(c);
       this.stats.gen++;
