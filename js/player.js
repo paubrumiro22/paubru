@@ -254,6 +254,7 @@ class Player {
     else if (this.sneaking) speed = 1.6;
     else speed = this.sprinting ? 5.8 : 4.3;
     if (input.slow) speed *= 0.35;
+    if (!this.flying && typeof hasEffect === 'function' && hasEffect('speed')) speed *= 1.35;
 
     const v = this.vel;
     if (this.flying) {
@@ -282,7 +283,7 @@ class Player {
       v[1] -= GRAVITY * dt;
       if (v[1] < -58) v[1] = -58;
       if (jump && this.onGround) {
-        v[1] = JUMP_V;
+        v[1] = JUMP_V * (typeof hasEffect === 'function' && hasEffect('jump') ? 1.27 : 1);
         this.jumped = true;
         if (this.sprinting) { v[0] += wx * 1.2; v[2] += wz * 1.2; }
       }

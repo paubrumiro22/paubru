@@ -97,6 +97,7 @@ const UI = {
     const id = s ? s.id : 0;
     if (el._id !== id) { i.style.backgroundImage = id ? `url(${iconURL(id)})` : ''; el._id = id; }
     cnt.textContent = s && s.count > 1 ? s.count : '';
+    el.classList.toggle('ench', !!(s && s.ench));
     const md = s ? maxDur(s.id) : 0;
     if (md && s.dmg > 0) {
       const f = 1 - s.dmg / md;
@@ -199,6 +200,15 @@ const UI = {
     $('lavaOverlay').classList.toggle('on', p.eyeInLava);
     const sl = G.sleeping ? Math.min(1, G.sleeping.t / 1.4) * (G.sleeping.t > 2.2 ? Math.max(0, 1 - (G.sleeping.t - 2.2) / 0.4) : 1) : 0;
     $('sleepOverlay').style.opacity = sl.toFixed(3);
+    this.updateEffects();
+    if (this.screen && this.screen.kind === 'brew') {
+      this.brewT = (this.brewT || 0) + dt;
+      if (this.brewT > 0.1 && this.brewBar) {
+        this.brewT = 0;
+        const be = G.world.blockEntities.get(this.screen.key);
+        this.brewBar.style.width = Math.round(((be && be.t) || 0) / BREW_TIME * 100) + '%';
+      }
+    }
     if (this.screen && this.screen.kind === 'furnace') {
       this.furnaceT = (this.furnaceT || 0) + dt;
       if (this.furnaceT > 0.1) { this.furnaceT = 0; this.updateFurnaceBars(); }
@@ -230,6 +240,10 @@ const UI = {
     sfx('villager_say', m.pos, 1, 1);
     this.open({ kind: 'trade', mob: m });
   },
+  openBrewing(x, y, z) {
+    blockEntity(x, y, z, 'brew');
+    this.open({ kind: 'brew', key: posKey(x, y, z), pos: [x, y, z] });
+  },
   openInventory() { this.open(G.mode === 'creative' ? { kind: 'creative' } : { kind: 'inventory' }); },
   openCrafting() { this.open({ kind: 'crafting' }); },
   openFurnace(x, y, z) { blockEntity(x, y, z, 'furnace'); this.open({ kind: 'furnace', key: posKey(x, y, z), pos: [x, y, z] }); },
@@ -243,6 +257,7 @@ const UI = {
   closeScreen(silent) {
     if (!this.screen) return;
     const s = this.screen;
+    if (s.kind === 'enchant' && s.slots) for (const st of s.slots) if (st) this.giveBack(st);
     if (s.mob) s.mob.trading = false;
     if (s.kind === 'chest') sfx('chest_close', [s.pos[0] + 0.5, s.pos[1] + 0.5, s.pos[2] + 0.5], 1, 1);
     for (const grid of [this.craft2, this.craft3]) {
@@ -261,11 +276,11 @@ const UI = {
 
   giveBack(s) {
     const left = G.inv.add(s);
-    if (left > 0) this.dropStack({ id: s.id, count: left, dmg: s.dmg }, left);
+    if (left > 0) this.dropStack(withCount(s, left), left);
   },
   dropStack(s, n) {
     const p = G.player, e = p.eyePos(), d = p.lookDir();
-    Ents.spawnItem({ id: s.id, count: n, dmg: s.dmg }, e[0] + d[0] * 0.4, e[1] - 0.3, e[2] + d[2] * 0.4, [d[0] * 4, 2, d[2] * 4], 1.5);
+    Ents.spawnItem(withCount(s, n), e[0] + d[0] * 0.4, e[1] - 0.3, e[2] + d[2] * 0.4, [d[0] * 4, 2, d[2] * 4], 1.5);
     if (s === this.cursor) { s.count -= n; if (s.count <= 0) this.cursor = null; }
   },
   dropCursor() { if (this.cursor) { this.dropStack(this.cursor, this.cursor.count); this.cursor = null; } },
@@ -307,6 +322,8 @@ const UI = {
       else if (s.kind === 'chest') this.renderChestTop(top);
       else if (s.kind === 'arch') this.renderArchTop(top);
       else if (s.kind === 'trade') this.renderTradeTop(top);
+      else if (s.kind === 'enchant') this.renderEnchantTop(top);
+      else if (s.kind === 'brew') this.renderBrewTop(top);
       root.append(this.label('Inventory'));
       root.append(this.grid(main, 9, 'main'));
       const hb = this.grid(hot, 9, 'hotbar');
@@ -365,6 +382,8 @@ const UI = {
     if (d && d.food) html += `<span>Restores ${d.food[0] / 2} hunger</span>`;
     if (d && d.damage && d.tool) html += `<span>${d.damage} attack damage</span>`;
     if (d && d.armor) html += `<span>+${d.armor.pts} armour</span>`;
+    if (s.ench) html += `<span class="enchl">${enchText(s)}</span>`;
+    if (d && d.potion) html += `<span>${d.potion.time ? Math.round(d.potion.time / 6) / 10 + ' min' : 'Instant'} · hold right-click to drink</span>`;
     if (maxDur(s.id)) html += `<span>Durability ${maxDur(s.id) - (s.dmg || 0)} / ${maxDur(s.id)}</span>`;
     if (ref.recipe) html += `<span class="ing">${this.recipeText(ref.recipe)}</span>` + (ref.recipeNote ? `<span class="warn">${ref.recipeNote}</span>` : '');
     this.tipEl.innerHTML = html;
@@ -629,6 +648,131 @@ const UI = {
     this.render();
   },
 
+  // ---- potion effects on the HUD ----
+  updateEffects() {
+    const el = $('effects');
+    const eff = G.stats.effects || {};
+    const keys = Object.keys(eff);
+    const sig = keys.map((k) => k + Math.ceil(eff[k])).join(',');
+    if (sig === this.effSig) return;
+    this.effSig = sig;
+    el.innerHTML = '';
+    for (const k of keys) {
+      const p = POTIONS.find((q) => q.key === k);
+      const d = document.createElement('div');
+      const t = Math.ceil(eff[k]);
+      d.style.setProperty('--c', 'rgb(' + (p ? p.color.join(',') : '200,200,200') + ')');
+      d.textContent = (EFFECT_ICONS[k] || '•') + ' ' + (p ? p.name : k) + ' ' + Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+      el.append(d);
+    }
+  },
+
+  // ---- enchanting table ----
+  renderEnchantTop(top) {
+    const s = this.screen;
+    if (!s.slots) s.slots = [null, null];
+    const box = document.createElement('div');
+    box.className = 'enchbox';
+    box.append(this.label('Enchanting Table'));
+    const itemRef = this.arrSlot(s.slots, 0, 'eitem', (st) => !!enchKind(st.id) && st.id !== I.ENCHANTED_BOOK);
+    itemRef.max = 1;
+    const bookRef = this.arrSlot(s.slots, 1, 'ebook', (st) => st.id === I.ENCHANTED_BOOK || st.id === I.EMERALD);
+    this.sections.eitem = [itemRef]; this.sections.ebook = [bookRef];
+    const row = document.createElement('div');
+    row.className = 'enchrow';
+    const col = document.createElement('div');
+    col.className = 'enchcol';
+    col.append(this.slotEl(itemRef), this.slotEl(bookRef));
+    const offers = document.createElement('div');
+    offers.className = 'enchoffers';
+    const [x, y, z] = s.pos;
+    const shelves = countShelves(x, y, z);
+    const it = s.slots[0], second = s.slots[1];
+    const creative = G.mode === 'creative';
+    const emeralds = creative ? Infinity : G.inv.count(I.EMERALD) + (second && second.id === I.EMERALD ? second.count : 0);
+    const hint = document.createElement('p');
+    hint.className = 'archhint';
+    if (!it) hint.textContent = 'Put a tool, weapon, bow, piece of armour or a book in the top slot. Emeralds pay for it; bookshelves around the table (up to 15, one block away) make the offers stronger. An enchanted book in the lower slot applies its enchantment.';
+    else if (second && second.id === I.ENCHANTED_BOOK && second.ench) {
+      const b = document.createElement('button');
+      b.className = 'primary';
+      const ok = it.id !== I.BOOK && Object.keys(second.ench).every((k) => ENCHANTS[k].on.includes(enchKind(it.id)));
+      b.textContent = ok ? 'Apply ' + enchText(second) : 'This book does not fit this item';
+      b.disabled = !ok;
+      b.addEventListener('click', () => {
+        const e = Object.assign({}, it.ench || {});
+        for (const [k, l] of Object.entries(second.ench)) e[k] = e[k] === l ? Math.min(ENCHANTS[k].max, l + 1) : Math.max(e[k] || 0, l);
+        it.ench = e;
+        s.slots[1] = null;
+        sfx('chime', null, 0.8, 1.5);
+        Particles.crit(x + 0.5, y + 1.2, z + 0.5, 14);
+        this.invDirty(); this.render();
+      });
+      offers.append(b);
+    } else {
+      G.enchSeed = G.enchSeed || ((Math.random() * 1e9) | 0);
+      const list = enchantOffers(it.id, shelves, G.enchSeed);
+      if (!list.length) hint.textContent = 'This item cannot be enchanted.';
+      list.forEach((o) => {
+        const b = document.createElement('button');
+        b.className = 'enchoffer';
+        b.innerHTML = `<span>${enchText({ ench: o.ench })}</span><b>${o.cost} <i style="background-image:url(${iconURL(I.EMERALD)})"></i></b>`;
+        b.disabled = emeralds < o.cost;
+        b.title = creative ? 'Free in creative mode' : o.cost + ' emeralds';
+        b.addEventListener('click', () => {
+          if (!creative) {
+            let need = o.cost;
+            if (second && second.id === I.EMERALD) { const k = Math.min(need, second.count); second.count -= k; need -= k; if (second.count <= 0) s.slots[1] = null; }
+            if (need > 0) G.inv.remove(I.EMERALD, need);
+          }
+          if (it.id === I.BOOK) { s.slots[0] = mkStack(I.ENCHANTED_BOOK, 1); s.slots[0].ench = Object.assign({}, o.ench); }
+          else it.ench = Object.assign({}, it.ench || {}, o.ench);
+          G.enchSeed = (Math.imul(G.enchSeed, 1103515245) + 12345) | 0;   // new offers next time
+          sfx('chime', null, 0.8, 1.3);
+          Particles.crit(x + 0.5, y + 1.2, z + 0.5, 14);
+          this.invDirty(); this.render();
+        });
+        offers.append(b);
+      });
+    }
+    row.append(col, offers);
+    box.append(row);
+    const shelf = document.createElement('p');
+    shelf.className = 'archhint';
+    shelf.textContent = 'Bookshelves around the table: ' + shelves + ' / 15';
+    box.append(hint, shelf);
+    top.append(box);
+  },
+
+  // ---- brewing stand ----
+  renderBrewTop(top) {
+    const be = G.world.blockEntities.get(this.screen.key);
+    if (!be) return;
+    const box = document.createElement('div');
+    box.className = 'brewbox';
+    box.append(this.label('Brewing Stand'));
+    const bottle = (i) => { const r = this.arrSlot(be.slots, i, 'bottles', (s) => s.id === I.WATER_BOTTLE || !!(ITEM_DEF[s.id] && ITEM_DEF[s.id].potion)); r.max = 1; return r; };
+    const refs = [bottle(0), bottle(1), bottle(2)];
+    const ing = this.arrSlot(be.slots, 3, 'bing', (s) => !!POTION_BY_INGREDIENT[s.id]);
+    this.sections.bottles = refs; this.sections.bing = [ing];
+    const lay = document.createElement('div');
+    lay.className = 'brew';
+    const bar = document.createElement('div');
+    bar.className = 'arrow progress brewbar';
+    bar.innerHTML = '<div></div>';
+    this.brewBar = bar.firstChild;
+    const bots = document.createElement('div');
+    bots.className = 'brewbottles';
+    for (const r of refs) bots.append(this.slotEl(r));
+    lay.append(this.slotEl(ing), bar, bots);
+    box.append(lay);
+    const p = document.createElement('p');
+    p.className = 'archhint';
+    p.innerHTML = 'Fill glass bottles at any water, then add an ingredient: ' + POTIONS.map((q) => '<b>' + itemName(q.from) + '</b> → ' + q.name).join(' · ');
+    box.append(p);
+    top.append(box);
+  },
+
   // ---- trading with a villager ----
   renderTradeTop(top) {
     const m = this.screen.mob;
@@ -662,8 +806,10 @@ const UI = {
     do {
       if (!creative && G.inv.count(give[0]) < give[1]) break;
       if (!creative) G.inv.remove(give[0], give[1]);
-      const left = G.inv.add(mkStack(get[0], get[1]));
-      if (left > 0) this.giveBack(mkStack(get[0], left));
+      const got = mkStack(get[0], get[1]);
+      if (get[0] === I.ENCHANTED_BOOK) got.ench = randomBookEnch(Math.random);
+      const left = G.inv.add(got);
+      if (left > 0) this.giveBack(withCount(got, left));
       n++;
     } while (many && n < 16);
     sfx(n ? 'villager_yes' : 'villager_no', m.pos, 1, 1);
@@ -781,7 +927,7 @@ const UI = {
       if (!s) return;
       if (btn === 2) {
         const half = Math.ceil(s.count / 2);
-        this.cursor = { id: s.id, count: half, dmg: s.dmg };
+        this.cursor = withCount(s, half);
         s.count -= half;
         ref.set(s.count > 0 ? s : null);
       } else { this.cursor = s; ref.set(null); }
@@ -822,7 +968,7 @@ const UI = {
       const have = s ? s.count : 0;
       const n = Math.min(per, c.count, max - have);
       if (n <= 0) continue;
-      ref.set(s ? (s.count += n, s) : { id: c.id, count: n, dmg: c.dmg });
+      ref.set(s ? (s.count += n, s) : withCount(c, n));
       c.count -= n;
     }
     if (c.count <= 0) this.cursor = null;
@@ -838,7 +984,7 @@ const UI = {
     const max = Math.min(ref.max || 64, maxStack(c.id));
     if (!s) {
       const n = btn === 2 ? 1 : Math.min(c.count, max);
-      ref.set({ id: c.id, count: n, dmg: c.dmg });
+      ref.set(withCount(c, n));
       c.count -= n;
     } else if (sameItem(s, c)) {
       const n = Math.min(btn === 2 ? 1 : c.count, max - s.count);
@@ -901,6 +1047,8 @@ const UI = {
     if (sec === 'hotbar' || sec === 'main') {
       if (kind === 'chest') targets = [S.chest];
       else if (kind === 'furnace') targets = SMELT[s.id] !== undefined ? [S.fin] : d && d.fuel ? [S.ffuel] : [];
+      else if (kind === 'brew') targets = s.id === I.WATER_BOTTLE ? [S.bottles] : POTION_BY_INGREDIENT[s.id] ? [S.bing] : [];
+      else if (kind === 'enchant') targets = enchKind(s.id) && s.id !== I.ENCHANTED_BOOK ? [S.eitem] : s.id === I.ENCHANTED_BOOK || s.id === I.EMERALD ? [S.ebook] : [];
       if (d && d.armor && (kind === 'inventory' || kind === 'creative')) {
         const i = d.armor.slot;
         if (!G.inv.armor[i]) { G.inv.armor[i] = s; ref.set(null); this.after(ref); return; }
@@ -922,7 +1070,7 @@ const UI = {
         if (left <= 0) break;
         if (!t.get() && t.accept(s)) {
           const n = Math.min(left, Math.min(t.max || 64, maxStack(s.id)));
-          t.set({ id: s.id, count: n, dmg: s.dmg }); left -= n;
+          t.set(withCount(s, n)); left -= n;
         }
       }
     }
@@ -965,7 +1113,7 @@ const UI = {
       const s = ref.get();
       if (!s) return true;
       const n = e.ctrlKey ? s.count : 1;
-      this.dropStack({ id: s.id, count: n, dmg: s.dmg }, n);
+      this.dropStack(withCount(s, n), n);
       s.count -= n;
       ref.set(s.count > 0 ? s : null);
       this.after(ref);

@@ -40,6 +40,8 @@ defBlock(B.BARREL, 'Barrel', RT_CUBE, { top: 'barrel_top', bottom: 'barrel_top',
 defBlock(B.ARCH_TABLE, "Architect's Table", RT_CUBE, { top: 'arch_table_top', bottom: 'planks', side: 'arch_table_side' }, with_(WOOD, { hard: 2.5, cat: 'functional' }));
 defBlock(B.COBWEB, 'Cobweb', RT_CROSS, 'cobweb', { atten: 1, hard: 4, tool: TOOL_SWORD, snd: SND.WOOL, flags: FLAG_TRANSLUCENT, solid: false, cat: 'nature' });
 defBlock(B.EMERALD_ORE, 'Emerald Ore', RT_CUBE, 'emerald_ore', with_(ROCK, { hard: 3, tier: 3, cat: 'nature' }));
+defBlock(B.ENCHANT_TABLE, 'Enchanting Table', RT_CUBE, { top: 'enchant_top', bottom: 'obsidian', side: 'enchant_side' }, with_(ROCK, { hard: 5, tier: 1, emit: 7, cat: 'functional' }));
+defBlock(B.BREWING_STAND, 'Brewing Stand', RT_CROSS, 'brewing_stand', { atten: 0, hard: 0.5, tool: TOOL_PICK, snd: SND.METAL, emit: 1, flags: FLAG_TRANSLUCENT, support: SUP_FLOOR, solid: false, cat: 'functional' });
 defBlock(B.SOLAR_PANEL, 'Solar Panel', RT_CUBE, { top: 'solar_panel', bottom: 'smooth_stone', side: 'smooth_stone' }, with_(ROCK, { hard: 1.5, snd: SND.GLASS, cat: 'architecture' }));
 defBlock(B.EMERALD_BLOCK, 'Block of Emerald', RT_CUBE, 'emerald_block', with_(ROCK, { hard: 5, tier: 3, snd: SND.METAL }));
 

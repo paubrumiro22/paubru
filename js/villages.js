@@ -21,7 +21,9 @@ function rollLoot(kind, seed) {
   const out = [];
   for (const [id, a, b, p] of table) {
     if (!ITEM_DEF[id] || rng() > p) continue;
-    out.push(mkStack(id, Math.min(maxStack(id), a + Math.floor(rng() * (b - a + 1)))));
+    const s = mkStack(id, Math.min(maxStack(id), a + Math.floor(rng() * (b - a + 1))));
+    if (id === I.ENCHANTED_BOOK) s.ench = randomBookEnch(rng);
+    out.push(s);
   }
   if (!out.length) out.push(mkStack(I.BREAD, 1));
   return out;

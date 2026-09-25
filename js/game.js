@@ -192,7 +192,7 @@ function cleanupBlockEntity(x, y, z, old, id) {
   const k = posKey(x, y, z);
   const be = G.world.blockEntities.get(k);
   if (!be) return;
-  const keep = (be.type === 'furnace' && (id === B.FURNACE || id === B.FURNACE_LIT)) || (be.type === 'chest' && (id === B.CHEST || id === B.BARREL));
+  const keep = (be.type === 'furnace' && (id === B.FURNACE || id === B.FURNACE_LIT)) || (be.type === 'chest' && (id === B.CHEST || id === B.BARREL)) || (be.type === 'brew' && id === B.BREWING_STAND);
   if (keep) return;
   for (const s of be.slots || []) if (s && s.id) Ents.spawnItem(cloneStack(s), x + 0.5, y + 0.5, z + 0.5);
   G.world.blockEntities.delete(k);
@@ -203,7 +203,7 @@ function blockEntity(x, y, z, type) {
   const k = posKey(x, y, z);
   let be = G.world.blockEntities.get(k);
   if (!be || be.type !== type) {
-    be = type === 'chest' ? { type, slots: new Array(27).fill(null) } : { type, slots: [null, null, null], burn: 0, burnMax: 0, cook: 0 };
+    be = type === 'chest' ? { type, slots: new Array(27).fill(null) } : type === 'brew' ? { type, slots: [null, null, null, null], t: 0 } : { type, slots: [null, null, null], burn: 0, burnMax: 0, cook: 0 };
     G.world.blockEntities.set(k, be);
   }
   return be;
@@ -286,7 +286,10 @@ function destroyBlock(x, y, z, opts = {}) {
   let fill = B.AIR;   // liquid next to the hole flows in (fluids.js)
   if (id === B.ICE && G.mode === 'survival') fill = B.WATER;
   if (opts.drops) {
-    for (const [it, n] of blockDrops(id, opts.tool || 0, Math.random)) {
+    // Fortune: ores that drop items (coal, diamond, emerald...) can drop several
+    const lucky = opts.fortune && [B.COAL_ORE, B.DIAMOND_ORE, B.EMERALD_ORE, B.GLOWSTONE, B.GRAVEL].includes(id);
+    for (const [it, n0] of blockDrops(id, opts.tool || 0, Math.random)) {
+      const n = lucky && !isValidBlock(it) ? n0 * (1 + Math.floor(Math.random() * (opts.fortune + 1))) : n0;
       Ents.spawnItem({ id: it, count: n }, x + 0.5, y + 0.4, z + 0.5);
     }
   }

@@ -16,6 +16,7 @@ class Stats {
     this.fire = 0; this.fireT = 0; this.lavaT = 0; this.cactusT = 0; this.voidT = 0; this.drownT = 0;
     this.regenT = 0; this.starveT = 0; this.invuln = 0; this.lastHurt = 0; this.regenEffect = 0; this.regenEffectT = 0;
     this.dead = false; this.deathMsg = ''; this.hurtFlash = 0; this.hurtTilt = 0; this.healFlash = 0;
+    this.effects = {};   // potion effects: key -> seconds left
   }
 
   get creative() { return G.mode !== 'survival'; }
@@ -27,6 +28,7 @@ class Stats {
     this.hurtTilt *= Math.exp(-dt * 6);
     this.healFlash = Math.max(0, this.healFlash - dt * 3);
     this.invuln -= dt;
+    for (const k of Object.keys(this.effects)) { this.effects[k] -= dt; if (this.effects[k] <= 0) delete this.effects[k]; }
     if (this.dead) return;
     if (this.creative) {
       this.health = 20; this.food = 20; this.air = 10; this.fire = 0; p.landed = 0;
@@ -38,7 +40,8 @@ class Stats {
     if (p.landed > 0) {
       const d = Math.floor(p.landed - 3);
       const soft = w.getBlock(Math.floor(p.pos[0]), Math.floor(p.pos[1] - 0.2), Math.floor(p.pos[2])) === B.HAY_BALE;
-      if (d > 0) this.damage(soft ? Math.floor(d * 0.2) : d, { type: 'fall' });
+      const ff = armorEnch('feather_falling');
+      if (d > 0) this.damage(Math.round((soft ? Math.floor(d * 0.2) : d) * (1 - 0.12 * ff)), { type: 'fall' });
       if (p.landed > 1.5) sfx('land', p.pos, Math.min(1, p.landed / 8), 1);
       p.landed = 0;
     }
@@ -53,7 +56,7 @@ class Stats {
     }
     // air
     if (p.eyeInWater) {
-      this.air -= dt / 1.5;
+      if (!hasEffect('water_breathing')) this.air -= dt / (1.5 * (1 + armorEnch('respiration')));
       if (this.air < 0) {
         this.air = 0;
         this.drownT += dt;
@@ -128,6 +131,7 @@ class Stats {
   damage(amount, src = {}) {
     if (this.dead || this.creative || amount <= 0) return 0;
     if (G.difficulty === 0 && (src.type === 'mob' || src.type === 'arrow')) return 0;
+    if (hasEffect('fire_res') && (src.type === 'lava' || src.type === 'fire')) return 0;
     if (this.invuln > 0) {
       if (amount <= this.lastHurt) return 0;
       const extra = amount - this.lastHurt;
@@ -138,6 +142,8 @@ class Stats {
       const pts = G.inv.armorPoints();
       if (pts > 0) { amount *= 1 - Math.min(0.8, pts * 0.04); G.inv.damageArmor(amount); G.ui && G.ui.invDirty(); }
     }
+    const prot = src.bypass ? 0 : armorEnch('protection');
+    if (prot) amount *= 1 - Math.min(0.64, prot * 0.04);
     const dmg = Math.max(0.5, Math.round(amount * 2) / 2);
     this.health = Math.max(0, this.health - dmg);
     this.addExhaustion(0.1);
@@ -182,7 +188,7 @@ class Stats {
   }
 
   serialize() {
-    return { health: this.health, food: this.food, sat: this.sat, exh: this.exh, air: this.air, dead: this.dead };
+    return { health: this.health, food: this.food, sat: this.sat, exh: this.exh, air: this.air, dead: this.dead, effects: this.effects };
   }
 
   load(o) {
@@ -192,5 +198,6 @@ class Stats {
     this.health = num(o.health, 0, 20, 20); this.food = num(o.food, 0, 20, 20); this.sat = num(o.sat, 0, 20, 5);
     this.exh = num(o.exh, 0, 4, 0); this.air = num(o.air, 0, 10, 10);
     if (this.health <= 0) this.health = 20;
+    if (o.effects && typeof o.effects === 'object') for (const [k, t] of Object.entries(o.effects)) if (EFFECT_ICONS[k] && Number.isFinite(t) && t > 0) this.effects[k] = Math.min(t, 600);
   }
 }

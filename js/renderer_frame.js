@@ -108,7 +108,8 @@ Object.assign(Renderer.prototype, {
     const dawn = Math.exp(-Math.pow((sunDir[1] - 0.05) / 0.18, 2));
     const fogDensity = (0.0021 + 0.0032 * dawn) * (1 + 2.2 * weather) + 0.0016 * weather;
     const dayF = smoothstep(-0.12, 0.2, sunDir[1]);
-    const target = lerp(2.4, 0.6, dayF) * (1 + 2.4 * (1 - eyeSky));
+    let target = lerp(2.4, 0.6, dayF) * (1 + 2.4 * (1 - eyeSky));
+    if (this.nightVision) target *= 1 + 3 * Math.max(night, 1 - eyeSky);   // potion of night vision
     this.exposure += (target - this.exposure) * (1 - Math.exp(-dt * 1.6));
 
     this.atmo = {

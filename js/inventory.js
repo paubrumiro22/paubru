@@ -2,8 +2,18 @@
 // Player inventory (36 slots + armour) and stack helpers. Slots 0-8 are the hotbar.
 
 function mkStack(id, count = 1, dmg = 0) { return { id, count, dmg }; }
-function cloneStack(s) { return s ? { id: s.id, count: s.count, dmg: s.dmg || 0 } : null; }
-function sameItem(a, b) { return !!a && !!b && a.id === b.id && (a.dmg || 0) === (b.dmg || 0); }
+function cloneStack(s) {
+  if (!s) return null;
+  const c = { id: s.id, count: s.count, dmg: s.dmg || 0 };
+  if (s.ench) c.ench = Object.assign({}, s.ench);
+  return c;
+}
+function sameItem(a, b) {
+  return !!a && !!b && a.id === b.id && (a.dmg || 0) === (b.dmg || 0) && JSON.stringify(a.ench || null) === JSON.stringify(b.ench || null);
+}
+function withCount(s, n) { const c = cloneStack(s); c.count = n; return c; }
+// Unbreaking: each level adds a chance that wear is skipped.
+function wearSkipped(s) { const u = s && s.ench && s.ench.unbreaking; return !!u && Math.random() > 1 / (u + 1); }
 
 class Inventory {
   constructor() {
@@ -33,6 +43,7 @@ class Inventory {
       if (left > 0 && !this.slots[i]) {
         const n = Math.min(max, left);
         this.slots[i] = mkStack(stack.id, n, stack.dmg || 0);
+        if (stack.ench) this.slots[i].ench = Object.assign({}, stack.ench);
         left -= n;
       }
     }
@@ -70,6 +81,7 @@ class Inventory {
   damageHeld(amount = 1) {
     const s = this.held;
     if (!s || !maxDur(s.id)) return false;
+    if (wearSkipped(s)) return false;
     s.dmg = (s.dmg || 0) + amount;
     if (s.dmg >= maxDur(s.id)) { this.held = null; return true; }
     return false;
@@ -84,7 +96,7 @@ class Inventory {
   damageArmor(amount) {
     for (let i = 0; i < 4; i++) {
       const a = this.armor[i];
-      if (!a) continue;
+      if (!a || wearSkipped(a)) continue;
       a.dmg = (a.dmg || 0) + Math.max(1, Math.floor(amount / 4));
       if (a.dmg >= maxDur(a.id)) { this.armor[i] = null; sfx('tool_break', null, 0.8, 1); }
     }
@@ -93,14 +105,20 @@ class Inventory {
   clear() { this.slots.fill(null); this.armor.fill(null); }
 
   serialize() {
-    const enc = (s) => (s ? [s.id, s.count, s.dmg || 0] : 0);
+    const enc = (s) => (s ? (s.ench ? [s.id, s.count, s.dmg || 0, s.ench] : [s.id, s.count, s.dmg || 0]) : 0);
     return { slots: this.slots.map(enc), armor: this.armor.map(enc), selected: this.selected };
   }
 
   load(o) {
     this.clear();
     if (!o || typeof o !== 'object') return;
-    const dec = (a) => (Array.isArray(a) && isItem(a[0]) && a[1] > 0 ? mkStack(a[0], Math.min(a[1] | 0, maxStack(a[0])), a[2] | 0) : null);
+    const dec = (a) => {
+      if (!Array.isArray(a) || !isItem(a[0]) || !(a[1] > 0)) return null;
+      const s = mkStack(a[0], Math.min(a[1] | 0, maxStack(a[0])), a[2] | 0);
+      const e = validEnch(a[3]);
+      if (e) s.ench = e;
+      return s;
+    };
     if (Array.isArray(o.slots)) for (let i = 0; i < 36 && i < o.slots.length; i++) this.slots[i] = dec(o.slots[i]);
     if (Array.isArray(o.armor)) for (let i = 0; i < 4 && i < o.armor.length; i++) this.armor[i] = dec(o.armor[i]);
     if (Number.isInteger(o.selected)) this.selected = clamp(o.selected, 0, 8);

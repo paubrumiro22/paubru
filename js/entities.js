@@ -69,7 +69,7 @@ class Mob {
     if (!src.noDrops && (src.player || src.fire || src.explosion || src.env)) {
       for (const [id, a, b] of this.def.drops) {
         let n = a + Math.floor(Math.random() * (b - a + 1));
-        if (src.looting) n += Math.floor(Math.random() * 2);
+        if (src.looting) n += Math.floor(Math.random() * (src.looting + 1));
         const out = this.fire > 0 && this.def.cooked && this.def.cooked[id] ? this.def.cooked[id] : id;
         if (n > 0) Ents.spawnItem({ id: out, count: n }, this.pos[0], this.pos[1] + 0.5, this.pos[2]);
       }
@@ -327,6 +327,7 @@ class Mob {
 class ItemEntity {
   constructor(stack, x, y, z) {
     this.stack = { id: stack.id, count: stack.count || 1, dmg: stack.dmg || 0 };
+    if (stack.ench) this.stack.ench = Object.assign({}, stack.ench);
     this.pos = [x, y, z];
     this.vel = [rand(-1.2, 1.2), rand(2, 4), rand(-1.2, 1.2)];
     this.hw = 0.125; this.h = 0.25;
@@ -712,7 +713,7 @@ const Ents = {
         if (a.removed || a.collecting > 0 || maxStack(a.stack.id) === 1) continue;
         for (let j = i + 1; j < I2.length; j++) {
           const b = I2[j];
-          if (b.removed || b.collecting > 0 || b.stack.id !== a.stack.id || b.stack.dmg !== a.stack.dmg) continue;
+          if (b.removed || b.collecting > 0 || !sameItem(a.stack, b.stack)) continue;
           if (Math.abs(a.pos[0] - b.pos[0]) < 0.8 && Math.abs(a.pos[1] - b.pos[1]) < 0.6 && Math.abs(a.pos[2] - b.pos[2]) < 0.8) {
             const room = maxStack(a.stack.id) - a.stack.count;
             const n = Math.min(room, b.stack.count);

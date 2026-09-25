@@ -187,6 +187,21 @@
   .wm-sel { position: absolute; left: 12px; bottom: 56px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; max-width: min(560px, calc(100vw - 24px)); padding: 8px 12px; border-radius: 12px; background: var(--glass-strong); border: 1px solid var(--line); }
   .wm-info { font-size: 13px; margin-right: 6px; }
   .wm-name { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: 8px; padding: 14px; border-radius: 12px; background: var(--glass-strong); border: 1px solid var(--line); }
+  #effects { position: absolute; left: 12px; top: 12px; display: flex; flex-direction: column; gap: 4px; font: 600 12px var(--body); }
+  #effects div { background: rgba(0, 0, 0, 0.5); padding: 3px 9px; border-radius: 7px; border-left: 3px solid var(--c); }
+  .slot.ench i { animation: glint 2.6s linear infinite; }
+  @keyframes glint { 0%, 100% { filter: drop-shadow(0 0 2px rgba(190, 120, 255, 0.9)) brightness(1.05); } 50% { filter: drop-shadow(0 0 6px rgba(190, 120, 255, 1)) brightness(1.3) saturate(1.3); } }
+  .enchl { color: #c9a4ff; }
+  .enchbox, .brewbox { display: flex; flex-direction: column; gap: 10px; max-width: 520px; }
+  .enchrow { display: flex; gap: 14px; align-items: flex-start; }
+  .enchcol { display: flex; flex-direction: column; gap: 8px; }
+  .enchoffers { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .enchoffer { display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; background: rgba(120, 60, 200, 0.18); border-color: rgba(170, 120, 255, 0.45); }
+  .enchoffer b { display: flex; align-items: center; gap: 4px; }
+  .enchoffer i { width: 18px; height: 18px; background-size: contain; image-rendering: pixelated; }
+  .brew { display: flex; align-items: center; gap: 14px; }
+  .brewbottles { display: flex; gap: 6px; }
+  .brewbar { width: 60px; }
   .autoq { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
   #autoQualityMsg { color: var(--muted); font-size: 13px; }
   .upgrade { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(242, 185, 75, 0.1); border: 1px solid rgba(242, 185, 75, 0.4); font-size: 13px; }
@@ -391,6 +406,7 @@
   <div id="nametags"></div>
   <div id="chatLog"></div>
   <div id="playerList"></div>
+  <div id="effects"></div>
   <canvas id="minimap" class="hidden" width="176" height="176"></canvas>
   <div id="mapCoords" class="hidden"></div>
 </div>
@@ -1203,6 +1219,8 @@ defBlock(B.BARREL, 'Barrel', RT_CUBE, { top: 'barrel_top', bottom: 'barrel_top',
 defBlock(B.ARCH_TABLE, "Architect's Table", RT_CUBE, { top: 'arch_table_top', bottom: 'planks', side: 'arch_table_side' }, with_(WOOD, { hard: 2.5, cat: 'functional' }));
 defBlock(B.COBWEB, 'Cobweb', RT_CROSS, 'cobweb', { atten: 1, hard: 4, tool: TOOL_SWORD, snd: SND.WOOL, flags: FLAG_TRANSLUCENT, solid: false, cat: 'nature' });
 defBlock(B.EMERALD_ORE, 'Emerald Ore', RT_CUBE, 'emerald_ore', with_(ROCK, { hard: 3, tier: 3, cat: 'nature' }));
+defBlock(B.ENCHANT_TABLE, 'Enchanting Table', RT_CUBE, { top: 'enchant_top', bottom: 'obsidian', side: 'enchant_side' }, with_(ROCK, { hard: 5, tier: 1, emit: 7, cat: 'functional' }));
+defBlock(B.BREWING_STAND, 'Brewing Stand', RT_CROSS, 'brewing_stand', { atten: 0, hard: 0.5, tool: TOOL_PICK, snd: SND.METAL, emit: 1, flags: FLAG_TRANSLUCENT, support: SUP_FLOOR, solid: false, cat: 'functional' });
 defBlock(B.SOLAR_PANEL, 'Solar Panel', RT_CUBE, { top: 'solar_panel', bottom: 'smooth_stone', side: 'smooth_stone' }, with_(ROCK, { hard: 1.5, snd: SND.GLASS, cat: 'architecture' }));
 defBlock(B.EMERALD_BLOCK, 'Block of Emerald', RT_CUBE, 'emerald_block', with_(ROCK, { hard: 5, tier: 3, snd: SND.METAL }));
 
@@ -3757,6 +3775,199 @@ gen('deck', (d, rng) => {
 gen('deck_side', (d, rng) => {
   fillTile(d, (x, y) => put(d, x, y, y < 4 ? [170, 116, 72] : [150, 150, 146], (y < 4 ? 0.9 : 0.85) + rng() * 0.08));
 }, { smooth: 0.3, bump: 0.6 });
+</script>
+<script>
+'use strict';
+// Enchantments and potions.
+// Enchantments live on item stacks as `ench` ({ key: level }). The Enchanting Table turns
+// emeralds into one of three offers (stronger with bookshelves around it), enchants books, and
+// applies enchanted books to tools, weapons and armour. Potions are brewed from water bottles on
+// a Brewing Stand; drinking one gives a timed effect (G.stats.effects), shown on the HUD.
+
+Object.assign(I, { GLASS_BOTTLE: 355, WATER_BOTTLE: 356, POTION0: 360 });
+
+const ENCHANTS = {
+  sharpness: { name: 'Sharpness', max: 5, on: ['sword', 'axe'] },
+  knockback: { name: 'Knockback', max: 2, on: ['sword'] },
+  fire_aspect: { name: 'Fire Aspect', max: 2, on: ['sword'] },
+  looting: { name: 'Looting', max: 3, on: ['sword'] },
+  efficiency: { name: 'Efficiency', max: 5, on: ['pickaxe', 'axe', 'shovel', 'hoe', 'shears'] },
+  fortune: { name: 'Fortune', max: 3, on: ['pickaxe', 'shovel'] },
+  power: { name: 'Power', max: 5, on: ['bow'] },
+  protection: { name: 'Protection', max: 4, on: ['helmet', 'chest', 'legs', 'boots'] },
+  feather_falling: { name: 'Feather Falling', max: 4, on: ['boots'] },
+  respiration: { name: 'Respiration', max: 3, on: ['helmet'] },
+  unbreaking: { name: 'Unbreaking', max: 3, on: ['sword', 'axe', 'pickaxe', 'shovel', 'hoe', 'shears', 'bow', 'helmet', 'chest', 'legs', 'boots'] },
+};
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
+
+// What kind of thing an item is for enchanting ('sword', 'boots', 'book'...), or null.
+function enchKind(id) {
+  const d = ITEM_DEF[id];
+  if (!d) return null;
+  if (id === I.BOOK || id === I.ENCHANTED_BOOK) return 'book';
+  if (id === I.BOW) return 'bow';
+  if (id === I.SHEARS) return 'shears';
+  if (d.toolKind) return d.toolKind;
+  if (d.armor) return ARMOR_SLOTS[d.armor.slot].key;
+  return null;
+}
+function enchLevel(stack, key) { return stack && stack.ench && stack.ench[key] ? stack.ench[key] : 0; }
+function heldEnch(key) { return enchLevel(G.inv.held, key); }
+function armorEnch(key) { let n = 0; for (const a of G.inv.armor) n += enchLevel(a, key); return n; }
+function enchText(stack) {
+  if (!stack || !stack.ench) return '';
+  return Object.entries(stack.ench).filter(([k]) => ENCHANTS[k]).map(([k, l]) => ENCHANTS[k].name + ' ' + ROMAN[l]).join(', ');
+}
+function validEnch(e) {
+  if (!e || typeof e !== 'object') return null;
+  const out = {};
+  for (const [k, l] of Object.entries(e)) if (ENCHANTS[k] && Number.isInteger(l) && l >= 1) out[k] = Math.min(l, ENCHANTS[k].max);
+  return Object.keys(out).length ? out : null;
+}
+function randomBookEnch(rng) {
+  const keys = Object.keys(ENCHANTS);
+  const k = keys[Math.floor(rng() * keys.length)];
+  return { [k]: 1 + Math.floor(rng() * ENCHANTS[k].max) };
+}
+
+// Three offers for an item at a table with `shelves` bookshelves around it.
+function enchantOffers(id, shelves, seed) {
+  const kind = enchKind(id);
+  if (!kind) return [];
+  const keys = Object.keys(ENCHANTS).filter((k) => kind === 'book' || ENCHANTS[k].on.includes(kind));
+  if (!keys.length) return [];
+  const rng = mulberry32((seed ^ Math.imul(id, 2654435761)) | 0);
+  const out = [];
+  for (let i = 0; i < 3; i++) {
+    const pool = keys.filter((q) => !out.some((o) => o.ench[q]));
+    const from = pool.length ? pool : keys;
+    const k = from[Math.floor(rng() * from.length)];
+    const max = ENCHANTS[k].max;
+    const lvl = clamp(Math.round((i + 1) / 3 * max * (0.45 + 0.55 * Math.min(1, shelves / 15)) + rng() * 0.6), 1, max);
+    const ench = { [k]: lvl };
+    // the top offer can bring a second enchantment with a well-stocked library
+    if (i === 2 && shelves >= 10 && keys.length > 1) {
+      const k2 = keys.filter((q) => q !== k)[Math.floor(rng() * (keys.length - 1))];
+      ench[k2] = clamp(Math.ceil(ENCHANTS[k2].max / 2), 1, ENCHANTS[k2].max);
+    }
+    out.push({ ench, cost: 1 + i * 2 + lvl * 2 + (Object.keys(ench).length > 1 ? 3 : 0) });
+  }
+  return out;
+}
+function countShelves(x, y, z) {
+  let n = 0;
+  for (let dy = 0; dy <= 1; dy++) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+    if (Math.max(Math.abs(dx), Math.abs(dz)) !== 2) continue;
+    if (G.world.getBlock(x + dx, y + dy, z + dz) === B.BOOKSHELF) n++;
+  }
+  return n;
+}
+
+// ---- potions ----
+const POTIONS = [
+  { key: 'healing', name: 'Healing', color: [236, 60, 70], from: I.MELON_SLICE, time: 0 },
+  { key: 'regeneration', name: 'Regeneration', color: [230, 110, 190], from: I.GOLD_INGOT, time: 45 },
+  { key: 'speed', name: 'Swiftness', color: [120, 200, 240], from: B.SUGAR_CANE, time: 180 },
+  { key: 'jump', name: 'Leaping', color: [110, 240, 110], from: I.FEATHER, time: 180 },
+  { key: 'strength', name: 'Strength', color: [170, 40, 40], from: I.IRON_INGOT, time: 180 },
+  { key: 'fire_res', name: 'Fire Resistance', color: [240, 150, 40], from: B.MAGMA, time: 180 },
+  { key: 'water_breathing', name: 'Water Breathing', color: [50, 90, 220], from: I.RAW_FISH, time: 180 },
+  { key: 'night_vision', name: 'Night Vision', color: [40, 60, 180], from: B.GLOWSTONE, time: 180 },
+];
+const EFFECT_ICONS = { regeneration: '\u2764', speed: '\u00bb', jump: '\u2912', strength: '\u2694', fire_res: '\ud83d\udd25', water_breathing: '\u2248', night_vision: '\ud83d\udc41' };
+const POTION_BY_INGREDIENT = {};
+
+defItem(I.GLASS_BOTTLE, 'Glass Bottle', { sprite: 'i_glass_bottle', stack: 16, cat: 'materials' });
+defItem(I.WATER_BOTTLE, 'Water Bottle', { sprite: 'i_water_bottle', stack: 1, cat: 'food' });
+POTIONS.forEach((p, i) => {
+  defItem(I.POTION0 + i, 'Potion of ' + p.name, { sprite: 'i_potion_' + p.key, stack: 1, cat: 'food', potion: p, returns: I.GLASS_BOTTLE });
+  POTION_BY_INGREDIENT[p.from] = I.POTION0 + i;
+});
+shaped(I.GLASS_BOTTLE, 3, ['G G', ' G '], { G: B.GLASS });
+shaped(B.ENCHANT_TABLE, 1, [' B ', 'DOD', 'OOO'], { B: I.BOOK, D: I.DIAMOND, O: B.OBSIDIAN });
+shaped(B.BREWING_STAND, 1, [' I ', 'CCC'], { I: I.IRON_INGOT, C: B.COBBLE });
+
+function drinkPotion(id) {
+  const p = ITEM_DEF[id] && ITEM_DEF[id].potion;
+  if (!p) return;
+  const st = G.stats;
+  if (p.key === 'healing') { st.heal(8); return; }
+  if (p.key === 'regeneration') { st.regenEffect = p.time; st.regenEffectT = 0; }
+  st.effects[p.key] = Math.max(st.effects[p.key] || 0, p.time);
+  G.ui.toast('Potion of ' + p.name + ' \u00b7 ' + Math.round(p.time / 60) + ' min');
+}
+function hasEffect(key) { return G.stats && G.stats.effects && G.stats.effects[key] > 0; }
+
+// ---- brewing ----
+const BREW_TIME = 12;
+const Brewing = {
+  update(dt) {
+    for (const [key, be] of G.world.blockEntities) {
+      if (be.type !== 'brew') continue;
+      const ing = be.slots[3];
+      const target = ing && POTION_BY_INGREDIENT[ing.id];
+      const bottles = [0, 1, 2].filter((i) => be.slots[i] && be.slots[i].id === I.WATER_BOTTLE);
+      if (!target || !bottles.length) { be.t = 0; continue; }
+      be.t = (be.t || 0) + dt;
+      if (be.t >= BREW_TIME) {
+        be.t = 0;
+        for (const i of bottles) be.slots[i] = mkStack(target, 1);
+        ing.count--;
+        if (ing.count <= 0) be.slots[3] = null;
+        if (G.ui) G.ui.containerChanged(key);
+      }
+    }
+  },
+};
+
+// ---- item sprites ----
+function drawBottle(d, liquid) {
+  sprRect(d, 14, 3, 18, 5, [150, 110, 70]);                      // cork
+  sprRect(d, 13, 5, 19, 11, [210, 230, 240]);                    // neck
+  sprEllipse(d, 16, 20, 9, 9, 0, [206, 228, 238]);               // glass
+  if (liquid) sprEllipse(d, 16, 21.5, 7.4, 7, 0, liquid, (x, y) => y >= 15);
+  sprRect(d, 11, 16, 13, 20, [245, 250, 255]);                   // shine
+}
+sprite('i_glass_bottle', (d) => drawBottle(d, null));
+sprite('i_water_bottle', (d) => drawBottle(d, [60, 110, 230]));
+POTIONS.forEach((p) => sprite('i_potion_' + p.key, (d, rng, ctx) => {
+  drawBottle(d, p.color);
+  for (let i = 0; i < 4; i++) { const x = 12 + Math.floor(rng() * 8), y = 17 + Math.floor(rng() * 7); put(d, x, y, [255, 255, 255], 0.9); ctx.emit[y * TS + x] = 0.6; }
+}));
+
+gen('enchant_top', (d, rng, ctx) => {
+  // red cloth with an open book of glowing script
+  fillTile(d, (x, y) => put(d, x, y, [150, 30, 40], 0.85 + rng() * 0.2));
+  bevelFrame(d, 0, 0, TM, TM, 0.7, 0.7);
+  sprRect(d, 7, 9, 25, 23, [228, 214, 180]);
+  sprRect(d, 15, 9, 17, 23, [150, 120, 90]);
+  for (let y = 11; y < 22; y += 2) for (const x0 of [9, 18]) for (let x = x0; x < x0 + 5; x++) if (rng() < 0.7) { put(d, x, y, [110, 70, 200]); ctx.emit[y * TS + x] = 0.9; }
+}, { smooth: 0.3, bump: 1 });
+gen('enchant_side', (d, rng, ctx) => {
+  // obsidian block with runes glowing in violet, a red cloth edge on top
+  const f = fbm(rng, 4, 2);
+  fillTile(d, (x, y, k) => put(d, x, y, [28, 20, 44], 0.8 + f[k] * 0.4));
+  sprRect(d, 0, 0, TS, 5, [150, 30, 40]);
+  sprRect(d, 0, 5, TS, 6, [226, 190, 80]);
+  for (let i = 0; i < 9; i++) {
+    const x = 3 + (i % 5) * 6, y = 10 + Math.floor(i / 5) * 9;
+    for (let k = 0; k < 4; k++) { const px = x + Math.floor(rng() * 3), py = y + Math.floor(rng() * 5); put(d, px, py, [170, 120, 255]); ctx.emit[py * TS + px] = 1; }
+  }
+}, { smooth: 0.7, bump: 1.2 });
+gen('brewing_stand', (d, rng, ctx) => {
+  clearTile(d, [120, 120, 120]);
+  sprRect(d, 15, 4, 17, 26, [80, 70, 60]);                       // rod
+  sprRect(d, 7, 26, 25, 29, [110, 110, 116]);                    // base
+  sprDisc(d, 16, 4, 2, [210, 150, 60]);
+  for (const [cx, col] of [[8, [236, 60, 70]], [24, [110, 240, 110]], [16, [120, 200, 240]]]) {
+    const cy = cx === 16 ? 19 : 17;
+    sprSeg(d, 16, 10, cx, cy - 3, 1, [80, 70, 60]);
+    sprDisc(d, cx, cy, 3.2, [210, 228, 238]);
+    sprDisc(d, cx, cy + 0.6, 2.3, col);
+    ctx.emit[(cy) * TS + cx] = 0.8;
+  }
+}, { bump: 0, smooth: 0.4 });
 </script>
 <script data-w>
 'use strict';
@@ -8551,7 +8762,8 @@ Object.assign(Renderer.prototype, {
     const dawn = Math.exp(-Math.pow((sunDir[1] - 0.05) / 0.18, 2));
     const fogDensity = (0.0021 + 0.0032 * dawn) * (1 + 2.2 * weather) + 0.0016 * weather;
     const dayF = smoothstep(-0.12, 0.2, sunDir[1]);
-    const target = lerp(2.4, 0.6, dayF) * (1 + 2.4 * (1 - eyeSky));
+    let target = lerp(2.4, 0.6, dayF) * (1 + 2.4 * (1 - eyeSky));
+    if (this.nightVision) target *= 1 + 3 * Math.max(night, 1 - eyeSky);   // potion of night vision
     this.exposure += (target - this.exposure) * (1 - Math.exp(-dt * 1.6));
 
     this.atmo = {
@@ -10103,6 +10315,7 @@ class Player {
     else if (this.sneaking) speed = 1.6;
     else speed = this.sprinting ? 5.8 : 4.3;
     if (input.slow) speed *= 0.35;
+    if (!this.flying && typeof hasEffect === 'function' && hasEffect('speed')) speed *= 1.35;
 
     const v = this.vel;
     if (this.flying) {
@@ -10131,7 +10344,7 @@ class Player {
       v[1] -= GRAVITY * dt;
       if (v[1] < -58) v[1] = -58;
       if (jump && this.onGround) {
-        v[1] = JUMP_V;
+        v[1] = JUMP_V * (typeof hasEffect === 'function' && hasEffect('jump') ? 1.27 : 1);
         this.jumped = true;
         if (this.sprinting) { v[0] += wx * 1.2; v[2] += wz * 1.2; }
       }
@@ -10290,8 +10503,18 @@ function rayBox(o, d, x0, y0, z0, x1, y1, z1) {
 // Player inventory (36 slots + armour) and stack helpers. Slots 0-8 are the hotbar.
 
 function mkStack(id, count = 1, dmg = 0) { return { id, count, dmg }; }
-function cloneStack(s) { return s ? { id: s.id, count: s.count, dmg: s.dmg || 0 } : null; }
-function sameItem(a, b) { return !!a && !!b && a.id === b.id && (a.dmg || 0) === (b.dmg || 0); }
+function cloneStack(s) {
+  if (!s) return null;
+  const c = { id: s.id, count: s.count, dmg: s.dmg || 0 };
+  if (s.ench) c.ench = Object.assign({}, s.ench);
+  return c;
+}
+function sameItem(a, b) {
+  return !!a && !!b && a.id === b.id && (a.dmg || 0) === (b.dmg || 0) && JSON.stringify(a.ench || null) === JSON.stringify(b.ench || null);
+}
+function withCount(s, n) { const c = cloneStack(s); c.count = n; return c; }
+// Unbreaking: each level adds a chance that wear is skipped.
+function wearSkipped(s) { const u = s && s.ench && s.ench.unbreaking; return !!u && Math.random() > 1 / (u + 1); }
 
 class Inventory {
   constructor() {
@@ -10321,6 +10544,7 @@ class Inventory {
       if (left > 0 && !this.slots[i]) {
         const n = Math.min(max, left);
         this.slots[i] = mkStack(stack.id, n, stack.dmg || 0);
+        if (stack.ench) this.slots[i].ench = Object.assign({}, stack.ench);
         left -= n;
       }
     }
@@ -10358,6 +10582,7 @@ class Inventory {
   damageHeld(amount = 1) {
     const s = this.held;
     if (!s || !maxDur(s.id)) return false;
+    if (wearSkipped(s)) return false;
     s.dmg = (s.dmg || 0) + amount;
     if (s.dmg >= maxDur(s.id)) { this.held = null; return true; }
     return false;
@@ -10372,7 +10597,7 @@ class Inventory {
   damageArmor(amount) {
     for (let i = 0; i < 4; i++) {
       const a = this.armor[i];
-      if (!a) continue;
+      if (!a || wearSkipped(a)) continue;
       a.dmg = (a.dmg || 0) + Math.max(1, Math.floor(amount / 4));
       if (a.dmg >= maxDur(a.id)) { this.armor[i] = null; sfx('tool_break', null, 0.8, 1); }
     }
@@ -10381,14 +10606,20 @@ class Inventory {
   clear() { this.slots.fill(null); this.armor.fill(null); }
 
   serialize() {
-    const enc = (s) => (s ? [s.id, s.count, s.dmg || 0] : 0);
+    const enc = (s) => (s ? (s.ench ? [s.id, s.count, s.dmg || 0, s.ench] : [s.id, s.count, s.dmg || 0]) : 0);
     return { slots: this.slots.map(enc), armor: this.armor.map(enc), selected: this.selected };
   }
 
   load(o) {
     this.clear();
     if (!o || typeof o !== 'object') return;
-    const dec = (a) => (Array.isArray(a) && isItem(a[0]) && a[1] > 0 ? mkStack(a[0], Math.min(a[1] | 0, maxStack(a[0])), a[2] | 0) : null);
+    const dec = (a) => {
+      if (!Array.isArray(a) || !isItem(a[0]) || !(a[1] > 0)) return null;
+      const s = mkStack(a[0], Math.min(a[1] | 0, maxStack(a[0])), a[2] | 0);
+      const e = validEnch(a[3]);
+      if (e) s.ench = e;
+      return s;
+    };
     if (Array.isArray(o.slots)) for (let i = 0; i < 36 && i < o.slots.length; i++) this.slots[i] = dec(o.slots[i]);
     if (Array.isArray(o.armor)) for (let i = 0; i < 4 && i < o.armor.length; i++) this.armor[i] = dec(o.armor[i]);
     if (Number.isInteger(o.selected)) this.selected = clamp(o.selected, 0, 8);
@@ -10414,6 +10645,7 @@ class Stats {
     this.fire = 0; this.fireT = 0; this.lavaT = 0; this.cactusT = 0; this.voidT = 0; this.drownT = 0;
     this.regenT = 0; this.starveT = 0; this.invuln = 0; this.lastHurt = 0; this.regenEffect = 0; this.regenEffectT = 0;
     this.dead = false; this.deathMsg = ''; this.hurtFlash = 0; this.hurtTilt = 0; this.healFlash = 0;
+    this.effects = {};   // potion effects: key -> seconds left
   }
 
   get creative() { return G.mode !== 'survival'; }
@@ -10425,6 +10657,7 @@ class Stats {
     this.hurtTilt *= Math.exp(-dt * 6);
     this.healFlash = Math.max(0, this.healFlash - dt * 3);
     this.invuln -= dt;
+    for (const k of Object.keys(this.effects)) { this.effects[k] -= dt; if (this.effects[k] <= 0) delete this.effects[k]; }
     if (this.dead) return;
     if (this.creative) {
       this.health = 20; this.food = 20; this.air = 10; this.fire = 0; p.landed = 0;
@@ -10436,7 +10669,8 @@ class Stats {
     if (p.landed > 0) {
       const d = Math.floor(p.landed - 3);
       const soft = w.getBlock(Math.floor(p.pos[0]), Math.floor(p.pos[1] - 0.2), Math.floor(p.pos[2])) === B.HAY_BALE;
-      if (d > 0) this.damage(soft ? Math.floor(d * 0.2) : d, { type: 'fall' });
+      const ff = armorEnch('feather_falling');
+      if (d > 0) this.damage(Math.round((soft ? Math.floor(d * 0.2) : d) * (1 - 0.12 * ff)), { type: 'fall' });
       if (p.landed > 1.5) sfx('land', p.pos, Math.min(1, p.landed / 8), 1);
       p.landed = 0;
     }
@@ -10451,7 +10685,7 @@ class Stats {
     }
     // air
     if (p.eyeInWater) {
-      this.air -= dt / 1.5;
+      if (!hasEffect('water_breathing')) this.air -= dt / (1.5 * (1 + armorEnch('respiration')));
       if (this.air < 0) {
         this.air = 0;
         this.drownT += dt;
@@ -10526,6 +10760,7 @@ class Stats {
   damage(amount, src = {}) {
     if (this.dead || this.creative || amount <= 0) return 0;
     if (G.difficulty === 0 && (src.type === 'mob' || src.type === 'arrow')) return 0;
+    if (hasEffect('fire_res') && (src.type === 'lava' || src.type === 'fire')) return 0;
     if (this.invuln > 0) {
       if (amount <= this.lastHurt) return 0;
       const extra = amount - this.lastHurt;
@@ -10536,6 +10771,8 @@ class Stats {
       const pts = G.inv.armorPoints();
       if (pts > 0) { amount *= 1 - Math.min(0.8, pts * 0.04); G.inv.damageArmor(amount); G.ui && G.ui.invDirty(); }
     }
+    const prot = src.bypass ? 0 : armorEnch('protection');
+    if (prot) amount *= 1 - Math.min(0.64, prot * 0.04);
     const dmg = Math.max(0.5, Math.round(amount * 2) / 2);
     this.health = Math.max(0, this.health - dmg);
     this.addExhaustion(0.1);
@@ -10580,7 +10817,7 @@ class Stats {
   }
 
   serialize() {
-    return { health: this.health, food: this.food, sat: this.sat, exh: this.exh, air: this.air, dead: this.dead };
+    return { health: this.health, food: this.food, sat: this.sat, exh: this.exh, air: this.air, dead: this.dead, effects: this.effects };
   }
 
   load(o) {
@@ -10590,6 +10827,7 @@ class Stats {
     this.health = num(o.health, 0, 20, 20); this.food = num(o.food, 0, 20, 20); this.sat = num(o.sat, 0, 20, 5);
     this.exh = num(o.exh, 0, 4, 0); this.air = num(o.air, 0, 10, 10);
     if (this.health <= 0) this.health = 20;
+    if (o.effects && typeof o.effects === 'object') for (const [k, t] of Object.entries(o.effects)) if (EFFECT_ICONS[k] && Number.isFinite(t) && t > 0) this.effects[k] = Math.min(t, 600);
   }
 }
 </script>
@@ -10979,7 +11217,7 @@ class Mob {
     if (!src.noDrops && (src.player || src.fire || src.explosion || src.env)) {
       for (const [id, a, b] of this.def.drops) {
         let n = a + Math.floor(Math.random() * (b - a + 1));
-        if (src.looting) n += Math.floor(Math.random() * 2);
+        if (src.looting) n += Math.floor(Math.random() * (src.looting + 1));
         const out = this.fire > 0 && this.def.cooked && this.def.cooked[id] ? this.def.cooked[id] : id;
         if (n > 0) Ents.spawnItem({ id: out, count: n }, this.pos[0], this.pos[1] + 0.5, this.pos[2]);
       }
@@ -11237,6 +11475,7 @@ class Mob {
 class ItemEntity {
   constructor(stack, x, y, z) {
     this.stack = { id: stack.id, count: stack.count || 1, dmg: stack.dmg || 0 };
+    if (stack.ench) this.stack.ench = Object.assign({}, stack.ench);
     this.pos = [x, y, z];
     this.vel = [rand(-1.2, 1.2), rand(2, 4), rand(-1.2, 1.2)];
     this.hw = 0.125; this.h = 0.25;
@@ -11622,7 +11861,7 @@ const Ents = {
         if (a.removed || a.collecting > 0 || maxStack(a.stack.id) === 1) continue;
         for (let j = i + 1; j < I2.length; j++) {
           const b = I2[j];
-          if (b.removed || b.collecting > 0 || b.stack.id !== a.stack.id || b.stack.dmg !== a.stack.dmg) continue;
+          if (b.removed || b.collecting > 0 || !sameItem(a.stack, b.stack)) continue;
           if (Math.abs(a.pos[0] - b.pos[0]) < 0.8 && Math.abs(a.pos[1] - b.pos[1]) < 0.6 && Math.abs(a.pos[2] - b.pos[2]) < 0.8) {
             const room = maxStack(a.stack.id) - a.stack.count;
             const n = Math.min(room, b.stack.count);
@@ -13926,7 +14165,7 @@ function cleanupBlockEntity(x, y, z, old, id) {
   const k = posKey(x, y, z);
   const be = G.world.blockEntities.get(k);
   if (!be) return;
-  const keep = (be.type === 'furnace' && (id === B.FURNACE || id === B.FURNACE_LIT)) || (be.type === 'chest' && (id === B.CHEST || id === B.BARREL));
+  const keep = (be.type === 'furnace' && (id === B.FURNACE || id === B.FURNACE_LIT)) || (be.type === 'chest' && (id === B.CHEST || id === B.BARREL)) || (be.type === 'brew' && id === B.BREWING_STAND);
   if (keep) return;
   for (const s of be.slots || []) if (s && s.id) Ents.spawnItem(cloneStack(s), x + 0.5, y + 0.5, z + 0.5);
   G.world.blockEntities.delete(k);
@@ -13937,7 +14176,7 @@ function blockEntity(x, y, z, type) {
   const k = posKey(x, y, z);
   let be = G.world.blockEntities.get(k);
   if (!be || be.type !== type) {
-    be = type === 'chest' ? { type, slots: new Array(27).fill(null) } : { type, slots: [null, null, null], burn: 0, burnMax: 0, cook: 0 };
+    be = type === 'chest' ? { type, slots: new Array(27).fill(null) } : type === 'brew' ? { type, slots: [null, null, null, null], t: 0 } : { type, slots: [null, null, null], burn: 0, burnMax: 0, cook: 0 };
     G.world.blockEntities.set(k, be);
   }
   return be;
@@ -14020,7 +14259,10 @@ function destroyBlock(x, y, z, opts = {}) {
   let fill = B.AIR;   // liquid next to the hole flows in (fluids.js)
   if (id === B.ICE && G.mode === 'survival') fill = B.WATER;
   if (opts.drops) {
-    for (const [it, n] of blockDrops(id, opts.tool || 0, Math.random)) {
+    // Fortune: ores that drop items (coal, diamond, emerald...) can drop several
+    const lucky = opts.fortune && [B.COAL_ORE, B.DIAMOND_ORE, B.EMERALD_ORE, B.GLOWSTONE, B.GRAVEL].includes(id);
+    for (const [it, n0] of blockDrops(id, opts.tool || 0, Math.random)) {
+      const n = lucky && !isValidBlock(it) ? n0 * (1 + Math.floor(Math.random() * (opts.fortune + 1))) : n0;
       Ents.spawnItem({ id: it, count: n }, x + 0.5, y + 0.4, z + 0.5);
     }
   }
@@ -15705,7 +15947,9 @@ function rollLoot(kind, seed) {
   const out = [];
   for (const [id, a, b, p] of table) {
     if (!ITEM_DEF[id] || rng() > p) continue;
-    out.push(mkStack(id, Math.min(maxStack(id), a + Math.floor(rng() * (b - a + 1)))));
+    const s = mkStack(id, Math.min(maxStack(id), a + Math.floor(rng() * (b - a + 1))));
+    if (id === I.ENCHANTED_BOOK) s.ench = randomBookEnch(rng);
+    out.push(s);
   }
   if (!out.length) out.push(mkStack(I.BREAD, 1));
   return out;
@@ -15831,11 +16075,14 @@ const Act = {
     const p = G.player, held = G.inv.held;
     const d = held && ITEM_DEF[held.id];
     let dmg = d && d.damage ? d.damage : 1;
+    dmg += heldEnch('sharpness') * 1.25 + (hasEffect('strength') ? 3 : 0);
     const crit = !p.onGround && p.vel[1] < -0.5 && !p.inWater && !p.onLadder;
     if (crit) { dmg *= 1.5; Particles.crit(mob.pos[0], mob.pos[1] + mob.h * 0.7, mob.pos[2]); sfx('crit', mob.pos, 0.8, 1); }
     const e = p.eyePos();
-    const knock = p.sprinting ? 1.6 : 1;
-    if (mob.damage(dmg, { player: true, from: [e[0], e[1], e[2]], knock })) {
+    const knock = (p.sprinting ? 1.6 : 1) + heldEnch('knockback') * 0.8;
+    const fireA = heldEnch('fire_aspect');
+    if (fireA && !mob.dead) mob.fire = Math.max(mob.fire, 4 * fireA);
+    if (mob.damage(dmg, { player: true, from: [e[0], e[1], e[2]], knock, looting: heldEnch('looting') })) {
       sfx('hit', mob.pos, 0.7, rand(0.9, 1.1));
       G.stats.addExhaustion(0.1);
       if (held && d && d.tool && G.mode === 'survival') {
@@ -15855,7 +16102,7 @@ const Act = {
     const held = this.heldId();
     const d = ITEM_DEF[held];
     let speed = 1;
-    if (d && d.tool && d.tool === BLOCK_TOOL[id]) speed = d.speed || 1;
+    if (d && d.tool && d.tool === BLOCK_TOOL[id]) { speed = d.speed || 1; const eff = heldEnch('efficiency'); if (eff) speed += eff * eff + 1; }
     if (d && d.tool === TOOL_SWORD && (BLOCK_TOOL[id] === TOOL_SHEARS || id === B.MELON || id === B.PUMPKIN)) speed = 1.5;
     if (d && d.tool === TOOL_SHEARS && BLOCK_TOOL[id] === TOOL_SHEARS) speed = BLOCK_RT[id] === RT_CUTOUT ? 15 : 5;
     let t = hard * (canHarvest(id, held) ? 1.5 : 5) / speed;
@@ -15868,7 +16115,7 @@ const Act = {
   finishBreak(x, y, z, id) {
     const held = this.heldId();
     const d = ITEM_DEF[held];
-    destroyBlock(x, y, z, { drops: G.mode === 'survival', tool: held });
+    destroyBlock(x, y, z, { drops: G.mode === 'survival', tool: held, fortune: heldEnch('fortune') });
     if (G.mode === 'survival') {
       G.stats.addExhaustion(0.005);
       if (d && d.dur && BLOCK_HARD[id] > 0) {
@@ -16082,6 +16329,8 @@ const Act = {
       const [x, y, z] = hit.pos;
       switch (hit.id) {
         case B.CRAFTING_TABLE: G.ui.openCrafting(); return true;
+        case B.ENCHANT_TABLE: G.ui.open({ kind: 'enchant', pos: [x, y, z] }); return true;
+        case B.BREWING_STAND: G.ui.openBrewing(x, y, z); return true;
         case B.FURNACE: case B.FURNACE_LIT: G.ui.openFurnace(x, y, z); return true;
         case B.CHEST: case B.BARREL: G.ui.openChest(x, y, z); return true;
         case B.ARCH_TABLE: G.ui.open({ kind: 'arch' }); return true;
@@ -16100,6 +16349,19 @@ const Act = {
     }
     if (!held || !d) return false;
     // eating and bows are handled continuously while the button is held
+    // potions are drunk like food
+    if (d.potion && initial) { this.eat = { t: 0, id: held.id, slot: G.inv.selected, drink: true }; return true; }
+    // fill a glass bottle from water
+    if (held.id === I.GLASS_BOTTLE && initial) {
+      const r = this.liquidRay(this.reach());
+      if (r && r.id === B.WATER) {
+        const full = mkStack(I.WATER_BOTTLE, 1);
+        if (held.count > 1) { G.inv.consumeHeld(1); if (G.inv.add(full)) Ents.spawnItem(full, p.pos[0], p.pos[1] + 1, p.pos[2]); }
+        else G.inv.held = full;
+        sfx('bucket', r.pos, 0.6, 1.4); this.swingHand(); G.ui.invDirty();
+        return true;
+      }
+    }
     if (d.food && initial) {
       if (G.stats.food < 20 || d.always || G.mode === 'creative' || G.difficulty === 0) { this.eat = { t: 0, id: held.id, slot: G.inv.selected }; return true; }
     }
@@ -16171,7 +16433,7 @@ const Act = {
           Particles.itemCrumbs(eye[0] + lk[0] * 0.4, eye[1] - 0.15, eye[2] + lk[2] * 0.4, e.id, 3);
         }
         if (e.t >= 1.6) {
-          G.stats.eat(e.id);
+          if (e.drink) drinkPotion(e.id); else G.stats.eat(e.id);
           const d = ITEM_DEF[e.id];
           this.consume();
           if (d.returns && G.mode === 'survival') { const b = mkStack(d.returns, 1); if (!G.inv.held) G.inv.held = b; else if (G.inv.add(b)) Ents.spawnItem(b, G.player.pos[0], G.player.pos[1] + 1, G.player.pos[2]); }
@@ -16214,6 +16476,8 @@ const Act = {
     Ents.arrows.push(a);
     sfx('bow', null, 0.9, 1 + pull * 0.2);
     if (pull >= 1) a.dmg = 2.2;
+    const pw = heldEnch('power');
+    if (pw) a.dmg = (a.dmg || 2) * (1 + 0.25 * (pw + 1));
   },
 
   dropHeld(all) {
@@ -16221,7 +16485,7 @@ const Act = {
     if (!s) return;
     const n = all ? s.count : 1;
     const p = G.player, e = p.eyePos(), d = p.lookDir();
-    Ents.spawnItem({ id: s.id, count: n, dmg: s.dmg }, e[0] + d[0] * 0.3, e[1] - 0.3, e[2] + d[2] * 0.3, [d[0] * 5, d[1] * 5 + 2, d[2] * 5], 1.5);
+    Ents.spawnItem({ id: s.id, count: n, dmg: s.dmg, ench: s.ench }, e[0] + d[0] * 0.3, e[1] - 0.3, e[2] + d[2] * 0.3, [d[0] * 5, d[1] * 5 + 2, d[2] * 5], 1.5);
     s.count -= n;
     if (s.count <= 0) G.inv.held = null;
     this.swingHand();
@@ -16389,6 +16653,7 @@ const UI = {
     const id = s ? s.id : 0;
     if (el._id !== id) { i.style.backgroundImage = id ? `url(${iconURL(id)})` : ''; el._id = id; }
     cnt.textContent = s && s.count > 1 ? s.count : '';
+    el.classList.toggle('ench', !!(s && s.ench));
     const md = s ? maxDur(s.id) : 0;
     if (md && s.dmg > 0) {
       const f = 1 - s.dmg / md;
@@ -16491,6 +16756,15 @@ const UI = {
     $('lavaOverlay').classList.toggle('on', p.eyeInLava);
     const sl = G.sleeping ? Math.min(1, G.sleeping.t / 1.4) * (G.sleeping.t > 2.2 ? Math.max(0, 1 - (G.sleeping.t - 2.2) / 0.4) : 1) : 0;
     $('sleepOverlay').style.opacity = sl.toFixed(3);
+    this.updateEffects();
+    if (this.screen && this.screen.kind === 'brew') {
+      this.brewT = (this.brewT || 0) + dt;
+      if (this.brewT > 0.1 && this.brewBar) {
+        this.brewT = 0;
+        const be = G.world.blockEntities.get(this.screen.key);
+        this.brewBar.style.width = Math.round(((be && be.t) || 0) / BREW_TIME * 100) + '%';
+      }
+    }
     if (this.screen && this.screen.kind === 'furnace') {
       this.furnaceT = (this.furnaceT || 0) + dt;
       if (this.furnaceT > 0.1) { this.furnaceT = 0; this.updateFurnaceBars(); }
@@ -16522,6 +16796,10 @@ const UI = {
     sfx('villager_say', m.pos, 1, 1);
     this.open({ kind: 'trade', mob: m });
   },
+  openBrewing(x, y, z) {
+    blockEntity(x, y, z, 'brew');
+    this.open({ kind: 'brew', key: posKey(x, y, z), pos: [x, y, z] });
+  },
   openInventory() { this.open(G.mode === 'creative' ? { kind: 'creative' } : { kind: 'inventory' }); },
   openCrafting() { this.open({ kind: 'crafting' }); },
   openFurnace(x, y, z) { blockEntity(x, y, z, 'furnace'); this.open({ kind: 'furnace', key: posKey(x, y, z), pos: [x, y, z] }); },
@@ -16535,6 +16813,7 @@ const UI = {
   closeScreen(silent) {
     if (!this.screen) return;
     const s = this.screen;
+    if (s.kind === 'enchant' && s.slots) for (const st of s.slots) if (st) this.giveBack(st);
     if (s.mob) s.mob.trading = false;
     if (s.kind === 'chest') sfx('chest_close', [s.pos[0] + 0.5, s.pos[1] + 0.5, s.pos[2] + 0.5], 1, 1);
     for (const grid of [this.craft2, this.craft3]) {
@@ -16553,11 +16832,11 @@ const UI = {
 
   giveBack(s) {
     const left = G.inv.add(s);
-    if (left > 0) this.dropStack({ id: s.id, count: left, dmg: s.dmg }, left);
+    if (left > 0) this.dropStack(withCount(s, left), left);
   },
   dropStack(s, n) {
     const p = G.player, e = p.eyePos(), d = p.lookDir();
-    Ents.spawnItem({ id: s.id, count: n, dmg: s.dmg }, e[0] + d[0] * 0.4, e[1] - 0.3, e[2] + d[2] * 0.4, [d[0] * 4, 2, d[2] * 4], 1.5);
+    Ents.spawnItem(withCount(s, n), e[0] + d[0] * 0.4, e[1] - 0.3, e[2] + d[2] * 0.4, [d[0] * 4, 2, d[2] * 4], 1.5);
     if (s === this.cursor) { s.count -= n; if (s.count <= 0) this.cursor = null; }
   },
   dropCursor() { if (this.cursor) { this.dropStack(this.cursor, this.cursor.count); this.cursor = null; } },
@@ -16599,6 +16878,8 @@ const UI = {
       else if (s.kind === 'chest') this.renderChestTop(top);
       else if (s.kind === 'arch') this.renderArchTop(top);
       else if (s.kind === 'trade') this.renderTradeTop(top);
+      else if (s.kind === 'enchant') this.renderEnchantTop(top);
+      else if (s.kind === 'brew') this.renderBrewTop(top);
       root.append(this.label('Inventory'));
       root.append(this.grid(main, 9, 'main'));
       const hb = this.grid(hot, 9, 'hotbar');
@@ -16657,6 +16938,8 @@ const UI = {
     if (d && d.food) html += `<span>Restores ${d.food[0] / 2} hunger</span>`;
     if (d && d.damage && d.tool) html += `<span>${d.damage} attack damage</span>`;
     if (d && d.armor) html += `<span>+${d.armor.pts} armour</span>`;
+    if (s.ench) html += `<span class="enchl">${enchText(s)}</span>`;
+    if (d && d.potion) html += `<span>${d.potion.time ? Math.round(d.potion.time / 6) / 10 + ' min' : 'Instant'} \u00b7 hold right-click to drink</span>`;
     if (maxDur(s.id)) html += `<span>Durability ${maxDur(s.id) - (s.dmg || 0)} / ${maxDur(s.id)}</span>`;
     if (ref.recipe) html += `<span class="ing">${this.recipeText(ref.recipe)}</span>` + (ref.recipeNote ? `<span class="warn">${ref.recipeNote}</span>` : '');
     this.tipEl.innerHTML = html;
@@ -16921,6 +17204,131 @@ const UI = {
     this.render();
   },
 
+  // ---- potion effects on the HUD ----
+  updateEffects() {
+    const el = $('effects');
+    const eff = G.stats.effects || {};
+    const keys = Object.keys(eff);
+    const sig = keys.map((k) => k + Math.ceil(eff[k])).join(',');
+    if (sig === this.effSig) return;
+    this.effSig = sig;
+    el.innerHTML = '';
+    for (const k of keys) {
+      const p = POTIONS.find((q) => q.key === k);
+      const d = document.createElement('div');
+      const t = Math.ceil(eff[k]);
+      d.style.setProperty('--c', 'rgb(' + (p ? p.color.join(',') : '200,200,200') + ')');
+      d.textContent = (EFFECT_ICONS[k] || '\u2022') + ' ' + (p ? p.name : k) + ' ' + Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+      el.append(d);
+    }
+  },
+
+  // ---- enchanting table ----
+  renderEnchantTop(top) {
+    const s = this.screen;
+    if (!s.slots) s.slots = [null, null];
+    const box = document.createElement('div');
+    box.className = 'enchbox';
+    box.append(this.label('Enchanting Table'));
+    const itemRef = this.arrSlot(s.slots, 0, 'eitem', (st) => !!enchKind(st.id) && st.id !== I.ENCHANTED_BOOK);
+    itemRef.max = 1;
+    const bookRef = this.arrSlot(s.slots, 1, 'ebook', (st) => st.id === I.ENCHANTED_BOOK || st.id === I.EMERALD);
+    this.sections.eitem = [itemRef]; this.sections.ebook = [bookRef];
+    const row = document.createElement('div');
+    row.className = 'enchrow';
+    const col = document.createElement('div');
+    col.className = 'enchcol';
+    col.append(this.slotEl(itemRef), this.slotEl(bookRef));
+    const offers = document.createElement('div');
+    offers.className = 'enchoffers';
+    const [x, y, z] = s.pos;
+    const shelves = countShelves(x, y, z);
+    const it = s.slots[0], second = s.slots[1];
+    const creative = G.mode === 'creative';
+    const emeralds = creative ? Infinity : G.inv.count(I.EMERALD) + (second && second.id === I.EMERALD ? second.count : 0);
+    const hint = document.createElement('p');
+    hint.className = 'archhint';
+    if (!it) hint.textContent = 'Put a tool, weapon, bow, piece of armour or a book in the top slot. Emeralds pay for it; bookshelves around the table (up to 15, one block away) make the offers stronger. An enchanted book in the lower slot applies its enchantment.';
+    else if (second && second.id === I.ENCHANTED_BOOK && second.ench) {
+      const b = document.createElement('button');
+      b.className = 'primary';
+      const ok = it.id !== I.BOOK && Object.keys(second.ench).every((k) => ENCHANTS[k].on.includes(enchKind(it.id)));
+      b.textContent = ok ? 'Apply ' + enchText(second) : 'This book does not fit this item';
+      b.disabled = !ok;
+      b.addEventListener('click', () => {
+        const e = Object.assign({}, it.ench || {});
+        for (const [k, l] of Object.entries(second.ench)) e[k] = e[k] === l ? Math.min(ENCHANTS[k].max, l + 1) : Math.max(e[k] || 0, l);
+        it.ench = e;
+        s.slots[1] = null;
+        sfx('chime', null, 0.8, 1.5);
+        Particles.crit(x + 0.5, y + 1.2, z + 0.5, 14);
+        this.invDirty(); this.render();
+      });
+      offers.append(b);
+    } else {
+      G.enchSeed = G.enchSeed || ((Math.random() * 1e9) | 0);
+      const list = enchantOffers(it.id, shelves, G.enchSeed);
+      if (!list.length) hint.textContent = 'This item cannot be enchanted.';
+      list.forEach((o) => {
+        const b = document.createElement('button');
+        b.className = 'enchoffer';
+        b.innerHTML = `<span>${enchText({ ench: o.ench })}</span><b>${o.cost} <i style="background-image:url(${iconURL(I.EMERALD)})"></i></b>`;
+        b.disabled = emeralds < o.cost;
+        b.title = creative ? 'Free in creative mode' : o.cost + ' emeralds';
+        b.addEventListener('click', () => {
+          if (!creative) {
+            let need = o.cost;
+            if (second && second.id === I.EMERALD) { const k = Math.min(need, second.count); second.count -= k; need -= k; if (second.count <= 0) s.slots[1] = null; }
+            if (need > 0) G.inv.remove(I.EMERALD, need);
+          }
+          if (it.id === I.BOOK) { s.slots[0] = mkStack(I.ENCHANTED_BOOK, 1); s.slots[0].ench = Object.assign({}, o.ench); }
+          else it.ench = Object.assign({}, it.ench || {}, o.ench);
+          G.enchSeed = (Math.imul(G.enchSeed, 1103515245) + 12345) | 0;   // new offers next time
+          sfx('chime', null, 0.8, 1.3);
+          Particles.crit(x + 0.5, y + 1.2, z + 0.5, 14);
+          this.invDirty(); this.render();
+        });
+        offers.append(b);
+      });
+    }
+    row.append(col, offers);
+    box.append(row);
+    const shelf = document.createElement('p');
+    shelf.className = 'archhint';
+    shelf.textContent = 'Bookshelves around the table: ' + shelves + ' / 15';
+    box.append(hint, shelf);
+    top.append(box);
+  },
+
+  // ---- brewing stand ----
+  renderBrewTop(top) {
+    const be = G.world.blockEntities.get(this.screen.key);
+    if (!be) return;
+    const box = document.createElement('div');
+    box.className = 'brewbox';
+    box.append(this.label('Brewing Stand'));
+    const bottle = (i) => { const r = this.arrSlot(be.slots, i, 'bottles', (s) => s.id === I.WATER_BOTTLE || !!(ITEM_DEF[s.id] && ITEM_DEF[s.id].potion)); r.max = 1; return r; };
+    const refs = [bottle(0), bottle(1), bottle(2)];
+    const ing = this.arrSlot(be.slots, 3, 'bing', (s) => !!POTION_BY_INGREDIENT[s.id]);
+    this.sections.bottles = refs; this.sections.bing = [ing];
+    const lay = document.createElement('div');
+    lay.className = 'brew';
+    const bar = document.createElement('div');
+    bar.className = 'arrow progress brewbar';
+    bar.innerHTML = '<div></div>';
+    this.brewBar = bar.firstChild;
+    const bots = document.createElement('div');
+    bots.className = 'brewbottles';
+    for (const r of refs) bots.append(this.slotEl(r));
+    lay.append(this.slotEl(ing), bar, bots);
+    box.append(lay);
+    const p = document.createElement('p');
+    p.className = 'archhint';
+    p.innerHTML = 'Fill glass bottles at any water, then add an ingredient: ' + POTIONS.map((q) => '<b>' + itemName(q.from) + '</b> \u2192 ' + q.name).join(' \u00b7 ');
+    box.append(p);
+    top.append(box);
+  },
+
   // ---- trading with a villager ----
   renderTradeTop(top) {
     const m = this.screen.mob;
@@ -16954,8 +17362,10 @@ const UI = {
     do {
       if (!creative && G.inv.count(give[0]) < give[1]) break;
       if (!creative) G.inv.remove(give[0], give[1]);
-      const left = G.inv.add(mkStack(get[0], get[1]));
-      if (left > 0) this.giveBack(mkStack(get[0], left));
+      const got = mkStack(get[0], get[1]);
+      if (get[0] === I.ENCHANTED_BOOK) got.ench = randomBookEnch(Math.random);
+      const left = G.inv.add(got);
+      if (left > 0) this.giveBack(withCount(got, left));
       n++;
     } while (many && n < 16);
     sfx(n ? 'villager_yes' : 'villager_no', m.pos, 1, 1);
@@ -17073,7 +17483,7 @@ const UI = {
       if (!s) return;
       if (btn === 2) {
         const half = Math.ceil(s.count / 2);
-        this.cursor = { id: s.id, count: half, dmg: s.dmg };
+        this.cursor = withCount(s, half);
         s.count -= half;
         ref.set(s.count > 0 ? s : null);
       } else { this.cursor = s; ref.set(null); }
@@ -17114,7 +17524,7 @@ const UI = {
       const have = s ? s.count : 0;
       const n = Math.min(per, c.count, max - have);
       if (n <= 0) continue;
-      ref.set(s ? (s.count += n, s) : { id: c.id, count: n, dmg: c.dmg });
+      ref.set(s ? (s.count += n, s) : withCount(c, n));
       c.count -= n;
     }
     if (c.count <= 0) this.cursor = null;
@@ -17130,7 +17540,7 @@ const UI = {
     const max = Math.min(ref.max || 64, maxStack(c.id));
     if (!s) {
       const n = btn === 2 ? 1 : Math.min(c.count, max);
-      ref.set({ id: c.id, count: n, dmg: c.dmg });
+      ref.set(withCount(c, n));
       c.count -= n;
     } else if (sameItem(s, c)) {
       const n = Math.min(btn === 2 ? 1 : c.count, max - s.count);
@@ -17193,6 +17603,8 @@ const UI = {
     if (sec === 'hotbar' || sec === 'main') {
       if (kind === 'chest') targets = [S.chest];
       else if (kind === 'furnace') targets = SMELT[s.id] !== undefined ? [S.fin] : d && d.fuel ? [S.ffuel] : [];
+      else if (kind === 'brew') targets = s.id === I.WATER_BOTTLE ? [S.bottles] : POTION_BY_INGREDIENT[s.id] ? [S.bing] : [];
+      else if (kind === 'enchant') targets = enchKind(s.id) && s.id !== I.ENCHANTED_BOOK ? [S.eitem] : s.id === I.ENCHANTED_BOOK || s.id === I.EMERALD ? [S.ebook] : [];
       if (d && d.armor && (kind === 'inventory' || kind === 'creative')) {
         const i = d.armor.slot;
         if (!G.inv.armor[i]) { G.inv.armor[i] = s; ref.set(null); this.after(ref); return; }
@@ -17214,7 +17626,7 @@ const UI = {
         if (left <= 0) break;
         if (!t.get() && t.accept(s)) {
           const n = Math.min(left, Math.min(t.max || 64, maxStack(s.id)));
-          t.set({ id: s.id, count: n, dmg: s.dmg }); left -= n;
+          t.set(withCount(s, n)); left -= n;
         }
       }
     }
@@ -17257,7 +17669,7 @@ const UI = {
       const s = ref.get();
       if (!s) return true;
       const n = e.ctrlKey ? s.count : 1;
-      this.dropStack({ id: s.id, count: n, dmg: s.dmg }, n);
+      this.dropStack(withCount(s, n), n);
       s.count -= n;
       ref.set(s.count > 0 ? s : null);
       this.after(ref);
@@ -18074,6 +18486,7 @@ function frame(now) {
       Ents.update(dt);
       Vehicles.update(dt);
       Villages.update(dt);
+      Brewing.update(dt);
       tickFurnaces(dt);
       randomTicks(dt);
       updateSleep(dt);
@@ -18140,6 +18553,7 @@ function frame(now) {
         G.renderer.waterScatter = [c.waterTint[i] / 1000, c.waterTint[i + 1] / 1000, c.waterTint[i + 2] / 1000];
       }
     }
+    G.renderer.nightVision = hasEffect('night_vision');
     const ents = ER.build(G.renderer, cam, { self,
       crack: G.vehicle ? null : Act.crackInfo(), hand: showHand ? Act.handState() : null,
       cockpit: G.vehicle && Vehicles.camMode === 'cockpit' ? G.vehicle : null,

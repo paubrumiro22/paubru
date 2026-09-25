@@ -31,11 +31,14 @@ const Act = {
     const p = G.player, held = G.inv.held;
     const d = held && ITEM_DEF[held.id];
     let dmg = d && d.damage ? d.damage : 1;
+    dmg += heldEnch('sharpness') * 1.25 + (hasEffect('strength') ? 3 : 0);
     const crit = !p.onGround && p.vel[1] < -0.5 && !p.inWater && !p.onLadder;
     if (crit) { dmg *= 1.5; Particles.crit(mob.pos[0], mob.pos[1] + mob.h * 0.7, mob.pos[2]); sfx('crit', mob.pos, 0.8, 1); }
     const e = p.eyePos();
-    const knock = p.sprinting ? 1.6 : 1;
-    if (mob.damage(dmg, { player: true, from: [e[0], e[1], e[2]], knock })) {
+    const knock = (p.sprinting ? 1.6 : 1) + heldEnch('knockback') * 0.8;
+    const fireA = heldEnch('fire_aspect');
+    if (fireA && !mob.dead) mob.fire = Math.max(mob.fire, 4 * fireA);
+    if (mob.damage(dmg, { player: true, from: [e[0], e[1], e[2]], knock, looting: heldEnch('looting') })) {
       sfx('hit', mob.pos, 0.7, rand(0.9, 1.1));
       G.stats.addExhaustion(0.1);
       if (held && d && d.tool && G.mode === 'survival') {
@@ -55,7 +58,7 @@ const Act = {
     const held = this.heldId();
     const d = ITEM_DEF[held];
     let speed = 1;
-    if (d && d.tool && d.tool === BLOCK_TOOL[id]) speed = d.speed || 1;
+    if (d && d.tool && d.tool === BLOCK_TOOL[id]) { speed = d.speed || 1; const eff = heldEnch('efficiency'); if (eff) speed += eff * eff + 1; }
     if (d && d.tool === TOOL_SWORD && (BLOCK_TOOL[id] === TOOL_SHEARS || id === B.MELON || id === B.PUMPKIN)) speed = 1.5;
     if (d && d.tool === TOOL_SHEARS && BLOCK_TOOL[id] === TOOL_SHEARS) speed = BLOCK_RT[id] === RT_CUTOUT ? 15 : 5;
     let t = hard * (canHarvest(id, held) ? 1.5 : 5) / speed;
@@ -68,7 +71,7 @@ const Act = {
   finishBreak(x, y, z, id) {
     const held = this.heldId();
     const d = ITEM_DEF[held];
-    destroyBlock(x, y, z, { drops: G.mode === 'survival', tool: held });
+    destroyBlock(x, y, z, { drops: G.mode === 'survival', tool: held, fortune: heldEnch('fortune') });
     if (G.mode === 'survival') {
       G.stats.addExhaustion(0.005);
       if (d && d.dur && BLOCK_HARD[id] > 0) {
@@ -282,6 +285,8 @@ const Act = {
       const [x, y, z] = hit.pos;
       switch (hit.id) {
         case B.CRAFTING_TABLE: G.ui.openCrafting(); return true;
+        case B.ENCHANT_TABLE: G.ui.open({ kind: 'enchant', pos: [x, y, z] }); return true;
+        case B.BREWING_STAND: G.ui.openBrewing(x, y, z); return true;
         case B.FURNACE: case B.FURNACE_LIT: G.ui.openFurnace(x, y, z); return true;
         case B.CHEST: case B.BARREL: G.ui.openChest(x, y, z); return true;
         case B.ARCH_TABLE: G.ui.open({ kind: 'arch' }); return true;
@@ -300,6 +305,19 @@ const Act = {
     }
     if (!held || !d) return false;
     // eating and bows are handled continuously while the button is held
+    // potions are drunk like food
+    if (d.potion && initial) { this.eat = { t: 0, id: held.id, slot: G.inv.selected, drink: true }; return true; }
+    // fill a glass bottle from water
+    if (held.id === I.GLASS_BOTTLE && initial) {
+      const r = this.liquidRay(this.reach());
+      if (r && r.id === B.WATER) {
+        const full = mkStack(I.WATER_BOTTLE, 1);
+        if (held.count > 1) { G.inv.consumeHeld(1); if (G.inv.add(full)) Ents.spawnItem(full, p.pos[0], p.pos[1] + 1, p.pos[2]); }
+        else G.inv.held = full;
+        sfx('bucket', r.pos, 0.6, 1.4); this.swingHand(); G.ui.invDirty();
+        return true;
+      }
+    }
     if (d.food && initial) {
       if (G.stats.food < 20 || d.always || G.mode === 'creative' || G.difficulty === 0) { this.eat = { t: 0, id: held.id, slot: G.inv.selected }; return true; }
     }
@@ -371,7 +389,7 @@ const Act = {
           Particles.itemCrumbs(eye[0] + lk[0] * 0.4, eye[1] - 0.15, eye[2] + lk[2] * 0.4, e.id, 3);
         }
         if (e.t >= 1.6) {
-          G.stats.eat(e.id);
+          if (e.drink) drinkPotion(e.id); else G.stats.eat(e.id);
           const d = ITEM_DEF[e.id];
           this.consume();
           if (d.returns && G.mode === 'survival') { const b = mkStack(d.returns, 1); if (!G.inv.held) G.inv.held = b; else if (G.inv.add(b)) Ents.spawnItem(b, G.player.pos[0], G.player.pos[1] + 1, G.player.pos[2]); }
@@ -414,6 +432,8 @@ const Act = {
     Ents.arrows.push(a);
     sfx('bow', null, 0.9, 1 + pull * 0.2);
     if (pull >= 1) a.dmg = 2.2;
+    const pw = heldEnch('power');
+    if (pw) a.dmg = (a.dmg || 2) * (1 + 0.25 * (pw + 1));
   },
 
   dropHeld(all) {
@@ -421,7 +441,7 @@ const Act = {
     if (!s) return;
     const n = all ? s.count : 1;
     const p = G.player, e = p.eyePos(), d = p.lookDir();
-    Ents.spawnItem({ id: s.id, count: n, dmg: s.dmg }, e[0] + d[0] * 0.3, e[1] - 0.3, e[2] + d[2] * 0.3, [d[0] * 5, d[1] * 5 + 2, d[2] * 5], 1.5);
+    Ents.spawnItem({ id: s.id, count: n, dmg: s.dmg, ench: s.ench }, e[0] + d[0] * 0.3, e[1] - 0.3, e[2] + d[2] * 0.3, [d[0] * 5, d[1] * 5 + 2, d[2] * 5], 1.5);
     s.count -= n;
     if (s.count <= 0) G.inv.held = null;
     this.swingHand();

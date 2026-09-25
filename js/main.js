@@ -804,6 +804,7 @@ function frame(now) {
       Ents.update(dt);
       Vehicles.update(dt);
       Villages.update(dt);
+      Brewing.update(dt);
       tickFurnaces(dt);
       randomTicks(dt);
       updateSleep(dt);
@@ -870,6 +871,7 @@ function frame(now) {
         G.renderer.waterScatter = [c.waterTint[i] / 1000, c.waterTint[i + 1] / 1000, c.waterTint[i + 2] / 1000];
       }
     }
+    G.renderer.nightVision = hasEffect('night_vision');
     const ents = ER.build(G.renderer, cam, { self,
       crack: G.vehicle ? null : Act.crackInfo(), hand: showHand ? Act.handState() : null,
       cockpit: G.vehicle && Vehicles.camMode === 'cockpit' ? G.vehicle : null,
