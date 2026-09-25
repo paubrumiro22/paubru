@@ -578,7 +578,7 @@ function adaptResolution(dt) {
   if (ms > 21) a.slow += dt; else a.slow = Math.max(0, a.slow - dt * 0.5);
   if (ms < 13.5) a.fast += dt; else a.fast = 0;
   if (a.cool > 0) return;
-  if (a.slow > 1.2 && a.scale > 0.6) { a.scale = Math.round((a.scale - 0.1) * 10) / 10; a.slow = 0; a.cool = 2; resize(); }
+  if (a.slow > 0.8 && a.scale > 0.5) { a.scale = Math.round((a.scale - 0.1) * 10) / 10; a.slow = 0; a.cool = 2; resize(); }
   else if (a.fast > 4 && a.scale < 1) { a.scale = Math.round((a.scale + 0.1) * 10) / 10; a.fast = 0; a.cool = 3; resize(); }
 }
 
@@ -586,7 +586,7 @@ function resize() {
   if (!G.renderer) return;
   const gl = G.renderer.gl;
   const maxSize = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE) || 4096, 8192);
-  const s = G.settings.renderScale * (G.dynRes && G.settings.dynamicRes ? G.dynRes.scale : 1);
+  const s = G.settings.renderScale * (G.dynRes && G.settings.dynamicRes ? G.dynRes.scale : 1) * (G.backdrop ? 0.7 : 1);
   const w = clamp(Math.round(window.innerWidth * s), 1, maxSize);
   const h = clamp(Math.round(window.innerHeight * s), 1, maxSize);
   G.renderer.resize(w, h);
@@ -622,6 +622,12 @@ const NO_KEYS = { keys: new Set(), sprintHeld: false };
 
 function frame(now) {
   if (G.dead) return;
+  // Behind the title screen and the pause menu the world is only a backdrop: draw it at
+  // ~30 fps and a lower resolution so integrated GPUs keep the menus smooth.
+  const backdrop = !!G.onTitle || (!G.playing && !G.screenOpen && !G.stats.dead);
+  if (backdrop && now - G.lastDraw < 30) { requestAnimationFrame(frame); return; }
+  G.lastDraw = now;
+  if (backdrop !== G.backdrop) { G.backdrop = backdrop; resize(); }
   try {
     const dt = Math.min(0.05, Math.max(0, (now - G.lastTime) / 1000));
     G.lastTime = now;
