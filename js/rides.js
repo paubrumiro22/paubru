@@ -68,7 +68,9 @@ const RIDE_KINDS = {
       [-0.82, 0.2, -1.92, 0.82, 0.72, -1.74, 'white', { paint: true }],
       [-0.64, 0.1, 1.8, 0.64, 0.72, 2.2, 'white', { paint: true }],
       [-0.38, 0.18, 2.2, 0.38, 0.72, 2.5, 'white', { paint: true }],
-      [-0.84, 0.64, -1.92, 0.84, 0.76, 2.2, 'white', { c: [0.5, 0.33, 0.18] }],
+      [0.64, 0.72, -1.92, 0.86, 0.8, 1.9, 'white', { c: [0.5, 0.33, 0.18], m: true }],
+      [-0.4, 0.72, 2.0, 0.4, 0.8, 2.5, 'white', { c: [0.5, 0.33, 0.18] }],
+      [-0.5, 0.72, 0.9, 0.5, 1.15, 1.0, 'glass'],
       [-0.66, 0.36, -0.2, 0.66, 0.44, 0.22, 'white', { c: [0.6, 0.42, 0.25] }],
       [-0.66, 0.3, -1.3, 0.66, 0.38, -0.85, 'white', { c: [0.6, 0.42, 0.25] }],
       [-0.2, 0.35, -2.25, 0.2, 1.0, -1.85, 'hullDark'],
@@ -312,10 +314,7 @@ class Ride {
     // a cart set down on rails picks them up
     if (d.type === 'rail') this.findRail();
     // wake behind a boat
-    if (water && here && here.water && Math.abs(this.speed) > 3 && Math.random() < dt * 20) {
-      const b = this.toWorld([rand(-0.6, 0.6), 0.1, -2.1]);
-      Particles.splash(b[0], this.pos[1] + 0.25, b[2], 1);
-    }
+    if (water && here && here.water && Math.abs(this.speed) > 3 && Math.random() < dt * 30) Rides.foam(this);
   }
 
   // ---- rails: the cart runs along the track, block by block ----
@@ -583,6 +582,14 @@ const Rides = {
     void dt;
     const fov = G.settings.fov + clamp(Math.abs(v.speed) / 30, 0, 1) * 10;
     return { pos, yaw: p.yaw, pitch: p.pitch, roll, fov };
+  },
+
+  // white foam in the wake of a boat
+  foam(v) {
+    const b = v.toWorld([rand(-0.7, 0.7), 0.05, -2.2 - Math.random() * 0.6]);
+    const l = rand(0.8, 1.6);
+    Particles.add(Particles.base(b[0], v.pos[1] + 0.3, b[2], { vx: -v.fwd[0] * 1.5 + rand(-0.6, 0.6), vy: rand(0.2, 0.8), vz: -v.fwd[2] * 1.5 + rand(-0.6, 0.6),
+      life: l, max: l, size: rand(0.12, 0.26), layer: T.p_smoke, r: 0.95, g: 0.98, b: 1, blend: true, drag: 0.94, grow: 1.6, grav: 2, collide: false }));
   },
 
   // ----------------------------------------------------------- rendering ----
@@ -872,6 +879,7 @@ sprite('i_cart', (d) => {
     Rides.render(v, cp, !!cockpit);
     // the player drives in third person; in the driver's view only the vehicle shows
     if (v === G.vehicle && !cockpit) Rides.rider(v, cp, G.settings.skin, NET_COLORS[Net.color].map((c) => c / 255 * 1.1), G.player.yaw + Math.PI);
+    else if (v.rider) Rides.rider(v, cp, v.rider.skin, v.rider.tint, v.yaw);   // a scripted driver (cinematics)
   }
   V.drawHud = function () {
     const v = G.vehicle;

@@ -489,10 +489,10 @@
     .book { width: 100%; border-left: 0; padding-left: 0; }
   }
   /* ---- money and the bank (bank.js) ---- */
-  #money { position: absolute; left: 14px; top: 12px; padding: 6px 12px 6px 10px; border-radius: 999px; background: rgba(11, 16, 24, 0.72); border: 1px solid var(--line);
+  #money { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); padding: 6px 12px 6px 10px; border-radius: 999px; background: rgba(11, 16, 24, 0.72); border: 1px solid var(--line);
     font: 700 15px var(--body); color: #ffe08a; letter-spacing: 0.02em; text-shadow: 0 1px 0 #000; }
   #money.bump { animation: moneyBump 0.45s ease-out; }
-  @keyframes moneyBump { 0% { transform: scale(1); } 30% { transform: scale(1.18); color: #fff3b8; } 100% { transform: scale(1); } }
+  @keyframes moneyBump { 0% { transform: translateX(-50%) scale(1); } 30% { transform: translateX(-50%) scale(1.18); color: #fff3b8; } 100% { transform: translateX(-50%) scale(1); } }
   .bankbox { display: flex; flex-direction: column; gap: 10px; width: min(720px, 86vw); }
   .bk-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-radius: 12px;
     background: linear-gradient(135deg, #1d2740, #2c1f14); border: 1px solid rgba(255, 214, 120, 0.35); }
@@ -5440,6 +5440,20 @@ const PIC_BUILTIN = {
     g.fillStyle = '#d6202b'; g.fillRect(18, 22, H - 44, H - 44);
     g.fillStyle = '#fff'; g.font = '900 96px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('M', 18 + (H - 44) / 2, H / 2 + 34);
     g.textAlign = 'left'; g.font = '700 64px Arial, sans-serif'; g.fillText('Universitat', H + 6, H / 2 + 22);
+  } },
+  bank: { w: 11, h: 1, draw(g, W, H) {
+    g.fillStyle = '#e9e4d6'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#b8912e'; g.font = '800 34px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('B A N C   C E N T R A L', W / 2, H / 2 + 2);
+  } },
+  bank_rates: { w: 2, h: 2, draw(g, W, H) {
+    g.fillStyle = '#10202a'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#ffd24a'; g.font = '800 40px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('\u{1FA99} CANVI', W / 2, 62);
+    g.font = '600 30px ui-monospace, Consolas, monospace'; g.textAlign = 'left';
+    [['Diamant', 50], ['Maragda', 10], ['Or', 8], ['Ferro', 3], ['Carb\u00f3', 1]].forEach(([n, v], i) => {
+      g.fillStyle = '#e8eef4'; g.fillText(n, 40, 140 + i * 72);
+      g.fillStyle = '#7fe39a'; g.textAlign = 'right'; g.fillText(String(v), W - 40, 140 + i * 72); g.textAlign = 'left';
+    });
   } },
   metro_map: { w: 2, h: 1, draw(g, W, H) {
     g.fillStyle = '#fbfbf8'; g.fillRect(0, 0, W, H);
@@ -16616,7 +16630,9 @@ const RIDE_KINDS = {
       [-0.82, 0.2, -1.92, 0.82, 0.72, -1.74, 'white', { paint: true }],
       [-0.64, 0.1, 1.8, 0.64, 0.72, 2.2, 'white', { paint: true }],
       [-0.38, 0.18, 2.2, 0.38, 0.72, 2.5, 'white', { paint: true }],
-      [-0.84, 0.64, -1.92, 0.84, 0.76, 2.2, 'white', { c: [0.5, 0.33, 0.18] }],
+      [0.64, 0.72, -1.92, 0.86, 0.8, 1.9, 'white', { c: [0.5, 0.33, 0.18], m: true }],
+      [-0.4, 0.72, 2.0, 0.4, 0.8, 2.5, 'white', { c: [0.5, 0.33, 0.18] }],
+      [-0.5, 0.72, 0.9, 0.5, 1.15, 1.0, 'glass'],
       [-0.66, 0.36, -0.2, 0.66, 0.44, 0.22, 'white', { c: [0.6, 0.42, 0.25] }],
       [-0.66, 0.3, -1.3, 0.66, 0.38, -0.85, 'white', { c: [0.6, 0.42, 0.25] }],
       [-0.2, 0.35, -2.25, 0.2, 1.0, -1.85, 'hullDark'],
@@ -16860,10 +16876,7 @@ class Ride {
     // a cart set down on rails picks them up
     if (d.type === 'rail') this.findRail();
     // wake behind a boat
-    if (water && here && here.water && Math.abs(this.speed) > 3 && Math.random() < dt * 20) {
-      const b = this.toWorld([rand(-0.6, 0.6), 0.1, -2.1]);
-      Particles.splash(b[0], this.pos[1] + 0.25, b[2], 1);
-    }
+    if (water && here && here.water && Math.abs(this.speed) > 3 && Math.random() < dt * 30) Rides.foam(this);
   }
 
   // ---- rails: the cart runs along the track, block by block ----
@@ -17131,6 +17144,14 @@ const Rides = {
     void dt;
     const fov = G.settings.fov + clamp(Math.abs(v.speed) / 30, 0, 1) * 10;
     return { pos, yaw: p.yaw, pitch: p.pitch, roll, fov };
+  },
+
+  // white foam in the wake of a boat
+  foam(v) {
+    const b = v.toWorld([rand(-0.7, 0.7), 0.05, -2.2 - Math.random() * 0.6]);
+    const l = rand(0.8, 1.6);
+    Particles.add(Particles.base(b[0], v.pos[1] + 0.3, b[2], { vx: -v.fwd[0] * 1.5 + rand(-0.6, 0.6), vy: rand(0.2, 0.8), vz: -v.fwd[2] * 1.5 + rand(-0.6, 0.6),
+      life: l, max: l, size: rand(0.12, 0.26), layer: T.p_smoke, r: 0.95, g: 0.98, b: 1, blend: true, drag: 0.94, grow: 1.6, grav: 2, collide: false }));
   },
 
   // ----------------------------------------------------------- rendering ----
@@ -17420,6 +17441,7 @@ sprite('i_cart', (d) => {
     Rides.render(v, cp, !!cockpit);
     // the player drives in third person; in the driver's view only the vehicle shows
     if (v === G.vehicle && !cockpit) Rides.rider(v, cp, G.settings.skin, NET_COLORS[Net.color].map((c) => c / 255 * 1.1), G.player.yaw + Math.PI);
+    else if (v.rider) Rides.rider(v, cp, v.rider.skin, v.rider.tint, v.yaw);   // a scripted driver (cinematics)
   }
   V.drawHud = function () {
     const v = G.vehicle;

@@ -122,6 +122,20 @@ const PIC_BUILTIN = {
     g.fillStyle = '#fff'; g.font = '900 96px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('M', 18 + (H - 44) / 2, H / 2 + 34);
     g.textAlign = 'left'; g.font = '700 64px Arial, sans-serif'; g.fillText('Universitat', H + 6, H / 2 + 22);
   } },
+  bank: { w: 11, h: 1, draw(g, W, H) {
+    g.fillStyle = '#e9e4d6'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#b8912e'; g.font = '800 34px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('B A N C   C E N T R A L', W / 2, H / 2 + 2);
+  } },
+  bank_rates: { w: 2, h: 2, draw(g, W, H) {
+    g.fillStyle = '#10202a'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#ffd24a'; g.font = '800 40px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('\u{1FA99} CANVI', W / 2, 62);
+    g.font = '600 30px ui-monospace, Consolas, monospace'; g.textAlign = 'left';
+    [['Diamant', 50], ['Maragda', 10], ['Or', 8], ['Ferro', 3], ['Carb\u00f3', 1]].forEach(([n, v], i) => {
+      g.fillStyle = '#e8eef4'; g.fillText(n, 40, 140 + i * 72);
+      g.fillStyle = '#7fe39a'; g.textAlign = 'right'; g.fillText(String(v), W - 40, 140 + i * 72); g.textAlign = 'left';
+    });
+  } },
   metro_map: { w: 2, h: 1, draw(g, W, H) {
     g.fillStyle = '#fbfbf8'; g.fillRect(0, 0, W, H);
     const lines = [['#d6202b', 70], ['#8a4ea0', 130], ['#e9b418', 190]];

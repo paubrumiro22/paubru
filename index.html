@@ -494,10 +494,10 @@
     .book { width: 100%; border-left: 0; padding-left: 0; }
   }
   /* ---- money and the bank (bank.js) ---- */
-  #money { position: absolute; left: 14px; top: 12px; padding: 6px 12px 6px 10px; border-radius: 999px; background: rgba(11, 16, 24, 0.72); border: 1px solid var(--line);
+  #money { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); padding: 6px 12px 6px 10px; border-radius: 999px; background: rgba(11, 16, 24, 0.72); border: 1px solid var(--line);
     font: 700 15px var(--body); color: #ffe08a; letter-spacing: 0.02em; text-shadow: 0 1px 0 #000; }
   #money.bump { animation: moneyBump 0.45s ease-out; }
-  @keyframes moneyBump { 0% { transform: scale(1); } 30% { transform: scale(1.18); color: #fff3b8; } 100% { transform: scale(1); } }
+  @keyframes moneyBump { 0% { transform: translateX(-50%) scale(1); } 30% { transform: translateX(-50%) scale(1.18); color: #fff3b8; } 100% { transform: translateX(-50%) scale(1); } }
   .bankbox { display: flex; flex-direction: column; gap: 10px; width: min(720px, 86vw); }
   .bk-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-radius: 12px;
     background: linear-gradient(135deg, #1d2740, #2c1f14); border: 1px solid rgba(255, 214, 120, 0.35); }
