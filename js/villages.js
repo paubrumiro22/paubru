@@ -74,8 +74,9 @@ const PROF_NAMES = { farmer: 'Farmer', fisher: 'Fisher', smith: 'Blacksmith', li
 // ---- population ----
 const Villages = {
   populated: new Map(),   // plan -> mobs
+  byVid: new Map(),       // shared id -> mob (the same villagers exist for every player of a server)
   t: 0,
-  reset() { this.populated.clear(); this.t = 0; },
+  reset() { this.populated.clear(); this.byVid.clear(); this.t = 0; },
 
   update(dt) {
     this.t -= dt;
@@ -100,6 +101,8 @@ const Villages = {
         for (let k = 0; k < 8 && (BLOCK_SOLID[w.getBlock(Math.floor(s.x), y, Math.floor(s.z))] || BLOCK_SOLID[w.getBlock(Math.floor(s.x), y + 1, Math.floor(s.z))]); k++) y++;
         const m = Ents.spawnMob(s.kind, s.x, y + 0.01, s.z);
         m.persistent = true;
+        m.vid = plan.x + ',' + plan.z + ':' + i;
+        this.byVid.set(m.vid, m);
         m.seed = (hash3(plan.x, i, plan.z, w.seed) * 2147483647) | 0;
         if (s.kind === 'villager') {
           m.prof = s.prof;

@@ -224,6 +224,9 @@ const Net = {
       const room = mod.joinRoom({ appId: NET_APP_ID, password: 'bl:' + server.code }, 'srv-' + server.code);
       this.selfPeer = mod.selfId;
       const pres = room.makeAction('pres'), sync = room.makeAction('sync'), need = room.makeAction('need');
+      const mobs = room.makeAction('mobs'), mhit = room.makeAction('mhit');
+      mobs.onMessage = (d, ctx) => this.onMobs(d, ctx.peerId);
+      mhit.onMessage = (d, ctx) => this.onMobHit(d, ctx.peerId);
       pres.onMessage = (d, ctx) => {
         const isNew = !this.peers.has(ctx.peerId);
         this.onPresence(ctx.peerId, d);
@@ -237,7 +240,7 @@ const Net = {
         setTimeout(() => this.serve(id), 300);
       };
       room.onPeerLeave = (id) => { this.dropPeer(id); this.refreshUI(); };
-      this.p2p = { room, pres, sync, need };
+      this.p2p = { room, pres, sync, need, mobs, mhit };
       this.statusText = 'Online';
       this.sendPresence(true);
     } catch (e) {
@@ -343,8 +346,67 @@ const Net = {
     else if (this.bc) this.bc.postMessage({ t: 'presence', peer: this.selfPeer, data: d });
   },
 
+  // The player with the smallest id among those connected runs the villagers of a server.
+  isHost() {
+    if (!this.server || !this.selfPeer) return true;
+    for (const k of this.peers.keys()) if (k < this.selfPeer) return false;
+    return true;
+  },
+  hostPeer() {
+    let h = this.selfPeer;
+    for (const k of this.peers.keys()) if (!h || k < h) h = k;
+    return h;
+  },
+
+  // host: tell everyone where the villagers near any player are (5 times a second)
+  sendMobs(dt) {
+    this.mobT = (this.mobT || 0) - dt;
+    if (this.mobT > 0 || !this.server || !this.p2p || !this.peers.size || !this.isHost()) return;
+    this.mobT = 0.2;
+    const near = [G.player.pos, ...[...this.peers.values()].map((r) => r.pos)];
+    const list = [];
+    for (const m of Ents.mobs) {
+      if (!m.vid || m.removed) continue;
+      if (!near.some((p) => Math.abs(p[0] - m.pos[0]) < 110 && Math.abs(p[2] - m.pos[2]) < 110)) continue;
+      list.push([m.vid, r1(m.pos[0]), r1(m.pos[1]), r1(m.pos[2]), r2(m.bodyYaw), m.dead ? 1 : 0]);
+      if (list.length >= 120) break;
+    }
+    if (list.length) this.p2p.mobs.send({ m: list }).catch(() => {});
+  },
+
+  onMobs(d, from) {
+    if (!d || !Array.isArray(d.m) || from !== this.hostPeer() || this.isHost()) return;
+    const now = performance.now();
+    for (const e of d.m) {
+      if (!Array.isArray(e) || typeof e[0] !== 'string') continue;
+      const m = Villages.byVid.get(e[0]);
+      if (!m || m.removed) continue;
+      const [x, y, z, yaw] = [e[1], e[2], e[3], e[4]].map(Number);
+      if (![x, y, z, yaw].every(Number.isFinite)) continue;
+      if (e[5] && !m.dead) { m.remote = false; m.die({}); continue; }
+      if (!m.remote) { m.remote = true; if (Math.hypot(m.pos[0] - x, m.pos[2] - z) > 20) m.pos = [x, y, z]; }
+      m.net = { x, y, z, yaw, t: now };
+    }
+  },
+
+  // a player hit a villager that the host runs
+  mobHit(m, amount, src) {
+    if (!this.p2p) return;
+    const host = this.hostPeer();
+    this.p2p.mhit.send({ v: m.vid, a: Math.min(40, amount), f: src.from ? src.from.map(r1) : null, k: src.knock || 1 }, { target: host }).catch(() => {});
+  },
+  onMobHit(d, from) {
+    if (!d || typeof d.v !== 'string' || !this.isHost() || !this.peers.has(from)) return;
+    const m = Villages.byVid.get(d.v);
+    const a = Number(d.a);
+    if (!m || m.dead || !Number.isFinite(a) || a <= 0) return;
+    const f = Array.isArray(d.f) && d.f.length === 3 && d.f.every(Number.isFinite) ? d.f : null;
+    m.damage(Math.min(a, 40), { player: true, from: f, knock: clamp(Number(d.k) || 1, 0, 3) });
+  },
+
   update(dt) {
     if (!this.on) return;
+    this.sendMobs(dt);
     this.sendT -= dt;
     if (this.sendT <= 0) { this.sendT = 1 / 15; this.sendPresence(false); }
     if (this.kind === 'local' || this.server) {

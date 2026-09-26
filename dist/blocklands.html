@@ -11383,6 +11383,13 @@ class Mob {
 
   damage(amount, src = {}) {
     if (this.dead || this.invuln > 0 || amount <= 0) return false;
+    if (this.remote && src.player) {
+      // the host applies the hit; show it here right away
+      Net.mobHit(this, amount, src);
+      this.hurtTime = 0.4; this.invuln = 0.45;
+      sfx(this.type + '_hurt', this.pos, 1, rand(0.9, 1.1));
+      return true;
+    }
     this.health -= amount;
     this.hurtTime = 0.4;
     this.invuln = 0.45;
@@ -11455,6 +11462,27 @@ class Mob {
 
   update(dt) {
     this.age += dt;
+    if (this.remote) {
+      // another player (the server's host) runs this villager: glide to where it says
+      const n = this.net;
+      if (!n || performance.now() - n.t > 3000) { this.remote = false; this.net = null; }
+      else {
+        const k = 1 - Math.exp(-dt * 8);
+        const ox = this.pos[0], oz = this.pos[2];
+        this.pos[0] += (n.x - this.pos[0]) * k; this.pos[1] += (n.y - this.pos[1]) * k; this.pos[2] += (n.z - this.pos[2]) * k;
+        let d = n.yaw - this.bodyYaw;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        this.bodyYaw += d * k;
+        this.headYaw = this.bodyYaw;
+        const hs = Math.hypot(this.pos[0] - ox, this.pos[2] - oz) / Math.max(dt, 1e-3);
+        this.walkAmt += (Math.min(1, hs / 2.5) - this.walkAmt) * Math.min(1, dt * 10);
+        this.walkPhase += dt * hs * 3.2;
+        this.hurtTime = Math.max(0, this.hurtTime - dt);
+        this.invuln -= dt;
+        return;
+      }
+    }
     if (this.dead) {
       this.deathTime += dt;
       this.vel[0] *= 0.9; this.vel[2] *= 0.9;
@@ -15162,6 +15190,9 @@ const Net = {
       const room = mod.joinRoom({ appId: NET_APP_ID, password: 'bl:' + server.code }, 'srv-' + server.code);
       this.selfPeer = mod.selfId;
       const pres = room.makeAction('pres'), sync = room.makeAction('sync'), need = room.makeAction('need');
+      const mobs = room.makeAction('mobs'), mhit = room.makeAction('mhit');
+      mobs.onMessage = (d, ctx) => this.onMobs(d, ctx.peerId);
+      mhit.onMessage = (d, ctx) => this.onMobHit(d, ctx.peerId);
       pres.onMessage = (d, ctx) => {
         const isNew = !this.peers.has(ctx.peerId);
         this.onPresence(ctx.peerId, d);
@@ -15175,7 +15206,7 @@ const Net = {
         setTimeout(() => this.serve(id), 300);
       };
       room.onPeerLeave = (id) => { this.dropPeer(id); this.refreshUI(); };
-      this.p2p = { room, pres, sync, need };
+      this.p2p = { room, pres, sync, need, mobs, mhit };
       this.statusText = 'Online';
       this.sendPresence(true);
     } catch (e) {
@@ -15281,8 +15312,67 @@ const Net = {
     else if (this.bc) this.bc.postMessage({ t: 'presence', peer: this.selfPeer, data: d });
   },
 
+  // The player with the smallest id among those connected runs the villagers of a server.
+  isHost() {
+    if (!this.server || !this.selfPeer) return true;
+    for (const k of this.peers.keys()) if (k < this.selfPeer) return false;
+    return true;
+  },
+  hostPeer() {
+    let h = this.selfPeer;
+    for (const k of this.peers.keys()) if (!h || k < h) h = k;
+    return h;
+  },
+
+  // host: tell everyone where the villagers near any player are (5 times a second)
+  sendMobs(dt) {
+    this.mobT = (this.mobT || 0) - dt;
+    if (this.mobT > 0 || !this.server || !this.p2p || !this.peers.size || !this.isHost()) return;
+    this.mobT = 0.2;
+    const near = [G.player.pos, ...[...this.peers.values()].map((r) => r.pos)];
+    const list = [];
+    for (const m of Ents.mobs) {
+      if (!m.vid || m.removed) continue;
+      if (!near.some((p) => Math.abs(p[0] - m.pos[0]) < 110 && Math.abs(p[2] - m.pos[2]) < 110)) continue;
+      list.push([m.vid, r1(m.pos[0]), r1(m.pos[1]), r1(m.pos[2]), r2(m.bodyYaw), m.dead ? 1 : 0]);
+      if (list.length >= 120) break;
+    }
+    if (list.length) this.p2p.mobs.send({ m: list }).catch(() => {});
+  },
+
+  onMobs(d, from) {
+    if (!d || !Array.isArray(d.m) || from !== this.hostPeer() || this.isHost()) return;
+    const now = performance.now();
+    for (const e of d.m) {
+      if (!Array.isArray(e) || typeof e[0] !== 'string') continue;
+      const m = Villages.byVid.get(e[0]);
+      if (!m || m.removed) continue;
+      const [x, y, z, yaw] = [e[1], e[2], e[3], e[4]].map(Number);
+      if (![x, y, z, yaw].every(Number.isFinite)) continue;
+      if (e[5] && !m.dead) { m.remote = false; m.die({}); continue; }
+      if (!m.remote) { m.remote = true; if (Math.hypot(m.pos[0] - x, m.pos[2] - z) > 20) m.pos = [x, y, z]; }
+      m.net = { x, y, z, yaw, t: now };
+    }
+  },
+
+  // a player hit a villager that the host runs
+  mobHit(m, amount, src) {
+    if (!this.p2p) return;
+    const host = this.hostPeer();
+    this.p2p.mhit.send({ v: m.vid, a: Math.min(40, amount), f: src.from ? src.from.map(r1) : null, k: src.knock || 1 }, { target: host }).catch(() => {});
+  },
+  onMobHit(d, from) {
+    if (!d || typeof d.v !== 'string' || !this.isHost() || !this.peers.has(from)) return;
+    const m = Villages.byVid.get(d.v);
+    const a = Number(d.a);
+    if (!m || m.dead || !Number.isFinite(a) || a <= 0) return;
+    const f = Array.isArray(d.f) && d.f.length === 3 && d.f.every(Number.isFinite) ? d.f : null;
+    m.damage(Math.min(a, 40), { player: true, from: f, knock: clamp(Number(d.k) || 1, 0, 3) });
+  },
+
   update(dt) {
     if (!this.on) return;
+    this.sendMobs(dt);
     this.sendT -= dt;
     if (this.sendT <= 0) { this.sendT = 1 / 15; this.sendPresence(false); }
     if (this.kind === 'local' || this.server) {
@@ -16451,8 +16541,9 @@ const PROF_NAMES = { farmer: 'Farmer', fisher: 'Fisher', smith: 'Blacksmith', li
 // ---- population ----
 const Villages = {
   populated: new Map(),   // plan -> mobs
+  byVid: new Map(),       // shared id -> mob (the same villagers exist for every player of a server)
   t: 0,
-  reset() { this.populated.clear(); this.t = 0; },
+  reset() { this.populated.clear(); this.byVid.clear(); this.t = 0; },
 
   update(dt) {
     this.t -= dt;
@@ -16477,6 +16568,8 @@ const Villages = {
         for (let k = 0; k < 8 && (BLOCK_SOLID[w.getBlock(Math.floor(s.x), y, Math.floor(s.z))] || BLOCK_SOLID[w.getBlock(Math.floor(s.x), y + 1, Math.floor(s.z))]); k++) y++;
         const m = Ents.spawnMob(s.kind, s.x, y + 0.01, s.z);
         m.persistent = true;
+        m.vid = plan.x + ',' + plan.z + ':' + i;
+        this.byVid.set(m.vid, m);
         m.seed = (hash3(plan.x, i, plan.z, w.seed) * 2147483647) | 0;
         if (s.kind === 'villager') {
           m.prof = s.prof;

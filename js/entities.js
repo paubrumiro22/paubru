@@ -44,6 +44,13 @@ class Mob {
 
   damage(amount, src = {}) {
     if (this.dead || this.invuln > 0 || amount <= 0) return false;
+    if (this.remote && src.player) {
+      // the host applies the hit; show it here right away
+      Net.mobHit(this, amount, src);
+      this.hurtTime = 0.4; this.invuln = 0.45;
+      sfx(this.type + '_hurt', this.pos, 1, rand(0.9, 1.1));
+      return true;
+    }
     this.health -= amount;
     this.hurtTime = 0.4;
     this.invuln = 0.45;
@@ -116,6 +123,27 @@ class Mob {
 
   update(dt) {
     this.age += dt;
+    if (this.remote) {
+      // another player (the server's host) runs this villager: glide to where it says
+      const n = this.net;
+      if (!n || performance.now() - n.t > 3000) { this.remote = false; this.net = null; }
+      else {
+        const k = 1 - Math.exp(-dt * 8);
+        const ox = this.pos[0], oz = this.pos[2];
+        this.pos[0] += (n.x - this.pos[0]) * k; this.pos[1] += (n.y - this.pos[1]) * k; this.pos[2] += (n.z - this.pos[2]) * k;
+        let d = n.yaw - this.bodyYaw;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        this.bodyYaw += d * k;
+        this.headYaw = this.bodyYaw;
+        const hs = Math.hypot(this.pos[0] - ox, this.pos[2] - oz) / Math.max(dt, 1e-3);
+        this.walkAmt += (Math.min(1, hs / 2.5) - this.walkAmt) * Math.min(1, dt * 10);
+        this.walkPhase += dt * hs * 3.2;
+        this.hurtTime = Math.max(0, this.hurtTime - dt);
+        this.invuln -= dt;
+        return;
+      }
+    }
     if (this.dead) {
       this.deathTime += dt;
       this.vel[0] *= 0.9; this.vel[2] *= 0.9;
