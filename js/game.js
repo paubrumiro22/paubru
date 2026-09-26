@@ -232,6 +232,7 @@ function canStay(id, x, y, z, facing) {
       return [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => w.getBlock(x + dx, y - 1, z + dz) === B.WATER);
     }
     case SUP_CACTUS: return below === B.SAND || below === B.CACTUS;
+    case SUP_BAMBOO: return below === B.BAMBOO || SOIL.has(below) || below === B.SAND;
     default: return true;
   }
 }
@@ -304,10 +305,14 @@ function destroyBlock(x, y, z, opts = {}) {
 }
 
 // ---------- growth ----------
+const SAPLING_KIND = {
+  [B.OAK_SAPLING]: 'oak', [B.BIRCH_SAPLING]: 'birch', [B.SPRUCE_SAPLING]: 'spruce',
+  [B.CHERRY_SAPLING]: 'cherry', [B.DARK_OAK_SAPLING]: 'dark_oak', [B.ACACIA_SAPLING]: 'acacia',
+};
 function growTree(x, y, z, sapling) {
   const w = G.world;
-  const kind = sapling === B.BIRCH_SAPLING ? 'birch' : sapling === B.SPRUCE_SAPLING ? 'spruce' : 'oak';
-  const need = kind === 'spruce' ? 9 : 7;
+  const kind = SAPLING_KIND[sapling] || 'oak';
+  const need = kind === 'spruce' || kind === 'dark_oak' ? 9 : 7;
   for (let i = 1; i < need; i++) {
     const id = w.getBlock(x, y + i, z);
     if (id !== B.AIR && BLOCK_RT[id] !== RT_CUTOUT) return false;
@@ -331,13 +336,14 @@ function randomTick(x, y, z, id) {
   const light = Math.max((L >> 4) * (isDaytime() ? 1 : 0.3), L & 15);
   if (id >= B.WHEAT_0 && id < B.WHEAT_3) {
     if (light >= 8 && Math.random() < 0.5) editBlock(x, y, z, id + 1);
-  } else if (id === B.OAK_SAPLING || id === B.BIRCH_SAPLING || id === B.SPRUCE_SAPLING) {
+  } else if (SAPLING_KIND[id]) {
     if (light >= 8 && Math.random() < 0.25) growTree(x, y, z, id);
-  } else if (id === B.SUGAR_CANE || id === B.CACTUS) {
+  } else if (id === B.SUGAR_CANE || id === B.CACTUS || id === B.BAMBOO) {
     if (w.getBlock(x, y + 1, z) === B.AIR && Math.random() < 0.35) {
+      const max = id === B.BAMBOO ? 6 : 3;
       let h = 1;
-      while (h < 4 && w.getBlock(x, y - h, z) === id) h++;
-      if (h < 3) { editBlock(x, y + 1, z, id); }
+      while (h < max + 1 && w.getBlock(x, y - h, z) === id) h++;
+      if (h < max) { editBlock(x, y + 1, z, id); }
     }
   } else if (id === B.DIRT) {
     const above = w.getBlock(x, y + 1, z);
@@ -357,7 +363,8 @@ function randomTick(x, y, z, id) {
 }
 
 const TICKABLE = new Uint8Array(MAX_BLOCK);
-[B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING, B.SUGAR_CANE, B.CACTUS, B.DIRT, B.GRASS, B.FARMLAND].forEach((id) => { TICKABLE[id] = 1; });
+[B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.SUGAR_CANE, B.CACTUS, B.BAMBOO, B.DIRT, B.GRASS, B.FARMLAND].forEach((id) => { TICKABLE[id] = 1; });
+for (const id in SAPLING_KIND) TICKABLE[id] = 1;
 
 function randomTicks(dt) {
   G.tickAcc += dt;
@@ -388,7 +395,7 @@ function boneMeal(x, y, z) {
   const w = G.world;
   const id = w.getBlock(x, y, z);
   if (id >= B.WHEAT_0 && id < B.WHEAT_3) { editBlock(x, y, z, Math.min(B.WHEAT_3, id + 1 + Math.floor(Math.random() * 3))); return true; }
-  if (id === B.OAK_SAPLING || id === B.BIRCH_SAPLING || id === B.SPRUCE_SAPLING) { if (Math.random() < 0.45) growTree(x, y, z, id); return true; }
+  if (SAPLING_KIND[id]) { if (Math.random() < 0.45) growTree(x, y, z, id); return true; }
   if (id === B.GRASS) {
     for (let i = 0; i < 14; i++) {
       const nx = x + Math.floor(rand(-3, 4)), nz = z + Math.floor(rand(-3, 4));

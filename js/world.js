@@ -361,6 +361,8 @@ class WorldGen {
     if (biome !== BIOME.MOUNTAIN && biome !== BIOME.OCEAN && slope > 5 && h > SEA + 6) { top = B.STONE; filler = B.STONE; }
     // clay beds on shallow sea floors
     if (h < SEA && h > SEA - 7 && this.nPatch.noise2D(wx * 0.07, wz * 0.07) > 0.5) { top = B.CLAY; filler = B.CLAY; depth = 2; }
+    if (this.ver >= 3 && top === B.GRASS && (biome === BIOME.FOREST || biome === BIOME.SNOWY) && this.nPatch.noise2D(wx * 0.03 + 5, wz * 0.03 + 9) > 0.55) top = B.PODZOL;
+    if (this.ver >= 3 && top === B.GRASS && h <= SEA + 2 && hum > 0.3 && this.nPatch.noise2D(wx * 0.05 - 3, wz * 0.05 + 21) > 0.4) top = B.MUD;
     return { top, filler, depth, under, underDepth: 4, stone: B.STONE, band: null, liquid: B.WATER, level: SEA, ice: false, tint: [gt, ft], biome };
   }
 
@@ -371,6 +373,7 @@ class WorldGen {
       [B.COAL_ORE, 14, 9, 100], [B.IRON_ORE, 9, 7, 64], [B.GOLD_ORE, 3, 6, 32], [B.DIAMOND_ORE, 2, 5, 16],
     ];
     if (this.ver >= 2) ores.push([B.EMERALD_ORE, 1, 3, 48]);   // appended so older worlds keep their ores
+    if (this.ver >= 3) ores.push([B.TUFF, 2, 26, 30], [B.CALCITE, 1, 18, 70]);
     const b = chunk.blocks;
     for (const [id, veins, size, maxY] of ores) {
       for (let v = 0; v < veins; v++) {
@@ -384,6 +387,13 @@ class WorldGen {
           const r = rng();
           if (r < 0.33) x += rng() < 0.5 ? 1 : -1; else if (r < 0.66) y += rng() < 0.5 ? 1 : -1; else z += rng() < 0.5 ? 1 : -1;
         }
+      }
+    }
+    // the deepest rock turns to deepslate, with a ragged top
+    if (this.ver >= 3) {
+      for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+        const top = 8 + Math.floor(hash3(ox + x, 1, oz + z, this.seed + 41) * 3 + this.nPatch.noise2D((ox + x) * 0.05, (oz + z) * 0.05) * 4);
+        for (let y = 1; y < top; y++) { const i = (y * CS + z) * CS + x; if (b[i] === B.STONE) b[i] = B.DEEPSLATE; }
       }
     }
   }
@@ -418,6 +428,14 @@ class WorldGen {
           continue;
         }
       }
+      if (this.ver >= 3 && (ground === B.GRASS || ground === B.PODZOL)) {
+        const pl = this.extraPlant(wx, wz, h, biome, ground, r);
+        if (pl) {
+          for (let i = 0; i < pl.length && h + 1 + i < CH; i++) b[((h + 1 + i) * CS + z) * CS + x] = pl[i];
+          continue;
+        }
+        if (ground === B.PODZOL) continue;
+      }
       if (ground === B.GRASS) {
         const grassChance = biome === BIOME.PLAINS ? 0.3 : biome === BIOME.FOREST ? 0.18 : 0.1;
         if (r < 0.014) b[above] = B.ROSE;
@@ -438,6 +456,31 @@ class WorldGen {
     }
   }
 
+  // Generator 3 plants: flower meadows (lavender, sunflowers or mixed wildflowers), bushes,
+  // bamboo in warm wet woods, lilies of the valley and ferns on the forest floor. null = none.
+  extraPlant(wx, wz, h, biome, ground, r) {
+    const { temp, hum } = this.climate(wx, wz);
+    const r2 = hash3(wx, 8, wz, this.seed);
+    if (ground === B.PODZOL) return r < 0.12 ? [B.FERN] : r < 0.15 ? [B.BUSH] : r < 0.16 ? [B.BROWN_MUSHROOM] : null;
+    if (biome === BIOME.FOREST || biome === BIOME.PLAINS) {
+      if (temp > 0.15 && hum > 0.2 && r > 0.975) return new Array(3 + Math.floor(r2 * 4)).fill(B.BAMBOO);
+      if (r > 0.955 && r <= 0.975) return [B.BUSH];
+    }
+    if (biome === BIOME.PLAINS) {
+      const meadow = this.nPatch.noise2D(wx * 0.018 + 91, wz * 0.018 - 33);
+      if (meadow > 0.45 && r < 0.4) {
+        const kind = this.nPatch.noise2D(wx * 0.004 - 7, wz * 0.004 + 55);
+        if (kind > 0.3) return [B.LAVENDER];
+        if (kind < -0.3) return r < 0.25 ? [B.SUNFLOWER] : null;
+        const mix = [B.CORNFLOWER, B.DAISY, B.ALLIUM, B.PINK_TULIP, B.DAISY, B.ROSE, B.DANDELION, B.HYDRANGEA];
+        return r < 0.3 ? [mix[Math.floor(r2 * mix.length)]] : null;
+      }
+      if (r > 0.94 && r <= 0.955) return [[B.DAISY, B.CORNFLOWER, B.PINK_TULIP][Math.floor(r2 * 3)]];
+    }
+    if (biome === BIOME.FOREST && r > 0.94 && r <= 0.955) return [r2 < 0.5 ? B.LILY_OF_VALLEY : B.HYDRANGEA];
+    return null;
+  }
+
   // Mushrooms on dark cave floors.
   placeCaveDecor(chunk, heights, HW, P, ox, oz) {
     const b = chunk.blocks;
@@ -445,9 +488,11 @@ class WorldGen {
       const h = heights[(z + P) * HW + x + P];
       for (let y = LAVA_Y + 2; y < h - 4; y++) {
         const i = (y * CS + z) * CS + x;
-        if (b[i] !== B.AIR || b[i - CS * CS] !== B.STONE) continue;
+        const fl = b[i - CS * CS];
+        if (b[i] !== B.AIR || (fl !== B.STONE && !(this.ver >= 3 && (fl === B.DEEPSLATE || fl === B.TUFF)))) continue;
         const r = hash3(ox + x, y, oz + z, this.seed + 17);
         if (r < 0.006) b[i] = r < 0.003 ? B.RED_MUSHROOM : B.BROWN_MUSHROOM;
+        else if (this.ver >= 3 && y < 34 && r < 0.0085) b[i] = B.AMETHYST_CLUSTER;
       }
     }
   }
@@ -466,7 +511,7 @@ class WorldGen {
   // rules); candidates whose column belongs to someone else are skipped.
   placeTreeLayer(chunk, ox, oz, reg, checkOwner) {
     const P = reg ? reg.p : null;
-    const cell = P ? P.trees.cell : 5, R = P ? P.trees.R : 3;
+    const cell = P ? P.trees.cell : 5, R = P ? P.trees.R : this.ver >= 3 ? 7 : 3;
     const rx = reg ? reg.x : 0, rz = reg ? reg.z : 0;
     const b = chunk.blocks;
     const get = (wx, wy, wz) => {
@@ -508,7 +553,9 @@ class WorldGen {
       const { temp, hum } = this.climate(tx, tz);
       const biome = this.biome(h, temp, hum);
       const density = biome === BIOME.FOREST ? 0.82 : biome === BIOME.SNOWY ? 0.4 : biome === BIOME.PLAINS ? 0.06 : biome === BIOME.MOUNTAIN ? 0.12 : 0;
-      if (hash3(gx, 3, gz, this.seed) >= density) continue;
+      // generator 3: a thin savanna of acacias on the greener edges of the deserts
+      const dens = this.ver >= 3 && biome === BIOME.DESERT && hum > -0.3 ? 0.05 : density;
+      if (hash3(gx, 3, gz, this.seed) >= dens) continue;
       // no trees on steep ground or above cave openings
       const sl = Math.max(Math.abs(this.height(tx + 1, tz) - this.height(tx - 1, tz)), Math.abs(this.height(tx, tz + 1) - this.height(tx, tz - 1)));
       if (sl > 2) continue;
@@ -518,6 +565,15 @@ class WorldGen {
       let kind = 'oak';
       if (biome === BIOME.SNOWY || (biome === BIOME.MOUNTAIN && h > SEA + 20)) kind = 'spruce';
       else if (biome === BIOME.FOREST && r < 0.3) kind = 'birch';
+      if (this.ver >= 3 && kind !== 'spruce') {
+        // cherry groves, dark oak woods in wet forests and acacias in the hot dry lands
+        const grove = this.nPatch.noise2D(tx * 0.006 + 40, tz * 0.006 - 17);
+        if (biome === BIOME.DESERT || (biome === BIOME.PLAINS && temp > 0.18)) kind = 'acacia';
+        else if (grove > 0.5 && temp > -0.1 && temp < 0.3) kind = 'cherry';
+        else if (biome === BIOME.FOREST && hum > 0.25 && r > 0.45) kind = 'dark_oak';
+        if (kind === 'cherry' && hash3(gx, 6, gz, this.seed) < 0.4) continue;   // groves stay airy
+        if (kind !== 'oak' && kind !== 'birch' && this.structs && (structZone(this, tx + 4, tz + 4) || structZone(this, tx - 4, tz - 4) || structZone(this, tx + 4, tz - 4) || structZone(this, tx - 4, tz + 4))) kind = 'oak';
+      }
       buildTree(get, set, tx, h + 1, tz, kind, hash3(gx, 5, gz, this.seed), this.seed);
     }
   }
@@ -599,6 +655,63 @@ function buildTree(get, set, x, y, z, kind, r, seed, dir) {
       if (i === hgt) rad = 1;
     }
     leaf(x, y + hgt, z, B.SPRUCE_LEAVES);
+    return;
+  }
+  if (kind === 'cherry') {
+    // short trunk with a kink and a wide, flat cloud of blossom that droops at the rim
+    const hgt = 4 + Math.floor(r * 3);
+    const a = hash3(x, y, z, seed + 11) * Math.PI * 2, bx = Math.round(Math.cos(a)), bz = Math.round(Math.sin(a));
+    let px = x, pz = z;
+    for (let i = 0; i < hgt; i++) { if (i === hgt - 2) { px += bx; pz += bz; } log(px, y + i, pz, B.CHERRY_LOG); }
+    const top = y + hgt;
+    for (let dy = -1; dy <= 1; dy++) {
+      const rad = dy === 1 ? 2.2 : dy === 0 ? 4.2 : 3.4, R = Math.ceil(rad);
+      for (let dz = -R; dz <= R; dz++) for (let dx = -R; dx <= R; dx++) {
+        const dd = Math.hypot(dx, dz);
+        if (dd > rad || (dd > rad - 1 && hash3(px + dx, top + dy, pz + dz, seed + 13) < 0.4)) continue;
+        leaf(px + dx, top + dy, pz + dz, B.CHERRY_LEAVES);
+      }
+    }
+    for (let k = 0; k < 12; k++) {
+      const an = k / 12 * Math.PI * 2, hx = px + Math.round(Math.cos(an) * 3.2), hz = pz + Math.round(Math.sin(an) * 3.2);
+      if (hash3(hx, top, hz, seed + 17) < 0.5) leaf(hx, top - 2, hz, B.CHERRY_LEAVES);
+    }
+    return;
+  }
+  if (kind === 'dark_oak') {
+    // thick 2x2 trunk under a broad, dense, low crown
+    const hgt = 6 + Math.floor(r * 3);
+    for (let i = 0; i < hgt; i++) for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) log(x + dx, y + i, z + dz, B.DARK_OAK_LOG);
+    const top = y + hgt;
+    for (let dy = -2; dy <= 1; dy++) {
+      const rad = dy === 1 ? 2.6 : dy === -2 ? 3.4 : 4.5, R = Math.ceil(rad);
+      for (let dz = -R; dz <= R + 1; dz++) for (let dx = -R; dx <= R + 1; dx++) {
+        const dd = Math.hypot(dx - 0.5, dz - 0.5);
+        if (dd > rad || (dd > rad - 1 && hash3(x + dx, top + dy, z + dz, seed + 19) < 0.45)) continue;
+        leaf(x + dx, top + dy, z + dz, B.DARK_OAK_LEAVES);
+      }
+    }
+    return;
+  }
+  if (kind === 'acacia') {
+    // a leaning, forked trunk with flat umbrella crowns
+    const hgt = 4 + Math.floor(r * 2);
+    const a = hash3(x, y, z, seed + 23) * Math.PI * 2, sx = Math.round(Math.cos(a)), sz = Math.round(Math.sin(a));
+    let px = x, pz = z;
+    for (let i = 0; i < hgt; i++) { if (i >= 2) { px += sx; pz += sz; } log(px, y + i, pz, B.ACACIA_LOG); }
+    const crowns = [[px, y + hgt, pz]];
+    if (r > 0.35) {
+      let qx = x - sx, qz = z - sz;
+      for (let i = 0; i < 3; i++) { if (i) { qx -= sx; qz -= sz; } log(qx, y + 2 + i, qz, B.ACACIA_LOG); }
+      crowns.push([qx, y + 5, qz]);
+    }
+    for (const [cx, cy, cz] of crowns) {
+      for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) {
+        const dd = Math.abs(dx) + Math.abs(dz);
+        if (dd <= 4 && !(dd === 4 && hash3(cx + dx, cy, cz + dz, seed + 29) < 0.5)) leaf(cx + dx, cy, cz + dz, B.ACACIA_LEAVES);
+        if (dd <= 2) leaf(cx + dx, cy + 1, cz + dz, B.ACACIA_LEAVES);
+      }
+    }
     return;
   }
   const logId = kind === 'birch' ? B.BIRCH_LOG : B.LOG;

@@ -9,7 +9,7 @@
 
 const STRUCT_CELL = 320;
 const STRUCT_REACH = 110;       // no structure reaches further than this from its centre
-const GEN_LATEST = 2;
+const GEN_LATEST = 3;
 
 // ---- building materials by village style ----
 const VSTYLE = {

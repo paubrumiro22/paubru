@@ -379,7 +379,7 @@ function buildChunkMesh(world, chunk) {
         if (rt === RT_CROSS) {
           if (tintType === TINT_GRASS) { tr = chunk.grassTint[col * 3]; tg = chunk.grassTint[col * 3 + 1]; tb = chunk.grassTint[col * 3 + 2]; }
           const wx = ox + x, wz = oz + z;
-          const jit = id === B.SUGAR_CANE || (id >= B.WHEAT_0 && id <= B.WHEAT_3) ? 0 : 1;
+          const jit = id === B.SUGAR_CANE || id === B.BAMBOO || (id >= B.WHEAT_0 && id <= B.WHEAT_3) ? 0 : 1;
           const jx = jit * (Math.floor(hash3(wx, y, wz, 77) * 5) - 2), jz = jit * (Math.floor(hash3(wx, y, wz, 91) * 5) - 2);
           const x0 = (x * 16 + 2 + jx) * P4, x1 = (x * 16 + 14 + jx) * P4, z0 = (z * 16 + 2 + jz) * P4, z1 = (z * 16 + 14 + jz) * P4;
           const y0 = y * POS_SCALE, y1 = (y + 1) * POS_SCALE;
