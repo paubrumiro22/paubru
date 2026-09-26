@@ -378,7 +378,7 @@ const Act = {
       }
       return false;
     }
-    if (held.id === I.FLINT_STEEL) return false;
+    if (held.id === I.FLINT_STEEL) return initial && Portals.ignite(hit);
     if (held.id === I.PICTURE) return initial && Pictures.begin(hit);
     return this.placeBlock(hit);
   },

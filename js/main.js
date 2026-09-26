@@ -269,6 +269,27 @@ function buildPlaces(el, after) {
     });
     el.append(b);
   }
+  // the dimensions: a jump in creative, a hint about their portals in survival
+  const here = dimOf(p[0], p[2]);
+  const how = { 0: 'Walk back through a portal', 1: 'Obsidian frame + flint and steel', 2: 'Ring of 12 ender frames', 3: 'Reinforced deepslate frame + flint and steel' };
+  for (let d = 0; d < DIM_INFO.length; d++) {
+    if (d === here || (d === 0 && !here)) continue;
+    const info = DIM_INFO[d];
+    const b = document.createElement('button');
+    b.className = 'place';
+    const i = document.createElement('span'); i.className = 'pi'; i.textContent = info.icon;
+    const n = document.createElement('b'); n.textContent = info.name;
+    const s = document.createElement('small'); s.textContent = G.mode === 'creative' ? 'Dimension · jump there' : how[d];
+    b.append(i, n, s);
+    if (G.mode !== 'creative') b.disabled = true;
+    b.addEventListener('click', () => {
+      Sound.init();
+      if (after) after();
+      Portals.travel(0, d);
+      requestLock();
+    });
+    el.append(b);
+  }
 }
 
 function worldLabel() {
@@ -986,7 +1007,8 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); }
+    const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     Sound.setListener(cam.pos, cam.yaw);
     const thirdPerson = G.view && !G.vehicle && !G.onTitle && !st.dead && !G.sleeping;
     const showHand = !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle && !thirdPerson;
@@ -1012,7 +1034,7 @@ function frame(now) {
       cockpit: G.vehicle && Vehicles.camMode === 'cockpit' ? G.vehicle : null,
     });
     G.renderer.render({
-      cam, dayTime: G.dayTime, time: G.time, dt, eyeSky: G.eyeSky, underwater: !G.vehicle && !G.onTitle && p.eyeInWater,
+      cam, dayTime: dim ? DIM_INFO[dim].day : G.dayTime, time: G.time, dt, eyeSky: G.eyeSky, underwater: !G.vehicle && !G.onTitle && p.eyeInWater, dim,
       weather: Weather.overcast, flash: Weather.flash, rain: Weather.wetness, snow: Weather.snowCover, mist: Weather.mist, rainFx: Weather.rainFx,
       chunks: G.world.chunks.values(), selection: hit && !G.hudHidden ? hit.pos : null, selectionBox: hit ? hit.box : null, entities: ents,
     });

@@ -32,6 +32,13 @@
     'POLISHED_GRANITE_SLAB', 'POLISHED_DIORITE_SLAB', 'CUT_COPPER_SLAB', 'TERRAZZO_SLAB', 'CONCRETE_SLAB',
     'DARK_OAK_FENCE', 'CHERRY_FENCE', 'ACACIA_FENCE', 'BAMBOO_FENCE',
     'BRICK_WALL', 'SANDSTONE_WALL', 'DEEPSLATE_WALL', 'BLACKSTONE_WALL', 'MUD_BRICK_WALL', 'RED_SANDSTONE_WALL', 'MOSSY_STONE_WALL',
+    // dimensions (dimensions.js)
+    'NETHER_PORTAL', 'END_PORTAL', 'DEEP_PORTAL', 'REINFORCED_DEEPSLATE', 'ENDER_FRAME', 'CRYING_OBSIDIAN', 'SOUL_SAND',
+    'CRIMSON_NYLIUM', 'WARPED_NYLIUM', 'CRIMSON_STEM', 'WARPED_STEM', 'NETHER_WART_BLOCK', 'WARPED_WART_BLOCK',
+    'CRIMSON_FUNGUS', 'WARPED_FUNGUS', 'CRIMSON_ROOTS', 'WARPED_ROOTS', 'NETHER_QUARTZ_ORE', 'NETHER_GOLD_ORE',
+    'NETHER_BRICK_FENCE', 'SOUL_LANTERN', 'SOUL_TORCH', 'END_ROD', 'CHORUS_PLANT', 'CHORUS_FLOWER', 'END_CRYSTAL',
+    'PURPUR_PILLAR', 'END_STONE_BRICKS', 'SCULK', 'SCULK_SENSOR', 'SCULK_SHRIEKER', 'SCULK_CATALYST', 'GLOW_LICHEN',
+    'CRIMSON_PLANKS', 'WARPED_PLANKS',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here
@@ -214,6 +221,54 @@ defConnect(B.MOSSY_STONE_WALL, 'Mossy Stone Brick Wall', CN_WALL, 'mossy_stone_b
   B.SHAPE1_END = id;
 }
 
+// ---- dimension blocks ----
+// portals: thin glowing sheets you walk into (no collision, cannot be picked or mined)
+const SH_PORTAL = 9, SH_END_PORTAL = 10;
+SHAPE_CANON[SH_PORTAL] = { boxes: [[0, 0, 6, 16, 16, 10]], coll: [] };
+SHAPE_CANON[SH_END_PORTAL] = { boxes: [[0, 0, 0, 16, 12, 16]], coll: [] };
+const PORTAL_OPT = { emit: 11, atten: 0, hard: -1, blast: 1e9, snd: SND.GLASS, solid: false, cat: null };
+defBlock(B.NETHER_PORTAL, 'Nether Portal', RT_SHAPE, 'nether_portal', PORTAL_OPT);
+defBlock(B.END_PORTAL, 'End Portal', RT_SHAPE, 'end_portal', with_(PORTAL_OPT, { emit: 12 }));
+defBlock(B.DEEP_PORTAL, 'Deep Dark Portal', RT_SHAPE, 'deep_portal', with_(PORTAL_OPT, { emit: 9 }));
+BLOCK_SHAPE[B.NETHER_PORTAL] = SH_PORTAL; BLOCK_SHAPE[B.DEEP_PORTAL] = SH_PORTAL; BLOCK_SHAPE[B.END_PORTAL] = SH_END_PORTAL;
+for (const id of [B.NETHER_PORTAL, B.DEEP_PORTAL, B.END_PORTAL]) { FACING_BLOCKS.add(id); BLOCK_HEIGHT[id] = 0; }
+const IS_PORTAL = (id) => id === B.NETHER_PORTAL || id === B.END_PORTAL || id === B.DEEP_PORTAL;
+defBlock(B.REINFORCED_DEEPSLATE, 'Reinforced Deepslate', RT_CUBE, ['reinforced_top', 'reinforced_top', 'reinforced_side'], XR({ hard: 30, tier: 3, blast: 1200, cat: 'functional' }));
+defBlock(B.ENDER_FRAME, 'Ender Frame', RT_CUBE, { top: 'ender_frame_top', bottom: 'end_stone', side: 'ender_frame_side' }, XR({ hard: 30, tier: 3, blast: 1200, emit: 4, cat: 'functional' }));
+defBlock(B.CRYING_OBSIDIAN, 'Crying Obsidian', RT_CUBE, 'crying_obsidian', XR({ hard: 50, tier: 4, blast: 1200, emit: 10 }));
+defBlock(B.SOUL_SAND, 'Soul Sand', RT_CUBE, 'soul_sand', { hard: 0.5, tool: TOOL_SHOVEL, snd: SND.SAND, cat: 'nature' });
+defBlock(B.CRIMSON_NYLIUM, 'Crimson Nylium', RT_CUBE, ['crimson_nylium', 'netherrack', 'crimson_nylium_side'], XR({ hard: 0.4, cat: 'nature' }));
+defBlock(B.WARPED_NYLIUM, 'Warped Nylium', RT_CUBE, ['warped_nylium', 'netherrack', 'warped_nylium_side'], XR({ hard: 0.4, cat: 'nature' }));
+defBlock(B.CRIMSON_STEM, 'Crimson Stem', RT_CUBE, ['crimson_stem_top', 'crimson_stem_top', 'crimson_stem'], WOOD);
+defBlock(B.WARPED_STEM, 'Warped Stem', RT_CUBE, ['warped_stem_top', 'warped_stem_top', 'warped_stem'], WOOD);
+defBlock(B.NETHER_WART_BLOCK, 'Nether Wart Block', RT_CUBE, 'nether_wart_block', { hard: 1, tool: TOOL_HOE, snd: SND.WOOL, cat: 'nature' });
+defBlock(B.WARPED_WART_BLOCK, 'Warped Wart Block', RT_CUBE, 'warped_wart_block', { hard: 1, tool: TOOL_HOE, snd: SND.WOOL, cat: 'nature' });
+const NETHER_PLANT = with_(PLANT, { support: SUP_SOLID, flags: FLAG_TRANSLUCENT });
+defBlock(B.CRIMSON_FUNGUS, 'Crimson Fungus', RT_CROSS, 'crimson_fungus', NETHER_PLANT);
+defBlock(B.WARPED_FUNGUS, 'Warped Fungus', RT_CROSS, 'warped_fungus', NETHER_PLANT);
+defBlock(B.CRIMSON_ROOTS, 'Crimson Roots', RT_CROSS, 'crimson_roots', with_(NETHER_PLANT, { replace: true }));
+defBlock(B.WARPED_ROOTS, 'Warped Roots', RT_CROSS, 'warped_roots', with_(NETHER_PLANT, { replace: true }));
+defBlock(B.NETHER_QUARTZ_ORE, 'Nether Quartz Ore', RT_CUBE, 'nether_quartz_ore', XR({ hard: 3, cat: 'nature' }));
+defBlock(B.NETHER_GOLD_ORE, 'Nether Gold Ore', RT_CUBE, 'nether_gold_ore', XR({ hard: 3, cat: 'nature' }));
+defConnect(B.NETHER_BRICK_FENCE, 'Nether Brick Fence', CN_FENCE, 'nether_bricks', XR({ hard: 2 }));
+defBlock(B.SOUL_LANTERN, 'Soul Lantern', RT_LANTERN, { top: 'lantern_top', side: 'soul_lantern' }, { emit: 10, atten: 0, hard: 0.5, tool: TOOL_PICK, snd: SND.METAL, solid: false, cat: 'functional' });
+BLOCK_SOLID[B.SOUL_LANTERN] = 1; BLOCK_HEIGHT[B.SOUL_LANTERN] = 9; FACING_BLOCKS.add(B.SOUL_LANTERN);
+defBlock(B.SOUL_TORCH, 'Soul Torch', RT_TORCH, 'soul_torch', { emit: 10, atten: 0, hard: 0, snd: SND.WOOD, support: SUP_FLOOR, cat: 'functional' });
+defBlock(B.END_ROD, 'End Rod', RT_TORCH, 'end_rod', { emit: 14, atten: 0, hard: 0, snd: SND.GLASS, support: SUP_FLOOR, cat: 'functional' });
+defBlock(B.CHORUS_PLANT, 'Chorus Plant', RT_CUTOUT, 'chorus_plant', { atten: 1, hard: 0.4, tool: TOOL_AXE, snd: SND.WOOD, cat: 'nature' });
+defBlock(B.CHORUS_FLOWER, 'Chorus Flower', RT_CUTOUT, 'chorus_flower', { atten: 1, hard: 0.4, tool: TOOL_AXE, snd: SND.WOOD, emit: 3, cat: 'nature' });
+defBlock(B.END_CRYSTAL, 'End Crystal', RT_CUBE, 'end_crystal', { emit: 15, hard: 0.5, snd: SND.GLASS, cat: 'functional' });
+defBlock(B.PURPUR_PILLAR, 'Purpur Pillar', RT_CUBE, ['purpur_pillar_top', 'purpur_pillar_top', 'purpur_pillar'], XR({ hard: 1.5 }));
+defBlock(B.END_STONE_BRICKS, 'End Stone Bricks', RT_CUBE, 'end_stone_bricks', XR({ hard: 3 }));
+defBlock(B.SCULK, 'Sculk', RT_CUBE, 'sculk', { hard: 0.6, tool: TOOL_HOE, snd: SND.WOOL, emit: 2, cat: 'nature' });
+defBlock(B.SCULK_SENSOR, 'Sculk Sensor', RT_CUBE, { top: 'sculk_sensor_top', bottom: 'sculk', side: 'sculk_sensor_side' }, { hard: 1.5, tool: TOOL_HOE, snd: SND.WOOL, emit: 4, cat: 'nature' });
+defBlock(B.SCULK_SHRIEKER, 'Sculk Shrieker', RT_CUBE, { top: 'sculk_shrieker_top', bottom: 'sculk', side: 'sculk_shrieker_side' }, { hard: 3, tool: TOOL_HOE, snd: SND.WOOL, emit: 3, cat: 'nature' });
+defBlock(B.SCULK_CATALYST, 'Sculk Catalyst', RT_CUBE, { top: 'sculk_catalyst_top', bottom: 'sculk', side: 'sculk_catalyst_side' }, { hard: 3, tool: TOOL_HOE, snd: SND.WOOL, emit: 6, cat: 'nature' });
+defBlock(B.GLOW_LICHEN, 'Glow Lichen', RT_CROSS, 'glow_lichen', with_(PLANT, { emit: 7, support: SUP_SOLID, flags: FLAG_TRANSLUCENT, replace: true }));
+defBlock(B.CRIMSON_PLANKS, 'Crimson Planks', RT_CUBE, 'crimson_planks', WOOD);
+defBlock(B.WARPED_PLANKS, 'Warped Planks', RT_CUBE, 'warped_planks', WOOD);
+SOIL.add(B.SOUL_SAND);
+
 LOGS.push(B.DARK_OAK_LOG, B.CHERRY_LOG, B.ACACIA_LOG);
-PLANKS_ALL.push(B.DARK_OAK_PLANKS, B.CHERRY_PLANKS, B.ACACIA_PLANKS, B.BAMBOO_PLANKS);
+PLANKS_ALL.push(B.DARK_OAK_PLANKS, B.CHERRY_PLANKS, B.ACACIA_PLANKS, B.BAMBOO_PLANKS, B.CRIMSON_PLANKS, B.WARPED_PLANKS);
 for (const id of [B.PODZOL, B.COARSE_DIRT, B.MOSS_BLOCK, B.MUD]) SOIL.add(id);

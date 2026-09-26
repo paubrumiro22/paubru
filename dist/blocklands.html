@@ -1729,6 +1729,13 @@ function div16(b) { return [b[0] / 16, b[1] / 16, b[2] / 16, b[3] / 16, b[4] / 1
     'POLISHED_GRANITE_SLAB', 'POLISHED_DIORITE_SLAB', 'CUT_COPPER_SLAB', 'TERRAZZO_SLAB', 'CONCRETE_SLAB',
     'DARK_OAK_FENCE', 'CHERRY_FENCE', 'ACACIA_FENCE', 'BAMBOO_FENCE',
     'BRICK_WALL', 'SANDSTONE_WALL', 'DEEPSLATE_WALL', 'BLACKSTONE_WALL', 'MUD_BRICK_WALL', 'RED_SANDSTONE_WALL', 'MOSSY_STONE_WALL',
+    // dimensions (dimensions.js)
+    'NETHER_PORTAL', 'END_PORTAL', 'DEEP_PORTAL', 'REINFORCED_DEEPSLATE', 'ENDER_FRAME', 'CRYING_OBSIDIAN', 'SOUL_SAND',
+    'CRIMSON_NYLIUM', 'WARPED_NYLIUM', 'CRIMSON_STEM', 'WARPED_STEM', 'NETHER_WART_BLOCK', 'WARPED_WART_BLOCK',
+    'CRIMSON_FUNGUS', 'WARPED_FUNGUS', 'CRIMSON_ROOTS', 'WARPED_ROOTS', 'NETHER_QUARTZ_ORE', 'NETHER_GOLD_ORE',
+    'NETHER_BRICK_FENCE', 'SOUL_LANTERN', 'SOUL_TORCH', 'END_ROD', 'CHORUS_PLANT', 'CHORUS_FLOWER', 'END_CRYSTAL',
+    'PURPUR_PILLAR', 'END_STONE_BRICKS', 'SCULK', 'SCULK_SENSOR', 'SCULK_SHRIEKER', 'SCULK_CATALYST', 'GLOW_LICHEN',
+    'CRIMSON_PLANKS', 'WARPED_PLANKS',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here
@@ -1911,8 +1918,56 @@ defConnect(B.MOSSY_STONE_WALL, 'Mossy Stone Brick Wall', CN_WALL, 'mossy_stone_b
   B.SHAPE1_END = id;
 }
 
+// ---- dimension blocks ----
+// portals: thin glowing sheets you walk into (no collision, cannot be picked or mined)
+const SH_PORTAL = 9, SH_END_PORTAL = 10;
+SHAPE_CANON[SH_PORTAL] = { boxes: [[0, 0, 6, 16, 16, 10]], coll: [] };
+SHAPE_CANON[SH_END_PORTAL] = { boxes: [[0, 0, 0, 16, 12, 16]], coll: [] };
+const PORTAL_OPT = { emit: 11, atten: 0, hard: -1, blast: 1e9, snd: SND.GLASS, solid: false, cat: null };
+defBlock(B.NETHER_PORTAL, 'Nether Portal', RT_SHAPE, 'nether_portal', PORTAL_OPT);
+defBlock(B.END_PORTAL, 'End Portal', RT_SHAPE, 'end_portal', with_(PORTAL_OPT, { emit: 12 }));
+defBlock(B.DEEP_PORTAL, 'Deep Dark Portal', RT_SHAPE, 'deep_portal', with_(PORTAL_OPT, { emit: 9 }));
+BLOCK_SHAPE[B.NETHER_PORTAL] = SH_PORTAL; BLOCK_SHAPE[B.DEEP_PORTAL] = SH_PORTAL; BLOCK_SHAPE[B.END_PORTAL] = SH_END_PORTAL;
+for (const id of [B.NETHER_PORTAL, B.DEEP_PORTAL, B.END_PORTAL]) { FACING_BLOCKS.add(id); BLOCK_HEIGHT[id] = 0; }
+const IS_PORTAL = (id) => id === B.NETHER_PORTAL || id === B.END_PORTAL || id === B.DEEP_PORTAL;
+defBlock(B.REINFORCED_DEEPSLATE, 'Reinforced Deepslate', RT_CUBE, ['reinforced_top', 'reinforced_top', 'reinforced_side'], XR({ hard: 30, tier: 3, blast: 1200, cat: 'functional' }));
+defBlock(B.ENDER_FRAME, 'Ender Frame', RT_CUBE, { top: 'ender_frame_top', bottom: 'end_stone', side: 'ender_frame_side' }, XR({ hard: 30, tier: 3, blast: 1200, emit: 4, cat: 'functional' }));
+defBlock(B.CRYING_OBSIDIAN, 'Crying Obsidian', RT_CUBE, 'crying_obsidian', XR({ hard: 50, tier: 4, blast: 1200, emit: 10 }));
+defBlock(B.SOUL_SAND, 'Soul Sand', RT_CUBE, 'soul_sand', { hard: 0.5, tool: TOOL_SHOVEL, snd: SND.SAND, cat: 'nature' });
+defBlock(B.CRIMSON_NYLIUM, 'Crimson Nylium', RT_CUBE, ['crimson_nylium', 'netherrack', 'crimson_nylium_side'], XR({ hard: 0.4, cat: 'nature' }));
+defBlock(B.WARPED_NYLIUM, 'Warped Nylium', RT_CUBE, ['warped_nylium', 'netherrack', 'warped_nylium_side'], XR({ hard: 0.4, cat: 'nature' }));
+defBlock(B.CRIMSON_STEM, 'Crimson Stem', RT_CUBE, ['crimson_stem_top', 'crimson_stem_top', 'crimson_stem'], WOOD);
+defBlock(B.WARPED_STEM, 'Warped Stem', RT_CUBE, ['warped_stem_top', 'warped_stem_top', 'warped_stem'], WOOD);
+defBlock(B.NETHER_WART_BLOCK, 'Nether Wart Block', RT_CUBE, 'nether_wart_block', { hard: 1, tool: TOOL_HOE, snd: SND.WOOL, cat: 'nature' });
+defBlock(B.WARPED_WART_BLOCK, 'Warped Wart Block', RT_CUBE, 'warped_wart_block', { hard: 1, tool: TOOL_HOE, snd: SND.WOOL, cat: 'nature' });
+const NETHER_PLANT = with_(PLANT, { support: SUP_SOLID, flags: FLAG_TRANSLUCENT });
+defBlock(B.CRIMSON_FUNGUS, 'Crimson Fungus', RT_CROSS, 'crimson_fungus', NETHER_PLANT);
+defBlock(B.WARPED_FUNGUS, 'Warped Fungus', RT_CROSS, 'warped_fungus', NETHER_PLANT);
+defBlock(B.CRIMSON_ROOTS, 'Crimson Roots', RT_CROSS, 'crimson_roots', with_(NETHER_PLANT, { replace: true }));
+defBlock(B.WARPED_ROOTS, 'Warped Roots', RT_CROSS, 'warped_roots', with_(NETHER_PLANT, { replace: true }));
+defBlock(B.NETHER_QUARTZ_ORE, 'Nether Quartz Ore', RT_CUBE, 'nether_quartz_ore', XR({ hard: 3, cat: 'nature' }));
+defBlock(B.NETHER_GOLD_ORE, 'Nether Gold Ore', RT_CUBE, 'nether_gold_ore', XR({ hard: 3, cat: 'nature' }));
+defConnect(B.NETHER_BRICK_FENCE, 'Nether Brick Fence', CN_FENCE, 'nether_bricks', XR({ hard: 2 }));
+defBlock(B.SOUL_LANTERN, 'Soul Lantern', RT_LANTERN, { top: 'lantern_top', side: 'soul_lantern' }, { emit: 10, atten: 0, hard: 0.5, tool: TOOL_PICK, snd: SND.METAL, solid: false, cat: 'functional' });
+BLOCK_SOLID[B.SOUL_LANTERN] = 1; BLOCK_HEIGHT[B.SOUL_LANTERN] = 9; FACING_BLOCKS.add(B.SOUL_LANTERN);
+defBlock(B.SOUL_TORCH, 'Soul Torch', RT_TORCH, 'soul_torch', { emit: 10, atten: 0, hard: 0, snd: SND.WOOD, support: SUP_FLOOR, cat: 'functional' });
+defBlock(B.END_ROD, 'End Rod', RT_TORCH, 'end_rod', { emit: 14, atten: 0, hard: 0, snd: SND.GLASS, support: SUP_FLOOR, cat: 'functional' });
+defBlock(B.CHORUS_PLANT, 'Chorus Plant', RT_CUTOUT, 'chorus_plant', { atten: 1, hard: 0.4, tool: TOOL_AXE, snd: SND.WOOD, cat: 'nature' });
+defBlock(B.CHORUS_FLOWER, 'Chorus Flower', RT_CUTOUT, 'chorus_flower', { atten: 1, hard: 0.4, tool: TOOL_AXE, snd: SND.WOOD, emit: 3, cat: 'nature' });
+defBlock(B.END_CRYSTAL, 'End Crystal', RT_CUBE, 'end_crystal', { emit: 15, hard: 0.5, snd: SND.GLASS, cat: 'functional' });
+defBlock(B.PURPUR_PILLAR, 'Purpur Pillar', RT_CUBE, ['purpur_pillar_top', 'purpur_pillar_top', 'purpur_pillar'], XR({ hard: 1.5 }));
+defBlock(B.END_STONE_BRICKS, 'End Stone Bricks', RT_CUBE, 'end_stone_bricks', XR({ hard: 3 }));
+defBlock(B.SCULK, 'Sculk', RT_CUBE, 'sculk', { hard: 0.6, tool: TOOL_HOE, snd: SND.WOOL, emit: 2, cat: 'nature' });
+defBlock(B.SCULK_SENSOR, 'Sculk Sensor', RT_CUBE, { top: 'sculk_sensor_top', bottom: 'sculk', side: 'sculk_sensor_side' }, { hard: 1.5, tool: TOOL_HOE, snd: SND.WOOL, emit: 4, cat: 'nature' });
+defBlock(B.SCULK_SHRIEKER, 'Sculk Shrieker', RT_CUBE, { top: 'sculk_shrieker_top', bottom: 'sculk', side: 'sculk_shrieker_side' }, { hard: 3, tool: TOOL_HOE, snd: SND.WOOL, emit: 3, cat: 'nature' });
+defBlock(B.SCULK_CATALYST, 'Sculk Catalyst', RT_CUBE, { top: 'sculk_catalyst_top', bottom: 'sculk', side: 'sculk_catalyst_side' }, { hard: 3, tool: TOOL_HOE, snd: SND.WOOL, emit: 6, cat: 'nature' });
+defBlock(B.GLOW_LICHEN, 'Glow Lichen', RT_CROSS, 'glow_lichen', with_(PLANT, { emit: 7, support: SUP_SOLID, flags: FLAG_TRANSLUCENT, replace: true }));
+defBlock(B.CRIMSON_PLANKS, 'Crimson Planks', RT_CUBE, 'crimson_planks', WOOD);
+defBlock(B.WARPED_PLANKS, 'Warped Planks', RT_CUBE, 'warped_planks', WOOD);
+SOIL.add(B.SOUL_SAND);
+
 LOGS.push(B.DARK_OAK_LOG, B.CHERRY_LOG, B.ACACIA_LOG);
-PLANKS_ALL.push(B.DARK_OAK_PLANKS, B.CHERRY_PLANKS, B.ACACIA_PLANKS, B.BAMBOO_PLANKS);
+PLANKS_ALL.push(B.DARK_OAK_PLANKS, B.CHERRY_PLANKS, B.ACACIA_PLANKS, B.BAMBOO_PLANKS, B.CRIMSON_PLANKS, B.WARPED_PLANKS);
 for (const id of [B.PODZOL, B.COARSE_DIRT, B.MOSS_BLOCK, B.MUD]) SOIL.add(id);
 </script>
 <script>
@@ -7290,6 +7345,7 @@ function planCell(g, ix, iz) {
   if (roll > 0.8) return null;
   const cx = ix * STRUCT_CELL + 70 + Math.floor(rng() * (STRUCT_CELL - 140));
   const cz = iz * STRUCT_CELL + 70 + Math.floor(rng() * (STRUCT_CELL - 140));
+  if (dimAt(cx, cz)) return null;   // the dimensions have their own structures (dimensions.js)
   if (regionNear(g, cx, cz, 90)) return null;
   const h = g.height(cx, cz);
   const { temp, hum } = g.climate(cx, cz);
@@ -7992,6 +8048,549 @@ WORLD_PRESETS.campnou = {
     }
   },
 };
+</script>
+<script data-w>
+'use strict';
+// Dimensions: the Nether, the End and the Deep Dark are far-away bands of the same world, so
+// saving, online play and the cloud handle them like any other place. Portals take players from
+// one to another (dimensions_game.js). Bands (world coordinates):
+//   Nether     x >= 150 000   local x = x - 200 000   1 block = 8 in the Overworld
+//   End        x <= -150 000  local x = x + 200 000   one fixed island group
+//   Deep Dark  z >= 150 000   local z = z - 200 000   1 block = 4 in the Overworld
+// Only "default" worlds have them. Generation is deterministic from the seed like the rest.
+
+const DIM_OVER = 0, DIM_NETHER = 1, DIM_END = 2, DIM_DEEP = 3;
+const DIM_EDGE = 150000, DIM_C = 200000;
+const NETHER_LAVA = 31, DEEP_WATER = 20;
+
+function dimAt(x, z) {
+  if (x >= DIM_EDGE) return DIM_NETHER;
+  if (x <= -DIM_EDGE) return DIM_END;
+  if (z >= DIM_EDGE) return DIM_DEEP;
+  return DIM_OVER;
+}
+function dimLocal(d, x, z) {
+  return d === DIM_NETHER ? [x - DIM_C, z] : d === DIM_END ? [x + DIM_C, z] : d === DIM_DEEP ? [x, z - DIM_C] : [x, z];
+}
+function dimWorld(d, lx, lz) {
+  return d === DIM_NETHER ? [lx + DIM_C, lz] : d === DIM_END ? [lx - DIM_C, lz] : d === DIM_DEEP ? [lx, lz + DIM_C] : [lx, lz];
+}
+// Where a portal at (x, z) in dimension `from` leads in dimension `to` (world x, z).
+function dimTarget(from, to, x, z) {
+  let ox = x, oz = z;
+  if (from === DIM_NETHER) { ox = (x - DIM_C) * 8; oz = z * 8; }
+  else if (from === DIM_DEEP) { ox = x * 4; oz = (z - DIM_C) * 4; }
+  const lim = DIM_EDGE - 8000;
+  ox = clamp(ox, -lim, lim); oz = clamp(oz, -lim, lim);
+  if (to === DIM_NETHER) return [DIM_C + Math.round(ox / 8), Math.round(oz / 8)];
+  if (to === DIM_DEEP) return [Math.round(ox / 4), DIM_C + Math.round(oz / 4)];
+  if (to === DIM_END) return [-DIM_C + 96, 0];
+  return [Math.round(ox), Math.round(oz)];
+}
+
+function dimNoise(g) {
+  return g._dimN || (g._dimN = {
+    a: new SimplexNoise(g.seed + 701), b: new SimplexNoise(g.seed + 709),
+    c: new SimplexNoise(g.seed + 719), d: new SimplexNoise(g.seed + 727),
+  });
+}
+
+// A density sampled every 4 blocks around a chunk (8 blocks of margin) and interpolated, so
+// features that reach into the neighbours (trees, fungi) see exactly the same terrain.
+function densityLattice(fn, lox, loz) {
+  const X0 = lox - 8, Z0 = loz - 8, NX = 9, NY = CH / 4 + 1;
+  const s = new Float32Array(NX * NX * NY);
+  for (let iy = 0; iy < NY; iy++) for (let iz = 0; iz < NX; iz++) for (let ix = 0; ix < NX; ix++) {
+    s[(iy * NX + iz) * NX + ix] = fn(X0 + ix * 4, iy * 4, Z0 + iz * 4);
+  }
+  return (x, y, z) => {
+    const fx = (x - X0) / 4, fy = y / 4, fz = (z - Z0) / 4;
+    const ix = clamp(Math.floor(fx), 0, NX - 2), iy = clamp(Math.floor(fy), 0, NY - 2), iz = clamp(Math.floor(fz), 0, NX - 2);
+    const tx = fx - ix, ty = fy - iy, tz = fz - iz;
+    const i000 = (iy * NX + iz) * NX + ix, i010 = i000 + NX * NX, i001 = i000 + NX, i011 = i010 + NX;
+    const a = s[i000] + (s[i000 + 1] - s[i000]) * tx, b = s[i001] + (s[i001 + 1] - s[i001]) * tx;
+    const c = s[i010] + (s[i010 + 1] - s[i010]) * tx, d = s[i011] + (s[i011 + 1] - s[i011]) * tx;
+    const lo = a + (b - a) * tz, hi = c + (d - c) * tz;
+    return lo + (hi - lo) * ty;
+  };
+}
+
+// Neutral tints and water colour for every column of a dimension chunk, then heights.
+function dimFinish(chunk, water) {
+  for (let i = 0; i < CS * CS; i++) {
+    for (let k = 0; k < 3; k++) { chunk.grassTint[i * 3 + k] = 200; chunk.foliageTint[i * 3 + k] = 200; }
+    storeWater(chunk, i, water);
+  }
+  chunk.maxY = 0;
+  for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) chunk.recomputeHeight(x, z);
+}
+
+// ---------------------------------------------------------------- Nether ----
+const NB_WASTES = 0, NB_CRIMSON = 1, NB_WARPED = 2, NB_BASALT = 3, NB_SOUL = 4;
+function netherDensity(N, x, y, z) {
+  let v = N.a.noise3D(x * 0.012, y * 0.03, z * 0.012) * 0.6 + N.b.noise3D(x * 0.035, y * 0.06, z * 0.035) * 0.28 + N.c.noise3D(x * 0.09, y * 0.12, z * 0.09) * 0.12;
+  v += Math.max(0, (30 - y) / 22) * 1.1 + Math.max(0, (y - 98) / 20) * 1.3;
+  return v - 0.2;
+}
+function netherBiome(N, x, z) {
+  const t = N.d.noise2D(x * 0.0035, z * 0.0035), u = N.c.noise2D(x * 0.0035 + 400, z * 0.0035 - 300);
+  return t > 0.3 ? NB_CRIMSON : t < -0.3 ? NB_WARPED : u > 0.33 ? NB_BASALT : u < -0.33 ? NB_SOUL : NB_WASTES;
+}
+
+function genNether(g, chunk) {
+  const N = dimNoise(g), b = chunk.blocks, seed = g.seed;
+  const ox = chunk.cx * CS, oz = chunk.cz * CS, lox = ox - DIM_C;
+  const dens = densityLattice((x, y, z) => netherDensity(N, x, y, z), lox, oz);
+  const at = (x, y, z) => (y * CS + z) * CS + x;
+  for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+    const lx = lox + x, lz = oz + z;
+    const bio = netherBiome(N, lx, lz);
+    for (let y = 0; y < CH; y++) {
+      let id;
+      if (y === 0 || y === CH - 1 || (y < 4 && hash3(lx, y, lz, seed) < 0.5 - y * 0.12) || (y > CH - 5 && hash3(lx, y, lz, seed + 1) < (y - (CH - 5)) * 0.25)) id = B.BEDROCK;
+      else if (dens(lx, y, lz) > 0) {
+        id = B.NETHERRACK;
+        if (bio === NB_BASALT) id = N.b.noise3D(lx * 0.08, y * 0.08, lz * 0.08) > 0.2 ? B.BLACKSTONE : B.BASALT;
+        else {
+          const h = hash3(lx >> 1, y >> 1, lz >> 1, seed + 3);
+          if (h < 0.012) id = B.NETHER_QUARTZ_ORE;
+          else if (h < 0.017) id = B.NETHER_GOLD_ORE;
+          else if (y >= NETHER_LAVA - 3 && y <= NETHER_LAVA + 2 && hash3(lx, y, lz, seed + 4) < 0.2) id = B.MAGMA;
+        }
+      } else id = y <= NETHER_LAVA ? B.LAVA : B.AIR;
+      b[at(x, y, z)] = id;
+    }
+    // surfaces: nylium, soul sand, glowstone on the ceilings, plants
+    for (let y = 2; y < CH - 2; y++) {
+      const i = at(x, y, z), id = b[i];
+      if (id === B.AIR || id === B.LAVA || id === B.BEDROCK) continue;
+      const above = b[i + CS * CS], below = b[i - CS * CS];
+      if (above === B.AIR && id !== B.MAGMA) {
+        if (bio === NB_CRIMSON) b[i] = B.CRIMSON_NYLIUM;
+        else if (bio === NB_WARPED) b[i] = B.WARPED_NYLIUM;
+        else if (bio === NB_SOUL) { b[i] = B.SOUL_SAND; if (b[i - CS * CS] === B.NETHERRACK) b[i - CS * CS] = B.SOUL_SAND; }
+        else if (bio === NB_WASTES && hash3(lx, y, lz, seed + 5) < 0.02) b[i] = B.SOUL_SAND;
+        const r = hash3(lx, y, lz, seed + 6);
+        if (bio === NB_CRIMSON && r < 0.12) b[i + CS * CS] = r < 0.03 ? B.CRIMSON_FUNGUS : B.CRIMSON_ROOTS;
+        else if (bio === NB_WARPED && r < 0.12) b[i + CS * CS] = r < 0.03 ? B.WARPED_FUNGUS : B.WARPED_ROOTS;
+        else if (bio === NB_SOUL && r < 0.006) b[i + CS * CS] = B.SOUL_TORCH;
+      } else if (below === B.AIR && y > 60 && hash3(lx >> 1, y >> 1, lz >> 1, seed + 7) < 0.05 && bio !== NB_BASALT) {
+        // glowstone dripping from the roof
+        b[i] = B.GLOWSTONE;
+        const n = 1 + Math.floor(hash3(lx, y, lz, seed + 8) * 3);
+        for (let k = 1; k <= n && b[i - k * CS * CS] === B.AIR; k++) b[i - k * CS * CS] = B.GLOWSTONE;
+      }
+    }
+  }
+  netherFungi(g, N, chunk, dens);
+  for (const p of dimPlansNear(g, DIM_NETHER, lox, oz)) buildFortress(g, p, chunk);
+  dimFinish(chunk, WATER_STYLE.river);
+}
+
+// Huge crimson and warped fungi on a jittered grid (like the Overworld's trees).
+function netherFungi(g, N, chunk, dens) {
+  const ox = chunk.cx * CS, oz = chunk.cz * CS, lox = ox - DIM_C, b = chunk.blocks, seed = g.seed;
+  const set = (lx, y, lz, id, soft) => {
+    const x = lx - lox, z = lz - oz;
+    if (x < 0 || x >= CS || z < 0 || z >= CS || y < 1 || y >= CH - 1) return;
+    const i = (y * CS + z) * CS + x;
+    if (soft && b[i] !== B.AIR && BLOCK_RT[b[i]] !== RT_CROSS) return;
+    b[i] = id;
+  };
+  const cell = 7, R = 4;
+  for (let gz = Math.floor((oz - R) / cell); gz <= Math.floor((oz + CS + R) / cell); gz++) {
+    for (let gx = Math.floor((lox - R) / cell); gx <= Math.floor((lox + CS + R) / cell); gx++) {
+      if (hash3(gx, 1, gz, seed + 31) > 0.55) continue;
+      const tx = gx * cell + Math.floor(hash3(gx, 2, gz, seed + 31) * cell), tz = gz * cell + Math.floor(hash3(gx, 3, gz, seed + 31) * cell);
+      if (tx < lox - R || tx >= lox + CS + R || tz < oz - R || tz >= oz + CS + R) continue;
+      const bio = netherBiome(N, tx, tz);
+      if (bio !== NB_CRIMSON && bio !== NB_WARPED) continue;
+      // lowest floor above the lava with room for the stem
+      let fy = -1;
+      for (let y = NETHER_LAVA + 1; y < 90; y++) {
+        if (dens(tx, y, tz) > 0 && dens(tx, y + 1, tz) <= 0) {
+          let room = true;
+          for (let k = 2; k < 11; k++) if (dens(tx, y + k, tz) > 0) { room = false; break; }
+          if (room) { fy = y; break; }
+        }
+      }
+      if (fy < 0) continue;
+      const crimson = bio === NB_CRIMSON, stem = crimson ? B.CRIMSON_STEM : B.WARPED_STEM, wart = crimson ? B.NETHER_WART_BLOCK : B.WARPED_WART_BLOCK;
+      const hgt = 5 + Math.floor(hash3(gx, 4, gz, seed + 31) * 4), top = fy + hgt;
+      for (let y = fy + 1; y <= top; y++) set(tx, y, tz, stem);
+      for (let dy = -2; dy <= 1; dy++) {
+        const rad = dy === 1 ? 1.5 : dy === 0 ? 3.2 : 3.4;
+        for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
+          const dd = Math.hypot(dx, dz);
+          if (dd > rad) continue;
+          if (dy < 0 && dd < rad - 1.1) continue;           // a hollow cap: rim hangs down, inside open
+          const h = hash3(tx + dx, top + dy, tz + dz, seed + 33);
+          set(tx + dx, top + dy, tz + dz, h < 0.07 ? B.SHROOMLIGHT : wart, true);
+        }
+      }
+    }
+  }
+}
+
+// ------------------------------------------------------------------ End ----
+function endColumn(N, x, z) {
+  const r = Math.hypot(x, z);
+  if (r < 120) {
+    const k = r / 120;
+    const top = Math.round(60 + N.a.noise2D(x * 0.03, z * 0.03) * 2 - k * k * 7);
+    const depth = Math.round(Math.sqrt(Math.max(0, 1 - k * k)) * 34 * (0.85 + 0.15 * N.b.noise2D(x * 0.05, z * 0.05)) + 2);
+    return [top, top - depth];
+  }
+  if (r > 330) {
+    const m = N.c.noise2D(x * 0.006, z * 0.006) * 0.7 + N.d.noise2D(x * 0.025, z * 0.025) * 0.3;
+    if (m > 0.4) {
+      const t = (m - 0.4) / 0.6;
+      const top = Math.round(56 + N.a.noise2D(x * 0.01, z * 0.01) * 8 + t * 5);
+      return [top, top - Math.round(3 + t * 42)];
+    }
+  }
+  return null;
+}
+const END_PILLARS = Array.from({ length: 10 }, (_, i) => {
+  const a = i / 10 * Math.PI * 2 + 0.3;
+  return { x: Math.round(Math.cos(a) * 44), z: Math.round(Math.sin(a) * 44), r: 2 + (i % 3), h: 76 + ((i * 9) % 30), cage: i % 4 === 0 };
+});
+function genEnd(g, chunk) {
+  const N = dimNoise(g), b = chunk.blocks, seed = g.seed;
+  const ox = chunk.cx * CS, oz = chunk.cz * CS, lox = ox + DIM_C;
+  const at = (x, y, z) => (y * CS + z) * CS + x;
+  for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+    const lx = lox + x, lz = oz + z;
+    const col = endColumn(N, lx, lz);
+    if (!col) continue;
+    for (let y = Math.max(1, col[1]); y <= col[0] && y < CH; y++) b[at(x, y, z)] = B.END_STONE;
+  }
+  // obsidian pillars round the main island with a glowing crystal on each
+  for (const P of END_PILLARS) {
+    if (P.x + P.r + 2 < lox || P.x - P.r - 2 >= lox + CS || P.z + P.r + 2 < oz || P.z - P.r - 2 >= oz + CS) continue;
+    for (let dz = -P.r - 2; dz <= P.r + 2; dz++) for (let dx = -P.r - 2; dx <= P.r + 2; dx++) {
+      const x = P.x + dx - lox, z = P.z + dz - oz;
+      if (x < 0 || x >= CS || z < 0 || z >= CS) continue;
+      const d = Math.hypot(dx, dz);
+      if (d <= P.r + 0.3) for (let y = 40; y <= P.h; y++) b[at(x, y, z)] = B.OBSIDIAN;
+      if (dx === 0 && dz === 0) { b[at(x, P.h + 1, z)] = B.BEDROCK; b[at(x, P.h + 2, z)] = B.END_CRYSTAL; }
+      if (P.cage && Math.max(Math.abs(dx), Math.abs(dz)) === 2) for (let y = P.h + 1; y <= P.h + 4; y++) b[at(x, y, z)] = B.IRON_BARS;
+      if (P.cage && Math.max(Math.abs(dx), Math.abs(dz)) <= 2) b[at(x, P.h + 5, z)] = B.IRON_BARS;
+    }
+  }
+  // the exit portal in the middle of the main island
+  if (lox <= 4 && lox + CS > -4 && oz <= 4 && oz + CS > -4) {
+    const T = endColumn(N, 0, 0)[0];
+    for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
+      const x = dx - lox, z = dz - oz;
+      if (x < 0 || x >= CS || z < 0 || z >= CS) continue;
+      const d = Math.hypot(dx, dz);
+      if (d > 3.6) continue;
+      b[at(x, T, z)] = B.BEDROCK;
+      if (d > 2.6) b[at(x, T + 1, z)] = B.BEDROCK;
+      else if (dx === 0 && dz === 0) { for (let y = T + 1; y <= T + 4; y++) b[at(x, y, z)] = B.BEDROCK; b[at(x, T + 5, z)] = B.END_ROD; }
+      else b[at(x, T + 1, z)] = B.END_PORTAL;
+    }
+  }
+  endChorus(g, N, chunk);
+  for (const p of dimPlansNear(g, DIM_END, lox, oz)) buildEndCity(g, p, chunk);
+  dimFinish(chunk, WATER_STYLE.river);
+}
+
+// Chorus plants on the outer islands: a stalk with a few upturned branches and flowers.
+function endChorus(g, N, chunk) {
+  const ox = chunk.cx * CS, oz = chunk.cz * CS, lox = ox + DIM_C, b = chunk.blocks, seed = g.seed;
+  const set = (lx, y, lz, id) => {
+    const x = lx - lox, z = lz - oz;
+    if (x < 0 || x >= CS || z < 0 || z >= CS || y < 1 || y >= CH) return;
+    const i = (y * CS + z) * CS + x;
+    if (b[i] === B.AIR) b[i] = id;
+  };
+  const cell = 8, R = 3;
+  for (let gz = Math.floor((oz - R) / cell); gz <= Math.floor((oz + CS + R) / cell); gz++) {
+    for (let gx = Math.floor((lox - R) / cell); gx <= Math.floor((lox + CS + R) / cell); gx++) {
+      if (hash3(gx, 1, gz, seed + 41) > 0.5) continue;
+      const tx = gx * cell + Math.floor(hash3(gx, 2, gz, seed + 41) * cell), tz = gz * cell + Math.floor(hash3(gx, 3, gz, seed + 41) * cell);
+      if (Math.hypot(tx, tz) < 330) continue;
+      const col = endColumn(N, tx, tz);
+      if (!col) continue;
+      const hgt = 3 + Math.floor(hash3(gx, 4, gz, seed + 41) * 4);
+      for (let y = col[0] + 1; y <= col[0] + hgt; y++) set(tx, y, tz, B.CHORUS_PLANT);
+      set(tx, col[0] + hgt + 1, tz, B.CHORUS_FLOWER);
+      for (let k = 0; k < 2; k++) {
+        const dir = Math.floor(hash3(gx, 5 + k, gz, seed + 41) * 4), [dx, dz] = [[1, 0], [-1, 0], [0, 1], [0, -1]][dir];
+        const by = col[0] + 2 + k;
+        set(tx + dx, by, tz + dz, B.CHORUS_PLANT); set(tx + dx, by + 1, tz + dz, B.CHORUS_PLANT); set(tx + dx, by + 2, tz + dz, B.CHORUS_FLOWER);
+      }
+    }
+  }
+}
+
+// ------------------------------------------------------------- Deep Dark ----
+function deepDensity(N, x, y, z) {
+  let v = N.a.noise3D(x * 0.011, y * 0.022, z * 0.011) * 0.62 + N.b.noise3D(x * 0.03, y * 0.05, z * 0.03) * 0.26 + N.c.noise3D(x * 0.08, y * 0.1, z * 0.08) * 0.12;
+  v += Math.max(0, (16 - y) / 12) * 1.2 + Math.max(0, (y - 66) / 18) * 1.4;
+  return v - 0.14;
+}
+function genDeep(g, chunk) {
+  const N = dimNoise(g), b = chunk.blocks, seed = g.seed;
+  const ox = chunk.cx * CS, oz = chunk.cz * CS, loz = oz - DIM_C;
+  const dens = densityLattice((x, y, z) => deepDensity(N, x, y, z), ox, loz);
+  const at = (x, y, z) => (y * CS + z) * CS + x;
+  for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+    const lx = ox + x, lz = loz + z;
+    for (let y = 0; y < CH; y++) {
+      let id;
+      if (y === 0 || y === CH - 1 || (y < 4 && hash3(lx, y, lz, seed) < 0.5 - y * 0.12) || (y > CH - 5 && hash3(lx, y, lz, seed + 1) < (y - (CH - 5)) * 0.25)) id = B.BEDROCK;
+      else if (dens(lx, y, lz) > 0) {
+        id = B.DEEPSLATE;
+        const t = N.d.noise3D(lx * 0.05, y * 0.05, lz * 0.05);
+        if (t > 0.45) id = B.TUFF;
+        else if (hash3(lx >> 1, y >> 1, lz >> 1, seed + 3) < 0.006) id = B.DIAMOND_ORE;
+      } else id = y <= DEEP_WATER ? B.WATER : B.AIR;
+      b[at(x, y, z)] = id;
+    }
+    // sculk spreads over the floors (and some ceilings); sensors, shriekers, glow lichen
+    for (let y = 2; y < 90; y++) {
+      const i = at(x, y, z), id = b[i];
+      if (id !== B.DEEPSLATE && id !== B.TUFF) continue;
+      const above = b[i + CS * CS], below = b[i - CS * CS];
+      const patch = N.c.noise3D(lx * 0.04, y * 0.04, lz * 0.04);
+      if (above === B.AIR) {
+        const r = hash3(lx, y, lz, seed + 9);
+        if (patch > 0.05) {
+          b[i] = r < 0.012 ? B.SCULK_SENSOR : r < 0.016 ? B.SCULK_SHRIEKER : r < 0.0175 ? B.SCULK_CATALYST : B.SCULK;
+          if (below === B.DEEPSLATE && patch > 0.3) b[i - CS * CS] = B.SCULK;
+        } else if (r < 0.03) b[i + CS * CS] = B.GLOW_LICHEN;
+      } else if (below === B.AIR && patch > 0.35) b[i] = B.SCULK;
+    }
+  }
+  for (const p of dimPlansNear(g, DIM_DEEP, ox, loz)) buildAncientCity(g, p, chunk);
+  dimFinish(chunk, WATER_STYLE.cold || WATER_STYLE.river);
+}
+
+// --------------------------------------------------- dimension structures ----
+// One plan per 320-block cell of a dimension's local coordinates (fortresses, end cities, ancient
+// cities), cached on the generator.
+const DIM_CELL = 320, DIM_REACH = 64;
+function dimPlan(g, d, ix, iz) {
+  const cache = g._dimPlans || (g._dimPlans = new Map());
+  const key = d + ':' + ix + ':' + iz;
+  if (cache.has(key)) return cache.get(key);
+  const rng = mulberry32((g.seed ^ Math.imul(ix, 73856093) ^ Math.imul(iz, 19349663) ^ Math.imul(d, 83492791) ^ 0x2c1b3c6d) | 0);
+  let plan = null;
+  const cx = ix * DIM_CELL + 80 + Math.floor(rng() * (DIM_CELL - 160)), cz = iz * DIM_CELL + 80 + Math.floor(rng() * (DIM_CELL - 160));
+  const roll = rng();
+  if (d === DIM_NETHER && roll < 0.55) plan = { type: 'fortress', x: cx, z: cz, y: 58 + Math.floor(rng() * 12), arms: [rng() < 0.85, rng() < 0.85, rng() < 0.85, rng() < 0.85], len: 28 + Math.floor(rng() * 16) };
+  else if (d === DIM_END && roll < 0.45 && Math.hypot(cx, cz) > 420) {
+    const col = endColumn(dimNoise(g), cx, cz);
+    if (col) plan = { type: 'endcity', x: cx, z: cz, y: col[0] + 1, h: 18 + Math.floor(rng() * 14) };
+  } else if (d === DIM_DEEP && roll < 0.6) plan = { type: 'ancient', x: cx, z: cz, y: 26 };
+  // the first ancient city sits next to the origin, so the portal there has somewhere to go
+  if (d === DIM_DEEP && ix === 0 && iz === 0) plan = { type: 'ancient', x: 0, z: 0, y: 26 };
+  cache.set(key, plan);
+  return plan;
+}
+function dimPlansNear(g, d, lx0, lz0) {
+  const out = [];
+  const i0 = Math.floor((lx0 - DIM_REACH) / DIM_CELL), i1 = Math.floor((lx0 + CS + DIM_REACH) / DIM_CELL);
+  const j0 = Math.floor((lz0 - DIM_REACH) / DIM_CELL), j1 = Math.floor((lz0 + CS + DIM_REACH) / DIM_CELL);
+  for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+    const p = dimPlan(g, d, i, j);
+    if (p && Math.abs(p.x - (lx0 + 8)) < DIM_REACH + 8 && Math.abs(p.z - (lz0 + 8)) < DIM_REACH + 8) out.push(p);
+  }
+  return out;
+}
+// structWriter in a dimension's local coordinates
+function dimWriter(chunk, d) {
+  const W = structWriter(chunk);
+  const [dx, dz] = dimWorld(d, 0, 0);
+  return {
+    set(x, y, z, id, f) { W.set(x + dx, y, z + dz, id, f); },
+    get(x, y, z) { return W.get(x + dx, y, z + dz); },
+    loot(x, y, z, kind) { W.loot(x + dx, y, z + dz, kind); },
+    has(x, z) { return W.has(x + dx, z + dz); },
+  };
+}
+
+// Nether fortress: nether-brick bridges in a cross from a walled hall, on pillars down to the lava.
+function buildFortress(g, P, chunk) {
+  const W = dimWriter(chunk, DIM_NETHER), Y = P.y;
+  const deck = (x, z) => {
+    if (!W.has(x, z)) return;
+    for (let y = Y - 1; y <= Y; y++) W.set(x, y, z, B.NETHER_BRICKS);
+    for (let y = Y + 1; y <= Y + 5; y++) W.set(x, y, z, B.AIR);
+  };
+  const pillar = (x, z) => {
+    if (!W.has(x, z)) return;
+    for (let y = Y - 2; y > 2; y--) { const id = W.get(x, y, z); if (id !== B.AIR && id !== B.LAVA && y < NETHER_LAVA - 2) break; W.set(x, y, z, B.NETHER_BRICKS); }
+  };
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  dirs.forEach(([ax, az], k) => {
+    if (!P.arms[k]) return;
+    for (let s = 6; s <= P.len; s++) for (let w = -2; w <= 2; w++) {
+      const x = P.x + ax * s + (az ? w : 0), z = P.z + az * s + (ax ? w : 0);
+      deck(x, z);
+      if (Math.abs(w) === 2 && W.has(x, z)) W.set(x, Y + 1, z, B.NETHER_BRICK_FENCE);
+      if (s % 8 === 0 && Math.abs(w) <= 1) pillar(x, z);
+      if (s % 8 === 0 && w === 2 && W.has(x, z)) W.set(x, Y + 2, z, B.SOUL_LANTERN);
+    }
+    // a small tower at the end of each arm
+    const ex = P.x + ax * (P.len + 3), ez = P.z + az * (P.len + 3);
+    for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) {
+      const x = ex + dx, z = ez + dz;
+      if (!W.has(x, z)) continue;
+      const edge = Math.max(Math.abs(dx), Math.abs(dz)) === 3;
+      for (let y = Y - 1; y <= Y + 8; y++) {
+        let id = B.AIR;
+        if (y <= Y || y === Y + 8) id = B.NETHER_BRICKS;
+        else if (edge) id = (y === Y + 3 || y === Y + 4) && (dx === 0 || dz === 0) ? B.NETHER_BRICK_FENCE : B.NETHER_BRICKS;
+        W.set(x, y, z, id);
+      }
+      if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) pillar(x, z);
+    }
+    // the doorway from the bridge
+    for (let w = -1; w <= 1; w++) for (let y = Y + 1; y <= Y + 3; y++) {
+      const x = ex - ax * 3 + (az ? w : 0), z = ez - az * 3 + (ax ? w : 0);
+      if (W.has(x, z)) W.set(x, y, z, B.AIR);
+    }
+  });
+  // the central hall
+  for (let dz = -6; dz <= 6; dz++) for (let dx = -6; dx <= 6; dx++) {
+    const x = P.x + dx, z = P.z + dz;
+    if (!W.has(x, z)) continue;
+    const edge = Math.max(Math.abs(dx), Math.abs(dz)) === 6;
+    const door = edge && Math.min(Math.abs(dx), Math.abs(dz)) <= 1;
+    for (let y = Y - 1; y <= Y + 7; y++) {
+      let id = B.AIR;
+      if (y <= Y || y === Y + 7) id = B.NETHER_BRICKS;
+      else if (edge && !(door && y <= Y + 3)) id = y === Y + 4 && !door && (dx + dz) % 2 === 0 ? B.NETHER_BRICK_FENCE : B.NETHER_BRICKS;
+      W.set(x, y, z, id);
+    }
+    if (Math.abs(dx) <= 2 && Math.abs(dz) <= 2) pillar(x, z);
+  }
+  for (const [dx, dz] of [[-4, -4], [4, 4]]) if (W.has(P.x + dx, P.z + dz)) { W.set(P.x + dx, Y + 1, P.z + dz, B.CHEST, dx > 0 ? 1 : 0); W.loot(P.x + dx, Y + 1, P.z + dz, 'fortress'); }
+  for (const [dx, dz] of [[-4, 4], [4, -4], [0, 0]]) if (W.has(P.x + dx, P.z + dz)) W.set(P.x + dx, Y + 6, P.z + dz, B.SOUL_LANTERN, 8);
+}
+
+// End city: a purpur tower with end-rod lamps and a loot room at the top.
+function buildEndCity(g, P, chunk) {
+  const W = dimWriter(chunk, DIM_END), Y = P.y, H = P.h;
+  for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
+    const x = P.x + dx, z = P.z + dz;
+    if (!W.has(x, z)) continue;
+    const ring = Math.max(Math.abs(dx), Math.abs(dz));
+    for (let y = Y - 3; y <= Y + H + 1; y++) {
+      let id = B.AIR;
+      const floor = (y - Y) % 6 === 0;
+      if (y < Y) id = ring <= 3 ? B.END_STONE_BRICKS : B.AIR;
+      else if (ring === 4) id = (Math.abs(dx) === 4 && Math.abs(dz) === 4) ? B.PURPUR_PILLAR : (y - Y) % 6 === 3 && Math.min(Math.abs(dx), Math.abs(dz)) <= 1 ? B.GLASS : B.PURPUR;
+      else if (floor || y === Y + H + 1) id = dx === 1 && dz === 0 && y > Y && y < Y + H ? B.AIR : B.PURPUR;
+      if (id !== B.AIR || y >= Y) W.set(x, y, z, id);
+    }
+    // a ladder up a central pillar and a doorway
+    if (dx === 0 && dz === 0) for (let y = Y + 1; y <= Y + H; y++) W.set(x, y, z, B.PURPUR_PILLAR);
+    if (dx === 1 && dz === 0) for (let y = Y + 1; y <= Y + H; y++) W.set(x, y, z, B.LADDER, 0);
+    if (dz === -4 && Math.abs(dx) <= 1) for (let y = Y + 1; y <= Y + 3; y++) W.set(x, y, z, B.AIR);
+  }
+  for (const [dx, dz] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) if (W.has(P.x + dx, P.z + dz)) for (let y = Y + 1; y < Y + H; y += 6) W.set(P.x + dx, y, P.z + dz, B.END_ROD);
+  if (W.has(P.x - 2, P.z + 2)) { W.set(P.x - 2, Y + H - 5, P.z + 2, B.CHEST, 4); W.loot(P.x - 2, Y + H - 5, P.z + 2, 'endcity'); }
+  for (const [dx, dz] of [[-4, 0], [4, 0], [0, 4]]) if (W.has(P.x + dx, P.z + dz)) W.set(P.x + dx, Y + H + 2, P.z + dz, B.END_ROD);
+}
+
+// Ancient city: a buried plaza of deepslate with a great reinforced-deepslate portal (a working
+// way home), ruined halls with chests, soul lanterns, and plenty of sculk and shriekers.
+function buildAncientCity(g, P, chunk) {
+  const W = dimWriter(chunk, DIM_DEEP), Y = P.y, seed = g.seed;
+  const RX = 34, RZ = 26;
+  for (let dz = -RZ; dz <= RZ; dz++) for (let dx = -RX; dx <= RX; dx++) {
+    const x = P.x + dx, z = P.z + dz;
+    if (!W.has(x, z)) continue;
+    const edge = Math.max(Math.abs(dx) / RX, Math.abs(dz) / RZ);
+    const roof = Y + 18 - Math.round(edge * edge * 8);
+    for (let y = Y - 4; y <= roof; y++) {
+      let id = B.AIR;
+      if (y < Y) id = B.DEEPSLATE;
+      else if (y === Y) {
+        const path = Math.abs(dx) <= 2 || Math.abs(dz) <= 2;
+        id = path ? B.DEEPSLATE_TILES : ((dx + dz) & 7) === 0 ? B.CHISELED_STONE_BRICKS : B.DEEPSLATE_BRICKS;
+        if (!path && hash3(x, y, z, seed + 51) < 0.25) id = B.SCULK;
+      }
+      W.set(x, y, z, id);
+    }
+    if (Math.abs(dz) === RZ || Math.abs(dx) === RX) for (let y = Y + 1; y <= Y + 3; y++) W.set(x, y, z, B.DEEPSLATE_BRICKS);
+  }
+  // the great portal in the middle (facing along z), its frame shaped like a watchful head
+  for (let dx = -5; dx <= 5; dx++) for (let y = Y + 1; y <= Y + 13; y++) {
+    const x = P.x + dx, z = P.z;
+    if (!W.has(x, z)) continue;
+    const frame = Math.abs(dx) === 5 || y === Y + 1 || y === Y + 13 || (y === Y + 12 && Math.abs(dx) >= 3);
+    if (frame) W.set(x, y, z, B.REINFORCED_DEEPSLATE);
+    else W.set(x, y, z, B.DEEP_PORTAL, 4);
+  }
+  for (const s of [-1, 1]) for (let y = Y + 1; y <= Y + 15; y++) {
+    const x = P.x + s * 7;
+    if (W.has(x, P.z)) W.set(x, y, P.z, y <= Y + 13 ? B.DEEPSLATE_BRICKS : y === Y + 14 ? B.SOUL_LANTERN : B.AIR, y === Y + 14 ? 0 : undefined);
+  }
+  // halls around the plaza
+  const halls = [[-22, -14], [22, -14], [-22, 14], [22, 14], [-12, 18], [12, -18]];
+  halls.forEach(([hx, hz], k) => {
+    for (let dz = -4; dz <= 4; dz++) for (let dx = -5; dx <= 5; dx++) {
+      const x = P.x + hx + dx, z = P.z + hz + dz;
+      if (!W.has(x, z)) continue;
+      const edge = Math.abs(dx) === 5 || Math.abs(dz) === 4;
+      const ruined = hash3(x, 1, z, seed + 52) < 0.25;
+      for (let y = Y + 1; y <= Y + 6; y++) {
+        let id = B.AIR;
+        if (edge && !(ruined && y > Y + 2)) id = y === Y + 6 ? B.DEEPSLATE_TILES : Math.abs(dx) === 5 && Math.abs(dz) === 4 ? B.POLISHED_BLACKSTONE : B.DEEPSLATE_BRICKS;
+        if (y === Y + 6 && !ruined) id = B.DEEPSLATE_TILES;
+        if (edge && dz === (hz > 0 ? -4 : 4) && Math.abs(dx) <= 1 && y <= Y + 3) id = B.AIR;   // door towards the plaza
+        W.set(x, y, z, id);
+      }
+      if (!edge) W.set(x, Y, z, B.WOOL + 7);
+    }
+    const cx = P.x + hx, cz = P.z + hz;
+    if (W.has(cx, cz + (hz > 0 ? 2 : -2))) { W.set(cx, Y + 1, cz + (hz > 0 ? 2 : -2), B.CHEST, hz > 0 ? 5 : 4); W.loot(cx, Y + 1, cz + (hz > 0 ? 2 : -2), 'ancient'); }
+    if (W.has(cx - 3, cz)) W.set(cx - 3, Y + 1, cz, B.SOUL_LANTERN);
+    if (W.has(cx + 3, cz)) W.set(cx + 3, Y + 1, cz, k % 2 ? B.SCULK_SHRIEKER : B.SCULK_SENSOR);
+  });
+  // lamp posts and shriekers along the main paths
+  for (let s = -28; s <= 28; s += 8) for (const [px, pz] of [[s, 4], [s, -4]]) {
+    const x = P.x + px, z = P.z + pz;
+    if (!W.has(x, z) || Math.abs(px) < 8) continue;
+    W.set(x, Y + 1, z, B.DEEPSLATE_WALL); W.set(x, Y + 2, z, B.DEEPSLATE_WALL); W.set(x, Y + 3, z, B.SOUL_LANTERN);
+  }
+  for (const [px, pz] of [[-9, 9], [9, 9], [0, -10], [-16, 0], [16, 0]]) if (W.has(P.x + px, P.z + pz)) W.set(P.x + px, Y, P.z + pz, B.SCULK_SHRIEKER);
+  // soul fires in braziers round the plaza, so the city glows faintly in the dark
+  for (let a = 0; a < 12; a++) {
+    const x = P.x + Math.round(Math.cos(a / 12 * Math.PI * 2) * 13), z = P.z + Math.round(Math.sin(a / 12 * Math.PI * 2) * 11);
+    if (!W.has(x, z) || Math.abs(z - P.z) <= 1) continue;
+    W.set(x, Y + 1, z, B.POLISHED_BLACKSTONE); W.set(x, Y + 2, z, B.SOUL_LANTERN);
+  }
+}
+
+// ------------------------------------------------------------- hooks ----
+{
+  const gen0 = WorldGen.prototype.generate, h0 = WorldGen.prototype.height;
+  WorldGen.prototype.generate = function (chunk) {
+    if (this.type === 'default') {
+      const d = dimAt(chunk.cx * CS + 8, chunk.cz * CS + 8);
+      if (d === DIM_NETHER) return genNether(this, chunk);
+      if (d === DIM_END) return genEnd(this, chunk);
+      if (d === DIM_DEEP) return genDeep(this, chunk);
+    }
+    return gen0.call(this, chunk);
+  };
+  // rough floor heights inside the dimensions (spawning, map, structure checks)
+  WorldGen.prototype.height = function (x, z) {
+    if (this.type === 'default') {
+      const d = dimAt(x, z);
+      if (d === DIM_END) { const [lx, lz] = dimLocal(d, x, z); const c = endColumn(dimNoise(this), lx, lz); return c ? c[0] : 0; }
+      if (d) return d === DIM_NETHER ? 40 : 30;
+    }
+    return h0.call(this, x, z);
+  };
+}
 </script>
 <script data-w>
 'use strict';
@@ -8877,6 +9476,8 @@ uniform float uSkyScale;
 uniform float uNight;
 uniform float uRain;
 uniform float uSnow;
+uniform vec4 uDim;      // dimension sky / fog colour (a = 1 inside the Nether, End or Deep Dark)
+uniform vec3 uDimAmb;   // extra ambient light of the dimension
 
 float hash12(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -8895,7 +9496,7 @@ vec3 skyLUT(vec3 dir) {
   float u = az / (2.0 * PI) + 0.5;
   float el = asin(clamp(dir.y, 0.035, 1.0));
   float v = sqrt(el / (0.5 * PI));
-  return texture(uSkyLUT, vec2(u, v)).rgb / HDR_SCALE * uSkyScale;
+  return mix(texture(uSkyLUT, vec2(u, v)).rgb / HDR_SCALE * uSkyScale, uDim.rgb, uDim.a);
 }
 
 vec3 fogColor(vec3 dir) {
@@ -9101,7 +9702,7 @@ void main() {
 
   float ao = 0.32 + 0.68 * vAO;
   if (plant) ao *= mix(1.0, 0.55, vUV.y);
-  vec3 amb = mix(uAmbDown, uAmbUp, N.y * 0.5 + 0.5) * (sky * sky) + vec3(0.010, 0.012, 0.018);
+  vec3 amb = mix(uAmbDown, uAmbUp, N.y * 0.5 + 0.5) * (sky * sky) + vec3(0.010, 0.012, 0.018) + uDimAmb;
   float flicker = 1.0 + 0.05 * sin(uTime * 7.3 + world.x * 1.3) * sin(uTime * 5.1 + world.z * 1.7);
   vec3 torch = vec3(1.0, 0.66, 0.36) * pow(blk, 2.2) * 2.6 * flicker;
   vec3 col = albedo * (direct + (amb + torch) * ao);
@@ -9195,7 +9796,7 @@ void main() {
   float NdL = dot(N, uLightDir);
   float shadow = NdL > 0.0 ? shadowFactor(vRel, N) : 0.0;
   vec3 direct = uLightColor * max(NdL, 0.0) * shadow * gate;
-  vec3 amb = mix(uAmbDown, uAmbUp, N.y * 0.5 + 0.5) * (sky * sky) + vec3(0.012, 0.014, 0.02);
+  vec3 amb = mix(uAmbDown, uAmbUp, N.y * 0.5 + 0.5) * (sky * sky) + vec3(0.012, 0.014, 0.02) + uDimAmb;
   vec3 torch = vec3(1.0, 0.66, 0.36) * pow(blk, 2.2) * 2.6;
   vec3 light = direct + amb + torch;
   vec3 col = albedo * light;
@@ -9343,7 +9944,7 @@ void main() {
   if (cs > sunR - 0.0002) {
     float x = clamp((cs - sunR) / (1.0 - sunR), 0.0, 1.0);
     float limb = pow(x, 0.35);
-    col += uSunColor * smoothstep(sunR - 0.0002, sunR + 0.00005, cs) * (0.55 + 0.45 * limb) * 45.0;
+    col += uSunColor * smoothstep(sunR - 0.0002, sunR + 0.00005, cs) * (0.55 + 0.45 * limb) * 45.0 * (1.0 - uDim.a);
   }
   // moon disk
   float cm = dot(dir, uMoonDir);
@@ -9351,9 +9952,9 @@ void main() {
   if (cm > moonR - 0.0002) {
     vec3 mp = dir - uMoonDir * cm;
     float crater = hash13(floor(mp * 3000.0)) * 0.15;
-    col += vec3(0.85, 0.88, 0.95) * smoothstep(moonR - 0.0002, moonR + 0.00005, cm) * (1.4 - crater) * smoothstep(-0.1, 0.1, uMoonDir.y);
+    col += vec3(0.85, 0.88, 0.95) * smoothstep(moonR - 0.0002, moonR + 0.00005, cm) * (1.4 - crater) * smoothstep(-0.1, 0.1, uMoonDir.y) * (1.0 - uDim.a);
   }
-  col += vec3(0.5, 0.6, 0.8) * pow(max(cm, 0.0), 300.0) * 0.12 * uNight;
+  col += vec3(0.5, 0.6, 0.8) * pow(max(cm, 0.0), 300.0) * 0.12 * uNight * (1.0 - uDim.a);
 
   col += stars(dir) * uNight * smoothstep(-0.02, 0.25, dir.y);
 
@@ -10313,6 +10914,7 @@ class Renderer {
 </script>
 <script>
 'use strict';
+const NO_DIM = [0, 0, 0, 0];
 // Per-frame rendering: camera, atmosphere, shadow/scene/water passes and post-processing.
 
 const BIAS_MAT = new Float32Array([0.5, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0.5, 0, 0.5, 0.5, 0.5, 1]);
@@ -10452,6 +11054,9 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uShadowOn', '1f', this.shadowsActive ? 1 : 0);
     this.setU(prog, 'uShadowSize', '1f', this.shadowSize);
     this.setU(prog, 'uShadowTexel', '1f', this.shadowTexel || 0.05);
+    const D = A.dim || NO_DIM, DA = A.dimAmb || NO_DIM;
+    this.setU(prog, 'uDim', '4f', D[0], D[1], D[2], D[3]);
+    this.setU(prog, 'uDimAmb', '3f', DA[0], DA[1], DA[2]);
     this.setU(prog, 'uShadowMat', 'm4', this.shadowMat || BIAS_MAT);
     this.setU(prog, 'uCloudCover', '1f', A.cloudCover);
     this.setU(prog, 'uCloudTime', '1f', A.time);
@@ -10542,6 +11147,8 @@ Object.assign(Renderer.prototype, {
     const A = this.atmo;
     A.rain = p.rain || 0; A.snow = p.snow || 0;
     A.fogDensity += 0.022 * (p.mist || 0); A.wind = 1 + 1.8 * (p.weather || 0) * (p.weather || 0);
+    A.dim = null; A.dimAmb = null;
+    if (p.dim) dimAtmosphere(this, p.dim);   // Nether, End, Deep Dark (dimensions_game.js)
     const W = this.width, H = this.height;
     const cp = this.camPos;
     const ent = p.entities;
@@ -10661,7 +11268,7 @@ Object.assign(Renderer.prototype, {
     gl.useProgram(prog.program);
     this.setCommon(prog, p.underwater);
     this.setU(prog, 'uInvViewProj', 'm4', this.invViewProj);
-    this.setU(prog, 'uCloudSteps', '1i', S.clouds ? 14 : 0);
+    this.setU(prog, 'uCloudSteps', '1i', S.clouds && !p.dim ? 14 : 0);
     this.drawFullscreen();
     gl.depthMask(true);
     gl.depthFunc(gl.LESS);
@@ -10740,7 +11347,7 @@ Object.assign(Renderer.prototype, {
 
     // --- god rays ---
     let raysOn = false;
-    if (S.godrays && !p.underwater) {
+    if (S.godrays && !p.underwater && !p.dim) {
       const L = A.lightDir;
       const v = this.viewProj;
       const x = v[0] * L[0] + v[4] * L[1] + v[8] * L[2];
@@ -18088,6 +18695,1013 @@ const Villages = {
 </script>
 <script>
 'use strict';
+// Dimensions, main-thread side: textures and items of the dimension blocks, portals (lighting,
+// breaking, travelling and building the other end), each dimension's sky, fog and light, and its
+// creatures: ember cubes and cinder wraiths in the Nether, voidwalkers in the End, and the blind
+// Warden that sculk shriekers call up in the Deep Dark.
+
+const DIM_INFO = [
+  { key: 'overworld', name: 'Overworld', icon: '\ud83c\udf0d' },
+  { key: 'nether', name: 'The Nether', icon: '\ud83d\udd25', fog: [0.32, 0.07, 0.04], fogD: 0.016, amb: [0.1, 0.055, 0.04], day: 0.27 },
+  { key: 'end', name: 'The End', icon: '\ud83c\udf0c', fog: [0.07, 0.04, 0.1], fogD: 0.0035, amb: [0.11, 0.1, 0.13], day: 0.78 },
+  { key: 'deep', name: 'The Deep Dark', icon: '\ud83d\udd6f\ufe0f', fog: [0.012, 0.026, 0.034], fogD: 0.026, amb: [0.022, 0.032, 0.042], day: 0.27 },
+];
+// the dimension of a world position (only default worlds have dimensions)
+function dimOf(x, z) { return G.world && G.world.gen.type === 'default' ? dimAt(x, z) : DIM_OVER; }
+
+Object.assign(I, { ENDER_PEARL: 400, CINDER_ROD: 401, ECHO_SHARD: 402, NETHER_QUARTZ: 403 });
+
+// ---------------------------------------------------------------- textures ----
+function swirl(d, rng, ctx, a, b, c, emit) {
+  const f = fbm(rng, 3, 3), g = fbm(rng, 6, 2);
+  fillTile(d, (x, y, k) => {
+    const u = x / TS - 0.5, v = y / TS - 0.5, r = Math.hypot(u, v), an = Math.atan2(v, u);
+    const s = 0.5 + 0.5 * Math.sin(an * 3 + r * 22 + f[k] * 6);
+    const col = mixc(mixc(a, b, s), c, Math.max(0, g[k] - 0.6) * 2);
+    put(d, x, y, col, quant(0.85 + s * 0.25, 12));
+    ctx.emit[k] = emit * (0.7 + s * 0.3);
+  });
+}
+gen('nether_portal', (d, rng, ctx) => swirl(d, rng, ctx, [70, 20, 150], [140, 60, 230], [210, 160, 255], 0.55), { smooth: 0.8, bump: 0.2 });
+gen('deep_portal', (d, rng, ctx) => swirl(d, rng, ctx, [8, 44, 54], [24, 130, 140], [130, 230, 220], 0.5), { smooth: 0.8, bump: 0.2 });
+gen('end_portal', (d, rng, ctx) => {
+  fillTile(d, (x, y, k) => {
+    const star = rng() < 0.05;
+    put(d, x, y, star ? [200, 240, 230] : mixc([6, 10, 18], [20, 60, 60], rng() * 0.4));
+    ctx.emit[k] = star ? 1 : 0.15;
+  });
+}, { smooth: 0.9, bump: 0 });
+gen('reinforced_side', (d, rng, ctx) => {
+  noiseFill(d, rng, [58, 64, 70], 0.14, 4, 14);
+  for (let x = 0; x < TS; x++) for (const y of [0, 1, 30, 31]) put(d, x, y, [34, 38, 44], y === 0 || y === 31 ? 0.8 : 1);
+  for (let y = 5; y < 28; y += 7) for (let x = 3; x < 29; x++) if ((x + y) % 5) put(d, x, y, [30, 34, 38]);
+  for (const [x, y] of [[8, 9], [23, 9], [15, 16], [8, 23], [23, 23]]) { put(d, x, y, [80, 230, 230]); ctx.emit[y * TS + x] = 1; }
+}, { smooth: 0.3, bump: 2 });
+gen('reinforced_top', (d, rng) => {
+  noiseFill(d, rng, [70, 74, 78], 0.1, 4, 14);
+  bevelFrame(d, 0, 0, TM, TM, 1.25, 0.7);
+  for (const r of [6, 10]) bevelFrame(d, r, r, TM - r, TM - r, 0.7, 1.2);
+  sprDisc(d, 16, 16, 3, [60, 180, 190]);
+}, { smooth: 0.3, bump: 2 });
+gen('ender_frame_side', (d, rng) => {
+  noiseFill(d, rng, [222, 222, 162], 0.12, 5, 16);
+  for (let y = 0; y < 8; y++) for (let x = 0; x < TS; x++) put(d, x, y, [60, 110, 90], y === 7 ? 0.7 : 1);
+}, { smooth: 0.2, bump: 1.4 });
+gen('ender_frame_top', (d, rng, ctx) => {
+  noiseFill(d, rng, [60, 110, 90], 0.14, 4, 14);
+  bevelFrame(d, 0, 0, TM, TM, 1.2, 0.7);
+  fillTile(d, (x, y, k) => { const r = Math.hypot(x - 15.5, y - 15.5); if (r < 6) { put(d, x, y, r < 3 ? [40, 220, 170] : [20, 90, 70]); ctx.emit[k] = r < 3 ? 1 : 0.2; } });
+}, { smooth: 0.4, bump: 1.6 });
+gen('crying_obsidian', (d, rng, ctx) => {
+  TEX_GEN.obsidian(d, rng, ctx);
+  for (let i = 0; i < 26; i++) {
+    const x = Math.floor(rng() * TS), y = Math.floor(rng() * TS);
+    for (let j = 0; j < 3; j++) { put(d, x, y + j, [150, 60, 255]); ctx.emit[((y + j) & TM) * TS + x] = 0.9; }
+  }
+}, { smooth: 0.85, bump: 1.4 });
+gen('soul_sand', (d, rng) => {
+  noiseFill(d, rng, [84, 64, 50], 0.24, 5, 12);
+  for (let k = 0; k < 5; k++) {
+    const cx = 4 + Math.floor(rng() * 24), cy = 4 + Math.floor(rng() * 24);
+    for (const [ex, ey] of [[-2, -1], [2, -1]]) put(d, cx + ex, cy + ey, [40, 28, 22]);
+    for (let x = -2; x <= 2; x++) put(d, cx + x, cy + 2, [44, 30, 24]);
+  }
+}, { smooth: 0.05, bump: 1.8 });
+gen('crimson_nylium', (d, rng) => {
+  const f = fbm(rng, 6, 3);
+  fillTile(d, (x, y, k) => put(d, x, y, f[k] > 0.55 ? [180, 36, 40] : [140, 24, 30], quant(0.8 + f[k] * 0.3 + rng() * 0.1, 10)));
+}, { smooth: 0.1, bump: 1.6 });
+gen('warped_nylium', (d, rng) => {
+  const f = fbm(rng, 6, 3);
+  fillTile(d, (x, y, k) => put(d, x, y, f[k] > 0.55 ? [40, 170, 150] : [26, 120, 110], quant(0.8 + f[k] * 0.3 + rng() * 0.1, 10)));
+}, { smooth: 0.1, bump: 1.6 });
+gen('crimson_nylium_side', (d, rng, ctx) => { TEX_GEN.netherrack(d, rng, ctx); grassOverhang(d, rng, [[180, 36, 40], [150, 28, 32], [110, 20, 26]], 3, 7); }, { smooth: 0.1, bump: 1.6 });
+gen('warped_nylium_side', (d, rng, ctx) => { TEX_GEN.netherrack(d, rng, ctx); grassOverhang(d, rng, [[40, 170, 150], [30, 140, 126], [20, 100, 90]], 3, 7); }, { smooth: 0.1, bump: 1.6 });
+gen('crimson_stem', (d, rng) => genBark(d, rng, [120, 40, 60], [70, 20, 36]), { smooth: 0.1, bump: 2 });
+gen('crimson_stem_top', (d, rng) => genRings(d, rng, [150, 70, 90], [110, 50, 70], [120, 40, 60]), { smooth: 0.1, bump: 1.4 });
+gen('warped_stem', (d, rng) => genBark(d, rng, [50, 90, 100], [30, 50, 60]), { smooth: 0.1, bump: 2 });
+gen('warped_stem_top', (d, rng) => genRings(d, rng, [60, 140, 130], [40, 110, 104], [50, 90, 100]), { smooth: 0.1, bump: 1.4 });
+gen('crimson_planks', (d, rng) => genPlanks(d, rng, [120, 50, 76]), { smooth: 0.26, bump: 1.4 });
+gen('warped_planks', (d, rng) => genPlanks(d, rng, [44, 116, 110]), { smooth: 0.26, bump: 1.4 });
+gen('nether_wart_block', (d, rng) => { const f = fbm(rng, 5, 3); fillTile(d, (x, y, k) => put(d, x, y, [130, 12, 16], quant(0.75 + f[k] * 0.4 + rng() * 0.1, 10))); }, { smooth: 0.1, bump: 1.8 });
+gen('warped_wart_block', (d, rng) => { const f = fbm(rng, 5, 3); fillTile(d, (x, y, k) => put(d, x, y, [20, 130, 124], quant(0.75 + f[k] * 0.4 + rng() * 0.1, 10))); }, { smooth: 0.1, bump: 1.8 });
+function fungusSprite(d, rng, stemC, cap, dot) {
+  clearTile(d, cap);
+  stem(d, [[16, 31], [16, 16]], stemC, 2);
+  fillTile(d, (x, y) => {
+    const dx = (x + 0.5 - 16.5) / 9, dy = (y + 0.5 - 16) / 7;
+    if (y > 16 || dx * dx + dy * dy > 1) return;
+    put(d, x, y, (x * 7 + y * 3) % 11 === 0 ? dot : cap, 0.85 + rng() * 0.2 + (16 - y) * 0.01);
+  });
+}
+gen('crimson_fungus', (d, rng) => fungusSprite(d, rng, [230, 200, 170], [170, 30, 36], [250, 160, 60]), { smooth: 0.3, bump: 0.3 });
+gen('warped_fungus', (d, rng) => fungusSprite(d, rng, [230, 200, 170], [30, 150, 140], [250, 150, 60]), { smooth: 0.3, bump: 0.3 });
+function rootsSprite(d, rng, c) {
+  clearTile(d, c);
+  for (let b = 0; b < 9; b++) blade(d, rng, 4 + rng() * 24, 10 + Math.floor(rng() * 16), (rng() - 0.5) * 0.4, c, (rng() - 0.5) * 3);
+}
+gen('crimson_roots', (d, rng) => rootsSprite(d, rng, [170, 30, 50]), { smooth: 0.3, bump: 0.3 });
+gen('warped_roots', (d, rng) => rootsSprite(d, rng, [30, 160, 150]), { smooth: 0.3, bump: 0.3 });
+gen('nether_quartz_ore', (d, rng, ctx) => {
+  TEX_GEN.netherrack(d, rng, ctx);
+  for (let i = 0; i < 9; i++) { const x = 3 + Math.floor(rng() * 26), y = 3 + Math.floor(rng() * 26); for (let j = 0; j < 4; j++) put(d, x + (j & 1), y + (j >> 1), [236, 226, 214], 0.9 + rng() * 0.15); }
+}, { smooth: 0.3, bump: 1.8 });
+gen('nether_gold_ore', (d, rng, ctx) => {
+  TEX_GEN.netherrack(d, rng, ctx);
+  for (let i = 0; i < 12; i++) { const x = 2 + Math.floor(rng() * 28), y = 2 + Math.floor(rng() * 28); put(d, x, y, [250, 206, 70]); put(d, x + 1, y, [220, 170, 40]); }
+}, { smooth: 0.4, bump: 1.8 });
+gen('soul_lantern', (d, rng, ctx) => {
+  clearTile(d, [40, 40, 44]);
+  fillTile(d, (x, y, k) => {
+    const frame = x <= 11 || x >= 20 || y <= 17 || y >= 30 || (y >= 2 && y <= 4) || (y >= 18 && y <= 19);
+    if (x < 9 || x > 22) return;
+    if (frame) { put(d, x, y, [52, 54, 60], 0.9 + rng() * 0.2); return; }
+    const glow = 1 - Math.abs(x - 15.5) / 7;
+    put(d, x, y, [110, 230, 240], 0.8 + glow * 0.3);
+    ctx.emit[k] = 0.75 + glow * 0.25;
+  });
+}, { smooth: 0.5, bump: 0.6 });
+gen('soul_torch', (d, rng, ctx) => {
+  clearTile(d, [120, 90, 50]);
+  for (let y = 16; y < TS; y++) for (let x = 14; x < 18; x++) put(d, x, y, [134, 98, 54], x === 14 ? 1.15 : x === 17 ? 0.72 : 0.95 + rng() * 0.06);
+  const flame = [[230, 255, 255], [120, 230, 250], [60, 180, 220], [30, 110, 150]];
+  for (let y = 12; y < 16; y++) for (let x = 14; x < 18; x++) {
+    const k = y === 15 ? 3 : (x === 15 || x === 16) && y < 14 ? 0 : y < 14 ? 1 : 2;
+    put(d, x, y, flame[k]); ctx.emit[y * TS + x] = 1;
+  }
+}, { smooth: 0.2, bump: 0.4 });
+gen('end_rod', (d, rng, ctx) => {
+  clearTile(d, [240, 230, 250]);
+  for (let y = 4; y < TS; y++) for (let x = 14; x < 18; x++) { put(d, x, y, [246, 240, 252], x === 14 ? 1.05 : x === 17 ? 0.85 : 1); ctx.emit[y * TS + x] = 0.9; }
+  for (let y = 28; y < TS; y++) for (let x = 13; x < 19; x++) put(d, x, y, [130, 110, 150]);
+}, { smooth: 0.8, bump: 0.3 });
+gen('chorus_plant', (d, rng) => {
+  clearTile(d, [120, 80, 120]);
+  fillTile(d, (x, y) => {
+    const hole = (x > 4 && x < 10 && y > 20 && y < 27) || (x > 20 && x < 27 && y > 4 && y < 11);
+    if (hole) return;
+    put(d, x, y, rng() < 0.2 ? [170, 130, 170] : [110, 76, 118], 0.9 + rng() * 0.15);
+  });
+}, { smooth: 0.2, bump: 1.4 });
+gen('chorus_flower', (d, rng, ctx) => {
+  fillTile(d, (x, y, k) => {
+    const r = Math.hypot(x - 15.5, y - 15.5);
+    put(d, x, y, r < 6 ? [230, 200, 240] : [160, 110, 176], 0.9 + rng() * 0.15);
+    ctx.emit[k] = r < 6 ? 0.5 : 0;
+  });
+}, { smooth: 0.3, bump: 1 });
+gen('end_crystal', (d, rng, ctx) => {
+  fillTile(d, (x, y, k) => {
+    const u = Math.abs(x - 15.5) + Math.abs(y - 15.5);
+    const c = u < 8 ? [255, 230, 255] : u < 14 ? [230, 140, 240] : [140, 60, 170];
+    put(d, x, y, c, 0.9 + rng() * 0.1);
+    ctx.emit[k] = u < 14 ? 1 : 0.6;
+  });
+}, { smooth: 0.9, bump: 0.8 });
+gen('purpur_pillar', (d, rng) => {
+  noiseFill(d, rng, [168, 122, 168], 0.1, 3, 20);
+  for (let y = 0; y < TS; y++) for (const x of [0, 7, 24, 31]) put(d, x, y, [128, 90, 128]);
+}, { smooth: 0.3, bump: 1.6 });
+gen('purpur_pillar_top', (d, rng) => { noiseFill(d, rng, [168, 122, 168], 0.1, 3, 20); for (const r of [0, 5, 10]) bevelFrame(d, r, r, TM - r, TM - r, 1.1, 0.75); }, { smooth: 0.3, bump: 1.6 });
+gen('end_stone_bricks', (d, rng) => brickWall(d, rng, [222, 222, 164], [170, 170, 120], 16, 8, 0.1), { smooth: 0.2, bump: 2 });
+function sculkBase(d, rng, ctx) {
+  const f = fbm(rng, 5, 3);
+  fillTile(d, (x, y, k) => {
+    const spark = rng() < 0.04;
+    put(d, x, y, spark ? [60, 220, 230] : f[k] > 0.6 ? [16, 50, 62] : [8, 30, 40], 0.85 + f[k] * 0.3);
+    ctx.emit[k] = spark ? 1 : 0;
+  });
+}
+gen('sculk', sculkBase, { smooth: 0.2, bump: 1.6 });
+gen('sculk_sensor_side', (d, rng, ctx) => { sculkBase(d, rng, ctx); for (let y = 0; y < 8; y++) for (let x = 0; x < TS; x++) put(d, x, y, [20, 90, 110], 0.9 + rng() * 0.1); }, { smooth: 0.3, bump: 1.6 });
+gen('sculk_sensor_top', (d, rng, ctx) => {
+  sculkBase(d, rng, ctx);
+  for (const [x0, y0] of [[6, 6], [22, 6], [6, 22], [22, 22]]) for (let y = -2; y <= 2; y++) for (let x = -1; x <= 1; x++) { put(d, x0 + x, y0 + y, [60, 220, 230]); ctx.emit[(y0 + y) * TS + x0 + x] = 1; }
+}, { smooth: 0.3, bump: 1.6 });
+gen('sculk_shrieker_side', (d, rng, ctx) => { sculkBase(d, rng, ctx); for (let y = 0; y < 12; y++) for (let x = 0; x < TS; x++) put(d, x, y, [220, 214, 196], 0.85 + rng() * 0.1); }, { smooth: 0.3, bump: 1.8 });
+gen('sculk_shrieker_top', (d, rng, ctx) => {
+  fillTile(d, (x, y, k) => {
+    const r = Math.hypot(x - 15.5, y - 15.5);
+    put(d, x, y, r < 5 ? [30, 60, 70] : r < 12 ? [226, 220, 204] : [16, 50, 62], 0.9 + rng() * 0.1);
+    ctx.emit[k] = r < 5 ? 0.6 : 0;
+  });
+}, { smooth: 0.3, bump: 1.8 });
+gen('sculk_catalyst_side', (d, rng, ctx) => { sculkBase(d, rng, ctx); for (let y = 8; y < TS; y++) for (let x = 0; x < TS; x++) put(d, x, y, [226, 220, 204], (x + y) % 5 ? 0.9 : 0.75); }, { smooth: 0.3, bump: 1.8 });
+gen('sculk_catalyst_top', (d, rng, ctx) => { sculkBase(d, rng, ctx); sprDisc(d, 16, 16, 6, [120, 240, 250]); for (let i = 0; i < TSS; i++) if (Math.hypot((i % TS) - 16, Math.floor(i / TS) - 16) < 6) ctx.emit[i] = 1; }, { smooth: 0.3, bump: 1.8 });
+gen('glow_lichen', (d, rng, ctx) => {
+  clearTile(d, [120, 180, 150]);
+  for (let i = 0; i < 70; i++) {
+    const x = Math.floor(rng() * TS), y = 14 + Math.floor(rng() * 18);
+    put(d, x, y, rng() < 0.3 ? [220, 250, 200] : [120, 170, 140]);
+    ctx.emit[y * TS + x] = 0.8;
+  }
+}, { smooth: 0.3, bump: 0.3 });
+
+// item sprites
+sprite('i_ender_pearl', (d) => { sprDisc(d, 16, 16, 9, [20, 90, 80]); sprDisc(d, 15, 15, 6, [40, 150, 130]); sprDisc(d, 13, 13, 2.5, [150, 240, 220]); });
+sprite('i_cinder_rod', (d) => { sprSeg(d, 9, 25, 23, 7, 3, [250, 190, 60]); sprSeg(d, 10, 24, 22, 8, 1.2, [255, 240, 150]); });
+sprite('i_echo_shard', (d) => { sprPoly(d, [[16, 4], [25, 14], [18, 28], [8, 18]], [20, 90, 110]); sprPoly(d, [[16, 8], [21, 14], [17, 22], [12, 17]], [80, 220, 230]); });
+sprite('i_nether_quartz', (d) => { sprPoly(d, [[8, 20], [14, 8], [22, 10], [26, 22], [16, 27]], [230, 220, 210]); sprPoly(d, [[14, 11], [20, 12], [18, 18]], [255, 252, 246]); });
+sprite('i_soul_lantern', (d, rng, ctx) => {
+  sprRect(d, 10, 8, 22, 28, [52, 54, 60]);
+  sprRect(d, 12, 12, 20, 25, [110, 230, 240]);
+  sprRect(d, 14, 4, 18, 8, [52, 54, 60]);
+});
+
+// ---------------------------------------------------------------- items ----
+defItem(I.ENDER_PEARL, 'Ender Pearl', { sprite: 'i_ender_pearl', stack: 16 });
+defItem(I.CINDER_ROD, 'Cinder Rod', { sprite: 'i_cinder_rod', fuel: 120 });
+defItem(I.ECHO_SHARD, 'Echo Shard', { sprite: 'i_echo_shard' });
+defItem(I.NETHER_QUARTZ, 'Nether Quartz', { sprite: 'i_nether_quartz' });
+ITEM_DEF[B.SOUL_LANTERN].layer = defTex('i_soul_lantern');
+for (const id of [B.NETHER_PORTAL, B.END_PORTAL, B.DEEP_PORTAL]) delete ITEM_DEF[id];
+shaped(B.ENDER_FRAME, 4, ['POP', 'ORO', 'POP'], { P: I.ENDER_PEARL, O: B.OBSIDIAN, R: I.CINDER_ROD });
+shaped(B.REINFORCED_DEEPSLATE, 4, ['DDD', 'DAD', 'DDD'], { D: B.DEEPSLATE_BRICKS, A: B.AMETHYST_BLOCK });
+shapeless(B.CRIMSON_PLANKS, 4, [B.CRIMSON_STEM]);
+shapeless(B.WARPED_PLANKS, 4, [B.WARPED_STEM]);
+shaped(B.QUARTZ_BLOCK, 1, ['QQ', 'QQ'], { Q: I.NETHER_QUARTZ });
+shaped(B.SOUL_TORCH, 4, ['C', 'S', 'X'], { C: TAG.coal, S: I.STICK, X: B.SOUL_SAND });
+shaped(B.SOUL_LANTERN, 1, [' I ', 'ITI', ' I '], { I: I.IRON_INGOT, T: B.SOUL_TORCH });
+shaped(B.END_ROD, 4, ['C', 'P'], { C: I.CINDER_ROD, P: I.ENDER_PEARL });
+four(B.END_STONE_BRICKS, 4, B.END_STONE);
+shaped(B.PURPUR_PILLAR, 2, ['P', 'P'], { P: B.PURPUR });
+shaped(B.CRYING_OBSIDIAN, 1, [' E ', 'EOE', ' E '], { E: I.ECHO_SHARD, O: B.OBSIDIAN });
+shaped(B.NETHER_BRICK_FENCE, 6, ['NBN', 'NBN'], { N: B.NETHER_BRICKS, B: B.NETHERRACK });
+SMELT[B.NETHER_GOLD_ORE] = I.GOLD_INGOT;
+SMELT[B.NETHER_QUARTZ_ORE] = I.NETHER_QUARTZ;
+ITEM_DEF[B.CRIMSON_STEM].fuel = ITEM_DEF[B.WARPED_STEM].fuel = 0;   // nether wood does not burn
+Object.assign(LOOT, {
+  fortress: [[I.GOLD_INGOT, 2, 6, 0.6], [I.DIAMOND, 1, 2, 0.2], [I.CINDER_ROD, 1, 3, 0.35], [B.OBSIDIAN, 2, 6, 0.4], [I.IRON_INGOT, 2, 5, 0.5], [I.GOLDEN_APPLE, 1, 1, 0.15], [I.ENCHANTED_BOOK, 1, 1, 0.2]],
+  endcity: [[I.DIAMOND, 2, 5, 0.6], [I.EMERALD, 3, 8, 0.6], [I.ENDER_PEARL, 2, 5, 0.6], [I.ENCHANTED_BOOK, 1, 2, 0.45], [I.GOLD_INGOT, 3, 8, 0.6], [I.TOOL0 + 23, 1, 1, 0.2]],
+  ancient: [[I.ECHO_SHARD, 1, 3, 0.5], [I.DIAMOND, 1, 3, 0.35], [I.ENCHANTED_BOOK, 1, 2, 0.4], [B.SCULK, 4, 10, 0.4], [I.GOLDEN_APPLE, 1, 2, 0.3], [B.AMETHYST_BLOCK, 1, 3, 0.3], [I.ARMOR0 + 14, 1, 1, 0.08]],
+});
+{
+  const drops0 = blockDrops;
+  // eslint-disable-next-line no-global-assign
+  blockDrops = function (id, toolItem, rnd) {
+    if (IS_PORTAL(id)) return [];
+    if (id === B.NETHER_QUARTZ_ORE) return canHarvest(id, toolItem) ? [[I.NETHER_QUARTZ, 1 + (rnd() < 0.3 ? 1 : 0)]] : [];
+    if (id === B.CRIMSON_NYLIUM || id === B.WARPED_NYLIUM) return canHarvest(id, toolItem) ? [[B.NETHERRACK, 1]] : [];
+    if (id === B.CRIMSON_ROOTS || id === B.WARPED_ROOTS || id === B.GLOW_LICHEN) { const d = ITEM_DEF[toolItem]; return d && d.tool === TOOL_SHEARS ? [[id, 1]] : []; }
+    return drops0(id, toolItem, rnd);
+  };
+}
+
+// ---------------------------------------------------------------- portals ----
+const PORTAL_FRAME = { [B.NETHER_PORTAL]: B.OBSIDIAN, [B.DEEP_PORTAL]: B.REINFORCED_DEEPSLATE };
+const Portals = {
+  inside: 0, cd: 0, needExit: false, lastKind: 0,
+
+  // Flint and steel on an obsidian (Nether) or reinforced deepslate (Deep Dark) frame.
+  ignite(hit) {
+    const frame = hit.id;
+    const kind = frame === B.OBSIDIAN ? B.NETHER_PORTAL : frame === B.REINFORCED_DEEPSLATE ? B.DEEP_PORTAL : 0;
+    if (!kind) return false;
+    const x = hit.pos[0] + hit.normal[0], y = hit.pos[1] + hit.normal[1], z = hit.pos[2] + hit.normal[2];
+    if (dimOf(x, z) === DIM_END) { G.ui.toast('Portals do not light in the End'); return true; }
+    for (const axis of [0, 2]) {
+      const cells = this.frameInside(x, y, z, axis, frame);
+      if (!cells) continue;
+      editBlocks(cells.map(([cx, cy, cz]) => [cx, cy, cz, kind, axis === 0 ? 4 : 0]));
+      sfx('portal', [x + 0.5, y + 0.5, z + 0.5], 1, kind === B.DEEP_PORTAL ? 0.6 : 1);
+      Act.swingHand();
+      if (G.mode === 'survival' && G.inv.damageHeld(1)) sfx('tool_break', null, 0.8, 1);
+      G.ui.invDirty();
+      G.ui.toast(kind === B.DEEP_PORTAL ? '\ud83d\udd6f\ufe0f The portal to the Deep Dark hums' : '\ud83d\udd25 The Nether portal is lit');
+      return true;
+    }
+    G.ui.toast('Build a closed frame: at least 2 wide and 3 tall inside');
+    return true;
+  },
+
+  // Air cells enclosed by a frame of `frame` in the vertical plane along `axis` (0 = x, 2 = z).
+  frameInside(x, y, z, axis, frame) {
+    const w = G.world;
+    const open = (id) => id === B.AIR || (BLOCK_REPLACE[id] && !IS_LIQUID(id));
+    if (!open(w.getBlock(x, y, z))) return null;
+    const seen = new Set(), stack = [[x, y, z]], cells = [];
+    let minA = 1e9, maxA = -1e9, minY = 1e9, maxY = -1e9;
+    while (stack.length) {
+      const [cx, cy, cz] = stack.pop();
+      const k = cx + ',' + cy + ',' + cz;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const id = w.getBlock(cx, cy, cz);
+      if (id === frame) continue;
+      if (!open(id)) return null;
+      cells.push([cx, cy, cz]);
+      if (cells.length > 21 * 21) return null;
+      const a = axis === 0 ? cx : cz;
+      minA = Math.min(minA, a); maxA = Math.max(maxA, a); minY = Math.min(minY, cy); maxY = Math.max(maxY, cy);
+      if (maxA - minA > 20 || maxY - minY > 20) return null;
+      for (const [da, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) stack.push(axis === 0 ? [cx + da, cy + dy, cz] : [cx, cy + dy, cz + da]);
+    }
+    if (maxA - minA < 1 || maxY - minY < 2) return null;
+    return cells;
+  },
+
+  // An ender frame was placed: a complete ring of twelve round a 3x3 hole opens the End portal.
+  checkEnderRing(x, y, z) {
+    const w = G.world;
+    for (let cz = z - 3; cz <= z + 3; cz++) for (let cx = x - 3; cx <= x + 3; cx++) {
+      let ok = true;
+      for (let dz = -2; dz <= 2 && ok; dz++) for (let dx = -2; dx <= 2 && ok; dx++) {
+        const ring = (Math.abs(dx) === 2) !== (Math.abs(dz) === 2);
+        const id = w.getBlock(cx + dx, y, cz + dz);
+        if (ring) ok = id === B.ENDER_FRAME;
+        else if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) ok = id === B.AIR || (BLOCK_REPLACE[id] && !IS_LIQUID(id));
+      }
+      if (!ok) continue;
+      const list = [];
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) list.push([cx + dx, y, cz + dz, B.END_PORTAL, 0]);
+      editBlocks(list);
+      sfx('portal', [cx + 0.5, y + 0.5, cz + 0.5], 1, 0.5);
+      G.ui.toast('\ud83c\udf0c The End portal opens');
+      return;
+    }
+  },
+
+  // A frame block went away: the portal it held collapses.
+  breakNear(x, y, z) {
+    const w = G.world, list = [], seen = new Set();
+    const stack = [[x + 1, y, z], [x - 1, y, z], [x, y + 1, z], [x, y - 1, z], [x, y, z + 1], [x, y, z - 1]];
+    while (stack.length && list.length < 600) {
+      const [cx, cy, cz] = stack.pop();
+      const k = cx + ',' + cy + ',' + cz;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      if (!IS_PORTAL(w.getBlock(cx, cy, cz))) continue;
+      list.push([cx, cy, cz, B.AIR]);
+      stack.push([cx + 1, cy, cz], [cx - 1, cy, cz], [cx, cy + 1, cz], [cx, cy - 1, cz], [cx, cy, cz + 1], [cx, cy, cz - 1]);
+    }
+    if (list.length) { editBlocks(list); sfx('break_5', [x + 0.5, y + 0.5, z + 0.5], 0.8, 0.6); }
+  },
+
+  // Standing in a portal for a moment takes you through.
+  update(dt) {
+    this.cd -= dt;
+    const p = G.player, w = G.world;
+    if (!p || G.stats.dead || G.onTitle) return;
+    let kind = 0;
+    for (const dy of [0.1, 0.9, 1.6]) {
+      const id = w.getBlock(Math.floor(p.pos[0]), Math.floor(p.pos[1] + dy), Math.floor(p.pos[2]));
+      if (IS_PORTAL(id)) { kind = id; break; }
+    }
+    if (!kind) { this.inside = 0; this.needExit = false; return; }
+    if (this.needExit || this.cd > 0 || G.vehicle) return;
+    this.inside += dt;
+    if (this.inside > 0.2 && Math.random() < dt * 20) Particles.add(Particles.base(p.pos[0] + rand(-0.5, 0.5), p.pos[1] + rand(0, 2), p.pos[2] + rand(-0.5, 0.5), {
+      vy: rand(-0.5, 0.5), life: 0.8, max: 0.8, size: 0.06, layer: T.p_crit, r: 0.7, g: 0.4, b: 1, glow: true, collide: false }));
+    const wait = kind === B.END_PORTAL ? 0.05 : G.mode === 'creative' ? 0.6 : 2.5;
+    if (this.inside >= wait) { this.inside = 0; this.travel(kind); }
+  },
+
+  travel(kind, force) {
+    const p = G.player;
+    const from = dimOf(p.pos[0], p.pos[2]);
+    let to;
+    if (force !== undefined) to = force;
+    else if (kind === B.END_PORTAL) to = from === DIM_END ? DIM_OVER : DIM_END;
+    else if (kind === B.NETHER_PORTAL) to = from === DIM_NETHER ? DIM_OVER : DIM_NETHER;
+    else to = from === DIM_DEEP ? DIM_OVER : DIM_DEEP;
+    if (G.world.gen.type !== 'default') { G.ui.toast('Dimensions only exist in normal worlds'); return; }
+    if (G.vehicle) Vehicles.dismount(true);
+    let dest;
+    if (to === DIM_OVER && (from === DIM_END || kind === 0)) dest = this.homeSpot();
+    else if (to === DIM_END) dest = this.endSpot();
+    else {
+      const [tx, tz] = dimTarget(from, to, Math.floor(p.pos[0]), Math.floor(p.pos[2]));
+      dest = this.portalSpot(kind || (to === DIM_DEEP ? B.DEEP_PORTAL : B.NETHER_PORTAL), to, tx, tz);
+    }
+    p.pos = dest.slice(); p.vel = [0, 0, 0]; p.fallStart = null; p.landed = 0;
+    Particles.list.length = 0;
+    prepareArea(p.pos[0], p.pos[2], 2);
+    liftOutOfBlocks(p);
+    this.cd = 3; this.needExit = true; this.inside = 0;
+    G.region = null;
+    sfx('portal', null, 1, to === DIM_DEEP ? 0.5 : to === DIM_END ? 0.7 : 1);
+    const info = DIM_INFO[to];
+    G.ui.banner(info.icon, info.name);
+    if (typeof Net !== 'undefined') Net.teleported();
+    saveWorld();
+  },
+
+  homeSpot() {
+    let sp = G.worldSpawn;
+    if (G.spawnPoint) sp = G.spawnPoint;
+    prepareArea(sp[0], sp[2], 1);
+    return [sp[0], sp[1], sp[2]];
+  },
+
+  // The End: arrive on an obsidian landing at the edge of the main island.
+  endSpot() {
+    const [tx, tz] = dimTarget(DIM_OVER, DIM_END, 0, 0);
+    prepareArea(tx, tz, 2);
+    const [lx, lz] = dimLocal(DIM_END, tx, tz);
+    const col = endColumn(dimNoise(G.world.gen), lx, lz);
+    const y = col ? col[0] : 50;
+    const list = [];
+    for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
+      list.push([tx + dx, y, tz + dz, B.OBSIDIAN]);
+      for (let k = 1; k <= 3; k++) if (G.world.getBlock(tx + dx, y + k, tz + dz) !== B.AIR) list.push([tx + dx, y + k, tz + dz, B.AIR]);
+    }
+    editBlocks(list);
+    return [tx + 0.5, y + 1, tz + 0.5];
+  },
+
+  // Find a portal of this kind near (tx, tz) in dimension `dim`, or build one; returns where to stand.
+  portalSpot(kind, dim, tx, tz) {
+    const w = G.world;
+    prepareArea(tx, tz, 3);
+    let best = null, bd = 1e9;
+    const pcx = Math.floor(tx / CS), pcz = Math.floor(tz / CS);
+    for (let cz = pcz - 3; cz <= pcz + 3; cz++) for (let cx = pcx - 3; cx <= pcx + 3; cx++) {
+      const c = w.getChunk(cx, cz);
+      if (!c) continue;
+      const b = c.blocks;
+      for (let i = 0; i < b.length; i++) {
+        if (b[i] !== kind) continue;
+        const x = cx * CS + (i & 15), z = cz * CS + ((i >> 4) & 15), y = i >> 8;
+        if (w.getBlock(x, y - 1, z) === kind) continue;   // bottom row only
+        const d = Math.hypot(x - tx, z - tz);
+        if (d < bd) { bd = d; best = [x, y, z]; }
+      }
+    }
+    if (best) {
+      const [x, y, z] = best;
+      const f = w.getFacing(x, y, z);
+      const out = f === 0 || f === 1 ? [[1, 0], [-1, 0]] : [[0, 1], [0, -1]];
+      for (const [dx, dz] of out) if (!BLOCK_SOLID[w.getBlock(x + dx, y, z + dz)] && !BLOCK_SOLID[w.getBlock(x + dx, y + 1, z + dz)]) return [x + dx + 0.5, y, z + dz + 0.5];
+      return [x + 0.5, y, z + 0.5];
+    }
+    return this.buildPortal(kind, dim, tx, tz);
+  },
+
+  buildPortal(kind, dim, tx, tz) {
+    const w = G.world;
+    const frame = PORTAL_FRAME[kind];
+    const free = (x, y, z) => { const id = w.getBlock(x, y, z); return !BLOCK_SOLID[id] && !IS_LIQUID(id); };
+    const fits = (x, y, z) => {
+      for (let i = -1; i <= 4; i++) for (let k = -1; k <= 1; k++) for (let j = 1; j <= 4; j++) if (!free(x + i, y + j, z + k)) return false;
+      for (let i = 0; i <= 3; i++) if (!BLOCK_SOLID[w.getBlock(x + i, y, z)]) return false;
+      return true;
+    };
+    let spot = null;
+    for (let r = 0; r <= 14 && !spot; r += 2) for (let a = 0; a < Math.max(1, r * 3) && !spot; a++) {
+      const an = a / Math.max(1, r * 3) * Math.PI * 2;
+      const x = Math.round(tx + Math.cos(an) * r), z = Math.round(tz + Math.sin(an) * r);
+      if (dim === DIM_OVER) {
+        const h = w.surfaceHeight(x, z);
+        if (h > 0 && !IS_LIQUID(w.getBlock(x, h, z)) && fits(x, h, z)) spot = [x, h, z];
+      } else {
+        const y0 = dim === DIM_NETHER ? NETHER_LAVA + 2 : DEEP_WATER + 2, y1 = dim === DIM_NETHER ? 100 : 64;
+        for (let y = y0; y < y1 && !spot; y++) if (fits(x, y, z)) spot = [x, y, z];
+      }
+    }
+    let [x, y, z] = spot || [tx, 0, tz];
+    if (!spot) y = dim === DIM_OVER ? Math.max(SEA, w.surfaceHeight(tx, tz)) : dim === DIM_NETHER ? 64 : 40;
+    const list = [];
+    for (let i = -1; i <= 4; i++) for (let k = -1; k <= 1; k++) {
+      // a floor to stand on and a clear room around the frame
+      if (!BLOCK_SOLID[w.getBlock(x + i, y, z + k)] || IS_LIQUID(w.getBlock(x + i, y, z + k))) list.push([x + i, y, z + k, frame]);
+      for (let j = 1; j <= 4; j++) if (w.getBlock(x + i, y + j, z + k) !== B.AIR) list.push([x + i, y + j, z + k, B.AIR]);
+    }
+    for (let i = 0; i <= 3; i++) for (let j = 0; j <= 4; j++) {
+      const edge = i === 0 || i === 3 || j === 0 || j === 4;
+      list.push([x + i, y + j, z, edge ? frame : kind, edge ? undefined : 4]);
+    }
+    editBlocks(list);
+    return [x + 2, y + 1, z + 1.5];
+  },
+
+  // Frames: placing an ender frame may open the End; breaking frame blocks closes portals.
+  onEdit(x, y, z, id, old) {
+    if (id === B.ENDER_FRAME) this.checkEnderRing(x, y, z);
+    if ((old === B.OBSIDIAN || old === B.REINFORCED_DEEPSLATE || old === B.ENDER_FRAME) && id !== old) this.breakNear(x, y, z);
+  },
+};
+{
+  const edit0 = editBlock;
+  // eslint-disable-next-line no-global-assign
+  editBlock = function (x, y, z, id, facing) {
+    const old = G.world.getBlock(x, y, z);
+    const r = edit0(x, y, z, id, facing);
+    if (r && old !== id) {
+      Portals.onEdit(x, y, z, id, old);
+      if (dimOf(x, z) === DIM_DEEP) DimMobs.noise([x + 0.5, y + 0.5, z + 0.5], 1);
+    }
+    return r;
+  };
+  const sleep0 = trySleep;
+  // eslint-disable-next-line no-global-assign
+  trySleep = function (x, y, z) {
+    if (dimOf(x, z) !== DIM_OVER) { G.ui.toast('You cannot sleep here \u2014 the bed will not let you rest'); return; }
+    return sleep0(x, y, z);
+  };
+}
+
+// ------------------------------------------------------------ atmosphere ----
+// Called by the renderer each frame inside a dimension.
+function dimAtmosphere(r, dim) {
+  const A = r.atmo, info = DIM_INFO[dim];
+  const dark = DimMobs.darkness;
+  A.dim = [info.fog[0] * (1 - dark * 0.8), info.fog[1] * (1 - dark * 0.8), info.fog[2] * (1 - dark * 0.8), 1];
+  A.dimAmb = info.amb.map((v) => v * (1 - dark * 0.85));
+  A.fogDensity = info.fogD * (1 + dark * 2.5);
+  A.sunColor = [0, 0, 0];
+  A.lightColor = dim === DIM_END ? [0.12, 0.1, 0.16] : [0, 0, 0];
+  A.cloudCover = 0;
+}
+{
+  const wu = Weather.update;
+  Weather.update = function (dt, cam) {
+    if (!dimOf(cam.pos[0], cam.pos[2])) return wu.call(this, dt, cam);
+    this.amount = 0; this.rainFx = 0; this.flash = 0; this.bolts.length = 0;
+    this.wetness = Math.max(0, this.wetness - dt / 5); this.snowCover = Math.max(0, this.snowCover - dt / 5);
+    this.sound(0, cam.pos);
+  };
+  const lu = Wildlife.update;
+  Wildlife.update = function (dt, cam) {
+    if (dimOf(cam.pos[0], cam.pos[2])) { this.reset(); return; }
+    return lu.call(this, dt, cam);
+  };
+}
+
+// ------------------------------------------------------------------ mobs ----
+Object.assign(MOB_TYPES, {
+  ember: { name: 'Ember Cube', hw: 0.5, h: 1.0, hp: 16, speed: 2.8, hostile: true, dmg: [3, 4, 6], drops: [[B.MAGMA, 0, 1]], fireproof: true, custom: 'ember' },
+  wraith: { name: 'Cinder Wraith', hw: 0.3, h: 1.8, hp: 20, speed: 2.2, hostile: true, drops: [[I.CINDER_ROD, 0, 1]], fireproof: true, custom: 'wraith' },
+  voidwalker: { name: 'Voidwalker', hw: 0.3, h: 2.9, hp: 40, speed: 3.2, hostile: true, dmg: [4, 7, 10], drops: [[I.ENDER_PEARL, 0, 1]], custom: 'voidwalker' },
+  warden: { name: 'Warden', hw: 0.45, h: 2.9, hp: 250, speed: 1.7, hostile: true, dmg: [12, 16, 24], drops: [[B.SCULK_CATALYST, 1, 1], [I.ECHO_SHARD, 2, 4]], fireproof: true, custom: 'warden' },
+});
+Object.assign(MOB_SKIN_SLOT, { ember: 12, wraith: 13, voidwalker: 14, warden: 15 });
+Object.assign(MOB_MODELS, {
+  ember: [
+    { id: 'body', box: [-8, 0, -8, 8, 16, 8] },
+  ],
+  wraith: [
+    { id: 'head', box: [-4, 20, -4, 4, 28, 4], pivot: [0, 20, 0], role: 'head' },
+    ...[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+      const a = i / 8 * Math.PI * 2, r = i % 2 ? 7 : 5, y = i % 2 ? 4 : 11;
+      const x = Math.round(Math.cos(a) * r), z = Math.round(Math.sin(a) * r);
+      return { id: 'rod' + i, box: [x - 1, y, z - 1, x + 1, y + 8, z + 1], uv: 'rod' };
+    }),
+  ],
+  voidwalker: [
+    { id: 'body', box: [-4, 26, -2, 4, 38, 2] },
+    { id: 'head', box: [-4, 38, -4, 4, 46, 4], pivot: [0, 38, 0], role: 'head' },
+    { id: 'armL', box: [-6, 12, -1, -4, 38, 1], pivot: [-5, 37, 0], uv: 'arm', role: 'armL' },
+    { id: 'armR', box: [4, 12, -1, 6, 38, 1], pivot: [5, 37, 0], uv: 'arm', role: 'armR' },
+    { id: 'legL', box: [-3, 0, -1, -1, 26, 1], pivot: [-2, 26, 0], uv: 'leg', role: 'legA' },
+    { id: 'legR', box: [1, 0, -1, 3, 26, 1], pivot: [2, 26, 0], uv: 'leg', role: 'legB' },
+  ],
+  warden: [
+    { id: 'body', box: [-8, 16, -5, 8, 36, 5] },
+    { id: 'head', box: [-8, 36, -6, 8, 48, 6], pivot: [0, 36, 0], role: 'head' },
+    { id: 'earL', box: [-12, 40, -1, -8, 46, 1], parent: 'head', uv: 'ear' },
+    { id: 'earR', box: [8, 40, -1, 12, 46, 1], parent: 'head', uv: 'ear' },
+    { id: 'armL', box: [-12, 12, -3, -8, 34, 3], pivot: [-10, 33, 0], uv: 'arm', role: 'armL' },
+    { id: 'armR', box: [8, 12, -3, 12, 34, 3], pivot: [10, 33, 0], uv: 'arm', role: 'armR' },
+    { id: 'legL', box: [-6, 0, -3, -2, 16, 3], pivot: [-4, 16, 0], uv: 'leg', role: 'legA' },
+    { id: 'legR', box: [2, 0, -3, 6, 16, 3], pivot: [4, 16, 0], uv: 'leg', role: 'legB' },
+  ],
+});
+// skins for the new creatures, painted into the model atlas after the originals
+{
+  const paint0 = paintSkins;
+  // eslint-disable-next-line no-global-assign
+  paintSkins = function () {
+    const cv = paint0();
+    const g = cv.getContext('2d');
+    const img = g.getImageData(0, 0, ATLAS_W, ATLAS_H), D = img.data;
+    const rng = mulberry32(4242);
+    const px = (x, y, c, f = 1) => { const i = (y * ATLAS_W + x) * 4; D[i] = clamp(c[0] * f, 0, 255); D[i + 1] = clamp(c[1] * f, 0, 255); D[i + 2] = clamp(c[2] * f, 0, 255); D[i + 3] = 255; };
+    const rect = (r, fn) => { for (let y = 0; y < r[3]; y++) for (let x = 0; x < r[2]; x++) { const c = fn(x, y, r[2], r[3]); if (c) px(r[0] + x, r[1] + y, c[0], c[1]); } };
+    const faces = (type, id) => MOB_MODELS[type].find((p) => p.id === id || p.uv === id).faces;
+    const all = (f, fn) => { for (const k of ['top', 'bottom', 'left', 'front', 'right', 'back']) rect(f[k], fn); };
+    // ember cube: dark crust with glowing cracks and two orange eyes
+    all(faces('ember', 'body'), (x, y) => [((x * 3 + y * 5) % 7 === 0 || (x + y * 2) % 11 === 0) ? [255, 150, 40] : [70, 30, 24], 0.85 + rng() * 0.2]);
+    { const f = faces('ember', 'body').front; for (const ex of [4, 10]) for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) px(f[0] + ex + i, f[1] + 5 + j, [255, 220, 90]); }
+    // cinder wraith: a golden head with a dark visor, glowing rods
+    all(faces('wraith', 'head'), () => [[236, 180, 60], 0.85 + rng() * 0.2]);
+    { const f = faces('wraith', 'head').front; for (let x = 1; x < 7; x++) { px(f[0] + x, f[1] + 3, [40, 20, 10]); if (x === 2 || x === 5) px(f[0] + x, f[1] + 3, [255, 250, 200]); } }
+    all(faces('wraith', 'rod'), (x, y) => [y % 3 === 0 ? [255, 220, 110] : [230, 140, 40], 0.9 + rng() * 0.15]);
+    // voidwalker: near-black with purple eyes
+    for (const id of ['body', 'head', 'arm', 'leg']) all(faces('voidwalker', id), () => [[22, 16, 30], 0.85 + rng() * 0.25]);
+    { const f = faces('voidwalker', 'head').front; for (const ex of [0, 5]) for (let i = 0; i < 3; i++) px(f[0] + ex + i, f[1] + 4, i === 1 ? [255, 180, 255] : [200, 60, 230]); }
+    // warden: deep teal hide, bone-white ribs with glowing souls in the chest, antler-like ears
+    const hide = [18, 56, 66];
+    for (const id of ['arm', 'leg']) all(faces('warden', id), () => [hide, 0.8 + rng() * 0.25]);
+    all(faces('warden', 'body'), () => [hide, 0.8 + rng() * 0.25]);
+    {
+      const f = faces('warden', 'body').front;
+      rect(f, (x, y, w, h) => {
+        if (y > 2 && y < 14 && x > 3 && x < w - 4) return (y % 3 === 0) ? [226, 220, 200] : [60, 230, 230];
+        return null;
+      });
+    }
+    all(faces('warden', 'head'), () => [hide, 0.8 + rng() * 0.2]);
+    { const f = faces('warden', 'head').front; for (let y = 6; y < 11; y++) for (let x = 3; x < 13; x++) px(f[0] + x, f[1] + y, (x + y) % 3 ? [30, 20, 24] : [230, 226, 210]); }
+    all(faces('warden', 'ear'), () => [[60, 230, 230], 0.8 + rng() * 0.3]);
+    g.putImageData(img, 0, 0);
+    return cv;
+  };
+}
+Object.assign(SYNTH, {
+  ember_say(ctx, o, t, p) { Sound.noise(ctx, o, t, 0.25, { type: 'lowpass', freq: 500 * p, q: 2, gain: 0.35 }); },
+  ember_hurt(ctx, o, t, p) { Sound.noise(ctx, o, t, 0.3, { type: 'bandpass', freq: 700 * p, q: 3, gain: 0.45 }); },
+  ember_death(ctx, o, t, p) { Sound.noise(ctx, o, t, 0.7, { type: 'lowpass', freq: 900 * p, freqEnd: 200, q: 2, gain: 0.45 }); },
+  wraith_say(ctx, o, t, p) { Sound.noise(ctx, o, t, 1.0, { type: 'bandpass', freq: 400 * p, freqEnd: 900, q: 1.5, gain: 0.3, attack: 0.3 }); },
+  wraith_hurt(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.3, { wave: 'square', f0: 260 * p, f1: 180 * p, filter: ['lowpass', 900, 2], gain: 0.3 }); },
+  wraith_death(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.9, { wave: 'square', f0: 240 * p, f1: 60 * p, filter: ['lowpass', 800, 2], gain: 0.3 }); },
+  fireball(ctx, o, t) { Sound.noise(ctx, o, t, 0.6, { type: 'lowpass', freq: 600, freqEnd: 200, q: 1, gain: 0.4 }); },
+  voidwalker_say(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.8, { wave: 'sine', f0: 180 * p, f1: 120 * p, am: 9, gain: 0.3 }); },
+  voidwalker_hurt(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.4, { wave: 'sawtooth', f0: 420 * p, f1: 220 * p, filter: ['bandpass', 900, 3], gain: 0.35 }); },
+  voidwalker_death(ctx, o, t, p) { Sound.tone(ctx, o, t, 1.4, { wave: 'sawtooth', f0: 300 * p, f1: 40 * p, am: 14, filter: ['lowpass', 1200, 2], gain: 0.35 }); },
+  vw_scream(ctx, o, t) { Sound.tone(ctx, o, t, 1.2, { wave: 'sawtooth', f0: 900, f1: 500, am: 30, filter: ['bandpass', 1500, 2], gain: 0.3 }); },
+  teleport(ctx, o, t) { Sound.tone(ctx, o, t, 0.35, { wave: 'sine', f0: 900, f1: 200, gain: 0.3 }); },
+  warden_say(ctx, o, t, p) { Sound.tone(ctx, o, t, 1.4, { wave: 'sawtooth', f0: 60 * p, f1: 48 * p, am: 6, filter: ['lowpass', 300, 3], gain: 0.6 }); },
+  warden_hurt(ctx, o, t, p) { Sound.tone(ctx, o, t, 0.6, { wave: 'sawtooth', f0: 90 * p, f1: 60 * p, filter: ['lowpass', 500, 3], gain: 0.6 }); },
+  warden_death(ctx, o, t, p) { Sound.tone(ctx, o, t, 2.5, { wave: 'sawtooth', f0: 80 * p, f1: 25 * p, am: 4, filter: ['lowpass', 400, 3], gain: 0.7 }); },
+  heartbeat(ctx, o, t) { Sound.tone(ctx, o, t, 0.12, { wave: 'sine', f0: 55, f1: 40, gain: 0.7 }); Sound.tone(ctx, o, t + 0.22, 0.12, { wave: 'sine', f0: 50, f1: 38, gain: 0.55 }); },
+  sonic_charge(ctx, o, t) { Sound.tone(ctx, o, t, 1.3, { wave: 'sawtooth', f0: 80, f1: 400, filter: ['lowpass', 1200, 4], gain: 0.4 }); },
+  sonic_boom(ctx, o, t) { Sound.noise(ctx, o, t, 1.0, { type: 'lowpass', freq: 1500, freqEnd: 100, q: 2, gain: 0.8 }); Sound.tone(ctx, o, t, 0.6, { wave: 'sine', f0: 120, f1: 40, gain: 0.7 }); },
+  shriek(ctx, o, t) { Sound.tone(ctx, o, t, 1.6, { wave: 'sawtooth', f0: 1200, f1: 700, am: 22, filter: ['bandpass', 1600, 2], gain: 0.35, attack: 0.2 }); },
+  sensor(ctx, o, t) { Sound.noise(ctx, o, t, 0.3, { type: 'bandpass', freq: 2600, freqEnd: 1200, q: 6, gain: 0.3 }); },
+  emerge(ctx, o, t) { Sound.noise(ctx, o, t, 3.0, { type: 'lowpass', freq: 250, freqEnd: 600, q: 2, gain: 0.7, attack: 0.5 }); },
+});
+
+const DimMobs = {
+  darkness: 0, noises: [], bolts: [], warn: 0, shriekCd: 0, sensorCd: 0, stepT: 0, beatT: 0,
+
+  noise(pos, loud) { this.noises.push({ pos, loud, t: G.time }); if (this.noises.length > 20) this.noises.shift(); },
+
+  // shared helpers
+  begin(m, dt) {
+    m.age += dt; m.hurtTime = Math.max(0, m.hurtTime - dt); m.invuln -= dt; m.ai.attackCd -= dt;
+    if (m.def.fireproof) m.fire = 0;
+  },
+  move(m, dt, mx, mz, speed, jump) {
+    if (mx || mz) {
+      let d = Math.atan2(mx, mz) - m.bodyYaw;
+      while (d > Math.PI) d -= Math.PI * 2;
+      while (d < -Math.PI) d += Math.PI * 2;
+      m.bodyYaw += d * Math.min(1, dt * 8);
+    }
+    if (m.collidedH && (mx || mz) && m.onGround) jump = true;
+    m.physics(dt, mx * speed, mz * speed, jump, speed);
+    const hs = Math.hypot(m.vel[0], m.vel[2]);
+    m.walkAmt += (Math.min(1, hs / 2.5) - m.walkAmt) * Math.min(1, dt * 10);
+    m.walkPhase += dt * hs * 3.2;
+  },
+  env(m, dt) {
+    m.envTick -= dt;
+    if (m.envTick > 0) return;
+    m.envTick = 0.5;
+    const w = G.world, bx = Math.floor(m.pos[0]), by = Math.floor(m.pos[1] + 0.3), bz = Math.floor(m.pos[2]);
+    const feet = w.getBlock(bx, by, bz);
+    if (feet === B.LAVA && !m.def.fireproof) { m.fire = 8; m.damage(4, { fire: true, env: true }); }
+    if (feet === B.WATER && m.type === 'voidwalker') { m.damage(1, { env: true }); this.blink(m, 12); }
+    if (m.fire > 0 && !m.def.fireproof) m.damage(1, { fire: true, env: true });
+    if (m.pos[1] < -20) m.damage(1000, { env: true });
+  },
+  wander(m, dt, range) {
+    const ai = m.ai;
+    ai.timer -= dt;
+    if (ai.timer <= 0) {
+      if (ai.state === 'walk' || Math.random() < 0.4) { ai.state = 'idle'; ai.timer = rand(2, 5); }
+      else { ai.state = 'walk'; ai.timer = rand(3, 7); m.pickTarget(range, null); }
+    }
+    if (ai.state !== 'walk') return [0, 0];
+    const tx = ai.tx - m.pos[0], tz = ai.tz - m.pos[2], l = Math.hypot(tx, tz);
+    if (l < 0.8) { ai.state = 'idle'; ai.timer = rand(2, 4); return [0, 0]; }
+    return [tx / l * 0.6, tz / l * 0.6];
+  },
+  survivalTarget() { return G.mode === 'survival' && !G.stats.dead && G.difficulty > 0; },
+  melee(m, dist, dy) {
+    const reach = m.hw + PLAYER_HALF_W + (m.type === 'warden' ? 1.1 : 0.6);
+    if (dist < reach && dy > -m.h && dy < 2 && m.ai.attackCd <= 0) {
+      m.ai.attackCd = m.type === 'warden' ? 1.6 : 1.0;
+      const dmg = m.def.dmg[Math.max(0, G.difficulty - 1)] || m.def.dmg[1];
+      G.stats.damage(dmg, { type: 'mob', mob: m, from: m.pos });
+      if (m.type === 'warden') { const p = G.player, l = dist || 1; p.vel[0] += (p.pos[0] - m.pos[0]) / l * 9; p.vel[2] += (p.pos[2] - m.pos[2]) / l * 9; p.vel[1] = 5; }
+      if (m.type === 'ember') G.stats.fire = Math.max(G.stats.fire || 0, 2);
+      return true;
+    }
+    return false;
+  },
+  // teleport a voidwalker to a free spot nearby (or near the player)
+  blink(m, range, near) {
+    const w = G.world, c = near || m.pos;
+    for (let k = 0; k < 16; k++) {
+      const x = Math.floor(c[0] + rand(-range, range)), z = Math.floor(c[2] + rand(-range, range));
+      for (let y = Math.floor(c[1]) + 6; y > Math.floor(c[1]) - 8; y--) {
+        if (BLOCK_OPAQUE[w.getBlock(x, y - 1, z)] && !BLOCK_SOLID[w.getBlock(x, y, z)] && !BLOCK_SOLID[w.getBlock(x, y + 1, z)] && !BLOCK_SOLID[w.getBlock(x, y + 2, z)] && !IS_LIQUID(w.getBlock(x, y, z))) {
+          this.puff(m.pos, [0.6, 0.2, 0.9]);
+          m.pos = [x + 0.5, y, z + 0.5]; m.vel = [0, 0, 0];
+          this.puff(m.pos, [0.6, 0.2, 0.9]);
+          sfx('teleport', m.pos, 1, rand(0.9, 1.1));
+          return true;
+        }
+      }
+    }
+    return false;
+  },
+  puff(pos, rgb) {
+    for (let i = 0; i < 18; i++) Particles.add(Particles.base(pos[0] + rand(-0.4, 0.4), pos[1] + rand(0, 2.6), pos[2] + rand(-0.4, 0.4), {
+      vx: rand(-1, 1), vy: rand(-0.5, 1), vz: rand(-1, 1), life: 0.9, max: 0.9, size: 0.07, layer: T.p_crit, r: rgb[0], g: rgb[1], b: rgb[2], glow: true, collide: false }));
+  },
+
+  ember(m, dt) {
+    this.begin(m, dt);
+    const p = G.player, dx = p.pos[0] - m.pos[0], dz = p.pos[2] - m.pos[2], dy = p.pos[1] - m.pos[1], hd = Math.hypot(dx, dz) || 1;
+    if (!this.survivalTarget()) m.ai.target = null;
+    else if (!m.ai.target && hd < 16 && m.canSee(p)) m.ai.target = p;
+    else if (m.ai.target && hd > 28) m.ai.target = null;
+    let mx = 0, mz = 0, jump = false;
+    // it moves in hops
+    m.ai.hop = (m.ai.hop || 0) - dt;
+    if (m.onGround && m.ai.hop <= 0) {
+      m.ai.hop = rand(0.8, 1.6);
+      if (m.ai.target) { mx = dx / hd; mz = dz / hd; } else { [mx, mz] = this.wander(m, 1, 6); if (!mx && !mz && Math.random() < 0.5) { const a = Math.random() * 6.28; mx = Math.cos(a); mz = Math.sin(a); } }
+      if (mx || mz) { jump = true; m.vel[0] = mx * 4.5; m.vel[2] = mz * 4.5; m.bodyYaw = Math.atan2(mx, mz); sfx('ember_say', m.pos, 0.5, rand(0.8, 1.2)); }
+    }
+    if (m.ai.target) { m.headYaw = Math.atan2(dx, dz); this.melee(m, Math.hypot(dx, dy, dz), dy); }
+    m.physics(dt, 0, 0, jump, 0);
+    if (!m.onGround) { m.vel[0] *= 1; }
+    if (jump) m.vel[1] = 7.5;
+    this.env(m, dt);
+  },
+
+  wraith(m, dt) {
+    this.begin(m, dt);
+    const w = G.world, p = G.player;
+    const dx = p.pos[0] - m.pos[0], dz = p.pos[2] - m.pos[2], dy = p.pos[1] - m.pos[1], hd = Math.hypot(dx, dz) || 1;
+    if (!this.survivalTarget()) m.ai.target = null;
+    else if (!m.ai.target && hd < 20 && m.canSee(p)) m.ai.target = p;
+    else if (m.ai.target && hd > 32) m.ai.target = null;
+    // float a few blocks over the ground
+    let floor = Math.floor(m.pos[1]);
+    while (floor > m.pos[1] - 8 && !BLOCK_SOLID[w.getBlock(Math.floor(m.pos[0]), floor - 1, Math.floor(m.pos[2]))]) floor--;
+    const want = (m.ai.target ? Math.max(floor + 2.5, p.pos[1] + 1.5) : floor + 2) + Math.sin(m.age * 1.7) * 0.4;
+    m.vel[1] = (want - m.pos[1]) * 2 + GRAVITY * dt;
+    let mx = 0, mz = 0;
+    if (m.ai.target) {
+      m.headYaw = Math.atan2(dx, dz); m.bodyYaw = m.headYaw;
+      const k = hd > 10 ? 1 : hd < 5 ? -1 : 0;
+      mx = dx / hd * k; mz = dz / hd * k;
+      m.ai.shootCd -= dt;
+      if (m.ai.shootCd <= 0 && hd < 18) {
+        m.ai.burst = (m.ai.burst || 0) + 1;
+        m.ai.shootCd = m.ai.burst % 3 === 0 ? rand(2.5, 3.5) : 0.35;
+        if (m.canSee(p)) this.fireball(m, p);
+      }
+    } else [mx, mz] = this.wander(m, dt, 8);
+    this.move(m, dt, mx, mz, m.def.speed, false);
+    m.fallStart = null;
+    if (Math.random() < dt * 8) Particles.flame(m.pos[0] + rand(-0.4, 0.4), m.pos[1] + rand(0.2, 1.4), m.pos[2] + rand(-0.4, 0.4));
+    this.env(m, dt);
+  },
+  fireball(m, p) {
+    const e = [m.pos[0], m.pos[1] + 1.5, m.pos[2]], t = p.eyePos();
+    const d = [t[0] - e[0], t[1] - 0.4 - e[1], t[2] - e[2]], l = Math.hypot(d[0], d[1], d[2]) || 1;
+    const sp = 13, sp2 = 0.08;
+    this.bolts.push({ pos: e, vel: [d[0] / l * sp + rand(-1, 1) * sp2 * sp, d[1] / l * sp, d[2] / l * sp + rand(-1, 1) * sp2 * sp], life: 3, from: m });
+    sfx('fireball', m.pos, 0.9, rand(0.9, 1.2));
+  },
+  updateBolts(dt) {
+    const w = G.world, p = G.player;
+    for (const b of this.bolts) {
+      b.life -= dt;
+      for (let s = 0; s < 3; s++) {
+        for (let k = 0; k < 3; k++) b.pos[k] += b.vel[k] * dt / 3;
+        const bx = Math.floor(b.pos[0]), by = Math.floor(b.pos[1]), bz = Math.floor(b.pos[2]);
+        if (BLOCK_SOLID[w.getBlock(bx, by, bz)]) { b.life = 0; Particles.smoke(b.pos[0], b.pos[1], b.pos[2], 4, 0.2, true); break; }
+        const c = [p.pos[0], p.pos[1] + 0.9, p.pos[2]];
+        if (Math.hypot(b.pos[0] - c[0], (b.pos[1] - c[1]) * 0.6, b.pos[2] - c[2]) < 0.8 && G.mode === 'survival') {
+          b.life = 0;
+          G.stats.damage(4 + G.difficulty, { type: 'mob', mob: b.from, from: b.pos });
+          if (!hasEffect('fire_res')) G.stats.fire = Math.max(G.stats.fire || 0, 4);
+          break;
+        }
+      }
+      Particles.flame(b.pos[0], b.pos[1], b.pos[2]);
+      Particles.flame(b.pos[0] + rand(-0.15, 0.15), b.pos[1] + rand(-0.15, 0.15), b.pos[2] + rand(-0.15, 0.15));
+    }
+    this.bolts = this.bolts.filter((b) => b.life > 0);
+  },
+
+  voidwalker(m, dt) {
+    this.begin(m, dt);
+    const p = G.player;
+    const dx = p.pos[0] - m.pos[0], dz = p.pos[2] - m.pos[2], dy = p.pos[1] - m.pos[1], hd = Math.hypot(dx, dz) || 1;
+    const ai = m.ai;
+    if (!this.survivalTarget()) ai.target = null;
+    // neutral until stared at (or hit): looking at its head provokes it
+    if (!ai.target && this.survivalTarget() && hd < 32) {
+      const e = p.eyePos(), hx = m.pos[0] - e[0], hy = m.pos[1] + m.h - 0.3 - e[1], hz = m.pos[2] - e[2], hl = Math.hypot(hx, hy, hz) || 1;
+      const f = [-Math.sin(p.yaw) * Math.cos(p.pitch), Math.sin(p.pitch), -Math.cos(p.yaw) * Math.cos(p.pitch)];
+      if ((f[0] * hx + f[1] * hy + f[2] * hz) / hl > 0.985 && m.canSee(p)) { ai.target = p; sfx('vw_scream', m.pos, 1, 1); ai.blinkT = 1; }
+    }
+    if (ai.target && hd > 40) ai.target = null;
+    let mx = 0, mz = 0;
+    if (ai.target) {
+      m.headYaw = Math.atan2(dx, dz);
+      mx = dx / hd; mz = dz / hd;
+      ai.blinkT = (ai.blinkT || 3) - dt;
+      if (ai.blinkT <= 0) { ai.blinkT = rand(3, 6); if (hd > 6) this.blink(m, 3, p.pos); }
+      this.melee(m, Math.hypot(dx, dy, dz), dy);
+    } else {
+      [mx, mz] = this.wander(m, dt, 10);
+      if (Math.random() < dt * 0.02) this.blink(m, 16);
+    }
+    this.move(m, dt, mx, mz, m.def.speed * (ai.target ? 1.2 : 0.7), false);
+    if (Math.random() < dt * 3) this.puff([m.pos[0], m.pos[1] + rand(0, 2), m.pos[2]], [0.5, 0.1, 0.7]);
+    this.env(m, dt);
+  },
+
+  // The Warden is blind: it follows noises (footsteps, blocks broken or placed, sensors) and
+  // smells players that come close. Angry, it roars a sonic boom through anything in its way.
+  warden(m, dt) {
+    this.begin(m, dt);
+    const ai = m.ai, p = G.player;
+    if (ai.emerge > 0) {
+      ai.emerge -= dt;
+      m.invuln = 0.5;
+      if (Math.random() < dt * 20) Particles.blockBreak(m.pos[0] - 0.5, m.pos[1] - 1, m.pos[2] - 0.5, B.SCULK);
+      m.physics(dt, 0, 0, false, 0);
+      return;
+    }
+    const dx = p.pos[0] - m.pos[0], dz = p.pos[2] - m.pos[2], dy = p.pos[1] - m.pos[1], hd = Math.hypot(dx, dz) || 1, dist = Math.hypot(dx, dy, dz);
+    const alive = this.survivalTarget();
+    // senses
+    if (alive && dist < 4) { ai.goal = p.pos.slice(); ai.anger = Math.min(1, (ai.anger || 0) + dt * 0.8); ai.quiet = 0; }
+    for (const n of this.noises) {
+      if (n.used === m || G.time - n.t > 1.5) continue;
+      const d = Math.hypot(n.pos[0] - m.pos[0], n.pos[2] - m.pos[2]);
+      if (d < 22) { n.used = m; ai.goal = n.pos.slice(); ai.anger = Math.min(1, (ai.anger || 0) + 0.2 * n.loud); ai.quiet = 0; sfx('sensor', m.pos, 0.6, 0.6); }
+    }
+    ai.quiet = (ai.quiet || 0) + dt;
+    ai.anger = Math.max(0, (ai.anger || 0) - dt * 0.02);
+    let mx = 0, mz = 0, speed = m.def.speed;
+    if (ai.goal) {
+      const gx = ai.goal[0] - m.pos[0], gz = ai.goal[2] - m.pos[2], gl = Math.hypot(gx, gz);
+      if (gl > 1.2) { mx = gx / gl; mz = gz / gl; m.headYaw = Math.atan2(gx, gz); }
+      else ai.goal = null;
+      speed *= ai.anger > 0.5 ? 1.8 : 1.2;
+    } else [mx, mz] = this.wander(m, dt, 8);
+    if (alive && ai.anger > 0.5 && dist < 20) {
+      this.melee(m, dist, dy);
+      // sonic boom at range
+      ai.boomCd = (ai.boomCd || 4) - dt;
+      if (ai.charge > 0) {
+        ai.charge -= dt; mx = 0; mz = 0; m.headYaw = Math.atan2(dx, dz); m.bodyYaw = m.headYaw;
+        if (ai.charge <= 0) this.sonicBoom(m, p);
+      } else if (ai.boomCd <= 0 && dist > 5 && dist < 16) { ai.charge = 1.4; ai.boomCd = 6; sfx('sonic_charge', m.pos, 1, 1); }
+    }
+    this.move(m, dt, mx, mz, speed, false);
+    m.soundT -= dt;
+    if (m.soundT <= 0) { m.soundT = ai.anger > 0.5 ? rand(1.5, 3) : rand(5, 10); sfx('warden_say', m.pos, 1, rand(0.9, 1.1)); }
+    // after a long silence it digs back into the ground
+    if (ai.quiet > 60) { m.removed = true; this.puff(m.pos, [0.1, 0.5, 0.6]); sfx('emerge', m.pos, 0.8, 1.3); }
+    this.env(m, dt);
+  },
+  sonicBoom(m, p) {
+    const e = [m.pos[0], m.pos[1] + 2.2, m.pos[2]], t = p.eyePos();
+    const d = [t[0] - e[0], t[1] - e[1], t[2] - e[2]], l = Math.hypot(d[0], d[1], d[2]) || 1;
+    for (let s = 1; s < l; s += 0.6) {
+      Particles.add(Particles.base(e[0] + d[0] / l * s, e[1] + d[1] / l * s, e[2] + d[2] / l * s, {
+        life: 0.6, max: 0.6, size: 0.35, layer: T.p_bubble, r: 0.4, g: 1, b: 1, glow: true, collide: false, drag: 1 }));
+    }
+    sfx('sonic_boom', m.pos, 1.2, 1);
+    if (G.mode === 'survival') {
+      G.stats.damage(10, { type: 'magic', from: m.pos });
+      p.vel[0] += d[0] / l * 12; p.vel[2] += d[2] / l * 12; p.vel[1] = 6;
+    }
+    G.shake = Math.max(G.shake || 0, 0.8);
+  },
+
+  // Deep Dark: footsteps are noise, shriekers call the Warden, the darkness pulses when it is near.
+  update(dt) {
+    const p = G.player;
+    if (!p || G.onTitle) return;
+    this.updateBolts(dt);
+    const dim = dimOf(p.pos[0], p.pos[2]);
+    let warden = null;
+    for (const m of Ents.mobs) if (m.type === 'warden' && !m.dead && Math.hypot(m.pos[0] - p.pos[0], m.pos[2] - p.pos[2]) < 48) warden = m;
+    const want = warden ? 0.55 + 0.45 * Math.sin(G.time * 1.3) : 0;
+    this.darkness += (want - this.darkness) * Math.min(1, dt * 1.5);
+    if (warden) { this.beatT -= dt; if (this.beatT <= 0) { this.beatT = warden.ai.anger > 0.5 ? 0.7 : 1.3; sfx('heartbeat', warden.pos, 1, 1); } }
+    if (dim !== DIM_DEEP || G.stats.dead) { this.warn = Math.max(0, this.warn - dt / 300); return; }
+    this.shriekCd -= dt; this.sensorCd -= dt;
+    const moving = Math.hypot(p.vel[0], p.vel[2]) > 1 && p.onGround;
+    this.stepT -= dt;
+    if (moving && !p.sneaking && this.stepT <= 0) {
+      this.stepT = 0.45;
+      this.noise(p.pos.slice(), p.sprinting ? 1 : 0.5);
+      // nearby sculk hears it
+      const w = G.world, bx = Math.floor(p.pos[0]), by = Math.floor(p.pos[1]), bz = Math.floor(p.pos[2]);
+      let shrieker = null, sensor = null;
+      for (let y = by - 3; y <= by + 2; y++) for (let z = bz - 7; z <= bz + 7; z++) for (let x = bx - 7; x <= bx + 7; x++) {
+        const id = w.getBlock(x, y, z);
+        if (id === B.SCULK_SHRIEKER && !shrieker) shrieker = [x + 0.5, y + 1, z + 0.5];
+        else if (id === B.SCULK_SENSOR && !sensor) sensor = [x + 0.5, y + 1, z + 0.5];
+      }
+      if (sensor && this.sensorCd <= 0) { this.sensorCd = 1.2; sfx('sensor', sensor, 0.8, 1); this.noise(sensor, 1); }
+      if (shrieker && this.shriekCd <= 0 && G.mode === 'survival') {
+        this.shriekCd = 10;
+        this.warn++;
+        sfx('shriek', shrieker, 1, 1);
+        this.puff(shrieker, [0.3, 0.9, 1]);
+        G.ui.toast(['\ud83d\udd14 A sculk shrieker cries out\u2026', '\ud83d\udd14 Something below is stirring\u2026', '\ud83d\udc80 The Warden is coming'][Math.min(2, this.warn - 1)]);
+        if (this.warn >= 3 && !warden) { this.summonWarden(shrieker); this.warn = 0; }
+      }
+    }
+  },
+  summonWarden(near) {
+    const w = G.world, p = G.player;
+    for (let k = 0; k < 30; k++) {
+      const a = Math.random() * Math.PI * 2, d = rand(5, 10);
+      const x = Math.floor(near[0] + Math.cos(a) * d), z = Math.floor(near[2] + Math.sin(a) * d);
+      for (let y = Math.floor(p.pos[1]) + 4; y > Math.floor(p.pos[1]) - 6; y--) {
+        if (!BLOCK_OPAQUE[w.getBlock(x, y - 1, z)]) continue;
+        let room = true;
+        for (let j = 0; j < 3; j++) for (const [ox, oz] of [[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1]]) if (BLOCK_SOLID[w.getBlock(x + ox, y + j, z + oz)]) room = false;
+        if (!room) continue;
+        const m = Ents.spawnMob('warden', x + 0.5, y, z + 0.5);
+        if (m) { m.ai.emerge = 3; m.ai.anger = 0.3; m.ai.goal = p.pos.slice(); sfx('emerge', m.pos, 1.2, 1); }
+        return m;
+      }
+    }
+    return null;
+  },
+};
+{
+  const up0 = Mob.prototype.update;
+  Mob.prototype.update = function (dt) {
+    const c = this.def.custom;
+    if (!c || this.remote || this.dead) return up0.call(this, dt);
+    return DimMobs[c](this, dt);
+  };
+  // in cave dimensions the "surface" is the ceiling: walk targets look for a floor near the mob
+  const pick0 = Mob.prototype.pickTarget;
+  Mob.prototype.pickTarget = function (range, awayFrom) {
+    if (!dimOf(this.pos[0], this.pos[2])) return pick0.call(this, range, awayFrom);
+    const w = G.world;
+    for (let tries = 0; tries < 8; tries++) {
+      let a = Math.random() * Math.PI * 2;
+      if (awayFrom) a = Math.atan2(this.pos[2] - awayFrom[2], this.pos[0] - awayFrom[0]) + rand(-0.8, 0.8);
+      const d = rand(range * 0.4, range);
+      const tx = this.pos[0] + Math.cos(a) * d, tz = this.pos[2] + Math.sin(a) * d;
+      for (let y = Math.floor(this.pos[1]) + 2; y > Math.floor(this.pos[1]) - 4; y--) {
+        const below = w.getBlock(Math.floor(tx), y - 1, Math.floor(tz)), here = w.getBlock(Math.floor(tx), y, Math.floor(tz));
+        if (BLOCK_SOLID[below] && !BLOCK_SOLID[here] && !IS_LIQUID(here) && !IS_LIQUID(below)) { this.ai.tx = tx; this.ai.tz = tz; return true; }
+      }
+    }
+    this.ai.tx = this.pos[0]; this.ai.tz = this.pos[2];
+    return false;
+  };
+  // creatures of each dimension
+  const spawn0 = Ents.spawn;
+  Ents.spawn = function (dt) {
+    const p = G.player, dim = dimOf(p.pos[0], p.pos[2]);
+    if (!dim) return spawn0.call(this, dt);
+    if (!G.rules.mobSpawning || dim === DIM_DEEP) return;
+    this.spawnTimer -= dt;
+    if (this.spawnTimer > 0 || G.difficulty === 0) return;
+    this.spawnTimer = 1.5;
+    let n = 0;
+    for (const m of this.mobs) if (m.def.hostile && !m.dead) n++;
+    if (n >= (dim === DIM_END ? 8 : 12)) return;
+    const w = G.world;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const a = Math.random() * Math.PI * 2, d = rand(16, 40);
+      const x = Math.floor(p.pos[0] + Math.cos(a) * d), z = Math.floor(p.pos[2] + Math.sin(a) * d);
+      const c = w.getChunk(x >> 4, z >> 4);
+      if (!c || !c.light) continue;
+      const y0 = Math.floor(p.pos[1] + rand(-14, 14));
+      let y = -1;
+      for (let yy = Math.min(CH - 4, y0 + 8); yy > Math.max(2, y0 - 16); yy--) {
+        const below = w.getBlock(x, yy - 1, z);
+        if (!BLOCK_OPAQUE[below] || below === B.BEDROCK) continue;
+        if (BLOCK_SOLID[w.getBlock(x, yy, z)] || BLOCK_SOLID[w.getBlock(x, yy + 1, z)] || BLOCK_SOLID[w.getBlock(x, yy + 2, z)]) continue;
+        if (IS_LIQUID(w.getBlock(x, yy, z))) continue;
+        y = yy; break;
+      }
+      if (y < 0 || (w.getLight(x, y, z) & 15) > 11) continue;
+      let type = 'voidwalker';
+      if (dim === DIM_NETHER) {
+        const r = Math.random();
+        type = r < 0.38 ? 'ember' : r < 0.58 ? 'wraith' : r < 0.84 ? 'zombie' : 'skeleton';
+      }
+      this.spawnMob(type, x + 0.5, y, z + 0.5);
+      return;
+    }
+  };
+}
+</script>
+<script>
+'use strict';
 // Player actions: mining with tools, attacking, placing oriented blocks, eating, bows,
 // buckets, hoes, bone meal, shears, dropping items, and the first-person hand animation.
 
@@ -18467,7 +20081,7 @@ const Act = {
       }
       return false;
     }
-    if (held.id === I.FLINT_STEEL) return false;
+    if (held.id === I.FLINT_STEEL) return initial && Portals.ignite(hit);
     if (held.id === I.PICTURE) return initial && Pictures.begin(hit);
     return this.placeBlock(hit);
   },
@@ -20071,6 +21685,27 @@ function buildPlaces(el, after) {
     });
     el.append(b);
   }
+  // the dimensions: a jump in creative, a hint about their portals in survival
+  const here = dimOf(p[0], p[2]);
+  const how = { 0: 'Walk back through a portal', 1: 'Obsidian frame + flint and steel', 2: 'Ring of 12 ender frames', 3: 'Reinforced deepslate frame + flint and steel' };
+  for (let d = 0; d < DIM_INFO.length; d++) {
+    if (d === here || (d === 0 && !here)) continue;
+    const info = DIM_INFO[d];
+    const b = document.createElement('button');
+    b.className = 'place';
+    const i = document.createElement('span'); i.className = 'pi'; i.textContent = info.icon;
+    const n = document.createElement('b'); n.textContent = info.name;
+    const s = document.createElement('small'); s.textContent = G.mode === 'creative' ? 'Dimension \u00b7 jump there' : how[d];
+    b.append(i, n, s);
+    if (G.mode !== 'creative') b.disabled = true;
+    b.addEventListener('click', () => {
+      Sound.init();
+      if (after) after();
+      Portals.travel(0, d);
+      requestLock();
+    });
+    el.append(b);
+  }
 }
 
 function worldLabel() {
@@ -20788,7 +22423,8 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); }
+    const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     Sound.setListener(cam.pos, cam.yaw);
     const thirdPerson = G.view && !G.vehicle && !G.onTitle && !st.dead && !G.sleeping;
     const showHand = !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle && !thirdPerson;
@@ -20814,7 +22450,7 @@ function frame(now) {
       cockpit: G.vehicle && Vehicles.camMode === 'cockpit' ? G.vehicle : null,
     });
     G.renderer.render({
-      cam, dayTime: G.dayTime, time: G.time, dt, eyeSky: G.eyeSky, underwater: !G.vehicle && !G.onTitle && p.eyeInWater,
+      cam, dayTime: dim ? DIM_INFO[dim].day : G.dayTime, time: G.time, dt, eyeSky: G.eyeSky, underwater: !G.vehicle && !G.onTitle && p.eyeInWater, dim,
       weather: Weather.overcast, flash: Weather.flash, rain: Weather.wetness, snow: Weather.snowCover, mist: Weather.mist, rainFx: Weather.rainFx,
       chunks: G.world.chunks.values(), selection: hit && !G.hudHidden ? hit.pos : null, selectionBox: hit ? hit.box : null, entities: ents,
     });

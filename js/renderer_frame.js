@@ -1,4 +1,5 @@
 'use strict';
+const NO_DIM = [0, 0, 0, 0];
 // Per-frame rendering: camera, atmosphere, shadow/scene/water passes and post-processing.
 
 const BIAS_MAT = new Float32Array([0.5, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0.5, 0, 0.5, 0.5, 0.5, 1]);
@@ -138,6 +139,9 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uShadowOn', '1f', this.shadowsActive ? 1 : 0);
     this.setU(prog, 'uShadowSize', '1f', this.shadowSize);
     this.setU(prog, 'uShadowTexel', '1f', this.shadowTexel || 0.05);
+    const D = A.dim || NO_DIM, DA = A.dimAmb || NO_DIM;
+    this.setU(prog, 'uDim', '4f', D[0], D[1], D[2], D[3]);
+    this.setU(prog, 'uDimAmb', '3f', DA[0], DA[1], DA[2]);
     this.setU(prog, 'uShadowMat', 'm4', this.shadowMat || BIAS_MAT);
     this.setU(prog, 'uCloudCover', '1f', A.cloudCover);
     this.setU(prog, 'uCloudTime', '1f', A.time);
@@ -228,6 +232,8 @@ Object.assign(Renderer.prototype, {
     const A = this.atmo;
     A.rain = p.rain || 0; A.snow = p.snow || 0;
     A.fogDensity += 0.022 * (p.mist || 0); A.wind = 1 + 1.8 * (p.weather || 0) * (p.weather || 0);
+    A.dim = null; A.dimAmb = null;
+    if (p.dim) dimAtmosphere(this, p.dim);   // Nether, End, Deep Dark (dimensions_game.js)
     const W = this.width, H = this.height;
     const cp = this.camPos;
     const ent = p.entities;
@@ -347,7 +353,7 @@ Object.assign(Renderer.prototype, {
     gl.useProgram(prog.program);
     this.setCommon(prog, p.underwater);
     this.setU(prog, 'uInvViewProj', 'm4', this.invViewProj);
-    this.setU(prog, 'uCloudSteps', '1i', S.clouds ? 14 : 0);
+    this.setU(prog, 'uCloudSteps', '1i', S.clouds && !p.dim ? 14 : 0);
     this.drawFullscreen();
     gl.depthMask(true);
     gl.depthFunc(gl.LESS);
@@ -426,7 +432,7 @@ Object.assign(Renderer.prototype, {
 
     // --- god rays ---
     let raysOn = false;
-    if (S.godrays && !p.underwater) {
+    if (S.godrays && !p.underwater && !p.dim) {
       const L = A.lightDir;
       const v = this.viewProj;
       const x = v[0] * L[0] + v[4] * L[1] + v[8] * L[2];

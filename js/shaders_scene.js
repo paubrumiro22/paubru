@@ -35,6 +35,8 @@ uniform float uSkyScale;
 uniform float uNight;
 uniform float uRain;
 uniform float uSnow;
+uniform vec4 uDim;      // dimension sky / fog colour (a = 1 inside the Nether, End or Deep Dark)
+uniform vec3 uDimAmb;   // extra ambient light of the dimension
 
 float hash12(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -53,7 +55,7 @@ vec3 skyLUT(vec3 dir) {
   float u = az / (2.0 * PI) + 0.5;
   float el = asin(clamp(dir.y, 0.035, 1.0));
   float v = sqrt(el / (0.5 * PI));
-  return texture(uSkyLUT, vec2(u, v)).rgb / HDR_SCALE * uSkyScale;
+  return mix(texture(uSkyLUT, vec2(u, v)).rgb / HDR_SCALE * uSkyScale, uDim.rgb, uDim.a);
 }
 
 vec3 fogColor(vec3 dir) {
@@ -259,7 +261,7 @@ void main() {
 
   float ao = 0.32 + 0.68 * vAO;
   if (plant) ao *= mix(1.0, 0.55, vUV.y);
-  vec3 amb = mix(uAmbDown, uAmbUp, N.y * 0.5 + 0.5) * (sky * sky) + vec3(0.010, 0.012, 0.018);
+  vec3 amb = mix(uAmbDown, uAmbUp, N.y * 0.5 + 0.5) * (sky * sky) + vec3(0.010, 0.012, 0.018) + uDimAmb;
   float flicker = 1.0 + 0.05 * sin(uTime * 7.3 + world.x * 1.3) * sin(uTime * 5.1 + world.z * 1.7);
   vec3 torch = vec3(1.0, 0.66, 0.36) * pow(blk, 2.2) * 2.6 * flicker;
   vec3 col = albedo * (direct + (amb + torch) * ao);
@@ -353,7 +355,7 @@ void main() {
   float NdL = dot(N, uLightDir);
   float shadow = NdL > 0.0 ? shadowFactor(vRel, N) : 0.0;
   vec3 direct = uLightColor * max(NdL, 0.0) * shadow * gate;
-  vec3 amb = mix(uAmbDown, uAmbUp, N.y * 0.5 + 0.5) * (sky * sky) + vec3(0.012, 0.014, 0.02);
+  vec3 amb = mix(uAmbDown, uAmbUp, N.y * 0.5 + 0.5) * (sky * sky) + vec3(0.012, 0.014, 0.02) + uDimAmb;
   vec3 torch = vec3(1.0, 0.66, 0.36) * pow(blk, 2.2) * 2.6;
   vec3 light = direct + amb + torch;
   vec3 col = albedo * light;
@@ -501,7 +503,7 @@ void main() {
   if (cs > sunR - 0.0002) {
     float x = clamp((cs - sunR) / (1.0 - sunR), 0.0, 1.0);
     float limb = pow(x, 0.35);
-    col += uSunColor * smoothstep(sunR - 0.0002, sunR + 0.00005, cs) * (0.55 + 0.45 * limb) * 45.0;
+    col += uSunColor * smoothstep(sunR - 0.0002, sunR + 0.00005, cs) * (0.55 + 0.45 * limb) * 45.0 * (1.0 - uDim.a);
   }
   // moon disk
   float cm = dot(dir, uMoonDir);
@@ -509,9 +511,9 @@ void main() {
   if (cm > moonR - 0.0002) {
     vec3 mp = dir - uMoonDir * cm;
     float crater = hash13(floor(mp * 3000.0)) * 0.15;
-    col += vec3(0.85, 0.88, 0.95) * smoothstep(moonR - 0.0002, moonR + 0.00005, cm) * (1.4 - crater) * smoothstep(-0.1, 0.1, uMoonDir.y);
+    col += vec3(0.85, 0.88, 0.95) * smoothstep(moonR - 0.0002, moonR + 0.00005, cm) * (1.4 - crater) * smoothstep(-0.1, 0.1, uMoonDir.y) * (1.0 - uDim.a);
   }
-  col += vec3(0.5, 0.6, 0.8) * pow(max(cm, 0.0), 300.0) * 0.12 * uNight;
+  col += vec3(0.5, 0.6, 0.8) * pow(max(cm, 0.0), 300.0) * 0.12 * uNight * (1.0 - uDim.a);
 
   col += stars(dir) * uNight * smoothstep(-0.02, 0.25, dir.y);
 

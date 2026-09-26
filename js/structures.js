@@ -680,6 +680,7 @@ function planCell(g, ix, iz) {
   if (roll > 0.8) return null;
   const cx = ix * STRUCT_CELL + 70 + Math.floor(rng() * (STRUCT_CELL - 140));
   const cz = iz * STRUCT_CELL + 70 + Math.floor(rng() * (STRUCT_CELL - 140));
+  if (dimAt(cx, cz)) return null;   // the dimensions have their own structures (dimensions.js)
   if (regionNear(g, cx, cz, 90)) return null;
   const h = g.height(cx, cz);
   const { temp, hum } = g.climate(cx, cz);
