@@ -154,7 +154,8 @@ function planCampus(g, plan, st, rough) {
   const bk = campus.bank = site(17, 20, 16, 96, 6) || site(17, 20, 14, 100, 10) || site(17, 20, 12, 102, 18);
   if (bk) {
     const L = lframe(bk.x0, bk.z0, 17, 20, bk.f);
-    add(bk, 3, (W) => buildBank(W, g, L, bk.F));
+    const others = zones.slice();
+    add(bk, 11, (W) => buildBank(W, g, L, bk.F, others));
     const FL = bk.F + 2;
     for (const a of [4, 12]) plan.spawns.push({ kind: 'villager', prof: 'banker', x: L.X(a, 13) + 0.5, y: FL, z: L.Z(a, 13) + 0.5, home: [L.X(a, 13) + 0.5, L.Z(a, 13) + 0.5], homeR: 2.5 });
     student(L.X(3, 8), FL, L.Z(3, 8));
@@ -191,13 +192,22 @@ function planCampus(g, plan, st, rough) {
 // Banc Central: a neoclassical bank on a podium, with a columned portico under a pediment, a
 // hall with a chequered floor, tellers' windows, the bankers behind them and the vault at the
 // back full of gold. 17 wide, 20 deep (d 0..2 are the steps, 1..3 the portico).
-function buildBank(W, g, L, F) {
+function buildBank(W, g, L, F, others) {
   const bx = L.box;
   if (!rectHits(W, bx[0] - 2, bx[1] - 2, bx[2] + 2, bx[3] + 2)) return;
   const S = lwriter(W, L);
   const Wd = 17, D = 20, FL = F + 2, TOP = F + 9;
   campusGround(W, g, bx[0] - 1, bx[1] - 1, bx[2] + 1, bx[3] + 1, F, B.PANOT, 24, B.STONE_BRICKS);
   const qStairs = shapeId('quartz', 'stairs'), qPillar = shapeId('quartz', 'pillar');
+  // a paved square in front of the steps, cut into the slope where needed (not over other buildings)
+  for (let a = -3; a < Wd + 3; a++) for (let d = -9; d < 0; d++) {
+    const x = L.X(a, d), z = L.Z(a, d);
+    if (!W.has(x, z) || others.some((r) => x >= r[0] - 1 && x <= r[2] + 1 && z >= r[1] - 1 && z <= r[3] + 1)) continue;
+    const h = g.height(x, z);
+    for (let y = Math.min(h, F - 3); y < F - 1; y++) if (y > 0) W.set(x, y, z, B.STONE_BRICKS);
+    W.set(x, F - 1, z, (a + d) % 4 === 0 ? B.POLISHED_ANDESITE : B.PANOT);
+    for (let y = F; y <= F + 16; y++) W.set(x, y, z, B.AIR);
+  }
   for (let a = 0; a < Wd; a++) for (let d = 0; d < D; d++) {
     // podium and the steps up to it
     if (d === 0) { S.set(a, F, d, qStairs, L.inw); continue; }
