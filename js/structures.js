@@ -887,7 +887,9 @@ function buildSchool(W, g, x0, zf, sz, F, st) {
   for (const a of [4, 12]) set(a, F + 5, 6, B.LANTERN, 8);
   // classrooms: desks and chairs facing a whiteboard on the back wall
   for (const fl of floors.slice(1)) {
-    for (let a = 4; a <= 12; a++) for (let y = fl + 1; y <= fl + 2; y++) set(a, y, D - 1, B.WOOL);   // whiteboard
+    const board = fl === floors[2] ? B.CHALKBOARD : B.WHITEBOARD;                                 // one old-school room
+    for (let a = 4; a <= 12; a++) for (let y = fl + 1; y <= fl + 2; y++) set(a, y, D - 1, board, out);
+    set(2, fl + 2, D - 1, B.CORKBOARD, out);
     set(8, fl + 1, D - 3, B.SPRUCE_PLANKS); set(9, fl + 1, D - 3, B.SPRUCE_PLANKS);                // teacher's desk
     for (const d of [3, 5, 7]) for (const a of [3, 4, 7, 8, 11, 12]) {
       set(a, fl + 1, d + 1, B.PLANK_SLAB);                      // desk
