@@ -490,7 +490,7 @@ function buildMetro(W, g, L, F) {
     const clearTop = k <= 6 ? F + 1 : top - 1;
     for (let a = 1; a <= 3; a++) {
       for (let yy = y + 1; yy <= clearTop; yy++) S.set(a, yy, d, B.AIR);
-      S.set(a, y, d, shapeId('terrazzo', 'stairs'), L.inw);
+      S.set(a, y, d, shapeId('terrazzo', 'stairs'), L.out);   // rising back towards the street
       S.set(a, y - 1, d, B.TERRAZZO);
     }
     for (const a of [0, 4]) for (let yy = y - 1; yy < F - 1; yy++) S.set(a, yy, d, yy === y + 1 ? B.BLUE_TILES : B.CONCRETE);
