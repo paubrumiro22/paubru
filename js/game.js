@@ -457,7 +457,8 @@ function explode(x, y, z, power, source, seed) {
   if (!remote) { seed = (Math.random() * 2147483647) | 0; Net.explosion(x, y, z, power, seed); }
   const was = Net.capture;
   Net.capture = false;
-  try { explodeNow(x, y, z, power, source, mulberry32(seed), remote); } finally { Net.capture = was; }
+  Net.cloudOnly = !remote;
+  try { explodeNow(x, y, z, power, source, mulberry32(seed), remote); } finally { Net.capture = was; Net.cloudOnly = false; }
 }
 
 function explodeNow(x, y, z, power, source, rng, remote) {

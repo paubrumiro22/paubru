@@ -2,24 +2,32 @@
 // Boot, settings/menu, input and the frame loop.
 
 const SETTINGS_UI = [
-  { key: 'renderDistance', label: 'Render distance', type: 'range', min: 3, max: 16, step: 1, fmt: (v) => v + ' chunks' },
-  { key: 'shadows', label: 'Shadows', type: 'select', options: [['off', 'Off'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']] },
-  { key: 'renderScale', label: 'Render scale', type: 'range', min: 0.5, max: 2, step: 0.25, fmt: (v) => Math.round(v * 100) + '%' },
-  { key: 'fov', label: 'Field of view', type: 'range', min: 50, max: 110, step: 1, fmt: (v) => v + '°' },
-  { key: 'sensitivity', label: 'Mouse sensitivity', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: (v) => v.toFixed(2) },
-  { key: 'brightness', label: 'Brightness', type: 'range', min: 0.6, max: 1.8, step: 0.05, fmt: (v) => v.toFixed(2) },
-  { key: 'volume', label: 'Sound volume', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => Math.round(v * 100) + '%' },
-  { key: 'ssr', label: 'Screen-space reflections', type: 'check' },
-  { key: 'clouds', label: 'Volumetric clouds', type: 'check' },
-  { key: 'godrays', label: 'God rays', type: 'check' },
-  { key: 'bloom', label: 'Bloom', type: 'check' },
-  { key: 'fxaa', label: 'Anti-aliasing (FXAA)', type: 'check' },
-  { key: 'bobbing', label: 'View bobbing', type: 'check' },
-  { key: 'dynamicRes', label: 'Dynamic resolution (smoother)', type: 'check' },
-  { key: 'weather', label: 'Weather', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow'], ['fog', 'Fog']] },
-  { key: 'events', label: 'World events (meteor showers, eruptions)', type: 'check' },
-  { key: 'wildlife', label: 'Wildlife (birds, bees, butterflies, fish)', type: 'check' },
-  { key: 'minimap', label: 'Minimap', type: 'select', options: [['normal', 'Close up'], ['large', 'Zoomed out'], ['off', 'Off']] },
+  { key: 'renderDistance', group: 'display', label: 'Render distance', hint: 'How far you can see. The biggest effect on speed.', type: 'range', min: 3, max: 16, step: 1, fmt: (v) => v + ' chunks' },
+  { key: 'renderScale', group: 'display', label: 'Render scale', hint: 'Resolution of the 3D view. Below 100% is faster but softer.', type: 'range', min: 0.5, max: 2, step: 0.25, fmt: (v) => Math.round(v * 100) + '%' },
+  { key: 'dynamicRes', group: 'display', label: 'Dynamic resolution', hint: 'Lowers the resolution for a moment when frames slow down.', type: 'check' },
+  { key: 'fov', group: 'display', label: 'Field of view', hint: 'How wide the camera sees.', type: 'range', min: 50, max: 110, step: 1, fmt: (v) => v + '°' },
+  { key: 'brightness', group: 'display', label: 'Brightness', type: 'range', min: 0.6, max: 1.8, step: 0.05, fmt: (v) => Math.round(v * 100) + '%' },
+  { key: 'shadows', group: 'effects', label: 'Shadows', hint: 'Sharper shadows cost more.', type: 'select', options: [['off', 'Off'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']] },
+  { key: 'clouds', group: 'effects', label: 'Volumetric clouds', hint: 'Soft 3D clouds. Quite heavy on slow devices.', type: 'check' },
+  { key: 'ssr', group: 'effects', label: 'Water reflections', hint: 'The world reflected on water and wet ground.', type: 'check' },
+  { key: 'godrays', group: 'effects', label: 'Sun rays', hint: 'Light beams through trees and clouds.', type: 'check' },
+  { key: 'bloom', group: 'effects', label: 'Bloom', hint: 'Glow around bright lights.', type: 'check' },
+  { key: 'fxaa', group: 'effects', label: 'Anti-aliasing', hint: 'Smooths jagged edges (FXAA).', type: 'check' },
+  { key: 'weather', group: 'world', label: 'Weather', hint: 'Rain, storms, snow where it is cold, and fog.', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow'], ['fog', 'Fog']] },
+  { key: 'events', group: 'world', label: 'World events', hint: 'Meteor showers on clear nights and volcano eruptions.', type: 'check' },
+  { key: 'wildlife', group: 'world', label: 'Wildlife', hint: 'Birds, bees, butterflies and fish.', type: 'check' },
+  { key: 'volume', group: 'sound', label: 'Master volume', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => Math.round(v * 100) + '%' },
+  { key: 'minimap', group: 'hud', label: 'Minimap', hint: 'The round map in the corner. Press M for the big map.', type: 'select', options: [['normal', 'Close'], ['large', 'Far'], ['off', 'Off']] },
+  { key: 'bobbing', group: 'hud', label: 'View bobbing', hint: 'The camera sways as you walk.', type: 'check' },
+  { key: 'sensitivity', group: 'controls', label: 'Mouse sensitivity', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: (v) => v.toFixed(2) + '×' },
+];
+
+// Quality presets offered above the graphics options.
+const QUALITY_PRESETS = [
+  { name: 'Low', hint: 'Old or slow devices', bars: 1, set: { shadows: 'off', clouds: false, ssr: false, godrays: false, bloom: true, renderDistance: 5, renderScale: 0.75 } },
+  { name: 'Medium', hint: 'Laptops', bars: 2, set: { shadows: 'low', clouds: false, ssr: true, godrays: false, bloom: true, renderDistance: 7, renderScale: 1 } },
+  { name: 'High', hint: 'Recommended', bars: 3, set: { shadows: 'medium', clouds: true, ssr: true, godrays: true, bloom: true, renderDistance: 8, renderScale: 1 } },
+  { name: 'Ultra', hint: 'Powerful graphics cards', bars: 4, set: { shadows: 'high', clouds: true, ssr: true, godrays: true, bloom: true, renderDistance: 12, renderScale: 1 } },
 ];
 
 // ---------- errors ----------
@@ -63,25 +71,50 @@ function loadSettings() {
 function saveSettings() { storageSet(SETTINGS_KEY, G.settings); }
 
 function buildSettingsUI() {
-  const grid = $('settingsGrid');
-  grid.innerHTML = '';
+  const hosts = {};
+  document.querySelectorAll('[data-sgroup]').forEach((h) => { h.innerHTML = ''; hosts[h.dataset.sgroup] = h; });
   for (const def of SETTINGS_UI) {
-    const field = document.createElement('div');
-    field.className = 'field';
+    const host = hosts[def.group];
+    if (!host) continue;
+    const row = document.createElement('div');
+    row.className = 'srow';
+    const l = document.createElement('div');
+    l.className = 'sl';
+    const title = document.createElement('b');
+    title.textContent = def.label;
+    l.append(title);
+    if (def.hint) { const h = document.createElement('small'); h.textContent = def.hint; l.append(h); }
+    const c = document.createElement('div');
+    c.className = 'sc';
     const val = G.settings[def.key];
     if (def.type === 'check') {
-      const lab = document.createElement('label');
-      lab.className = 'check';
+      const sw = document.createElement('label');
+      sw.className = 'sw';
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = !!val;
-      cb.addEventListener('change', () => setSetting(def.key, cb.checked));
-      lab.append(cb, document.createTextNode(def.label));
-      field.append(lab);
+      cb.setAttribute('aria-label', def.label);
+      cb.addEventListener('change', () => { setSetting(def.key, cb.checked); markQualityPreset(); });
+      sw.append(cb, document.createElement('span'));
+      c.append(sw);
+    } else if (def.type === 'select' && def.options.length <= 4) {
+      const seg = document.createElement('div');
+      seg.className = 'seg';
+      for (const [v, t] of def.options) {
+        const b = document.createElement('button');
+        b.textContent = t;
+        b.classList.toggle('on', v === val);
+        b.addEventListener('click', () => {
+          setSetting(def.key, v);
+          for (const o of seg.children) o.classList.toggle('on', o === b);
+          markQualityPreset();
+        });
+        seg.append(b);
+      }
+      c.append(seg);
     } else if (def.type === 'select') {
-      const lab = document.createElement('label');
-      lab.textContent = def.label;
       const sel = document.createElement('select');
+      sel.setAttribute('aria-label', def.label);
       for (const [v, t] of def.options) {
         const o = document.createElement('option');
         o.value = v; o.textContent = t;
@@ -89,23 +122,79 @@ function buildSettingsUI() {
       }
       sel.value = val;
       sel.addEventListener('change', () => setSetting(def.key, sel.value));
-      field.append(lab, sel);
+      c.append(sel);
     } else {
-      const lab = document.createElement('label');
-      const b = document.createElement('b');
-      b.textContent = def.fmt(val);
-      lab.append(document.createTextNode(def.label), b);
+      c.classList.add('range');
+      const out = document.createElement('output');
+      out.textContent = def.fmt(val);
       const r = document.createElement('input');
       r.type = 'range'; r.min = def.min; r.max = def.max; r.step = def.step; r.value = val;
+      r.setAttribute('aria-label', def.label);
       r.addEventListener('input', () => {
         const v = Number(r.value);
-        b.textContent = def.fmt(v);
+        out.textContent = def.fmt(v);
         setSetting(def.key, v);
+        markQualityPreset();
       });
-      field.append(lab, r);
+      c.append(r, out);
     }
-    grid.append(field);
+    row.append(l, c);
+    host.append(row);
   }
+  buildQualityPresets();
+}
+
+function buildQualityPresets() {
+  const host = $('qPresets');
+  if (!host) return;
+  host.innerHTML = '';
+  for (const p of QUALITY_PRESETS) {
+    const b = document.createElement('button');
+    b.className = 'qp';
+    const bars = document.createElement('span');
+    bars.className = 'bars';
+    for (let i = 0; i < 4; i++) { const k = document.createElement('i'); if (i < p.bars) k.className = 'f'; bars.append(k); }
+    const n = document.createElement('b'); n.textContent = p.name;
+    const h = document.createElement('small'); h.textContent = p.hint;
+    b.append(bars, n, h);
+    b.addEventListener('click', () => {
+      sfx('click', null, 1, 1);
+      // picking a preset by hand means you are choosing: automatic quality steps aside
+      if (G.settings.autoQuality) { AutoQuality.state = null; G.settings.autoQuality = false; G.settings.preAuto = null; $('autoQualityCheck').checked = false; }
+      for (const [k, v] of Object.entries(p.set)) setSetting(k, v);
+      if (G.dynRes) { G.dynRes.scale = 1; resize(); }
+      saveSettings();
+      buildSettingsUI();
+      $('autoQualityMsg').textContent = p.name + ' quality selected' + (p.name === 'Ultra' ? '. If it stutters, try High.' : '.');
+    });
+    host.append(b);
+  }
+  markQualityPreset();
+}
+
+function markQualityPreset() {
+  const host = $('qPresets');
+  if (!host) return;
+  QUALITY_PRESETS.forEach((p, i) => {
+    const on = Object.entries(p.set).every(([k, v]) => G.settings[k] === v);
+    if (host.children[i]) host.children[i].classList.toggle('on', on);
+  });
+}
+
+// Sections of the options menu; the last one opened is remembered.
+const MENU_TAB_KEY = 'blocklands.menutab';
+function showMenuTab(tab) {
+  const secs = document.querySelectorAll('.opt-sec');
+  if (![...secs].some((s) => s.dataset.tab === tab)) tab = 'game';
+  secs.forEach((s) => s.classList.toggle('on', s.dataset.tab === tab));
+  document.querySelectorAll('#optNav button').forEach((b) => {
+    const on = b.dataset.tab === tab;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    if (on && b.offsetParent) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
+  $('optMain').scrollTop = 0;
+  storageSet(MENU_TAB_KEY, tab);
 }
 
 function setSetting(key, value) {
@@ -124,9 +213,13 @@ function refreshGameUI() {
   $('difficultySel').value = String(G.difficulty);
   $('keepInvCheck').checked = G.rules.keepInventory;
   $('mobsCheck').checked = G.rules.mobSpawning;
-  $('seedVal').textContent = Net.server ? 'server ' + Net.server.code : G.online ? 'online world' : String(G.world ? G.world.seed : '');
+  $('seedVal').textContent = Net.server ? 'Server ' + Net.server.code : G.online ? 'Online world' : G.slot === 'campnou' ? 'Camp Nou' : 'Seed ' + (G.world ? G.world.seed : '');
   const wt = G.world ? G.world.type : 'default';
-  $('worldTypeVal').textContent = WORLD_PRESETS[wt] ? WORLD_PRESETS[wt].name : wt;
+  const typeName = WORLD_PRESETS[wt] ? WORLD_PRESETS[wt].name : wt === 'flat' ? 'Flat' : 'Default';
+  $('worldTypeVal').textContent = typeName + ' world · ' + (G.mode === 'creative' ? 'Creative' : 'Survival');
+  $('optWorldText').textContent = (Net.server ? Net.server.name + ' · ' + Net.server.code : G.online ? 'Online world' : G.slot === 'campnou' ? 'Camp Nou' : typeName + ' world · seed ' + (G.world ? G.world.seed : '')) + ' · ' + (G.mode === 'creative' ? 'Creative' : 'Survival');
+  $('optWorldDot').classList.toggle('online', !!G.online);
+  $('navOnline').classList.toggle('on', !!G.online);
   buildPlaces($('placesGridMenu'));
   $('upgradeRow').classList.toggle('hidden', !G.world || G.world.genVer >= GEN_LATEST || G.online || !!G.slot || G.world.type !== 'default');
   Net.refreshUI();
@@ -262,6 +355,8 @@ function showMenu() {
   $('timeSlider').value = G.dayTime;
   $('timeVal').textContent = formatClock(G.dayTime);
   $('cycleCheck').checked = G.settings.dayCycle;
+  $('autoQualityCheck').checked = G.settings.autoQuality;
+  if (!document.querySelector('.opt-sec.on')) showMenuTab(storageGet(MENU_TAB_KEY) || 'game');
   refreshGameUI();
 }
 function hideMenu() {
@@ -572,7 +667,9 @@ function bindInput() {
   // title screen
   $('tPlay').addEventListener('click', () => requestLock());
   $('tOptions').addEventListener('click', () => { sfx('click', null, 1, 1); $('title').classList.add('hidden'); showMenu(); });
-  $('tOnline').addEventListener('click', () => { sfx('click', null, 1, 1); $('title').classList.add('hidden'); showMenu(); $('mpName').scrollIntoView({ block: 'center' }); });
+  $('tOnline').addEventListener('click', () => { sfx('click', null, 1, 1); $('title').classList.add('hidden'); showMenu(); showMenuTab('online'); });
+  $('tOptions').addEventListener('click', () => showMenuTab(storageGet(MENU_TAB_KEY) || 'game'));
+  document.querySelectorAll('#optNav button').forEach((b) => b.addEventListener('click', () => { sfx('click', null, 1, 1.1); showMenuTab(b.dataset.tab); }));
   $('tPlaces').addEventListener('click', () => { sfx('click', null, 1, 1); buildPlaces($('placesGridTitle'), leaveTitle); $('placesPanel').classList.remove('hidden'); });
   $('placesBack').addEventListener('click', () => $('placesPanel').classList.add('hidden'));
   $('tJet').addEventListener('click', () => {

@@ -207,8 +207,6 @@
   .brew { display: flex; align-items: center; gap: 14px; }
   .brewbottles { display: flex; gap: 6px; }
   .brewbar { width: 60px; }
-  .autoq { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
-  #autoQualityMsg { color: var(--muted); font-size: 13px; }
   .upgrade { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(242, 185, 75, 0.1); border: 1px solid rgba(242, 185, 75, 0.4); font-size: 13px; }
   .upgrade span { flex: 1; min-width: 200px; color: var(--muted); }
   .archhint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
@@ -380,6 +378,109 @@
   .srv span { color: var(--muted); font-size: 12px; }
   .srv button { padding: 6px 12px; font-size: 13px; }
 
+
+  /* Options menu: sidebar sections + setting rows */
+  .panel.opt { width: min(1040px, 100%); height: min(760px, calc(100vh - 32px)); max-height: none; padding: 0; overflow: hidden; display: flex; flex-direction: column; animation: pop .18s ease-out; }
+  .opt-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 22px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent); }
+  .opt-title { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; min-width: 0; }
+  .opt-logo { margin: 0; font: 700 24px/1 var(--display); letter-spacing: 0.04em; }
+  .opt-logo span { color: var(--accent); }
+  .opt-world { display: flex; align-items: center; gap: 8px; padding: 5px 11px; border-radius: 99px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); color: var(--muted); font-size: 12.5px; max-width: 100%; }
+  .opt-world #optWorldText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .opt-world .dot { width: 8px; height: 8px; border-radius: 50%; background: #6fcf7a; box-shadow: 0 0 0 3px rgba(111, 207, 122, 0.18); flex: none; }
+  .opt-world .dot.online { background: #5fb4ff; box-shadow: 0 0 0 3px rgba(95, 180, 255, 0.2); }
+  .opt-actions { display: flex; align-items: center; gap: 10px; }
+  .opt-actions button.primary { padding: 10px 28px; }
+  .opt-hint { color: var(--muted); font-size: 12.5px; }
+  .opt-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 206px 1fr; }
+  .opt-nav { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; border-right: 1px solid var(--line); background: rgba(0, 0, 0, 0.16); overflow-y: auto; }
+  .opt-nav button { position: relative; display: flex; align-items: center; gap: 11px; width: 100%; padding: 10px 12px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); text-align: left; font-weight: 600; font-size: 14px; }
+  .opt-nav button:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); }
+  .opt-nav button.on { background: rgba(242, 185, 75, 0.14); color: var(--text); }
+  .opt-nav button.on::before { content: ""; position: absolute; left: -10px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); }
+  .opt-nav button.on svg { stroke: var(--accent); }
+  .opt-nav svg { width: 19px; height: 19px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .navsep { height: 1px; background: var(--line); margin: 8px 6px; flex: none; }
+  .navbadge { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: #5fb4ff; display: none; }
+  .navbadge.on { display: block; }
+  .opt-main { overflow-y: auto; padding: 22px 26px 30px; scroll-behavior: smooth; }
+  .opt-sec { display: none; max-width: 720px; }
+  .opt-sec.on { display: block; animation: secin .2s ease-out; }
+  @keyframes secin { from { opacity: 0.5; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .sec-head { margin-bottom: 16px; }
+  .sec-head h2 { font: 700 22px/1.2 var(--body); letter-spacing: 0; text-transform: none; color: var(--text); margin: 0 0 4px; }
+  .sec-head p { margin: 0; color: var(--muted); font-size: 14px; }
+  h3.sub { font: 400 11px/1.2 var(--display); text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); margin: 24px 0 8px 2px; }
+  .card { background: rgba(255, 255, 255, 0.035); border: 1px solid var(--line); border-radius: 12px; }
+  .card.pad { padding: 14px 16px; }
+  .card h4 { margin: 0 0 10px; font-size: 14px; }
+  .srow { display: flex; align-items: center; gap: 18px; justify-content: space-between; padding: 12px 16px; min-height: 58px; }
+  .srow + .srow { border-top: 1px solid rgba(214, 228, 246, 0.08); }
+  .sl { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+  .sl b { font-weight: 600; font-size: 14px; }
+  .sl small { color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+  .sc { display: flex; align-items: center; gap: 10px; flex: none; justify-content: flex-end; }
+  .sc.range { width: min(300px, 45%); }
+  .sc.range input { flex: 1; min-width: 0; }
+  .sc output { min-width: 62px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13px; }
+  .sc select { min-width: 150px; }
+  .sc .seg { min-width: 0; }
+  .sc .seg button { padding: 7px 13px; font-size: 13px; white-space: nowrap; }
+  button.small { padding: 6px 12px; font-size: 13px; }
+  button.accent { background: rgba(242, 185, 75, 0.16); border-color: rgba(242, 185, 75, 0.55); font-weight: 600; }
+  button.accent:hover { background: rgba(242, 185, 75, 0.28); }
+  .sw { position: relative; display: inline-block; width: 42px; height: 24px; flex: none; cursor: pointer; }
+  .sw input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .sw span { position: absolute; inset: 0; border-radius: 99px; background: rgba(255, 255, 255, 0.14); border: 1px solid var(--line); transition: background .18s, border-color .18s; pointer-events: none; }
+  .sw span::after { content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #dfe6ee; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); transition: transform .18s cubic-bezier(.3, 1.4, .5, 1), background .18s; }
+  .sw input:checked + span { background: var(--accent); border-color: transparent; }
+  .sw input:checked + span::after { transform: translateX(18px); background: #fff; }
+  .sw input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .qpresets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+  .qp { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 11px 13px; border-radius: 11px; text-align: left; }
+  .qp b { font-size: 14px; }
+  .qp small { color: var(--muted); font-size: 12px; }
+  .qp .bars { display: flex; gap: 3px; margin-bottom: 6px; }
+  .qp .bars i { width: 14px; height: 5px; border-radius: 2px; background: rgba(255, 255, 255, 0.14); }
+  .qp .bars i.f { background: var(--accent); }
+  .qp.on { border-color: var(--accent); background: rgba(242, 185, 75, 0.14); }
+  .worldcard { padding: 14px 16px; background: linear-gradient(120deg, rgba(95, 180, 255, 0.1), rgba(242, 185, 75, 0.08)); }
+  .wc-info { display: flex; flex-direction: column; gap: 2px; }
+  .wc-info small { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .wc-info b { font: 700 18px ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  .wc-info > span { color: var(--muted); font-size: 13px; }
+  .note { color: var(--muted); font-size: 12.5px; margin: 8px 0 0; }
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .twocol .card { display: flex; flex-direction: column; gap: 8px; }
+  .twocol input { width: 100%; }
+  .cloudbar { display: flex; align-items: center; gap: 9px; padding: 9px 13px; margin-bottom: 12px; border-radius: 10px; font-size: 13px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); color: var(--muted); }
+  .cloudbar i { width: 8px; height: 8px; border-radius: 50%; background: #8a96a3; flex: none; }
+  .cloudbar.ok { color: #cfe9d3; border-color: rgba(111, 207, 122, 0.4); background: rgba(111, 207, 122, 0.08); }
+  .cloudbar.ok i { background: #6fcf7a; box-shadow: 0 0 0 3px rgba(111, 207, 122, 0.2); }
+  .cloudbar.warn { color: #f3d7a8; border-color: rgba(242, 185, 75, 0.4); background: rgba(242, 185, 75, 0.07); }
+  .cloudbar.warn i { background: var(--accent); }
+  #mpJoinBtn { margin-top: 12px; }
+  #srvCodeInput::placeholder { text-transform: none; }
+  .opt-main .srvcur { margin-top: 12px; }
+  #srvList:empty::before { content: "No servers yet. Create one or join a friend’s."; color: var(--muted); font-size: 13px; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 10px; }
+  #srvList { margin-top: 0; }
+  .opt-main .keys { padding: 14px 16px; }
+  .opt-main .upgrade { margin-top: 10px; }
+  @media (max-width: 760px) {
+    .panel.opt { height: calc(100vh - 32px); }
+    .opt-head { padding: 12px 16px; }
+    .opt-hint { display: none; }
+    .opt-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .opt-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px; }
+    .opt-nav button { width: auto; flex: none; padding: 8px 11px; }
+    .opt-nav button.on::before { display: none; }
+    .navsep { width: 1px; height: auto; margin: 6px 4px; }
+    .opt-main { padding: 16px; }
+    .srow { flex-wrap: wrap; gap: 10px; }
+    .sc.range { width: 100%; }
+    .qpresets, .twocol { grid-template-columns: 1fr 1fr; }
+  }
+
   @media (max-width: 560px) {
     .slot { width: 36px; height: 36px; } .slot i { inset: 4px; }
     .brand h1 { font-size: 26px; } .panel { padding: 18px; }
@@ -495,135 +596,222 @@
 </div>
 
 <div id="menu" class="overlay hidden">
-  <div class="panel">
-    <div class="brand"><h1>BLOCK<span>LANDS</span></h1></div>
-    <div class="menu-top">
-      <button id="playBtn" class="primary">Play</button>
-      <button id="titleBtn">Title screen</button>
-      <span id="lockHint" style="color:var(--muted);font-size:13px">Press Esc to come back here.</span>
-    </div>
+  <div class="panel opt" role="dialog" aria-label="Options">
+    <header class="opt-head">
+      <div class="opt-title">
+        <h1 class="opt-logo">BLOCK<span>LANDS</span></h1>
+        <div class="opt-world"><span class="dot" id="optWorldDot"></span><span id="optWorldText"></span></div>
+      </div>
+      <div class="opt-actions">
+        <span id="lockHint" class="opt-hint"><kbd>Esc</kbd>opens this menu</span>
+        <button id="titleBtn">Title screen</button>
+        <button id="playBtn" class="primary">Play</button>
+      </div>
+    </header>
 
-    <h2>Places</h2>
-    <div class="places" id="placesGridMenu"></div>
-    <div class="jetbtn">
-      <button id="jetBtn">✈ Spawn a fighter jet</button>
-      <span style="color:var(--muted);font-size:13px">Right-click it to climb in. It also sits in the creative “Vehicles” tab.</span>
-    </div>
+    <div class="opt-body">
+      <nav class="opt-nav" id="optNav" role="tablist" aria-label="Sections">
+        <button data-tab="game" role="tab"><svg viewBox="0 0 24 24"><path d="M6 9h4M8 7v4M15 8h.01M18 11h.01"/><rect x="2" y="5" width="20" height="13" rx="5"/></svg><span>Game</span></button>
+        <button data-tab="world" role="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><span>World</span></button>
+        <button data-tab="places" role="tab"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span>Places</span></button>
+        <button data-tab="online" role="tab"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .7 3.2 2.5 3.6 5.2"/></svg><span>Online</span><i class="navbadge" id="navOnline"></i></button>
+        <button data-tab="skin" role="tab"><svg viewBox="0 0 24 24"><path d="M8 3 3.5 6 5 10l2-1v12h10V9l2 1 1.5-4L16 3c-.6 1.5-2.1 2.5-4 2.5S8.6 4.5 8 3z"/></svg><span>Character</span></button>
+        <div class="navsep"></div>
+        <button data-tab="graphics" role="tab"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>Graphics</span></button>
+        <button data-tab="sound" role="tab"><svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg><span>Sound &amp; HUD</span></button>
+        <button data-tab="controls" role="tab"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg><span>Controls</span></button>
+      </nav>
 
-    <h2>Online</h2>
-    <div class="field">
-      <div class="mprow">
-        <input type="text" id="mpName" maxlength="16" placeholder="Your name" style="width:170px">
-        <div id="mpColors"></div>
-        <button id="mpJoinBtn" class="hidden" disabled>Join shared world</button>
-      </div>
-      <div id="srvCurrent" class="srvcur hidden">
-        <div><b id="srvCurName"></b><span id="srvCurInfo"></span></div>
-        <div class="srvcode" title="Server code">Code <b id="srvCurCode"></b></div>
-        <button id="srvInvite" class="primary">Copy invite link</button>
-        <button id="srvLeave">Leave server</button>
-        <input type="text" id="srvLink" class="hidden" readonly>
-      </div>
-      <div class="mprow">
-        <input type="text" id="srvNameInput" maxlength="24" placeholder="New server name" style="width:190px">
-        <select id="srvModeSel"><option value="survival">Survival</option><option value="creative">Creative</option></select>
-        <button id="srvCreate">Create server</button>
-      </div>
-      <div class="mprow">
-        <input type="text" id="srvCodeInput" maxlength="8" placeholder="Friend’s code, e.g. K7P2QX" style="width:190px;text-transform:uppercase">
-        <button id="srvJoin">Join with code</button>
-      </div>
-      <div id="srvList"></div>
-      <span id="mpStatus"></span>
-    </div>
+      <main class="opt-main" id="optMain">
+        <!-- GAME -->
+        <section class="opt-sec" data-tab="game">
+          <div class="sec-head"><h2>Game</h2><p>How this world plays: rules, difficulty and the clock.</p></div>
+          <div class="card">
+            <div class="srow">
+              <div class="sl"><b>Game mode</b><small>Survival: gather, craft and stay alive. Creative: every block, flight, no damage.</small></div>
+              <div class="sc"><div id="modeSeg" class="seg"><button data-mode="survival">Survival</button><button data-mode="creative">Creative</button></div></div>
+            </div>
+            <div class="srow">
+              <div class="sl"><b>Difficulty</b><small>How many monsters appear and how hard they hit.</small></div>
+              <div class="sc"><select id="difficultySel"><option value="0">Peaceful</option><option value="1">Easy</option><option value="2">Normal</option><option value="3">Hard</option></select></div>
+            </div>
+            <div class="srow">
+              <div class="sl"><b>Keep inventory</b><small>Keep your items when you die.</small></div>
+              <div class="sc"><label class="sw"><input type="checkbox" id="keepInvCheck"><span></span></label></div>
+            </div>
+            <div class="srow">
+              <div class="sl"><b>Creatures appear</b><small>Animals by day and monsters at night.</small></div>
+              <div class="sc"><label class="sw"><input type="checkbox" id="mobsCheck"><span></span></label></div>
+            </div>
+          </div>
+          <h3 class="sub">Time</h3>
+          <div class="card">
+            <div class="srow">
+              <div class="sl"><b>Time of day</b><small>Drag to change the hour right now.</small></div>
+              <div class="sc range"><input type="range" id="timeSlider" min="0" max="1" step="0.001"><output id="timeVal"></output></div>
+            </div>
+            <div class="srow">
+              <div class="sl"><b>Day and night cycle</b><small>A full day lasts 20 minutes. Off: the sun stays where it is.</small></div>
+              <div class="sc"><label class="sw"><input type="checkbox" id="cycleCheck"><span></span></label></div>
+            </div>
+          </div>
+        </section>
 
-    <h2>Skin</h2>
-    <div class="skins" id="skinGrid"></div>
-    <p class="skinhint">Everyone online sees your skin. Press <kbd>F5</kbd> while playing to look at yourself.</p>
+        <!-- WORLD -->
+        <section class="opt-sec" data-tab="world">
+          <div class="sec-head"><h2>World</h2><p>The world you are in, and how to start a new one.</p></div>
+          <div class="card worldcard">
+            <div class="wc-info">
+              <small>Current world</small>
+              <b><span id="seedVal"></span></b>
+              <span id="worldTypeVal"></span>
+            </div>
+          </div>
+          <div id="upgradeRow" class="upgrade hidden">
+            <span>This world was made before rivers, villages, castles, mines and ports existed.</span>
+            <button id="upgradeBtn">Add them to this world</button>
+          </div>
+          <h3 class="sub">New world</h3>
+          <div class="card pad">
+            <div class="row">
+              <input type="text" id="seedInput" placeholder="Seed (optional), or a place to travel to: “volcán”, “playa”…" style="flex:1;min-width:0">
+              <select id="worldTypeSel">
+                <option value="default">Default</option><option value="flat">Flat</option>
+              </select>
+              <button id="newWorldBtn">Create</button>
+            </div>
+            <div class="presets"><span id="presetChip" class="chip"></span></div>
+            <p class="note">Your current world stays saved on this device.</p>
+          </div>
+          <h3 class="sub">Nature and weather</h3>
+          <div class="card" data-sgroup="world"></div>
+        </section>
 
-    <h2>Game</h2>
-    <div class="grid">
-      <div class="field">
-        <label>Game mode</label>
-        <div id="modeSeg" class="seg"><button data-mode="survival">Survival</button><button data-mode="creative">Creative</button></div>
-      </div>
-      <div class="field">
-        <label>Difficulty</label>
-        <select id="difficultySel"><option value="0">Peaceful</option><option value="1">Easy</option><option value="2">Normal</option><option value="3">Hard</option></select>
-      </div>
-      <div class="field" style="justify-content:flex-end;gap:8px">
-        <label class="check"><input type="checkbox" id="keepInvCheck"> Keep inventory on death</label>
-        <label class="check"><input type="checkbox" id="mobsCheck"> Mob spawning</label>
-      </div>
-    </div>
+        <!-- PLACES -->
+        <section class="opt-sec" data-tab="places">
+          <div class="sec-head"><h2>Places</h2><p>Eight landscapes about 1.4 km from the centre of every world. Walk, fly or travel there instantly.</p></div>
+          <div class="places" id="placesGridMenu"></div>
+          <h3 class="sub">Hangar</h3>
+          <div class="card pad jetbtn">
+            <button id="jetBtn">✈ Spawn a fighter jet</button>
+            <span class="note">Right-click it to climb in. It is also in the creative “Vehicles” tab.</span>
+          </div>
+        </section>
 
-    <h2>Graphics &amp; sound</h2>
-    <div class="autoq"><label class="check"><input type="checkbox" id="autoQualityCheck"> Automatic quality</label><button id="autoQualityBtn">Detect the best quality for this device</button><span id="autoQualityMsg"></span></div>
-    <div class="grid" id="settingsGrid"></div>
+        <!-- ONLINE -->
+        <section class="opt-sec" data-tab="online">
+          <div class="sec-head"><h2>Online</h2><p>Play with friends on a server. Share its code or invite link; no account needed.</p></div>
+          <div id="cloudBar" class="cloudbar"><i></i><span id="cloudText">Checking the cloud…</span></div>
+          <div class="card">
+            <div class="srow">
+              <div class="sl"><b>Your name</b><small>Shown above your head.</small></div>
+              <div class="sc"><input type="text" id="mpName" maxlength="16" placeholder="Your name" style="width:170px"></div>
+            </div>
+            <div class="srow">
+              <div class="sl"><b>Name colour</b><small>Your tag and chat colour.</small></div>
+              <div class="sc"><div id="mpColors"></div></div>
+            </div>
+          </div>
+          <button id="mpJoinBtn" class="hidden" disabled>Join shared world</button>
+          <div id="srvCurrent" class="srvcur hidden">
+            <div><b id="srvCurName"></b><span id="srvCurInfo"></span></div>
+            <div class="srvcode" title="Server code">Code <b id="srvCurCode"></b></div>
+            <button id="srvInvite" class="primary">Copy invite link</button>
+            <button id="srvLeave">Leave server</button>
+            <input type="text" id="srvLink" class="hidden" readonly>
+          </div>
+          <div class="twocol">
+            <div class="card pad">
+              <h4>Create a server</h4>
+              <input type="text" id="srvNameInput" maxlength="24" placeholder="Server name">
+              <div class="row">
+                <select id="srvModeSel"><option value="survival">Survival</option><option value="creative">Creative</option></select>
+                <button id="srvCreate" class="accent">Create</button>
+              </div>
+            </div>
+            <div class="card pad">
+              <h4>Join a friend</h4>
+              <input type="text" id="srvCodeInput" maxlength="8" placeholder="Code, e.g. K7P2QX" style="text-transform:uppercase">
+              <div class="row"><button id="srvJoin" class="accent">Join</button></div>
+            </div>
+          </div>
+          <h3 class="sub">Your servers</h3>
+          <div id="srvList"></div>
+          <p id="mpStatus" class="note"></p>
+        </section>
 
-    <h2>World</h2>
-    <div class="grid">
-      <div class="field">
-        <label>Time of day <b id="timeVal"></b></label>
-        <input type="range" id="timeSlider" min="0" max="1" step="0.001">
-      </div>
-      <div class="field" style="justify-content:flex-end">
-        <label class="check"><input type="checkbox" id="cycleCheck"> Day/night cycle runs</label>
-      </div>
-    </div>
-    <div class="field" style="margin-top:12px">
-      <label>Current world <b><span id="seedVal"></span> · <span id="worldTypeVal"></span></b></label>
-      <div class="row">
-        <input type="text" id="seedInput" placeholder="A seed for a new world, or a place to travel to: “volcán”, “playa”…" style="flex:1;min-width:0">
-        <select id="worldTypeSel">
-          <option value="default">Default</option><option value="flat">Flat</option>
-        </select>
-        <button id="newWorldBtn">New world</button>
-      </div>
-      <div class="presets">
-        <span id="presetChip" class="chip"></span>
-      </div>
-      <div id="upgradeRow" class="upgrade hidden">
-        <span>This world was made before rivers, villages, castles, mines and ports existed.</span>
-        <button id="upgradeBtn">Add them to this world</button>
-      </div>
-    </div>
+        <!-- CHARACTER -->
+        <section class="opt-sec" data-tab="skin">
+          <div class="sec-head"><h2>Character</h2><p>Your look. Everyone online sees it. Press <kbd>F5</kbd> while playing to look at yourself.</p></div>
+          <div class="skins" id="skinGrid"></div>
+        </section>
 
-    <h2>Controls</h2>
-    <div class="keys">
-      <div><kbd>W A S D</kbd>Move</div>
-      <div><kbd>Space</kbd>Jump / swim / climb</div>
-      <div><kbd>Shift</kbd>Sneak / fly down</div>
-      <div><kbd>W W</kbd>or <kbd>R</kbd>Sprint</div>
-      <div><kbd>LMB</kbd>Mine (hold) / attack</div>
-      <div><kbd>RMB</kbd>Place, use, eat, draw bow</div>
-      <div><kbd>MMB</kbd>Pick block</div>
-      <div><kbd>E</kbd>Inventory &amp; crafting</div>
-      <div><kbd>Q</kbd>Drop item (<kbd>Ctrl</kbd> stack)</div>
-      <div><kbd>1–9</kbd>or wheel: select</div>
-      <div><kbd>F</kbd>/ <kbd>Space Space</kbd>Fly (creative)</div>
-      <div><kbd>T</kbd>Fast-forward time (creative)</div>
-      <div><kbd>Arrows</kbd>Look around (alternative)</div>
-      <div><kbd>F3</kbd>Debug info · <kbd>F1</kbd>Hide HUD</div>
-      <div><kbd>F5</kbd>Third person / front view</div>
-      <div><kbd>Enter</kbd>Chat (online)</div>
-      <div><kbd>M</kbd>World map (markers, places, where you died)</div>
-    </div>
-    <h2>Fighter jet</h2>
-    <div class="keys">
-      <div><kbd>RMB</kbd>on the jet: climb in</div>
-      <div><kbd>Mouse</kbd>Steer (the jet follows your view)</div>
-      <div><kbd>W</kbd>/<kbd>S</kbd>Throttle up / down, brake</div>
-      <div><kbd>Space</kbd>Afterburner</div>
-      <div><kbd>A</kbd>/<kbd>D</kbd>Roll</div>
-      <div><kbd>LMB</kbd>Cannon · <kbd>RMB</kbd>Missile</div>
-      <div><kbd>V</kbd>Chase / cockpit camera</div>
-      <div><kbd>G</kbd>Landing gear</div>
-      <div><kbd>Shift</kbd>Climb out / eject</div>
+        <!-- GRAPHICS -->
+        <section class="opt-sec" data-tab="graphics">
+          <div class="sec-head"><h2>Graphics</h2><p>Pick a preset, let the game choose, or fine-tune each option.</p></div>
+          <div class="card autoq">
+            <div class="srow">
+              <div class="sl"><b>Automatic quality</b><small id="autoQualityMsg">Measures this device while you play and lowers the graphics if it runs slowly.</small></div>
+              <div class="sc"><button id="autoQualityBtn" class="small">Measure now</button><label class="sw"><input type="checkbox" id="autoQualityCheck"><span></span></label></div>
+            </div>
+          </div>
+          <div class="qpresets" id="qPresets"></div>
+          <h3 class="sub">Display</h3>
+          <div class="card" data-sgroup="display"></div>
+          <h3 class="sub">Lighting and effects</h3>
+          <div class="card" data-sgroup="effects"></div>
+        </section>
+
+        <!-- SOUND & HUD -->
+        <section class="opt-sec" data-tab="sound">
+          <div class="sec-head"><h2>Sound &amp; HUD</h2><p>Volume and what you see on screen while playing.</p></div>
+          <div class="card" data-sgroup="sound"></div>
+          <h3 class="sub">Screen</h3>
+          <div class="card" data-sgroup="hud"></div>
+        </section>
+
+        <!-- CONTROLS -->
+        <section class="opt-sec" data-tab="controls">
+          <div class="sec-head"><h2>Controls</h2><p>Mouse settings and every key in the game.</p></div>
+          <div class="card" data-sgroup="controls"></div>
+          <h3 class="sub">On foot</h3>
+          <div class="keys card pad">
+            <div><kbd>W A S D</kbd>Move</div>
+            <div><kbd>Space</kbd>Jump / swim / climb</div>
+            <div><kbd>Shift</kbd>Sneak / fly down</div>
+            <div><kbd>W W</kbd>or <kbd>R</kbd>Sprint</div>
+            <div><kbd>LMB</kbd>Mine (hold) / attack</div>
+            <div><kbd>RMB</kbd>Place, use, eat, draw bow</div>
+            <div><kbd>MMB</kbd>Pick block</div>
+            <div><kbd>E</kbd>Inventory &amp; crafting</div>
+            <div><kbd>Q</kbd>Drop item (<kbd>Ctrl</kbd> stack)</div>
+            <div><kbd>1–9</kbd>or wheel: select</div>
+            <div><kbd>F</kbd>/ <kbd>Space Space</kbd>Fly (creative)</div>
+            <div><kbd>T</kbd>Fast-forward time (creative)</div>
+            <div><kbd>Arrows</kbd>Look around</div>
+            <div><kbd>M</kbd>World map</div>
+            <div><kbd>Enter</kbd>Chat (online)</div>
+            <div><kbd>F5</kbd>Third person / front view</div>
+            <div><kbd>F3</kbd>Debug info</div>
+            <div><kbd>F1</kbd>Hide HUD</div>
+          </div>
+          <h3 class="sub">Fighter jet</h3>
+          <div class="keys card pad">
+            <div><kbd>RMB</kbd>on the jet: climb in</div>
+            <div><kbd>Mouse</kbd>Steer</div>
+            <div><kbd>W</kbd>/<kbd>S</kbd>Throttle / brake</div>
+            <div><kbd>Space</kbd>Afterburner</div>
+            <div><kbd>A</kbd>/<kbd>D</kbd>Roll</div>
+            <div><kbd>LMB</kbd>Cannon · <kbd>RMB</kbd>Missile</div>
+            <div><kbd>V</kbd>Chase / cockpit camera</div>
+            <div><kbd>G</kbd>Landing gear</div>
+            <div><kbd>Shift</kbd>Climb out / eject</div>
+          </div>
+        </section>
+      </main>
     </div>
   </div>
 </div>
-
 <div id="errorBox" class="overlay hidden">
   <div class="panel">
     <div class="brand"><h1>BLOCK<span>LANDS</span></h1></div>
@@ -666,6 +854,7 @@
 <script src="js/wildlife.js"></script>
 <script src="js/game.js"></script>
 <script src="js/net.js"></script>
+<script src="js/cloud.js"></script>
 <script src="js/minimap.js"></script>
 <script src="js/villages.js"></script>
 <script src="js/interact.js"></script>

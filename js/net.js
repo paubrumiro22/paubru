@@ -64,6 +64,7 @@ const Net = {
     this.name = typeof saved.name === 'string' && saved.name.trim() ? saved.name.slice(0, 16) : 'Player' + Math.floor(100 + Math.random() * 900);
     this.color = Number.isInteger(saved.color) ? clamp(saved.color, 0, NET_COLORS.length - 1) : Math.floor(Math.random() * NET_COLORS.length);
     this.loadServers();
+    Cloud.check();
     // claude.ai viewer: the artifact room
     try {
       if (window.claude && typeof window.claude.use === 'function') {
@@ -166,6 +167,7 @@ const Net = {
       try { history.replaceState(null, '', '#s=' + server.code); } catch (e) { /* ignore */ }
       this.statusText = 'Connecting…';
       this.startP2P(server);
+      Cloud.open(server);
       G.ui.toast('Server “' + server.name + '” · code ' + server.code);
     } else {
       this.statusText = 'Online';
@@ -189,6 +191,7 @@ const Net = {
     this.unsub = [];
     if (this.room && !this.server) this.room.presence({ w: null, p: null, v: null, q: null }).catch(() => {});
     if (this.bc) { this.bc.postMessage({ t: 'bye', peer: this.selfPeer }); this.bc.close(); this.bc = null; }
+    Cloud.close();
     this.p2pToken++;
     if (this.p2p) { const r = this.p2p.room; this.p2p = null; r.leave().catch(() => {}); }
     for (const r of this.peers.values()) if (r.tag) r.tag.remove();
@@ -297,8 +300,13 @@ const Net = {
   },
   edit(x, y, z, id, facing) {
     if (!this.on) return;
-    this.times.set(posKey(x, y, z), nowSec());
-    if (this.capture) this.op(['b', x, y, z, id, facing === undefined ? -1 : facing]);
+    const t = nowSec();
+    this.times.set(posKey(x, y, z), t);
+    // not shared live (someone else's edit, crops growing, the blocks of an explosion that is
+    // replayed from its seed); your own explosions still reach the cloud copy
+    if (!this.capture) { if (this.cloudOnly && this.server) Cloud.push(x, y, z, id, facing === undefined ? -1 : facing, t); return; }
+    this.op(['b', x, y, z, id, facing === undefined ? -1 : facing]);
+    if (this.server) Cloud.push(x, y, z, id, facing === undefined ? -1 : facing, t);
   },
   explosion(x, y, z, power, seed) { if (this.on && this.capture) this.op(['x', r1(x), r1(y), r1(z), power, seed]); },
   missile(pos, dir, speed) { if (this.on) this.op(['m', r1(pos[0]), r1(pos[1]), r1(pos[2]), r3(dir[0]), r3(dir[1]), r3(dir[2]), Math.round(speed)]); },
@@ -511,21 +519,11 @@ const Net = {
 
   onSync(d, from) {
     if (!d || d.to !== this.selfPeer || !Array.isArray(d.e)) return;
-    const k = d.k === 6 ? 6 : 5, timed = k === 6 && !!this.server;
+    const k = d.k === 6 ? 6 : 5;
     const was = this.capture;
     this.capture = false;
-    let changed = 0;
     try {
-      for (let i = 0; i + k - 1 < d.e.length; i += k) {
-        const [x, y, z, id, f] = d.e.slice(i, i + 5).map(Number);
-        if (![x, y, z].every(Number.isInteger) || y < 0 || y >= CH || !(id === 0 || isValidBlock(id))) continue;
-        const pk = posKey(x, y, z);
-        const t = timed ? Number(d.e[i + 5]) || 0 : 0;
-        // keep whichever version of this block changed last
-        if (timed && t <= (this.times.get(pk) || 0)) continue;
-        if (G.world.getBlock(x, y, z) !== id || !G.world.isLoaded(x, z)) { this.applyEdit(x, y, z, id, validFacing(f) ? f : undefined); changed++; }
-        if (timed) this.times.set(pk, t);
-      }
+      this.mergeEdits(d.e, k);
       if (d.i === 0) {
         // one clock for everybody: the player with the smaller id sets the time of day
         if (Number.isFinite(d.t) && (!this.server || !from || from < this.selfPeer)) G.dayTime = ((d.t % 1) + 1) % 1;
@@ -543,7 +541,28 @@ const Net = {
         }
       }
     } finally { this.capture = was; }
+  },
+
+  // Flat [x, y, z, id, facing(, time)] edits from another player or the cloud. On a server each
+  // block keeps whichever version changed last. Returns how many blocks changed here.
+  mergeEdits(e, k) {
+    const timed = k === 6 && !!this.server;
+    const was = this.capture;
+    this.capture = false;
+    let changed = 0;
+    try {
+      for (let i = 0; i + k - 1 < e.length; i += k) {
+        const [x, y, z, id, f] = e.slice(i, i + 5).map(Number);
+        if (![x, y, z].every(Number.isInteger) || y < 0 || y >= CH || !(id === 0 || isValidBlock(id)) || Math.abs(x) >= 3e5 || Math.abs(z) >= 3e5) continue;
+        const pk = posKey(x, y, z);
+        const t = timed ? Number(e[i + 5]) || 0 : 0;
+        if (timed && t <= (this.times.get(pk) || 0)) continue;
+        if (G.world.getBlock(x, y, z) !== id || !G.world.isLoaded(x, z)) { this.applyEdit(x, y, z, id, validFacing(f) ? f : undefined); changed++; }
+        if (timed) this.times.set(pk, t);
+      }
+    } finally { this.capture = was; }
     if (changed && this.server) G.world.editsDirty = true;
+    return changed;
   },
 
   // ------------------------------------------------------------ rendering ----
@@ -691,9 +710,10 @@ const Net = {
       $('srvCurInfo').textContent = (this.statusText || 'Online') + ' · ' + players;
     }
     if (this.on && !this.server) st.textContent = (this.statusText || 'Online') + ' · ' + players + ' in the shared world';
-    else if (this.server) st.textContent = 'Send the code or the invite link to your friends. The world saves on every player’s device, so anyone who played here can open it again.';
+    else if (this.server) st.textContent = 'Send the code or the invite link to your friends. The world is kept in the cloud and on every player’s device.';
     else st.textContent = 'Create a server and share its code, or type a friend’s code. No account needed.';
     this.buildServerList();
+    Cloud.refresh();
     $('mpName').value = this.name;
     document.querySelectorAll('#mpColors button').forEach((b, i) => b.classList.toggle('on', i === this.color));
     const pl = $('playerList');
