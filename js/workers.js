@@ -125,7 +125,7 @@ const ChunkWorkers = {
       const n = world.getChunk(c.cx + dx, c.cz + dz);
       if (!n) continue;
       const top = Math.min(CH, n.maxY + 2) * CS * CS;
-      const e = { cx: n.cx, cz: n.cz, maxY: n.maxY, blocks: new Uint8Array(CS * CS * CH) };
+      const e = { cx: n.cx, cz: n.cz, maxY: n.maxY, blocks: new Uint16Array(CS * CS * CH) };
       e.blocks.set(n.blocks.subarray(0, top));
       if (n === c) { e.grassTint = n.grassTint; e.foliageTint = n.foliageTint; e.waterTint = n.waterTint; }
       nb.push(e);

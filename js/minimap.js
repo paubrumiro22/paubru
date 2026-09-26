@@ -12,8 +12,8 @@ const MAP_KEY = 'blocklands.map.';
 
 function mapColors() {
   const tiles = G.renderer.textureTiles;
-  const out = new Float32Array(256 * 3);
-  for (let id = 1; id < 256; id++) {
+  const out = new Float32Array(MAX_BLOCK * 3);
+  for (let id = 1; id < MAX_BLOCK; id++) {
     if (BLOCK_NAME[id] === undefined) continue;
     const px = tiles[BLOCK_TEX[id * 6 + 2]];
     if (!px) continue;

@@ -17,7 +17,7 @@ const PH = CH + 2;             // padded height (y = -1 .. CH)
 const POS_SCALE = 64;          // vertex position units per block
 const P4 = POS_SCALE / 16;     // per 1/16 of a block
 const VERT_BYTES = 20;
-const padBlocks = new Uint8Array(RSS * PH);
+const padBlocks = new Uint16Array(RSS * PH);
 const skyL = new Uint8Array(RSS * PH);
 const blkL = new Uint8Array(RSS * PH);
 const QCAP = RSS * PH;

@@ -1,6 +1,6 @@
 'use strict';
 // Item registry (blocks + items), tools, armour, food, fuel, smelting, drops and recipes.
-// Block items share the block id; other items start at 256.
+// Block items share the block id (0..255 and 1024..2047); other items use 256..1023.
 
 const I = {
   STICK: 256, COAL: 257, CHARCOAL: 258, IRON_INGOT: 259, GOLD_INGOT: 260, DIAMOND: 261, FLINT: 262,
@@ -50,7 +50,7 @@ function defItem(id, name, o = {}) {
 // ---- block items ----
 const NO_ITEM_BLOCKS = new Set([B.AIR, B.WATER, B.LAVA, B.FURNACE_LIT, B.WALL_TORCH, B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.WHEAT_3,
   B.DOOR_TOP, B.DOOR_OPEN, B.DOOR_OPEN_TOP, B.TRAPDOOR_OPEN]);
-for (let id = 1; id < 256; id++) {
+for (let id = 1; id < MAX_BLOCK; id++) {
   if (BLOCK_NAME[id] === undefined || NO_ITEM_BLOCKS.has(id)) continue;
   const rt = BLOCK_RT[id];
   const o = { block: id, cat: BLOCK_CAT[id] || 'building' };

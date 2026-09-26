@@ -1168,25 +1168,28 @@ const SND = { STONE: 0, WOOD: 1, GRASS: 2, SAND: 3, GRAVEL: 4, GLASS: 5, WOOL: 6
 // What a block needs underneath / behind it to stay in place
 const SUP_NONE = 0, SUP_FLOOR = 1, SUP_WALL = 2, SUP_SOIL = 3, SUP_SAND = 4, SUP_SOLID = 5, SUP_FARMLAND = 6, SUP_CANE = 7, SUP_CACTUS = 8;
 
+// Block ids are 16-bit: 0..255 are the original blocks, 1024..2047 newer ones (items use
+// 256..1023, so a block's item keeps the block's id).
+const MAX_BLOCK = 2048;
 const BLOCK_NAME = [];
-const BLOCK_RT = new Uint8Array(256);
-const BLOCK_SOLID = new Uint8Array(256);   // collides with the player
-const BLOCK_HEIGHT = new Uint8Array(256);  // collision box height in 1/16 (0 = none)
-const BLOCK_OPAQUE = new Uint8Array(256);  // full opaque cube: culls faces, occludes AO, blocks light
-const BLOCK_ATTEN = new Uint8Array(256);   // light attenuation (15 = blocks light)
-const BLOCK_EMIT = new Uint8Array(256);
-const BLOCK_TINT = new Uint8Array(256);
-const BLOCK_FLAGS = new Uint8Array(256);
-const BLOCK_TEX = new Uint16Array(256 * 6); // per face: +X -X +Y -Y +Z -Z (texture array layer)
+const BLOCK_RT = new Uint8Array(MAX_BLOCK);
+const BLOCK_SOLID = new Uint8Array(MAX_BLOCK);   // collides with the player
+const BLOCK_HEIGHT = new Uint8Array(MAX_BLOCK);  // collision box height in 1/16 (0 = none)
+const BLOCK_OPAQUE = new Uint8Array(MAX_BLOCK);  // full opaque cube: culls faces, occludes AO, blocks light
+const BLOCK_ATTEN = new Uint8Array(MAX_BLOCK);   // light attenuation (15 = blocks light)
+const BLOCK_EMIT = new Uint8Array(MAX_BLOCK);
+const BLOCK_TINT = new Uint8Array(MAX_BLOCK);
+const BLOCK_FLAGS = new Uint8Array(MAX_BLOCK);
+const BLOCK_TEX = new Uint16Array(MAX_BLOCK * 6); // per face: +X -X +Y -Y +Z -Z (texture array layer)
 const NO_LAYER = 0xffff;
-const BLOCK_FRONT = new Uint16Array(256).fill(NO_LAYER); // front layer of blocks that face the player
-const BLOCK_HARD = new Float32Array(256);  // seconds-ish; < 0 = unbreakable
-const BLOCK_TOOL = new Uint8Array(256);
-const BLOCK_TIER = new Uint8Array(256);    // minimum tool tier for drops (0 = hand is fine)
-const BLOCK_SOUND = new Uint8Array(256);
-const BLOCK_BLAST = new Float32Array(256); // explosion resistance
-const BLOCK_REPLACE = new Uint8Array(256); // placing a block here overwrites it
-const BLOCK_SUPPORT = new Uint8Array(256);
+const BLOCK_FRONT = new Uint16Array(MAX_BLOCK).fill(NO_LAYER); // front layer of blocks that face the player
+const BLOCK_HARD = new Float32Array(MAX_BLOCK);  // seconds-ish; < 0 = unbreakable
+const BLOCK_TOOL = new Uint8Array(MAX_BLOCK);
+const BLOCK_TIER = new Uint8Array(MAX_BLOCK);    // minimum tool tier for drops (0 = hand is fine)
+const BLOCK_SOUND = new Uint8Array(MAX_BLOCK);
+const BLOCK_BLAST = new Float32Array(MAX_BLOCK); // explosion resistance
+const BLOCK_REPLACE = new Uint8Array(MAX_BLOCK); // placing a block here overwrites it
+const BLOCK_SUPPORT = new Uint8Array(MAX_BLOCK);
 const BLOCK_CAT = [];                      // creative tab
 
 function defBlock(id, name, rt, tex, o = {}) {
@@ -1362,7 +1365,7 @@ const PLANKS_ALL = [B.PLANKS, B.BIRCH_PLANKS, B.SPRUCE_PLANKS];
 const SOIL = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS, B.FARMLAND]);
 const IS_LIQUID = (id) => id === B.WATER || id === B.LAVA;
 
-function isValidBlock(id) { return Number.isInteger(id) && id > 0 && id < 256 && BLOCK_NAME[id] !== undefined; }
+function isValidBlock(id) { return Number.isInteger(id) && id > 0 && id < MAX_BLOCK && BLOCK_NAME[id] !== undefined; }
 </script>
 <script data-w>
 'use strict';
@@ -1387,9 +1390,9 @@ Object.assign(B, {
 const RT_SHAPE = 15, RT_CONNECT = 16, RT_LANTERN = 17;
 const SH_STAIRS = 1, SH_SLOPE = 2, SH_OUTER = 3, SH_INNER = 4, SH_PANEL = 5, SH_PILLAR = 6, SH_ARCH = 7, SH_SEAT = 8;
 const CN_FENCE = 1, CN_WALL = 2, CN_PANE = 3;
-const BLOCK_SHAPE = new Uint8Array(256);    // shape kind of a shaped block
-const BLOCK_SHAPE_MAT = new Uint8Array(256); // index into ARCH_MATS
-const BLOCK_CONNECT = new Uint8Array(256);   // connecting kind (fence, wall, pane)
+const BLOCK_SHAPE = new Uint8Array(MAX_BLOCK);    // shape kind of a shaped block
+const BLOCK_SHAPE_MAT = new Uint8Array(MAX_BLOCK); // index into ARCH_MATS
+const BLOCK_CONNECT = new Uint8Array(MAX_BLOCK);   // connecting kind (fence, wall, pane)
 
 // valid stored facings: 0 1 4 5, plus 8 for upside down
 const FACINGS = [0, 1, 4, 5, 8, 9, 12, 13];
@@ -1495,7 +1498,7 @@ defBlock(B.LED_YELLOW, 'Yellow LED Panel', RT_CUBE, { top: 'smooth_stone', side:
 defBlock(B.ALU_SLATS, 'Aluminium Slat Ceiling', RT_CUBE, 'alu_slats', with_(ROCK, { hard: 1.2, snd: SND.METAL, cat: 'architecture' }));
 defBlock(B.DECK, 'Wood Decking', RT_CUBE, { top: 'deck', side: 'deck_side' }, with_(WOOD, { cat: 'architecture' }));
 function shapeId(mat, shape) { return SHAPE_OF[mat + ':' + shape] || 0; }
-for (let id = 0; id < 256; id++) if (BLOCK_SHAPE[id] || id === B.LANTERN) FACING_BLOCKS.add(id);
+for (let id = 0; id < MAX_BLOCK; id++) if (BLOCK_SHAPE[id] || id === B.LANTERN) FACING_BLOCKS.add(id);
 
 // Stadium seat: pedestal, pan and backrest (back on the facing side), a sliver apart from the next
 // seat so rows read as separate chairs. Walk over them like a half step.
@@ -1689,7 +1692,7 @@ function div16(b) { return [b[0] / 16, b[1] / 16, b[2] / 16, b[3] / 16, b[4] / 1
 <script>
 'use strict';
 // Item registry (blocks + items), tools, armour, food, fuel, smelting, drops and recipes.
-// Block items share the block id; other items start at 256.
+// Block items share the block id (0..255 and 1024..2047); other items use 256..1023.
 
 const I = {
   STICK: 256, COAL: 257, CHARCOAL: 258, IRON_INGOT: 259, GOLD_INGOT: 260, DIAMOND: 261, FLINT: 262,
@@ -1739,7 +1742,7 @@ function defItem(id, name, o = {}) {
 // ---- block items ----
 const NO_ITEM_BLOCKS = new Set([B.AIR, B.WATER, B.LAVA, B.FURNACE_LIT, B.WALL_TORCH, B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.WHEAT_3,
   B.DOOR_TOP, B.DOOR_OPEN, B.DOOR_OPEN_TOP, B.TRAPDOOR_OPEN]);
-for (let id = 1; id < 256; id++) {
+for (let id = 1; id < MAX_BLOCK; id++) {
   if (BLOCK_NAME[id] === undefined || NO_ITEM_BLOCKS.has(id)) continue;
   const rt = BLOCK_RT[id];
   const o = { block: id, cat: BLOCK_CAT[id] || 'building' };
@@ -4181,7 +4184,7 @@ function keyPos(k) {
 class Chunk {
   constructor(cx, cz) {
     this.cx = cx; this.cz = cz;
-    this.blocks = new Uint8Array(CS * CS * CH);
+    this.blocks = new Uint16Array(CS * CS * CH);
     this.heightmap = new Uint8Array(CS * CS);     // highest non-air y per column
     this.grassTint = new Uint8Array(CS * CS * 3);
     this.foliageTint = new Uint8Array(CS * CS * 3);
@@ -4900,7 +4903,7 @@ class World {
       const m = new Map();
       for (let i = 0; i + 1 < arr.length; i += 2) {
         const idx = arr[i] | 0, id = arr[i + 1] | 0;
-        if (idx >= 0 && idx < CS * CS * CH && id >= 0 && id < 256 && BLOCK_NAME[id] !== undefined) m.set(idx, id);
+        if (idx >= 0 && idx < CS * CS * CH && id >= 0 && id < MAX_BLOCK && BLOCK_NAME[id] !== undefined) m.set(idx, id);
       }
       this.edits.set(key, m);
     }
@@ -6545,7 +6548,7 @@ const PH = CH + 2;             // padded height (y = -1 .. CH)
 const POS_SCALE = 64;          // vertex position units per block
 const P4 = POS_SCALE / 16;     // per 1/16 of a block
 const VERT_BYTES = 20;
-const padBlocks = new Uint8Array(RSS * PH);
+const padBlocks = new Uint16Array(RSS * PH);
 const skyL = new Uint8Array(RSS * PH);
 const blkL = new Uint8Array(RSS * PH);
 const QCAP = RSS * PH;
@@ -7208,7 +7211,7 @@ const ChunkWorkers = {
       const n = world.getChunk(c.cx + dx, c.cz + dz);
       if (!n) continue;
       const top = Math.min(CH, n.maxY + 2) * CS * CS;
-      const e = { cx: n.cx, cz: n.cz, maxY: n.maxY, blocks: new Uint8Array(CS * CS * CH) };
+      const e = { cx: n.cx, cz: n.cz, maxY: n.maxY, blocks: new Uint16Array(CS * CS * CH) };
       e.blocks.set(n.blocks.subarray(0, top));
       if (n === c) { e.grassTint = n.grassTint; e.foliageTint = n.foliageTint; e.waterTint = n.waterTint; }
       nb.push(e);
@@ -14517,7 +14520,7 @@ function randomTick(x, y, z, id) {
   }
 }
 
-const TICKABLE = new Uint8Array(256);
+const TICKABLE = new Uint8Array(MAX_BLOCK);
 [B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING, B.SUGAR_CANE, B.CACTUS, B.DIRT, B.GRASS, B.FARMLAND].forEach((id) => { TICKABLE[id] = 1; });
 
 function randomTicks(dt) {
@@ -15902,8 +15905,8 @@ const MAP_KEY = 'blocklands.map.';
 
 function mapColors() {
   const tiles = G.renderer.textureTiles;
-  const out = new Float32Array(256 * 3);
-  for (let id = 1; id < 256; id++) {
+  const out = new Float32Array(MAX_BLOCK * 3);
+  for (let id = 1; id < MAX_BLOCK; id++) {
     if (BLOCK_NAME[id] === undefined) continue;
     const px = tiles[BLOCK_TEX[id * 6 + 2]];
     if (!px) continue;

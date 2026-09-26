@@ -21,7 +21,7 @@ function keyPos(k) {
 class Chunk {
   constructor(cx, cz) {
     this.cx = cx; this.cz = cz;
-    this.blocks = new Uint8Array(CS * CS * CH);
+    this.blocks = new Uint16Array(CS * CS * CH);
     this.heightmap = new Uint8Array(CS * CS);     // highest non-air y per column
     this.grassTint = new Uint8Array(CS * CS * 3);
     this.foliageTint = new Uint8Array(CS * CS * 3);
@@ -740,7 +740,7 @@ class World {
       const m = new Map();
       for (let i = 0; i + 1 < arr.length; i += 2) {
         const idx = arr[i] | 0, id = arr[i + 1] | 0;
-        if (idx >= 0 && idx < CS * CS * CH && id >= 0 && id < 256 && BLOCK_NAME[id] !== undefined) m.set(idx, id);
+        if (idx >= 0 && idx < CS * CS * CH && id >= 0 && id < MAX_BLOCK && BLOCK_NAME[id] !== undefined) m.set(idx, id);
       }
       this.edits.set(key, m);
     }

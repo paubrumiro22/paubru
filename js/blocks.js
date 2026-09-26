@@ -55,25 +55,28 @@ const SND = { STONE: 0, WOOD: 1, GRASS: 2, SAND: 3, GRAVEL: 4, GLASS: 5, WOOL: 6
 // What a block needs underneath / behind it to stay in place
 const SUP_NONE = 0, SUP_FLOOR = 1, SUP_WALL = 2, SUP_SOIL = 3, SUP_SAND = 4, SUP_SOLID = 5, SUP_FARMLAND = 6, SUP_CANE = 7, SUP_CACTUS = 8;
 
+// Block ids are 16-bit: 0..255 are the original blocks, 1024..2047 newer ones (items use
+// 256..1023, so a block's item keeps the block's id).
+const MAX_BLOCK = 2048;
 const BLOCK_NAME = [];
-const BLOCK_RT = new Uint8Array(256);
-const BLOCK_SOLID = new Uint8Array(256);   // collides with the player
-const BLOCK_HEIGHT = new Uint8Array(256);  // collision box height in 1/16 (0 = none)
-const BLOCK_OPAQUE = new Uint8Array(256);  // full opaque cube: culls faces, occludes AO, blocks light
-const BLOCK_ATTEN = new Uint8Array(256);   // light attenuation (15 = blocks light)
-const BLOCK_EMIT = new Uint8Array(256);
-const BLOCK_TINT = new Uint8Array(256);
-const BLOCK_FLAGS = new Uint8Array(256);
-const BLOCK_TEX = new Uint16Array(256 * 6); // per face: +X -X +Y -Y +Z -Z (texture array layer)
+const BLOCK_RT = new Uint8Array(MAX_BLOCK);
+const BLOCK_SOLID = new Uint8Array(MAX_BLOCK);   // collides with the player
+const BLOCK_HEIGHT = new Uint8Array(MAX_BLOCK);  // collision box height in 1/16 (0 = none)
+const BLOCK_OPAQUE = new Uint8Array(MAX_BLOCK);  // full opaque cube: culls faces, occludes AO, blocks light
+const BLOCK_ATTEN = new Uint8Array(MAX_BLOCK);   // light attenuation (15 = blocks light)
+const BLOCK_EMIT = new Uint8Array(MAX_BLOCK);
+const BLOCK_TINT = new Uint8Array(MAX_BLOCK);
+const BLOCK_FLAGS = new Uint8Array(MAX_BLOCK);
+const BLOCK_TEX = new Uint16Array(MAX_BLOCK * 6); // per face: +X -X +Y -Y +Z -Z (texture array layer)
 const NO_LAYER = 0xffff;
-const BLOCK_FRONT = new Uint16Array(256).fill(NO_LAYER); // front layer of blocks that face the player
-const BLOCK_HARD = new Float32Array(256);  // seconds-ish; < 0 = unbreakable
-const BLOCK_TOOL = new Uint8Array(256);
-const BLOCK_TIER = new Uint8Array(256);    // minimum tool tier for drops (0 = hand is fine)
-const BLOCK_SOUND = new Uint8Array(256);
-const BLOCK_BLAST = new Float32Array(256); // explosion resistance
-const BLOCK_REPLACE = new Uint8Array(256); // placing a block here overwrites it
-const BLOCK_SUPPORT = new Uint8Array(256);
+const BLOCK_FRONT = new Uint16Array(MAX_BLOCK).fill(NO_LAYER); // front layer of blocks that face the player
+const BLOCK_HARD = new Float32Array(MAX_BLOCK);  // seconds-ish; < 0 = unbreakable
+const BLOCK_TOOL = new Uint8Array(MAX_BLOCK);
+const BLOCK_TIER = new Uint8Array(MAX_BLOCK);    // minimum tool tier for drops (0 = hand is fine)
+const BLOCK_SOUND = new Uint8Array(MAX_BLOCK);
+const BLOCK_BLAST = new Float32Array(MAX_BLOCK); // explosion resistance
+const BLOCK_REPLACE = new Uint8Array(MAX_BLOCK); // placing a block here overwrites it
+const BLOCK_SUPPORT = new Uint8Array(MAX_BLOCK);
 const BLOCK_CAT = [];                      // creative tab
 
 function defBlock(id, name, rt, tex, o = {}) {
@@ -249,4 +252,4 @@ const PLANKS_ALL = [B.PLANKS, B.BIRCH_PLANKS, B.SPRUCE_PLANKS];
 const SOIL = new Set([B.GRASS, B.DIRT, B.SNOWY_GRASS, B.FARMLAND]);
 const IS_LIQUID = (id) => id === B.WATER || id === B.LAVA;
 
-function isValidBlock(id) { return Number.isInteger(id) && id > 0 && id < 256 && BLOCK_NAME[id] !== undefined; }
+function isValidBlock(id) { return Number.isInteger(id) && id > 0 && id < MAX_BLOCK && BLOCK_NAME[id] !== undefined; }

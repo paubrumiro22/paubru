@@ -20,9 +20,9 @@ Object.assign(B, {
 const RT_SHAPE = 15, RT_CONNECT = 16, RT_LANTERN = 17;
 const SH_STAIRS = 1, SH_SLOPE = 2, SH_OUTER = 3, SH_INNER = 4, SH_PANEL = 5, SH_PILLAR = 6, SH_ARCH = 7, SH_SEAT = 8;
 const CN_FENCE = 1, CN_WALL = 2, CN_PANE = 3;
-const BLOCK_SHAPE = new Uint8Array(256);    // shape kind of a shaped block
-const BLOCK_SHAPE_MAT = new Uint8Array(256); // index into ARCH_MATS
-const BLOCK_CONNECT = new Uint8Array(256);   // connecting kind (fence, wall, pane)
+const BLOCK_SHAPE = new Uint8Array(MAX_BLOCK);    // shape kind of a shaped block
+const BLOCK_SHAPE_MAT = new Uint8Array(MAX_BLOCK); // index into ARCH_MATS
+const BLOCK_CONNECT = new Uint8Array(MAX_BLOCK);   // connecting kind (fence, wall, pane)
 
 // valid stored facings: 0 1 4 5, plus 8 for upside down
 const FACINGS = [0, 1, 4, 5, 8, 9, 12, 13];
@@ -128,7 +128,7 @@ defBlock(B.LED_YELLOW, 'Yellow LED Panel', RT_CUBE, { top: 'smooth_stone', side:
 defBlock(B.ALU_SLATS, 'Aluminium Slat Ceiling', RT_CUBE, 'alu_slats', with_(ROCK, { hard: 1.2, snd: SND.METAL, cat: 'architecture' }));
 defBlock(B.DECK, 'Wood Decking', RT_CUBE, { top: 'deck', side: 'deck_side' }, with_(WOOD, { cat: 'architecture' }));
 function shapeId(mat, shape) { return SHAPE_OF[mat + ':' + shape] || 0; }
-for (let id = 0; id < 256; id++) if (BLOCK_SHAPE[id] || id === B.LANTERN) FACING_BLOCKS.add(id);
+for (let id = 0; id < MAX_BLOCK; id++) if (BLOCK_SHAPE[id] || id === B.LANTERN) FACING_BLOCKS.add(id);
 
 // Stadium seat: pedestal, pan and backrest (back on the facing side), a sliver apart from the next
 // seat so rows read as separate chairs. Walk over them like a half step.

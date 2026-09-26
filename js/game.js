@@ -356,7 +356,7 @@ function randomTick(x, y, z, id) {
   }
 }
 
-const TICKABLE = new Uint8Array(256);
+const TICKABLE = new Uint8Array(MAX_BLOCK);
 [B.WHEAT_0, B.WHEAT_1, B.WHEAT_2, B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING, B.SUGAR_CANE, B.CACTUS, B.DIRT, B.GRASS, B.FARMLAND].forEach((id) => { TICKABLE[id] = 1; });
 
 function randomTicks(dt) {
