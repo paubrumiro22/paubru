@@ -23,6 +23,8 @@ const Act = {
     const hd = hit ? hit.dist : Infinity, md = mob ? mob.dist : Infinity;
     if (veh && veh.dist < hd && veh.dist < md) return { vehicle: veh.vehicle, dist: veh.dist };
     if (mob && mob.dist < hd) return { mob: mob.mob, dist: mob.dist };
+    const pic = Pictures.raycast(p.eyePos(), p.lookDir(), this.reach());
+    if (pic && pic.dist < hd) return { picture: pic.pic, dist: pic.dist };
     return hit ? { block: hit } : null;
   },
 
@@ -87,6 +89,11 @@ const Act = {
     if (!G.mouse.left || G.screenOpen || G.stats.dead) { reset(); return; }
     const t = this.target;
     if (this.attackCd > 0) this.attackCd -= dt;
+    if (t && t.picture) {
+      reset();
+      if (now >= G.mouse.nextBreak) { Pictures.remove(t.picture, false); this.swingHand(); G.mouse.nextBreak = now + 250; }
+      return;
+    }
     if (t && t.mob) {
       reset();
       if (this.attackCd <= 0) { this.attack(t.mob); this.attackCd = 0.45; }
@@ -372,6 +379,7 @@ const Act = {
       return false;
     }
     if (held.id === I.FLINT_STEEL) return false;
+    if (held.id === I.PICTURE) return initial && Pictures.begin(hit);
     return this.placeBlock(hit);
   },
 

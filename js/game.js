@@ -714,6 +714,7 @@ function newWorld(seed, save, opts = {}) {
   if (G.vehicle) G.vehicle = null;
   Ents.clear();
   if (typeof Villages !== 'undefined') Villages.reset();
+  G.genPics = new Map();
   G.region = null;
   const type = save ? save.type : opts.type;
   // saves from before rivers and structures keep their original terrain (see WorldGen)

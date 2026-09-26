@@ -204,6 +204,11 @@
   .brewbar { width: 60px; }
   .upgrade { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(242, 185, 75, 0.1); border: 1px solid rgba(242, 185, 75, 0.4); font-size: 13px; }
   .upgrade span { flex: 1; min-width: 200px; color: var(--muted); }
+  .picbox { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+  .picrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .picprev { width: 220px; height: 150px; border-radius: 10px; border: 1px solid var(--line); background: #0d1117 center / contain no-repeat; }
+  .picbuiltins button { padding: 6px 10px; font-size: 12px; }
+  .picsize select { width: 64px; }
   .archhint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
   .sgrid { display: grid; gap: 3px; }
   .sgrid.hotrow { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
@@ -4160,6 +4165,269 @@ gen('brewing_stand', (d, rng, ctx) => {
   }
 }, { bump: 0, smooth: 0.4 });
 </script>
+<script>
+'use strict';
+// Pictures: your own images hung on walls. A Picture Frame placed against a wall opens a screen to
+// pick an image from the computer (or one of the built-in ones) and a size in blocks; the image is
+// shrunk to at most 256 px, kept in the world save and sent to the other players of a server.
+// All pictures share one 2048x2048 atlas texture drawn by the entity pass (layer -2), so they get
+// the same light, shadows and fog as everything else. Structures can hang built-in pictures too
+// (chunk.gpics), which are rebuilt with the terrain and never saved.
+
+const PIC_ATLAS = 2048, PIC_SLOT = 256, PIC_SLOTS = (PIC_ATLAS / PIC_SLOT) ** 2;
+const PIC_DIR = { 0: [1, 0, 0], 1: [-1, 0, 0], 4: [0, 0, 1], 5: [0, 0, -1] };
+
+Object.assign(I, { PICTURE: 357 });
+defItem(I.PICTURE, 'Picture Frame', { sprite: 'i_picture', cat: 'functional' });
+shaped(I.PICTURE, 1, ['SSS', 'SPS', 'SSS'], { S: I.STICK, P: [I.PAPER, ...TAG.wool] });
+sprite('i_picture', (d) => {
+  sprRect(d, 3, 5, 29, 27, [132, 94, 52]);
+  sprRect(d, 6, 8, 26, 24, [120, 190, 240]);
+  sprPoly(d, [[6, 24], [13, 14], [18, 20], [21, 16], [26, 24]], [80, 160, 70]);
+  sprDisc(d, 21, 12, 2.5, [255, 230, 120]);
+});
+
+// ---- built-in pictures, painted with canvas ----
+const PIC_BUILTIN = {
+  // the school's sign: its round logo, the name and what it teaches
+  stucom: { w: 4, h: 3, draw(g, W, H) {
+    g.fillStyle = '#f7f7f5'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#3a3a3c'; g.textAlign = 'center';
+    g.font = '600 22px Arial, sans-serif'; g.fillText("Centre d'estudis", W / 2, 34); g.fillText('Pelai', W / 2, 58);
+    const cx = W / 2, cy = 118, r = 42;
+    g.save(); g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.clip();
+    g.fillStyle = '#e4322b'; g.fillRect(cx - r, cy - r, r * 2, r);          // red top
+    g.fillStyle = '#243b8f'; g.fillRect(cx - r, cy, r * 2, r);              // navy bottom
+    g.fillStyle = '#9aa0a8'; g.fillRect(cx - r, cy - 7, r * 2, 14);          // grey band
+    g.restore();
+    g.strokeStyle = '#ffffff'; g.lineWidth = 9; g.lineCap = 'round';          // the white S
+    g.beginPath(); g.arc(cx + 2, cy - 15, 16, Math.PI * 0.15, Math.PI * 1.35, false); g.stroke();
+    g.beginPath(); g.arc(cx - 2, cy + 15, 16, Math.PI * 1.15, Math.PI * 2.35, false); g.stroke();
+    g.fillStyle = '#232325'; g.font = '700 86px Arial, sans-serif'; g.fillText('stucom', W / 2, 250);
+    g.fillStyle = '#c9c9c9'; g.fillRect(40, 272, W - 80, 3);
+    g.fillStyle = '#3a3a3c'; g.font = '500 26px Arial, sans-serif'; g.fillText('Batxillerat', W / 2, 314); g.fillText('Formaci\u00f3 Professional', W / 2, 348);
+  } },
+  sunset: { w: 3, h: 2, draw(g, W, H) {
+    const s = g.createLinearGradient(0, 0, 0, H); s.addColorStop(0, '#2b3a78'); s.addColorStop(0.55, '#f08a4b'); s.addColorStop(0.56, '#1f4d6e'); s.addColorStop(1, '#0d2436');
+    g.fillStyle = s; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#ffd27a'; g.beginPath(); g.arc(W * 0.62, H * 0.55, 34, Math.PI, 0); g.fill();
+    g.fillStyle = 'rgba(255,210,122,0.5)'; for (let i = 0; i < 7; i++) g.fillRect(W * 0.62 - 40 + i * 4, H * 0.58 + i * 12, 80 - i * 8, 3);
+  } },
+  mountains: { w: 3, h: 2, draw(g, W, H) {
+    const s = g.createLinearGradient(0, 0, 0, H); s.addColorStop(0, '#8fc4ef'); s.addColorStop(1, '#dfeefb');
+    g.fillStyle = s; g.fillRect(0, 0, W, H);
+    const peak = (pts, c) => { g.fillStyle = c; g.beginPath(); g.moveTo(0, H); for (const [x, y] of pts) g.lineTo(x * W, y * H); g.lineTo(W, H); g.fill(); };
+    peak([[0, 0.7], [0.25, 0.3], [0.45, 0.62], [0.7, 0.22], [1, 0.6]], '#6d7f95');
+    peak([[0, 0.85], [0.3, 0.62], [0.55, 0.8], [0.8, 0.58], [1, 0.82]], '#3e6b43');
+  } },
+};
+
+const Pictures = {
+  cv: null, g: null, slots: new Map(), used: [], tex: null, dirty: false, pending: null,
+
+  // world.pictures holds placed pictures; generated ones live in G.genPics
+  all() {
+    const out = [];
+    if (G.world && G.world.pictures) out.push(...G.world.pictures.values());
+    if (G.genPics) out.push(...G.genPics.values());
+    return out;
+  },
+
+  initAtlas() {
+    if (this.cv) return;
+    this.cv = document.createElement('canvas');
+    this.cv.width = this.cv.height = PIC_ATLAS;
+    this.g = this.cv.getContext('2d');
+    this.used = new Array(PIC_SLOTS).fill(null);
+  },
+
+  // atlas slot of a picture, painting it the first time
+  slotOf(pic) {
+    this.initAtlas();
+    const key = pic.id;
+    if (this.slots.has(key)) return this.slots.get(key);
+    let s = this.used.indexOf(null);
+    if (s < 0) { this.gc(); s = this.used.indexOf(null); if (s < 0) return -1; }
+    this.used[s] = key;
+    this.slots.set(key, s);
+    const x = (s % (PIC_ATLAS / PIC_SLOT)) * PIC_SLOT, y = Math.floor(s / (PIC_ATLAS / PIC_SLOT)) * PIC_SLOT;
+    const g = this.g;
+    g.clearRect(x, y, PIC_SLOT, PIC_SLOT);
+    const b = pic.builtin && PIC_BUILTIN[pic.builtin];
+    if (b) {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = Math.round(512 * pic.h / pic.w);
+      b.draw(c.getContext('2d'), c.width, c.height);
+      g.drawImage(c, x, y, PIC_SLOT, PIC_SLOT);
+      this.dirty = true;
+    } else if (pic.img) {
+      const im = new Image();
+      im.onload = () => { if (this.used[s] === key) { g.drawImage(im, x, y, PIC_SLOT, PIC_SLOT); this.dirty = true; } };
+      im.src = pic.img;
+    }
+    return s;
+  },
+
+  gc() {
+    const live = new Set(this.all().map((p) => p.id));
+    for (let i = 0; i < this.used.length; i++) if (this.used[i] && !live.has(this.used[i])) { this.slots.delete(this.used[i]); this.used[i] = null; }
+  },
+
+  upload() {
+    const R = G.renderer, gl = R.gl;
+    if (!this.tex) {
+      this.tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, this.tex);
+      gl.texStorage2D(gl.TEXTURE_2D, 1, gl.SRGB8_ALPHA8, PIC_ATLAS, PIC_ATLAS);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      R.picTex = this.tex;
+      this.dirty = true;
+    }
+    if (!this.dirty || !this.cv) return;
+    this.dirty = false;
+    gl.bindTexture(gl.TEXTURE_2D, this.tex);
+    gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.cv);
+  },
+
+  // corners of a picture: bottom-left, bottom-right, top-right, top-left (world coords)
+  quad(p) {
+    // right = (-n) x up: to the right of someone looking at the wall
+    const n = PIC_DIR[p.f], right = [n[2], 0, -n[0]];
+    const bx = p.x + 0.5 - n[0] * 0.5 + n[0] * 0.03 - right[0] * 0.5, bz = p.z + 0.5 - n[2] * 0.5 + n[2] * 0.03 - right[2] * 0.5;
+    const by = p.y;
+    return { n, right, c: [[bx, by, bz], [bx + right[0] * p.w, by, bz + right[2] * p.w], [bx + right[0] * p.w, by + p.h, bz + right[2] * p.w], [bx, by + p.h, bz]] };
+  },
+
+  // entity pass: every picture near the camera as a textured quad in a thin wooden frame
+  render(cp) {
+    const list = this.all();
+    if (!list.length) return;
+    this.upload();
+    const per = PIC_ATLAS / PIC_SLOT;
+    for (const p of list) {
+      if (Math.abs(p.x - cp[0]) > 96 || Math.abs(p.z - cp[2]) > 96) continue;
+      const s = this.slotOf(p);
+      if (s < 0) continue;
+      const u0 = (s % per) / per, v0 = Math.floor(s / per) / per, du = 1 / per - 1 / PIC_ATLAS, dv = du;
+      const { n, right, c } = this.quad(p);
+      ER.lightAt(p.x + 0.5, p.y + p.h * 0.5, p.z + 0.5);
+      ER.color = [1, 1, 1]; ER.ov = 0;
+      const rel = c.map((q) => [q[0] - cp[0], q[1] - cp[1], q[2] - cp[2]]);
+      const uv = [[u0, v0 + dv], [u0 + du, v0 + dv], [u0 + du, v0], [u0, v0]];
+      for (let k = 0; k < 4; k++) ER.v(rel[k][0], rel[k][1], rel[k][2], uv[k][0], uv[k][1], -2, n[0], n[1], n[2]);
+      if (p.builtin !== 'stucom') this.frame(p, c, n, right, cp);
+    }
+  },
+
+  frame(p, c, n, right, cp) {
+    const t = 1 / 16, layer = BLOCK_TEX[B.PLANKS * 6];
+    const bar = (a, b, thick) => {
+      // a thin box from point a to point b standing out from the wall
+      const lo = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2])];
+      const hi = [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])];
+      for (let k = 0; k < 3; k++) if (hi[k] - lo[k] < 1e-3) { lo[k] -= thick; hi[k] += thick; }
+      ER.box(XF.t(-cp[0], -cp[1], -cp[2]), lo[0], lo[1], lo[2], hi[0], hi[1], hi[2], (f) => [layer, (x, y, z) => faceU(f.d, x, y, z), (x, y, z) => faceV(f.d, x, y, z)]);
+    };
+    const e = t * 0.5;
+    const off = (q, dx, dy) => [q[0] + right[0] * dx + n[0] * 0.02, q[1] + dy, q[2] + right[2] * dx + n[2] * 0.02];
+    bar(off(c[0], -e, -e), off(c[1], e, -e), t);
+    bar(off(c[3], -e, e), off(c[2], e, e), t);
+    bar(off(c[0], -e, -e), off(c[3], -e, e), t);
+    bar(off(c[1], e, -e), off(c[2], e, e), t);
+  },
+
+  // ray against pictures (to take one down); returns { pic, dist }
+  raycast(o, d, maxDist) {
+    let best = null;
+    for (const p of G.world && G.world.pictures ? G.world.pictures.values() : []) {
+      const { n, right, c } = this.quad(p);
+      const den = d[0] * n[0] + d[2] * n[2];
+      if (den >= -1e-6) continue;   // only from the front
+      const t = ((c[0][0] - o[0]) * n[0] + (c[0][2] - o[2]) * n[2]) / den;
+      if (t < 0 || t > maxDist || (best && t >= best.dist)) continue;
+      const hx = o[0] + d[0] * t, hy = o[1] + d[1] * t, hz = o[2] + d[2] * t;
+      const along = (hx - c[0][0]) * right[0] + (hz - c[0][2]) * right[2], up = hy - c[0][1];
+      if (along >= 0 && along <= p.w && up >= 0 && up <= p.h) best = { pic: p, dist: t };
+    }
+    return best;
+  },
+
+  add(p, fromNet) {
+    G.world.pictures.set(p.id, p);
+    G.world.editsDirty = true;
+    if (!fromNet) Net.picture(p, false);
+  },
+
+  remove(p, fromNet) {
+    if (!G.world.pictures.delete(p.id)) return;
+    const s = this.slots.get(p.id);
+    if (s !== undefined) { this.used[s] = null; this.slots.delete(p.id); }
+    G.world.editsDirty = true;
+    if (!fromNet) {
+      Net.picture(p, true);
+      if (G.mode === 'survival') Ents.spawnItem(mkStack(I.PICTURE, 1), p.x + 0.5, p.y + 0.5, p.z + 0.5);
+      sfx('dig_1', [p.x + 0.5, p.y + 0.5, p.z + 0.5], 1, 1.2);
+    }
+  },
+
+  // generated (structure) pictures of a chunk that just loaded
+  chunkLoaded(c) {
+    if (!c.gpics) return;
+    G.genPics = G.genPics || new Map();
+    for (const q of c.gpics) G.genPics.set('g' + q.x + ',' + q.y + ',' + q.z, Object.assign({ id: 'g' + q.x + ',' + q.y + ',' + q.z }, q));
+  },
+
+  // a frame was used on a wall: ask what to hang
+  begin(hit) {
+    const n = hit.normal;
+    if (n[1] !== 0) { G.ui.toast('Hang pictures on walls'); return false; }
+    const f = n[0] > 0 ? 0 : n[0] < 0 ? 1 : n[2] > 0 ? 4 : 5;
+    this.pending = { x: hit.pos[0] + n[0], y: hit.pos[1], z: hit.pos[2] + n[2], f };
+    G.ui.open({ kind: 'picture' });
+    return true;
+  },
+
+  // shrink a picked file to at most 256 px and hand back a data URL and its aspect
+  readFile(file, done) {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const im = new Image();
+      im.onload = () => {
+        const k = Math.min(1, 256 / Math.max(im.width, im.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k));
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        done(c.toDataURL('image/jpeg', 0.86), im.width / im.height);
+      };
+      im.onerror = () => G.ui.toast('That file is not an image');
+      im.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  },
+
+  place(src, w, h) {
+    const q = this.pending;
+    if (!q) return;
+    this.pending = null;
+    const p = Object.assign({ id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), w, h }, q, src);
+    this.add(p, false);
+    if (G.mode === 'survival') { G.inv.consumeHeld(1); G.ui.invDirty(); }
+    sfx('place_1', [q.x + 0.5, q.y + 0.5, q.z + 0.5], 1, 1);
+  },
+};
+
+// saved with the world
+function serializePictures(w) { return [...w.pictures.values()].map((p) => ({ id: p.id, x: p.x, y: p.y, z: p.z, f: p.f, w: p.w, h: p.h, img: p.img, builtin: p.builtin })); }
+function validPicture(p) {
+  return p && typeof p.id === 'string' && [p.x, p.y, p.z].every(Number.isInteger) && PIC_DIR[p.f] &&
+    Number.isInteger(p.w) && Number.isInteger(p.h) && p.w >= 1 && p.w <= 8 && p.h >= 1 && p.h <= 8 &&
+    ((typeof p.img === 'string' && p.img.startsWith('data:image/') && p.img.length < 400000) || (typeof p.builtin === 'string' && PIC_BUILTIN[p.builtin]));
+}
+</script>
 <script data-w>
 'use strict';
 // Chunk storage, terrain generation (biomes, caves, lava, ores, trees, plants), block facing,
@@ -4196,6 +4464,7 @@ class Chunk {
     this.meshVersion = 0;
     this.gfacing = null;      // posKey -> facing of generated shaped blocks (structures)
     this.gloot = null;        // posKey -> loot table of generated chests
+    this.gpics = null;        // pictures hung by structures: [{ x, y, z, f, w, h, builtin }]
   }
   get(x, y, z) { return this.blocks[(y * CS + z) * CS + x]; }
   recomputeHeight(x, z) {
@@ -4789,6 +5058,7 @@ class World {
     this.facing = new Map();  // posKey -> face index (0 +X, 1 -X, 4 +Z, 5 -Z)
     this.flow = new Map();    // posKey -> liquid level: 1..7 spreading (lava 2, 4, 6), 8 falling; absent = source
     this.blockEntities = new Map(); // posKey -> { type, ... }
+    this.pictures = new Map();      // id -> picture hung by a player (pictures.js)
     this.editsDirty = false;
   }
 
@@ -4839,6 +5109,7 @@ class World {
       for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) c.recomputeHeight(x, z);
     }
     this.chunks.set(chunkKey(cx, cz), c);
+    if (c.gpics && typeof Pictures !== 'undefined' && this === G.world) Pictures.chunkLoaded(c);
     if (typeof Fluids !== 'undefined' && this === G.world) Fluids.chunkAdded(c);
     // neighbours may now be meshable / need border faces refreshed
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
@@ -4916,14 +5187,16 @@ class World {
     for (const [k, e] of this.blockEntities) be.push([k, e]);
     const flow = [];
     for (const [k, l] of this.flow) flow.push(k, l);
-    return { facing, be, flow };
+    return { facing, be, flow, pics: typeof serializePictures === 'function' ? serializePictures(this) : [] };
   }
 
   loadExtras(obj) {
     this.facing.clear();
     this.flow.clear();
     this.blockEntities.clear();
+    this.pictures.clear();
     if (!obj || typeof obj !== 'object') return;
+    if (Array.isArray(obj.pics) && typeof validPicture === 'function') for (const p of obj.pics) if (validPicture(p)) this.pictures.set(p.id, p);
     if (Array.isArray(obj.facing)) for (let i = 0; i + 1 < obj.facing.length; i += 2) {
       const k = Number(obj.facing[i]), f = obj.facing[i + 1] | 0;
       if (Number.isFinite(k) && validFacing(f)) this.facing.set(k, f);
@@ -5387,6 +5660,10 @@ function structWriter(chunk) {
       const k = posKey(x, y, z);
       if (f !== undefined) (chunk.gfacing || (chunk.gfacing = new Map())).set(k, f);
       else if (chunk.gfacing) chunk.gfacing.delete(k);
+    },
+    pic(x, y, z, f, w, h, builtin) {
+      if (!this.has(x, z)) return;
+      (chunk.gpics || (chunk.gpics = [])).push({ x, y, z, f, w, h, builtin });
     },
     loot(x, y, z, kind) {
       if (!this.has(x, z)) return;
@@ -7102,7 +7379,7 @@ function chunkWorkerMain() {
       const c = new Chunk(m.cx, m.cz);
       gen.generate(c);
       self.postMessage({ t: 'gen', epoch: m.epoch, cx: m.cx, cz: m.cz, blocks: c.blocks, heightmap: c.heightmap, grassTint: c.grassTint, foliageTint: c.foliageTint, waterTint: c.waterTint, maxY: c.maxY, springs: c.springs || null,
-        gfacing: c.gfacing ? [...c.gfacing] : null, gloot: c.gloot ? [...c.gloot] : null },
+        gfacing: c.gfacing ? [...c.gfacing] : null, gloot: c.gloot ? [...c.gloot] : null, gpics: c.gpics || null },
         [c.blocks.buffer, c.heightmap.buffer, c.grassTint.buffer, c.foliageTint.buffer, c.waterTint.buffer]);
     } else if (m.t === 'mesh') {
       const chunks = new Map();
@@ -7257,6 +7534,7 @@ const ChunkWorkers = {
       if (m.springs) c.springs = m.springs;
       if (m.gfacing) c.gfacing = new Map(m.gfacing);
       if (m.gloot) c.gloot = new Map(m.gloot);
+      if (m.gpics) c.gpics = m.gpics;
       world.addChunk(c);
       this.stats.gen++;
     } else if (m.t === 'mesh') {
@@ -7704,6 +7982,7 @@ ${GLSL_COMMON}
 uniform sampler2DArray uAlbedo;
 uniform sampler2DArray uEmitMap;
 uniform sampler2D uAtlas;
+uniform sampler2D uPicAtlas;
 uniform int uPass;
 uniform float uCrack;
 in vec3 vRel;
@@ -7714,7 +7993,8 @@ in vec4 vColor;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-  vec4 alb = vUV.z < -0.5 ? texture(uAtlas, vUV.xy) : texture(uAlbedo, vUV);
+  // layer -2: pictures, -1: mob skins, otherwise the block texture array
+  vec4 alb = vUV.z < -1.5 ? texture(uPicAtlas, vUV.xy) : vUV.z < -0.5 ? texture(uAtlas, vUV.xy) : texture(uAlbedo, vUV);
   if (uPass == 2) {
     if (alb.a < 0.02 || alb.a > uCrack) discard;
     alb.a = 1.0;
@@ -7746,9 +8026,10 @@ const FS_ENTITY_SHADOW = () => `#version 300 es
 ${GLSL_FRAG_HEAD}
 uniform sampler2DArray uAlbedo;
 uniform sampler2D uAtlas;
+uniform sampler2D uPicAtlas;
 in vec3 vUV;
 void main() {
-  vec4 a = vUV.z < -0.5 ? texture(uAtlas, vUV.xy) : texture(uAlbedo, vUV);
+  vec4 a = vUV.z < -1.5 ? texture(uPicAtlas, vUV.xy) : vUV.z < -0.5 ? texture(uAtlas, vUV.xy) : texture(uAlbedo, vUV);
   if (a.a < 0.5) discard;
 }
 `;
@@ -8426,7 +8707,7 @@ let GLSL_DEFINES = '';
 
 const SAMPLER_UNITS = {
   uAlbedo: 0, uNormalMap: 1, uShadowMap: 2, uSkyLUT: 3, uNoise: 4, uSceneColor: 5, uSceneDepth: 6,
-  uSrc: 7, uScene: 8, uBloom: 9, uRays: 10, uDepth: 11, uEmitMap: 12, uAtlas: 13,
+  uSrc: 7, uScene: 8, uBloom: 9, uRays: 10, uDepth: 11, uEmitMap: 12, uAtlas: 13, uPicAtlas: 14,
 };
 const MAX_QUADS = 1 << 17;
 const LUT_W = 256, LUT_H = 128;
@@ -9000,6 +9281,7 @@ Object.assign(Renderer.prototype, {
     this.bindTex(4, gl.TEXTURE_2D, this.noiseTex);
     this.bindTex(12, gl.TEXTURE_2D_ARRAY, this.emitTex);
     this.bindTex(13, gl.TEXTURE_2D, this.atlasTex || null);
+    this.bindTex(14, gl.TEXTURE_2D, this.picTex || null);
   },
 
   // Camera basis for code that builds geometry in view space (first-person hand).
@@ -9140,6 +9422,7 @@ Object.assign(Renderer.prototype, {
         gl.useProgram(prog.program);
         this.setU(prog, 'uViewProj', 'm4', this.shadowVP);
         this.bindTex(13, gl.TEXTURE_2D, this.atlasTex || null);
+        this.bindTex(14, gl.TEXTURE_2D, this.picTex || null);
         this.drawEntityRange(ent.opaque[0], ent.opaque[1]);
       }
       gl.disable(gl.POLYGON_OFFSET_FILL);
@@ -12502,6 +12785,7 @@ const ER = {
     for (const mob of Ents.mobs) if (near(mob.pos[0], mob.pos[2], Math.min(rd, 80))) this.mob(null, mob, cp);
     Vehicles.renderAll(cp, extra.cockpit);
     Net.render(cp);
+    Pictures.render(cp);
     if (extra.self) this.mob(null, extra.self, cp);
     Weather.render(cp);
     Wildlife.render(cp);
@@ -14906,6 +15190,7 @@ function newWorld(seed, save, opts = {}) {
   if (G.vehicle) G.vehicle = null;
   Ents.clear();
   if (typeof Villages !== 'undefined') Villages.reset();
+  G.genPics = new Map();
   G.region = null;
   const type = save ? save.type : opts.type;
   // saves from before rivers and structures keep their original terrain (see WorldGen)
@@ -15190,7 +15475,8 @@ const Net = {
       const room = mod.joinRoom({ appId: NET_APP_ID, password: 'bl:' + server.code }, 'srv-' + server.code);
       this.selfPeer = mod.selfId;
       const pres = room.makeAction('pres'), sync = room.makeAction('sync'), need = room.makeAction('need');
-      const mobs = room.makeAction('mobs'), mhit = room.makeAction('mhit');
+      const mobs = room.makeAction('mobs'), mhit = room.makeAction('mhit'), pic = room.makeAction('pic');
+      pic.onMessage = (d) => this.onPicture(d);
       mobs.onMessage = (d, ctx) => this.onMobs(d, ctx.peerId);
       mhit.onMessage = (d, ctx) => this.onMobHit(d, ctx.peerId);
       pres.onMessage = (d, ctx) => {
@@ -15203,10 +15489,10 @@ const Net = {
       room.onPeerJoin = (id) => {
         this.sendPresence(true, id);
         // both sides send their whole history: each keeps the newest version of every block
-        setTimeout(() => this.serve(id), 300);
+        setTimeout(() => { this.serve(id); for (const p of G.world.pictures.values()) this.picture(p, false, id); }, 300);
       };
       room.onPeerLeave = (id) => { this.dropPeer(id); this.refreshUI(); };
-      this.p2p = { room, pres, sync, need, mobs, mhit };
+      this.p2p = { room, pres, sync, need, mobs, mhit, pic };
       this.statusText = 'Online';
       this.sendPresence(true);
     } catch (e) {
@@ -15353,6 +15639,17 @@ const Net = {
       if (!m.remote) { m.remote = true; if (Math.hypot(m.pos[0] - x, m.pos[2] - z) > 20) m.pos = [x, y, z]; }
       m.net = { x, y, z, yaw, t: now };
     }
+  },
+
+  // pictures: sent whole when hung or taken down, and to anyone who joins
+  picture(p, removed, to) {
+    if (!this.on || !this.p2p) return;
+    this.p2p.pic.send(removed ? { del: p.id } : { p }, to ? { target: to } : undefined).catch(() => {});
+  },
+  onPicture(d) {
+    if (!d || !G.world) return;
+    if (typeof d.del === 'string') { const p = G.world.pictures.get(d.del); if (p) Pictures.remove(p, true); return; }
+    if (validPicture(d.p)) Pictures.add(d.p, true);
   },
 
   // a player hit a villager that the host runs
@@ -16611,6 +16908,8 @@ const Act = {
     const hd = hit ? hit.dist : Infinity, md = mob ? mob.dist : Infinity;
     if (veh && veh.dist < hd && veh.dist < md) return { vehicle: veh.vehicle, dist: veh.dist };
     if (mob && mob.dist < hd) return { mob: mob.mob, dist: mob.dist };
+    const pic = Pictures.raycast(p.eyePos(), p.lookDir(), this.reach());
+    if (pic && pic.dist < hd) return { picture: pic.pic, dist: pic.dist };
     return hit ? { block: hit } : null;
   },
 
@@ -16675,6 +16974,11 @@ const Act = {
     if (!G.mouse.left || G.screenOpen || G.stats.dead) { reset(); return; }
     const t = this.target;
     if (this.attackCd > 0) this.attackCd -= dt;
+    if (t && t.picture) {
+      reset();
+      if (now >= G.mouse.nextBreak) { Pictures.remove(t.picture, false); this.swingHand(); G.mouse.nextBreak = now + 250; }
+      return;
+    }
     if (t && t.mob) {
       reset();
       if (this.attackCd <= 0) { this.attack(t.mob); this.attackCd = 0.45; }
@@ -16960,6 +17264,7 @@ const Act = {
       return false;
     }
     if (held.id === I.FLINT_STEEL) return false;
+    if (held.id === I.PICTURE) return initial && Pictures.begin(hit);
     return this.placeBlock(hit);
   },
 
@@ -17424,6 +17729,7 @@ const UI = {
       else if (s.kind === 'trade') this.renderTradeTop(top);
       else if (s.kind === 'enchant') this.renderEnchantTop(top);
       else if (s.kind === 'brew') this.renderBrewTop(top);
+      else if (s.kind === 'picture') this.renderPictureTop(top);
       root.append(this.label('Inventory'));
       root.append(this.grid(main, 9, 'main'));
       const hb = this.grid(hot, 9, 'hotbar');
@@ -17870,6 +18176,72 @@ const UI = {
     p.className = 'archhint';
     p.innerHTML = 'Fill glass bottles at any water, then add an ingredient: ' + POTIONS.map((q) => '<b>' + itemName(q.from) + '</b> \u2192 ' + q.name).join(' \u00b7 ');
     box.append(p);
+    top.append(box);
+  },
+
+  // ---- hanging a picture ----
+  renderPictureTop(top) {
+    const s = this.screen;
+    s.pic = s.pic || { w: 2, h: 2 };
+    const box = document.createElement('div');
+    box.className = 'picbox';
+    box.append(this.label('Hang a picture'));
+    const prev = document.createElement('div');
+    prev.className = 'picprev';
+    if (s.pic.img) prev.style.backgroundImage = 'url(' + s.pic.img + ')';
+    else if (s.pic.builtin) {
+      const b = PIC_BUILTIN[s.pic.builtin], c = document.createElement('canvas');
+      c.width = 512; c.height = Math.round(512 * b.h / b.w); b.draw(c.getContext('2d'), c.width, c.height);
+      prev.style.backgroundImage = 'url(' + c.toDataURL() + ')';
+    }
+    const row = document.createElement('div');
+    row.className = 'picrow';
+    const file = document.createElement('input');
+    file.type = 'file'; file.accept = 'image/*'; file.style.display = 'none';
+    file.addEventListener('change', () => {
+      const f = file.files && file.files[0];
+      if (!f) return;
+      Pictures.readFile(f, (url, aspect) => {
+        s.pic = { img: url, h: s.pic.h || 2, w: clamp(Math.round((s.pic.h || 2) * aspect), 1, 8) };
+        this.render();
+      });
+    });
+    const pick = document.createElement('button');
+    pick.className = 'primary';
+    pick.textContent = 'Choose an image\u2026';
+    pick.addEventListener('click', () => file.click());
+    row.append(pick, file);
+    const builtins = document.createElement('div');
+    builtins.className = 'picrow picbuiltins';
+    for (const [k, b] of Object.entries(PIC_BUILTIN)) {
+      const btn = document.createElement('button');
+      btn.textContent = { stucom: 'STUCOM sign', sunset: 'Sunset', mountains: 'Mountains' }[k] || k;
+      btn.addEventListener('click', () => { s.pic = { builtin: k, w: b.w, h: b.h }; this.render(); });
+      builtins.append(btn);
+    }
+    const size = document.createElement('div');
+    size.className = 'picrow picsize';
+    const sel = (key) => {
+      const e = document.createElement('select');
+      for (let i = 1; i <= 8; i++) { const o = document.createElement('option'); o.value = i; o.textContent = i; e.append(o); }
+      e.value = s.pic[key];
+      e.addEventListener('change', () => { s.pic[key] = Number(e.value); });
+      return e;
+    };
+    size.append(document.createTextNode('Size in blocks: '), sel('w'), document.createTextNode(' wide \u00d7 '), sel('h'), document.createTextNode(' tall'));
+    const place = document.createElement('button');
+    place.className = 'primary';
+    place.textContent = 'Hang it';
+    place.disabled = !s.pic.img && !s.pic.builtin;
+    place.addEventListener('click', () => {
+      const src = s.pic.img ? { img: s.pic.img } : { builtin: s.pic.builtin };
+      Pictures.place(src, s.pic.w, s.pic.h);
+      this.closeScreen(false);
+    });
+    const hint = document.createElement('p');
+    hint.className = 'archhint';
+    hint.textContent = 'The picture grows to the right and upwards from the block you clicked. Other players on your server see it too. Hit it to take it down.';
+    box.append(prev, row, builtins, size, place, hint);
     top.append(box);
   },
 

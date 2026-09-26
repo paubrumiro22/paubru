@@ -155,6 +155,7 @@ Object.assign(Renderer.prototype, {
     this.bindTex(4, gl.TEXTURE_2D, this.noiseTex);
     this.bindTex(12, gl.TEXTURE_2D_ARRAY, this.emitTex);
     this.bindTex(13, gl.TEXTURE_2D, this.atlasTex || null);
+    this.bindTex(14, gl.TEXTURE_2D, this.picTex || null);
   },
 
   // Camera basis for code that builds geometry in view space (first-person hand).
@@ -295,6 +296,7 @@ Object.assign(Renderer.prototype, {
         gl.useProgram(prog.program);
         this.setU(prog, 'uViewProj', 'm4', this.shadowVP);
         this.bindTex(13, gl.TEXTURE_2D, this.atlasTex || null);
+        this.bindTex(14, gl.TEXTURE_2D, this.picTex || null);
         this.drawEntityRange(ent.opaque[0], ent.opaque[1]);
       }
       gl.disable(gl.POLYGON_OFFSET_FILL);

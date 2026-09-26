@@ -16,7 +16,7 @@ function chunkWorkerMain() {
       const c = new Chunk(m.cx, m.cz);
       gen.generate(c);
       self.postMessage({ t: 'gen', epoch: m.epoch, cx: m.cx, cz: m.cz, blocks: c.blocks, heightmap: c.heightmap, grassTint: c.grassTint, foliageTint: c.foliageTint, waterTint: c.waterTint, maxY: c.maxY, springs: c.springs || null,
-        gfacing: c.gfacing ? [...c.gfacing] : null, gloot: c.gloot ? [...c.gloot] : null },
+        gfacing: c.gfacing ? [...c.gfacing] : null, gloot: c.gloot ? [...c.gloot] : null, gpics: c.gpics || null },
         [c.blocks.buffer, c.heightmap.buffer, c.grassTint.buffer, c.foliageTint.buffer, c.waterTint.buffer]);
     } else if (m.t === 'mesh') {
       const chunks = new Map();
@@ -171,6 +171,7 @@ const ChunkWorkers = {
       if (m.springs) c.springs = m.springs;
       if (m.gfacing) c.gfacing = new Map(m.gfacing);
       if (m.gloot) c.gloot = new Map(m.gloot);
+      if (m.gpics) c.gpics = m.gpics;
       world.addChunk(c);
       this.stats.gen++;
     } else if (m.t === 'mesh') {

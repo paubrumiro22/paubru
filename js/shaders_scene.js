@@ -328,6 +328,7 @@ ${GLSL_COMMON}
 uniform sampler2DArray uAlbedo;
 uniform sampler2DArray uEmitMap;
 uniform sampler2D uAtlas;
+uniform sampler2D uPicAtlas;
 uniform int uPass;
 uniform float uCrack;
 in vec3 vRel;
@@ -338,7 +339,8 @@ in vec4 vColor;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-  vec4 alb = vUV.z < -0.5 ? texture(uAtlas, vUV.xy) : texture(uAlbedo, vUV);
+  // layer -2: pictures, -1: mob skins, otherwise the block texture array
+  vec4 alb = vUV.z < -1.5 ? texture(uPicAtlas, vUV.xy) : vUV.z < -0.5 ? texture(uAtlas, vUV.xy) : texture(uAlbedo, vUV);
   if (uPass == 2) {
     if (alb.a < 0.02 || alb.a > uCrack) discard;
     alb.a = 1.0;
@@ -370,9 +372,10 @@ const FS_ENTITY_SHADOW = () => `#version 300 es
 ${GLSL_FRAG_HEAD}
 uniform sampler2DArray uAlbedo;
 uniform sampler2D uAtlas;
+uniform sampler2D uPicAtlas;
 in vec3 vUV;
 void main() {
-  vec4 a = vUV.z < -0.5 ? texture(uAtlas, vUV.xy) : texture(uAlbedo, vUV);
+  vec4 a = vUV.z < -1.5 ? texture(uPicAtlas, vUV.xy) : vUV.z < -0.5 ? texture(uAtlas, vUV.xy) : texture(uAlbedo, vUV);
   if (a.a < 0.5) discard;
 }
 `;

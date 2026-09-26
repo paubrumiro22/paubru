@@ -209,6 +209,11 @@
   .brewbar { width: 60px; }
   .upgrade { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(242, 185, 75, 0.1); border: 1px solid rgba(242, 185, 75, 0.4); font-size: 13px; }
   .upgrade span { flex: 1; min-width: 200px; color: var(--muted); }
+  .picbox { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+  .picrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .picprev { width: 220px; height: 150px; border-radius: 10px; border: 1px solid var(--line); background: #0d1117 center / contain no-repeat; }
+  .picbuiltins button { padding: 6px 10px; font-size: 12px; }
+  .picsize select { width: 64px; }
   .archhint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
   .sgrid { display: grid; gap: 3px; }
   .sgrid.hotrow { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
@@ -829,6 +834,7 @@
 <script src="js/textures.js"></script>
 <script src="js/textures_arch.js"></script>
 <script src="js/magic.js"></script>
+<script src="js/pictures.js"></script>
 <script src="js/world.js" data-w></script>
 <script src="js/presets.js" data-w></script>
 <script src="js/structures.js" data-w></script>

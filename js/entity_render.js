@@ -306,6 +306,7 @@ const ER = {
     for (const mob of Ents.mobs) if (near(mob.pos[0], mob.pos[2], Math.min(rd, 80))) this.mob(null, mob, cp);
     Vehicles.renderAll(cp, extra.cockpit);
     Net.render(cp);
+    Pictures.render(cp);
     if (extra.self) this.mob(null, extra.self, cp);
     Weather.render(cp);
     Wildlife.render(cp);

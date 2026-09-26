@@ -33,6 +33,7 @@ class Chunk {
     this.meshVersion = 0;
     this.gfacing = null;      // posKey -> facing of generated shaped blocks (structures)
     this.gloot = null;        // posKey -> loot table of generated chests
+    this.gpics = null;        // pictures hung by structures: [{ x, y, z, f, w, h, builtin }]
   }
   get(x, y, z) { return this.blocks[(y * CS + z) * CS + x]; }
   recomputeHeight(x, z) {
@@ -626,6 +627,7 @@ class World {
     this.facing = new Map();  // posKey -> face index (0 +X, 1 -X, 4 +Z, 5 -Z)
     this.flow = new Map();    // posKey -> liquid level: 1..7 spreading (lava 2, 4, 6), 8 falling; absent = source
     this.blockEntities = new Map(); // posKey -> { type, ... }
+    this.pictures = new Map();      // id -> picture hung by a player (pictures.js)
     this.editsDirty = false;
   }
 
@@ -676,6 +678,7 @@ class World {
       for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) c.recomputeHeight(x, z);
     }
     this.chunks.set(chunkKey(cx, cz), c);
+    if (c.gpics && typeof Pictures !== 'undefined' && this === G.world) Pictures.chunkLoaded(c);
     if (typeof Fluids !== 'undefined' && this === G.world) Fluids.chunkAdded(c);
     // neighbours may now be meshable / need border faces refreshed
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
@@ -753,14 +756,16 @@ class World {
     for (const [k, e] of this.blockEntities) be.push([k, e]);
     const flow = [];
     for (const [k, l] of this.flow) flow.push(k, l);
-    return { facing, be, flow };
+    return { facing, be, flow, pics: typeof serializePictures === 'function' ? serializePictures(this) : [] };
   }
 
   loadExtras(obj) {
     this.facing.clear();
     this.flow.clear();
     this.blockEntities.clear();
+    this.pictures.clear();
     if (!obj || typeof obj !== 'object') return;
+    if (Array.isArray(obj.pics) && typeof validPicture === 'function') for (const p of obj.pics) if (validPicture(p)) this.pictures.set(p.id, p);
     if (Array.isArray(obj.facing)) for (let i = 0; i + 1 < obj.facing.length; i += 2) {
       const k = Number(obj.facing[i]), f = obj.facing[i + 1] | 0;
       if (Number.isFinite(k) && validFacing(f)) this.facing.set(k, f);

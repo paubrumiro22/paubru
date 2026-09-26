@@ -6,7 +6,7 @@ let GLSL_DEFINES = '';
 
 const SAMPLER_UNITS = {
   uAlbedo: 0, uNormalMap: 1, uShadowMap: 2, uSkyLUT: 3, uNoise: 4, uSceneColor: 5, uSceneDepth: 6,
-  uSrc: 7, uScene: 8, uBloom: 9, uRays: 10, uDepth: 11, uEmitMap: 12, uAtlas: 13,
+  uSrc: 7, uScene: 8, uBloom: 9, uRays: 10, uDepth: 11, uEmitMap: 12, uAtlas: 13, uPicAtlas: 14,
 };
 const MAX_QUADS = 1 << 17;
 const LUT_W = 256, LUT_H = 128;

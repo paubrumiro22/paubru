@@ -224,7 +224,8 @@ const Net = {
       const room = mod.joinRoom({ appId: NET_APP_ID, password: 'bl:' + server.code }, 'srv-' + server.code);
       this.selfPeer = mod.selfId;
       const pres = room.makeAction('pres'), sync = room.makeAction('sync'), need = room.makeAction('need');
-      const mobs = room.makeAction('mobs'), mhit = room.makeAction('mhit');
+      const mobs = room.makeAction('mobs'), mhit = room.makeAction('mhit'), pic = room.makeAction('pic');
+      pic.onMessage = (d) => this.onPicture(d);
       mobs.onMessage = (d, ctx) => this.onMobs(d, ctx.peerId);
       mhit.onMessage = (d, ctx) => this.onMobHit(d, ctx.peerId);
       pres.onMessage = (d, ctx) => {
@@ -237,10 +238,10 @@ const Net = {
       room.onPeerJoin = (id) => {
         this.sendPresence(true, id);
         // both sides send their whole history: each keeps the newest version of every block
-        setTimeout(() => this.serve(id), 300);
+        setTimeout(() => { this.serve(id); for (const p of G.world.pictures.values()) this.picture(p, false, id); }, 300);
       };
       room.onPeerLeave = (id) => { this.dropPeer(id); this.refreshUI(); };
-      this.p2p = { room, pres, sync, need, mobs, mhit };
+      this.p2p = { room, pres, sync, need, mobs, mhit, pic };
       this.statusText = 'Online';
       this.sendPresence(true);
     } catch (e) {
@@ -387,6 +388,17 @@ const Net = {
       if (!m.remote) { m.remote = true; if (Math.hypot(m.pos[0] - x, m.pos[2] - z) > 20) m.pos = [x, y, z]; }
       m.net = { x, y, z, yaw, t: now };
     }
+  },
+
+  // pictures: sent whole when hung or taken down, and to anyone who joins
+  picture(p, removed, to) {
+    if (!this.on || !this.p2p) return;
+    this.p2p.pic.send(removed ? { del: p.id } : { p }, to ? { target: to } : undefined).catch(() => {});
+  },
+  onPicture(d) {
+    if (!d || !G.world) return;
+    if (typeof d.del === 'string') { const p = G.world.pictures.get(d.del); if (p) Pictures.remove(p, true); return; }
+    if (validPicture(d.p)) Pictures.add(d.p, true);
   },
 
   // a player hit a villager that the host runs

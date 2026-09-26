@@ -324,6 +324,7 @@ const UI = {
       else if (s.kind === 'trade') this.renderTradeTop(top);
       else if (s.kind === 'enchant') this.renderEnchantTop(top);
       else if (s.kind === 'brew') this.renderBrewTop(top);
+      else if (s.kind === 'picture') this.renderPictureTop(top);
       root.append(this.label('Inventory'));
       root.append(this.grid(main, 9, 'main'));
       const hb = this.grid(hot, 9, 'hotbar');
@@ -770,6 +771,72 @@ const UI = {
     p.className = 'archhint';
     p.innerHTML = 'Fill glass bottles at any water, then add an ingredient: ' + POTIONS.map((q) => '<b>' + itemName(q.from) + '</b> → ' + q.name).join(' · ');
     box.append(p);
+    top.append(box);
+  },
+
+  // ---- hanging a picture ----
+  renderPictureTop(top) {
+    const s = this.screen;
+    s.pic = s.pic || { w: 2, h: 2 };
+    const box = document.createElement('div');
+    box.className = 'picbox';
+    box.append(this.label('Hang a picture'));
+    const prev = document.createElement('div');
+    prev.className = 'picprev';
+    if (s.pic.img) prev.style.backgroundImage = 'url(' + s.pic.img + ')';
+    else if (s.pic.builtin) {
+      const b = PIC_BUILTIN[s.pic.builtin], c = document.createElement('canvas');
+      c.width = 512; c.height = Math.round(512 * b.h / b.w); b.draw(c.getContext('2d'), c.width, c.height);
+      prev.style.backgroundImage = 'url(' + c.toDataURL() + ')';
+    }
+    const row = document.createElement('div');
+    row.className = 'picrow';
+    const file = document.createElement('input');
+    file.type = 'file'; file.accept = 'image/*'; file.style.display = 'none';
+    file.addEventListener('change', () => {
+      const f = file.files && file.files[0];
+      if (!f) return;
+      Pictures.readFile(f, (url, aspect) => {
+        s.pic = { img: url, h: s.pic.h || 2, w: clamp(Math.round((s.pic.h || 2) * aspect), 1, 8) };
+        this.render();
+      });
+    });
+    const pick = document.createElement('button');
+    pick.className = 'primary';
+    pick.textContent = 'Choose an image…';
+    pick.addEventListener('click', () => file.click());
+    row.append(pick, file);
+    const builtins = document.createElement('div');
+    builtins.className = 'picrow picbuiltins';
+    for (const [k, b] of Object.entries(PIC_BUILTIN)) {
+      const btn = document.createElement('button');
+      btn.textContent = { stucom: 'STUCOM sign', sunset: 'Sunset', mountains: 'Mountains' }[k] || k;
+      btn.addEventListener('click', () => { s.pic = { builtin: k, w: b.w, h: b.h }; this.render(); });
+      builtins.append(btn);
+    }
+    const size = document.createElement('div');
+    size.className = 'picrow picsize';
+    const sel = (key) => {
+      const e = document.createElement('select');
+      for (let i = 1; i <= 8; i++) { const o = document.createElement('option'); o.value = i; o.textContent = i; e.append(o); }
+      e.value = s.pic[key];
+      e.addEventListener('change', () => { s.pic[key] = Number(e.value); });
+      return e;
+    };
+    size.append(document.createTextNode('Size in blocks: '), sel('w'), document.createTextNode(' wide × '), sel('h'), document.createTextNode(' tall'));
+    const place = document.createElement('button');
+    place.className = 'primary';
+    place.textContent = 'Hang it';
+    place.disabled = !s.pic.img && !s.pic.builtin;
+    place.addEventListener('click', () => {
+      const src = s.pic.img ? { img: s.pic.img } : { builtin: s.pic.builtin };
+      Pictures.place(src, s.pic.w, s.pic.h);
+      this.closeScreen(false);
+    });
+    const hint = document.createElement('p');
+    hint.className = 'archhint';
+    hint.textContent = 'The picture grows to the right and upwards from the block you clicked. Other players on your server see it too. Hit it to take it down.';
+    box.append(prev, row, builtins, size, place, hint);
     top.append(box);
   },
 

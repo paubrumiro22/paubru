@@ -38,6 +38,10 @@ function structWriter(chunk) {
       if (f !== undefined) (chunk.gfacing || (chunk.gfacing = new Map())).set(k, f);
       else if (chunk.gfacing) chunk.gfacing.delete(k);
     },
+    pic(x, y, z, f, w, h, builtin) {
+      if (!this.has(x, z)) return;
+      (chunk.gpics || (chunk.gpics = [])).push({ x, y, z, f, w, h, builtin });
+    },
     loot(x, y, z, kind) {
       if (!this.has(x, z)) return;
       (chunk.gloot || (chunk.gloot = new Map())).set(posKey(x, y, z), kind);
