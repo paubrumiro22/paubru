@@ -8,10 +8,10 @@ const SETTINGS_KEY = 'blocklands.settings.v1';
 const DAY_LENGTH = 1200; // seconds per full day
 
 const DEFAULT_SETTINGS = {
-  renderDistance: 8, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
+  renderDistance: 10, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
   renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
   weather: 'auto', events: true, wildlife: true, skin: 0, minimap: 'normal', autoTuned: false,
-  autoQuality: true, preAuto: null,
+  autoQuality: true, preAuto: null, settingsVer: 2,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -96,7 +96,7 @@ function updateChunks(budgetMs) {
   // unload far chunks now and then
   if ((G.frameCount & 63) === 0) {
     const w = G.world;
-    const lim = R + 4;
+    const lim = R + 3; // generation reaches R + 2
     const ppx = Math.floor(G.player.pos[0] / CS), ppz = Math.floor(G.player.pos[2] / CS);
     for (const [key, c] of w.chunks) {
       const far = (cx, cz) => Math.abs(c.cx - cx) > lim || Math.abs(c.cz - cz) > lim;
@@ -112,6 +112,7 @@ function updateChunks(budgetMs) {
 function updateChunksAsync(R, pcx, pcz, budgetMs) {
   const t0 = performance.now();
   const w = G.world, CW = ChunkWorkers;
+  CW.drainUploads(budgetMs * 0.5, G.player.pos[0], G.player.pos[2]);
   for (const [dx, dz] of G.offsets) {
     if (!CW.canGen()) break;
     const cx = pcx + dx, cz = pcz + dz;
@@ -689,7 +690,7 @@ function saveWorld() {
     v: 2, gen: G.world.genVer, seed: G.world.seed, type: G.world.type, cnv: G.slot === 'campnou' ? CN.ver : undefined, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
     dayTime: G.dayTime, mode: G.mode, difficulty: G.difficulty, rules: G.rules, worldSpawn: G.worldSpawn, spawnPoint: G.spawnPoint,
     player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, flying: p.flying }, inv: G.inv.serialize(), stats: G.stats.serialize(),
-    vehicles: Vehicles.serialize(),
+    vehicles: Vehicles.serialize(), mobs: Ents.serializeMobs(),
     markers: G.markers || [], deaths: G.deaths || [],
   });
   if (!ok && G.ui) G.ui.toast('Could not save: browser storage is full');
@@ -721,6 +722,7 @@ function newWorld(seed, save, opts = {}) {
   if (G.vehicle) G.vehicle = null;
   Ents.clear();
   if (typeof Villages !== 'undefined') Villages.reset();
+  if (typeof Fire !== 'undefined') Fire.reset();
   G.genPics = new Map();
   G.region = null;
   const type = save ? save.type : opts.type;
@@ -755,6 +757,7 @@ function newWorld(seed, save, opts = {}) {
     G.inv.load(save.inv);
     G.stats.load(save.stats);
     Vehicles.load(save.vehicles);
+    Ents.loadMobs(save.mobs);
     G.markers = Array.isArray(save.markers) ? save.markers.filter((m) => m && Number.isFinite(m.x) && Number.isFinite(m.z)).slice(0, 64) : [];
     G.deaths = Array.isArray(save.deaths) ? save.deaths.filter((d) => Array.isArray(d) && d.length >= 3 && d.every(Number.isFinite)).slice(-5) : [];
   } else {

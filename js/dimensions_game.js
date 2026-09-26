@@ -8,7 +8,7 @@ const DIM_INFO = [
   { key: 'overworld', name: 'Overworld', icon: '🌍' },
   { key: 'nether', name: 'The Nether', icon: '🔥', fog: [0.32, 0.07, 0.04], fogD: 0.016, amb: [0.1, 0.055, 0.04], day: 0.27 },
   { key: 'end', name: 'The End', icon: '🌌', fog: [0.07, 0.04, 0.1], fogD: 0.0035, amb: [0.11, 0.1, 0.13], day: 0.78 },
-  { key: 'deep', name: 'The Deep Dark', icon: '🕯️', fog: [0.012, 0.026, 0.034], fogD: 0.026, amb: [0.022, 0.032, 0.042], day: 0.27 },
+  { key: 'deep', name: 'The Deep Dark', icon: '🕯️', fog: [0.016, 0.032, 0.042], fogD: 0.022, amb: [0.04, 0.056, 0.072], day: 0.27 },
 ];
 // the dimension of a world position (only default worlds have dimensions)
 function dimOf(x, z) { return G.world && G.world.gen.type === 'default' ? dimAt(x, z) : DIM_OVER; }

@@ -665,7 +665,7 @@ const Ents = {
   mobs: [], items: [], arrows: [], tnts: [], falling: [],
   spawnTimer: 0, passiveTimer: 1,
 
-  clear() { this.mobs.length = 0; this.items.length = 0; this.arrows.length = 0; this.tnts.length = 0; this.falling.length = 0; Particles.list.length = 0; Vehicles.clear(); },
+  clear() { this.stashed = []; this.mobs.length = 0; this.items.length = 0; this.arrows.length = 0; this.tnts.length = 0; this.falling.length = 0; Particles.list.length = 0; Vehicles.clear(); },
 
   spawnItem(stack, x, y, z, vel, delay) {
     if (!stack || !stack.id || stack.count <= 0) return null;
@@ -680,6 +680,40 @@ const Ents = {
     const m = new Mob(type, x, y, z);
     this.mobs.push(m);
     return m;
+  },
+
+  // ---- animals are kept: out of range they wait in `stashed` and come back when their chunk
+  // loads again; both lists go into the save ----
+  stashed: [],
+  keepable(m) { return !m.dead && !m.def.hostile && !m.vid && !m.remote && !m.def.custom; },
+  mobRecord(m) {
+    return { t: m.type, p: m.pos.map((v) => Math.round(v * 100) / 100), y: Math.round(m.bodyYaw * 100) / 100, h: Math.round(m.health), s: m.sheared ? 1 : 0, w: m.woolColor | 0 };
+  },
+  stash(m) {
+    if (!this.keepable(m)) return;
+    this.stashed.push(this.mobRecord(m));
+    if (this.stashed.length > 400) this.stashed.shift();
+  },
+  unstash() {
+    if (!this.stashed.length) return;
+    const w = G.world;
+    this.stashed = this.stashed.filter((r) => {
+      const c = w.getChunk(Math.floor(r.p[0]) >> 4, Math.floor(r.p[2]) >> 4);
+      if (!c || !c.mesh) return true;
+      const pl = G.player.pos;
+      if (Math.hypot(r.p[0] - pl[0], r.p[2] - pl[2]) > 110) return true;
+      const m = this.spawnMob(r.t, r.p[0], r.p[1] + 0.01, r.p[2]);
+      m.bodyYaw = m.headYaw = r.y;
+      m.health = clamp(r.h, 1, m.def.hp);
+      m.sheared = !!r.s; m.woolColor = clamp(r.w | 0, 0, 15);
+      return false;
+    });
+  },
+  serializeMobs() {
+    return [...this.mobs.filter((m) => !m.removed && this.keepable(m)).map((m) => this.mobRecord(m)), ...this.stashed].slice(-400);
+  },
+  loadMobs(arr) {
+    this.stashed = Array.isArray(arr) ? arr.filter((r) => r && MOB_TYPES[r.t] && !MOB_TYPES[r.t].hostile && Array.isArray(r.p) && r.p.length === 3 && r.p.every(Number.isFinite)).slice(-400) : [];
   },
 
   // Nearest mob hit by a ray (for melee attacks and shears).
@@ -770,9 +804,11 @@ const Ents = {
 
   despawn(dt) {
     const p = G.player.pos;
+    this.unstash();
     for (const m of this.mobs) {
       const d = Math.hypot(m.pos[0] - p[0], m.pos[2] - p[2]);
-      if (!G.world.isLoaded(Math.floor(m.pos[0]), Math.floor(m.pos[2]))) { m.removed = true; continue; }
+      if (!G.world.isLoaded(Math.floor(m.pos[0]), Math.floor(m.pos[2]))) { m.removed = true; this.stash(m); continue; }
+      if (!m.def.hostile && d > (m.persistent ? 175 : 120)) { m.removed = true; this.stash(m); continue; }
       if (m.def.hostile) {
         if (G.difficulty === 0 || d > 100) m.removed = true;
         else if (d > 40) { m.farTime += dt; if (m.farTime > 30) m.removed = true; }

@@ -642,3 +642,160 @@ ITEM_DEF[B.BAMBOO].fuel = 3;
     return base(id, toolItem, rnd);
   };
 }
+
+// ---- rails: ballast, sleepers and two steel rails (texture x = east, y = south) ----
+const RAIL_STEEL = [150, 154, 160], RAIL_SHINE = [212, 216, 222], RAIL_WOOD = [104, 74, 46];
+function railBed(d, rng, ctx) {
+  TEX_GEN.gravel(d, rng, ctx);
+  fillTile(d, (x, y, k) => { const i = k << 2; d[i] *= 0.72; d[i + 1] *= 0.7; d[i + 2] *= 0.68; });
+}
+// straight: along y (north-south) or along x when `ew`
+function railStraight(ew) {
+  return (d, rng, ctx) => {
+    railBed(d, rng, ctx);
+    fillTile(d, (x, y) => {
+      const a = ew ? y : x, b = ew ? x : y;       // a across the track, b along it
+      const sl = b % 8;
+      if (sl >= 1 && sl <= 4 && a >= 2 && a <= 29) put(d, x, y, RAIL_WOOD, (sl === 1 ? 1.12 : sl === 4 ? 0.78 : 0.95) * (0.92 + rng() * 0.1));
+      const r = Math.min(Math.abs(a - 8), Math.abs(a - 23));
+      if (a >= 7 && a <= 9 || a >= 22 && a <= 24) put(d, x, y, r === 0 || a === 7 || a === 22 ? RAIL_SHINE : RAIL_STEEL, a === 9 || a === 24 ? 0.7 : 1);
+    });
+  };
+}
+// curve around the corner (cx, cy) of the tile
+function railCurve(cx, cy) {
+  return (d, rng, ctx) => {
+    railBed(d, rng, ctx);
+    fillTile(d, (x, y) => {
+      const px = x + 0.5 - cx, py = y + 0.5 - cy, r = Math.hypot(px, py);
+      const ang = Math.atan2(Math.abs(py), Math.abs(px));        // 0..pi/2 across the quarter
+      const ph = (ang / (Math.PI / 2)) * 5 % 1;
+      if (r > 4 && r < 28 && ph > 0.15 && ph < 0.6) put(d, x, y, RAIL_WOOD, (ph < 0.25 ? 1.1 : ph > 0.5 ? 0.8 : 0.95) * (0.92 + rng() * 0.1));
+      for (const R of [8.5, 23.5]) {
+        const e = r - R;
+        if (Math.abs(e) <= 1.5) put(d, x, y, Math.abs(e) < 0.6 ? RAIL_SHINE : RAIL_STEEL, e > 0.8 ? 0.7 : 1);
+      }
+    });
+  };
+}
+gen('rail_ns', railStraight(false), { smooth: 0.3, bump: 1.6 });
+gen('rail_ew', railStraight(true), { smooth: 0.3, bump: 1.6 });
+gen('rail_ne', railCurve(TS, 0), { smooth: 0.3, bump: 1.6 });
+gen('rail_es', railCurve(TS, TS), { smooth: 0.3, bump: 1.6 });
+gen('rail_sw', railCurve(0, TS), { smooth: 0.3, bump: 1.6 });
+gen('rail_wn', railCurve(0, 0), { smooth: 0.3, bump: 1.6 });
+gen('rail_side', (d, rng, ctx) => { railBed(d, rng, ctx); }, { smooth: 0.1, bump: 1.4 });
+
+// ---- campus: computer, lockers, vending machine ----
+gen('computer_front', (d, rng, ctx) => {
+  fillTile(d, (x, y, k) => {
+    // dark bezel, glowing screen with a code editor, a stand and a keyboard below
+    const bez = x >= 2 && x <= 29 && y >= 3 && y <= 21;
+    const scr = x >= 4 && x <= 27 && y >= 5 && y <= 19;
+    if (scr) {
+      let c = [22, 34, 52], e = 0.35;
+      if (y === 5 || y === 6) { c = [52, 70, 104]; e = 0.5; }                      // title bar
+      else if ((y - 8) % 2 === 0 && y >= 8 && y <= 18) {
+        const indent = 6 + ((y * 7) % 4) * 2, len = 6 + ((y * 13) % 11);
+        if (x >= indent && x < indent + len) { c = [[120, 220, 160], [240, 200, 110], [130, 180, 250], [230, 120, 150]][((y + x >> 2) & 3)]; e = 0.95; }
+      }
+      put(d, x, y, c, 0.95 + rng() * 0.05); ctx.emit[k] = e; return;
+    }
+    if (bez) { put(d, x, y, [30, 30, 34], x === 2 || y === 3 ? 1.3 : 1); return; }
+    if (x >= 13 && x <= 18 && y >= 22 && y <= 25) { put(d, x, y, [60, 60, 66]); return; }
+    if (x >= 4 && x <= 27 && y >= 27 && y <= 30) { put(d, x, y, ((x + y) & 1) ? [200, 202, 206] : [150, 152, 158], y === 27 ? 1.1 : 1); return; }
+    put(d, x, y, [214, 216, 220], 0.92 + rng() * 0.06);
+  });
+}, { smooth: 0.8, bump: 0.6 });
+gen('computer_side', (d, rng) => {
+  fillTile(d, (x, y) => {
+    if (y >= 3 && y <= 21 && x >= 10 && x <= 30) { put(d, x, y, [44, 44, 50], 0.9 + rng() * 0.1); return; }
+    if (y >= 27 && y <= 30) { put(d, x, y, [170, 172, 178]); return; }
+    put(d, x, y, [214, 216, 220], 0.92 + rng() * 0.06);
+  });
+}, { smooth: 0.6, bump: 0.6 });
+gen('computer_top', (d, rng) => {
+  fillTile(d, (x, y) => put(d, x, y, [206, 208, 212], (x === 0 || y === 0 ? 1.1 : 1) * (0.92 + rng() * 0.06)));
+  for (let x = 4; x < 28; x += 2) for (let y = 22; y < 29; y += 2) put(d, x, y, [120, 122, 128]);
+}, { smooth: 0.6, bump: 0.6 });
+gen('locker_front', (d, rng) => {
+  fillTile(d, (x, y) => {
+    const door = x % 16, edge = door === 0 || door === 15 || y === 0 || y === 31;
+    let c = [58, 104, 150], f = 0.95 + rng() * 0.04;
+    if (edge) f = 0.62;
+    else if (door === 1 || y === 1) f = 1.15;
+    if (y >= 3 && y <= 9 && door >= 4 && door <= 11 && (y & 1)) f = 0.55;          // vents
+    if (door === 12 && y >= 14 && y <= 18) { c = [210, 210, 214]; f = 1; }       // handle
+    if (y >= 21 && y <= 23 && door >= 5 && door <= 10) { c = [236, 236, 230]; f = 1; } // name tag
+    put(d, x, y, c, f);
+  });
+}, { smooth: 0.7, bump: 1.2 });
+gen('locker_side', (d, rng) => {
+  fillTile(d, (x, y) => put(d, x, y, [58, 104, 150], (x === 0 || y === 0 ? 1.12 : x === TM || y === TM ? 0.7 : 1) * (0.94 + rng() * 0.05)));
+}, { smooth: 0.7, bump: 0.8 });
+gen('vending_front', (d, rng, ctx) => {
+  const cans = [[220, 50, 50], [60, 120, 220], [250, 190, 50], [60, 180, 90], [240, 240, 240], [240, 120, 40]];
+  fillTile(d, (x, y, k) => {
+    if (x >= 3 && x <= 21 && y >= 3 && y <= 25) {
+      // lit glass window with shelves of cans and bottles
+      const row = Math.floor((y - 3) / 6), ry = (y - 3) % 6;
+      if (ry === 5) { put(d, x, y, [150, 150, 156]); ctx.emit[k] = 0.3; return; }
+      const col = Math.floor((x - 3) / 3), rx = (x - 3) % 3;
+      if (rx < 2 && ry >= 1) { put(d, x, y, cans[(row * 3 + col) % cans.length], ry === 1 ? 1.2 : 0.95); ctx.emit[k] = 0.55; return; }
+      put(d, x, y, [226, 236, 244], 0.95); ctx.emit[k] = 0.8; return;
+    }
+    if (x >= 24 && x <= 29 && y >= 5 && y <= 14) { put(d, x, y, (y & 1) ? [30, 30, 34] : [80, 200, 120]); ctx.emit[k] = (y & 1) ? 0 : 0.5; return; }
+    if (x >= 24 && x <= 29 && y >= 17 && y <= 20) { put(d, x, y, [40, 40, 44]); return; }
+    if (x >= 3 && x <= 21 && y >= 27 && y <= 30) { put(d, x, y, [22, 22, 26]); return; }
+    put(d, x, y, [196, 34, 40], (x === 0 || y === 0 ? 1.15 : 1) * (0.94 + rng() * 0.05));
+  });
+}, { smooth: 0.8, bump: 0.6 });
+gen('vending_side', (d, rng) => {
+  fillTile(d, (x, y) => put(d, x, y, [196, 34, 40], (x === 0 || y === 0 ? 1.15 : x === TM || y === TM ? 0.72 : 1) * (0.93 + rng() * 0.05)));
+  for (let y = 4; y < 28; y += 3) for (let x = 6; x < 26; x++) put(d, x, y, [236, 236, 236], 0.9);
+}, { smooth: 0.7, bump: 0.6 });
+
+// ---- streets and sports ----
+gen('asphalt', (d, rng) => {
+  const f = fbm(rng, 6, 3);
+  fillTile(d, (x, y, k) => {
+    const grit = rng();
+    put(d, x, y, grit < 0.06 ? [96, 96, 98] : grit < 0.1 ? [40, 40, 42] : [58, 59, 62], quant(0.9 + f[k] * 0.16 + rng() * 0.05, 18));
+  });
+}, { smooth: 0.18, bump: 1.8 });
+gen('asphalt_line', (d, rng, ctx) => {
+  TEX_GEN.asphalt(d, rng, ctx);
+  fillTile(d, (x, y) => { if (x >= 14 && x <= 17 && y >= 4 && y <= 27) put(d, x, y, [236, 236, 228], 0.9 + rng() * 0.1); });
+}, { smooth: 0.2, bump: 1.6 });
+gen('turf', (d, rng) => {
+  fillTile(d, (x, y) => {
+    const stripe = Math.floor(x / 16) & 1;
+    put(d, x, y, stripe ? [66, 150, 64] : [76, 166, 70], 0.88 + rng() * 0.18);
+  });
+}, { smooth: 0.1, bump: 1.4 });
+gen('turf_line', (d, rng, ctx) => {
+  TEX_GEN.turf(d, rng, ctx);
+  // painted all over, so lines read continuous whichever way they run
+  fillTile(d, (x, y, k) => { const i = k << 2; const t = 0.78 + rng() * 0.1; d[i] = d[i] * (1 - t) + 238 * t; d[i + 1] = d[i + 1] * (1 - t) + 242 * t; d[i + 2] = d[i + 2] * (1 - t) + 236 * t; });
+}, { smooth: 0.1, bump: 1 });
+gen('turf_side', (d, rng) => {
+  fillTile(d, (x, y) => put(d, x, y, y < 5 ? [70, 156, 66] : [110, 82, 56], 0.88 + rng() * 0.16));
+}, { smooth: 0.1, bump: 1.4 });
+
+// recipes and drops of the new blocks
+shaped(B.RAIL, 16, ['I I', 'ISI', 'I I'], { I: I.IRON_INGOT, S: I.STICK });
+shaped(B.COMPUTER, 1, ['III', 'IGI', 'IRI'], { I: I.IRON_INGOT, G: B.GLASS_PANE, R: B.GLOWSTONE });
+shaped(B.LOCKER, 1, ['II', 'II', 'II'], { I: I.IRON_INGOT });
+shaped(B.VENDING_MACHINE, 1, ['IGI', 'IAI', 'III'], { I: I.IRON_INGOT, G: B.GLASS_PANE, A: I.APPLE });
+shaped(B.ASPHALT, 8, ['GGG', 'GCG', 'GGG'], { G: B.GRAVEL, C: TAG.coal });
+shaped(B.ASPHALT_LINE, 4, ['AWA', 'AWA'], { A: B.ASPHALT, W: B.CONCRETE });
+shaped(B.TURF, 8, ['WWW', 'WDW', 'WWW'], { W: B.WOOL + 5, D: B.DIRT });
+shaped(B.TURF_LINE, 4, ['TWT', 'TWT'], { T: B.TURF, W: B.CONCRETE });
+{
+  const base = blockDrops;
+  // eslint-disable-next-line no-global-assign
+  blockDrops = function (id, toolItem, rnd) {
+    if (IS_RAIL(id)) return [[B.RAIL, 1]];
+    return base(id, toolItem, rnd);
+  };
+}

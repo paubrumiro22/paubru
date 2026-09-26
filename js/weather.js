@@ -122,6 +122,11 @@ const Weather = {
     }
     this.bolts.push({ pts, forks, t: 0.35 });
     this.flash = 1;
+    // now and then the bolt sets what it hits alight (fire.js); the rain usually puts it out
+    const gx = Math.floor(x), gz = Math.floor(z), gy = w.surfaceHeight(gx, gz);
+    if (typeof Fire !== 'undefined' && Math.random() < 0.35 && gy > 0 && FLAMMABLE[w.getBlock(gx, gy, gz)] && w.getBlock(gx, gy + 1, gz) === B.AIR && (!Net.on || !Net.server || Net.isHost())) {
+      editBlock(gx, gy + 1, gz, B.FIRE); Fire.add(gx, gy + 1, gz);
+    }
     const cam = G.renderer && G.renderer.camPos ? G.renderer.camPos : G.player.pos;
     const d = Math.hypot(x - cam[0], z - cam[2]);
     setTimeout(() => sfx('thunder', null, clamp(1.4 - d / 200, 0.3, 1.2), rand(0.85, 1.1)), Math.min(2500, d * 6));

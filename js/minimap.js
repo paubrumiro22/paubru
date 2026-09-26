@@ -91,8 +91,20 @@ const MapStore = {
     const d = img.data, blocks = c.blocks;
     const top = Math.min(CH - 1, (c.maxY | 0) + 1);
     const hts = new Int16Array(CS * CS);
+    // the Nether and the Deep Dark have a rock ceiling: map the floor of the caves under it
+    const dim = G.world.gen.type === 'default' ? dimAt(c.cx * CS + 8, c.cz * CS + 8) : DIM_OVER;
+    const roofed = dim === DIM_NETHER || dim === DIM_DEEP;
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
       let id = 0, y = top, wy = -1;
+      if (roofed) {
+        y = Math.min(top, dim === DIM_NETHER ? 118 : CH - 2);
+        while (y > 0 && blocks[(y * CS + z) * CS + x]) y--;               // through the roof
+        while (y > 0 && !blocks[(y * CS + z) * CS + x]) y--;              // down the open cave
+        if (dim === DIM_NETHER && y > 90) {                                 // a thin upper pocket: look lower
+          while (y > 0 && blocks[(y * CS + z) * CS + x]) y--;
+          while (y > 0 && !blocks[(y * CS + z) * CS + x]) y--;
+        }
+      }
       for (; y >= 0; y--) {
         const b = blocks[(y * CS + z) * CS + x];
         if (!b) continue;

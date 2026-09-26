@@ -217,6 +217,7 @@ const Act = {
     } else if (BLOCK_RT[placeId] === RT_SHAPE || BLOCK_RT[placeId] === RT_SLAB || placeId === B.LANTERN) {
       facing = this.shapeFacing(placeId, hit, n);
     } else if (FACING_BLOCKS.has(placeId)) facing = this.faceToward(x, z);
+    if (placeId === B.RAIL) { const lk = G.player.lookDir(); id = Rails.shapeFor(x, y, z, Math.abs(lk[0]) > Math.abs(lk[2]) ? 1 : 0); }
     if (placeId === B.DOOR) {
       // two blocks tall, standing on something solid
       if (y + 1 >= CH || !BLOCK_REPLACE[w.getBlock(x, y + 1, z)] || !BLOCK_SOLID[w.getBlock(x, y - 1, z)]) return false;
@@ -230,6 +231,7 @@ const Act = {
     if (BLOCK_SUPPORT[id] && !canStay(id, x, y, z, facing)) return false;
     if (cur === B.WATER && (BLOCK_RT[id] === RT_CROSS || id === B.TORCH || id === B.WALL_TORCH)) return false;
     editBlock(x, y, z, id, facing);
+    if (IS_RAIL(id)) Rails.placed(x, y, z);
     sfx('place_' + BLOCK_SOUND[id], [x + 0.5, y + 0.5, z + 0.5], 1, rand(0.8, 0.95));
     this.consume();
     this.swingHand();
@@ -259,6 +261,12 @@ const Act = {
     if (t && t.vehicle) {
       if (initial) Vehicles.board(t.vehicle);
       return initial;
+    }
+    // cars, buses, boats, helicopters, bicycles and rail carts
+    if (held && RIDE_BY_ITEM[held.id] && initial && t && t.block) {
+      if (!Rides.place(RIDE_BY_ITEM[held.id], t.block)) return false;
+      this.consume(); this.swingHand();
+      return true;
     }
     // put an aircraft down on the ground in front of the player
     if (held && held.id === I.JET && initial && t && t.block) {
@@ -378,7 +386,7 @@ const Act = {
       }
       return false;
     }
-    if (held.id === I.FLINT_STEEL) return initial && Portals.ignite(hit);
+    if (held.id === I.FLINT_STEEL) return initial && (Portals.ignite(hit) || Fire.light(hit));
     if (held.id === I.PICTURE) return initial && Pictures.begin(hit);
     return this.placeBlock(hit);
   },

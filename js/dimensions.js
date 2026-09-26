@@ -509,6 +509,22 @@ function buildAncientCity(g, P, chunk) {
     W.set(x, Y + 1, z, B.DEEPSLATE_WALL); W.set(x, Y + 2, z, B.DEEPSLATE_WALL); W.set(x, Y + 3, z, B.SOUL_LANTERN);
   }
   for (const [px, pz] of [[-9, 9], [9, 9], [0, -10], [-16, 0], [16, 0]]) if (W.has(P.x + px, P.z + pz)) W.set(P.x + px, Y, P.z + pz, B.SCULK_SHRIEKER);
+  // soul lanterns hanging from the vault in a loose grid, and glow lichen on the outer walls:
+  // the city is dim and blue, but you can find your way round it
+  for (let dz = -RZ + 5; dz <= RZ - 5; dz += 7) for (let dx = -RX + 5; dx <= RX - 5; dx += 7) {
+    const x = P.x + dx, z = P.z + dz;
+    if (!W.has(x, z) || (Math.abs(dx) <= 7 && Math.abs(dz) <= 2)) continue;
+    const edge = Math.max(Math.abs(dx) / RX, Math.abs(dz) / RZ);
+    const roof = Y + 18 - Math.round(edge * edge * 8);
+    const above = W.get(x, roof + 1, z);
+    if (above > 0 && BLOCK_SOLID[above]) { W.set(x, roof, z, B.DEEPSLATE_WALL); W.set(x, roof - 1, z, B.SOUL_LANTERN, 8); }   // hung from the vault
+    else if (W.get(x, Y + 1, z) === B.AIR) { W.set(x, Y + 1, z, B.DEEPSLATE_WALL); W.set(x, Y + 2, z, B.DEEPSLATE_WALL); W.set(x, Y + 3, z, B.SOUL_LANTERN); }   // open above: a lamp post
+  }
+  for (let dz = -RZ; dz <= RZ; dz++) for (let dx = -RX; dx <= RX; dx++) {
+    if (Math.abs(dz) !== RZ - 1 && Math.abs(dx) !== RX - 1) continue;
+    const x = P.x + dx, z = P.z + dz;
+    if (W.has(x, z) && hash3(x, 3, z, seed + 53) < 0.35) W.set(x, Y + 1 + Math.floor(hash3(x, 4, z, seed) * 3), z, B.GLOW_LICHEN);
+  }
   // soul fires in braziers round the plaza, so the city glows faintly in the dark
   for (let a = 0; a < 12; a++) {
     const x = P.x + Math.round(Math.cos(a / 12 * Math.PI * 2) * 13), z = P.z + Math.round(Math.sin(a / 12 * Math.PI * 2) * 11);

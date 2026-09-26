@@ -26,8 +26,8 @@ const SETTINGS_UI = [
 const QUALITY_PRESETS = [
   { name: 'Low', hint: 'Old or slow devices', bars: 1, set: { shadows: 'off', clouds: false, ssr: false, godrays: false, bloom: true, renderDistance: 5, renderScale: 0.75 } },
   { name: 'Medium', hint: 'Laptops', bars: 2, set: { shadows: 'low', clouds: false, ssr: true, godrays: false, bloom: true, renderDistance: 7, renderScale: 1 } },
-  { name: 'High', hint: 'Recommended', bars: 3, set: { shadows: 'medium', clouds: true, ssr: true, godrays: true, bloom: true, renderDistance: 8, renderScale: 1 } },
-  { name: 'Ultra', hint: 'Powerful graphics cards', bars: 4, set: { shadows: 'high', clouds: true, ssr: true, godrays: true, bloom: true, renderDistance: 12, renderScale: 1 } },
+  { name: 'High', hint: 'Recommended', bars: 3, set: { shadows: 'medium', clouds: true, ssr: true, godrays: true, bloom: true, renderDistance: 10, renderScale: 1 } },
+  { name: 'Ultra', hint: 'Powerful graphics cards', bars: 4, set: { shadows: 'high', clouds: true, ssr: true, godrays: true, bloom: true, renderDistance: 14, renderScale: 1 } },
 ];
 
 // ---------- errors ----------
@@ -57,6 +57,12 @@ function loadSettings() {
     G.settings[k] = s[k];
   }
   const st = G.settings;
+  // settings from before version 2 kept the old default of 8 chunks: move them to the new
+  // default of 10 and let automatic quality measure again, so slow devices step back down
+  if (!(s.settingsVer >= 2)) {
+    if (st.renderDistance === 8) { st.renderDistance = DEFAULT_SETTINGS.renderDistance; if (st.autoQuality) st.autoTuned = false; }
+    st.settingsVer = 2;
+  }
   if (!SHADOW_PRESETS[st.shadows]) st.shadows = 'medium';
   st.renderDistance = clamp(Math.round(st.renderDistance), 3, 16);
   st.renderScale = clamp(st.renderScale, 0.5, 2);
@@ -395,7 +401,7 @@ function enterUnlockedPlay() {
   releaseAllInput();
   hideMenu();
   G.canvas.style.cursor = 'crosshair';
-  UI.toast('Mouse capture unavailable: drag to look, hold to mine, Esc for menu');
+  UI.toast(typeof Touch !== 'undefined' && Touch.on ? 'Joystick to walk · drag to look · tap to use or place · hold to mine' : 'Mouse capture unavailable: drag to look, hold to mine, Esc for menu');
 }
 
 function leaveUnlockedPlay() {
@@ -428,11 +434,12 @@ function requestLock() {
 
 // ---------- input ----------
 const GAME_KEYS = new Set(['Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyF', 'KeyQ', 'KeyR', 'KeyT', 'KeyN', 'KeyM', 'F1', 'F3', 'F5', 'Tab',
-  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyV', 'KeyG', 'Enter']);
+  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyV', 'KeyG', 'KeyC', 'Enter']);
 
 // Keys that mean something else while flying. Returns true when handled.
 function vehicleKey(code) {
   const v = G.vehicle;
+  if (v.ride) return Rides.key(code);
   switch (code) {
     case 'ShiftLeft': case 'ShiftRight': Vehicles.dismount(false); return true;
     case 'KeyV':
@@ -605,7 +612,7 @@ function bindInput() {
   document.addEventListener('contextmenu', (e) => e.preventDefault());
   document.addEventListener('wheel', (e) => {
     if (!G.playing || G.screenOpen || !e.deltaY) return;
-    if (G.vehicle) { G.vehicle.throttle = clamp(G.vehicle.throttle - Math.sign(e.deltaY) * 0.1, 0, 1); return; }
+    if (G.vehicle) { if (!G.vehicle.ride) G.vehicle.throttle = clamp(G.vehicle.throttle - Math.sign(e.deltaY) * 0.1, 0, 1); return; }
     UI.selectSlot(G.inv.selected + (e.deltaY > 0 ? 1 : -1));
   }, { passive: true });
   G.canvas.addEventListener('click', () => { if (!G.playing && G.started && !G.screenOpen && !G.stats.dead && $('menu').classList.contains('hidden')) requestLock(); });
@@ -793,7 +800,8 @@ function bindInput() {
 const QUALITY_TIERS = [
   { name: 'Low', ms: 33, set: { shadows: 'off', clouds: false, ssr: false, godrays: false, renderDistance: 5, renderScale: 0.75 } },
   { name: 'Medium-low', ms: 24, set: { shadows: 'low', clouds: false, ssr: false, godrays: false, renderDistance: 6 } },
-  { name: 'Medium', ms: 18.5, set: { shadows: 'low', clouds: true, ssr: true, godrays: false, renderDistance: 7 } },
+  { name: 'Medium', ms: 21, set: { shadows: 'low', clouds: true, ssr: true, godrays: false, renderDistance: 7 } },
+  { name: 'High', ms: 17.8, set: { renderDistance: 8 } },
 ];
 // With "Automatic quality" on it also keeps watching: a long stretch of slow frames later on
 // (a heavy area, another tab) measures again. Turning it off gives back the settings it replaced.
@@ -852,7 +860,8 @@ const AutoQuality = {
     if (tier) {
       const prev = G.settings.preAuto || (G.settings.preAuto = {});
       for (const k of Object.keys(tier.set)) if (!(k in prev)) prev[k] = G.settings[k];
-      for (const [k, v] of Object.entries(tier.set)) setSetting(k, v);
+      // only ever step down: a tier never raises what the player already set lower
+      for (const [k, v] of Object.entries(tier.set)) setSetting(k, typeof v === 'number' ? Math.min(v, G.settings[k]) : v);
       if (G.dynRes) { G.dynRes.scale = 1; resize(); }
       msg = 'Graphics set to ' + tier.name + ' for this device (' + Math.round(1000 / med) + ' fps measured)';
     } else msg = 'This device runs the current settings smoothly (' + Math.round(1000 / med) + ' fps)';
@@ -1007,8 +1016,9 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); }
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
+    if (!paused) DimAir.update(dt, cam.pos, dim);
     Sound.setListener(cam.pos, cam.yaw);
     const thirdPerson = G.view && !G.vehicle && !G.onTitle && !st.dead && !G.sleeping;
     const showHand = !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle && !thirdPerson;

@@ -176,12 +176,13 @@ const ER = {
       let r = XF.id();
       switch (p.role) {
         case 'head': r = XF.mul(XF.ry(headYaw), XF.rx(-clamp(mob.headPitch, -0.8, 0.8))); break;
-        case 'legA': r = XF.rx(sw * 0.9); break;
-        case 'legB': r = XF.rx(-sw * 0.9); break;
+        case 'legA': r = mob.sit ? XF.mul(XF.rx(-1.45), XF.rz(0.08)) : XF.rx(sw * 0.9); break;
+        case 'legB': r = mob.sit ? XF.mul(XF.rx(-1.45), XF.rz(-0.08)) : XF.rx(-sw * 0.9); break;
         case 'armL': case 'armR': {
           const left = p.role === 'armL';
           if (mob.type === 'zombie') r = XF.mul(XF.rx(-Math.PI / 2 + Math.sin(mob.age * 2 + (left ? 0 : 1)) * 0.06), XF.rz(left ? -0.05 : 0.05));
           else if (mob.aiming > 0) r = XF.mul(XF.rx(-Math.PI / 2 - 0.1), XF.ry(left ? 0.45 : -0.1));
+          else if (mob.ride) r = XF.mul(XF.rx(mob.ride === 'bike' ? -1.05 : -0.8), XF.rz(left ? -0.12 : 0.12));   // hands on the wheel / handlebar
           else r = XF.rx((left ? -sw : sw) * 0.8);
           break;
         }

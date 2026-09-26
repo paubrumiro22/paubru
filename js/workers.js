@@ -98,6 +98,7 @@ const ChunkWorkers = {
     this.epoch++;
     this.genPending.clear();
     this.meshPending = 0;
+    this.uploads.clear();
     for (const w of this.list) w.load = 0;
   },
 
@@ -105,6 +106,22 @@ const ChunkWorkers = {
     let best = null;
     for (const w of this.list) if (!best || w.load < best.load) best = w;
     return best;
+  },
+
+  uploads: new Map(),
+  // Hand finished meshes to the GPU, closest first, until the budget runs out (always one).
+  drainUploads(budgetMs, px, pz) {
+    if (!this.uploads.size) return;
+    const t0 = performance.now();
+    const list = [...this.uploads.keys()];
+    if (list.length > 1) list.sort((a, b) => Math.hypot(a.cx * CS + 8 - px, a.cz * CS + 8 - pz) - Math.hypot(b.cx * CS + 8 - px, b.cz * CS + 8 - pz));
+    const wrap = (u8) => ({ count: u8.length / VERT_BYTES, data: () => u8 });
+    for (const c of list) {
+      const m = this.uploads.get(c);
+      this.uploads.delete(c);
+      if (c.meshVer === m.ver && G.world.getChunk(c.cx, c.cz) === c) G.renderer.uploadChunk(c, { opaque: wrap(m.opaque), cutout: wrap(m.cutout), water: wrap(m.water) });
+      if (performance.now() - t0 > budgetMs) break;
+    }
   },
 
   canGen() { return this.ok && this.genPending.size < this.list.length * 4; },
@@ -182,8 +199,9 @@ const ChunkWorkers = {
       if (!c || c.meshVer !== m.ver) return;
       c.meshInFlight = false;
       c.light = m.light;
-      const wrap = (u8) => ({ count: u8.length / VERT_BYTES, data: () => u8 });
-      G.renderer.uploadChunk(c, { opaque: wrap(m.opaque), cutout: wrap(m.cutout), water: wrap(m.water) });
+      // uploads wait in a queue drained under a time budget each frame (drainUploads), so a burst
+      // of finished meshes never lands on the GPU in a single frame
+      this.uploads.set(c, m);
       this.stats.mesh++;
     }
   },

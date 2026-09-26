@@ -493,6 +493,26 @@
     .icons i { width: 13px; height: 13px; } .icons { height: 13px; }
     .book { width: 100%; border-left: 0; padding-left: 0; }
   }
+  /* ---- touch controls (touch.js) ---- */
+  #touchUI { position: fixed; inset: 0; pointer-events: none; z-index: 30; user-select: none; -webkit-user-select: none; }
+  #touchUI.hidden { display: none; }
+  #touchUI .tstick { position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: max(26px, env(safe-area-inset-bottom)); width: 132px; height: 132px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.10), rgba(255,255,255,0.04) 70%); border: 2px solid rgba(255,255,255,0.28); pointer-events: auto; touch-action: none; }
+  #touchUI .tknob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%;
+    background: rgba(255,255,255,0.42); box-shadow: 0 2px 10px rgba(0,0,0,0.35); transition: transform 0.06s linear; }
+  #touchUI .tbtns { position: absolute; right: max(18px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(3, 58px); gap: 10px; direction: rtl; }
+  #touchUI button { pointer-events: auto; touch-action: none; width: 58px; height: 58px; border-radius: 16px; border: 2px solid rgba(255,255,255,0.3);
+    background: rgba(18, 22, 30, 0.45); color: #fff; font-size: 24px; line-height: 1; padding: 0; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  #touchUI button.on { background: rgba(255,255,255,0.35); }
+  #touchUI button.big { font-size: 30px; }
+  #touchUI .tmenu { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: 46px; height: 40px; font-size: 20px; }
+  #touchUI .texit { position: absolute; right: max(18px, env(safe-area-inset-right)); top: 45%; width: auto; padding: 0 16px; font-size: 16px; font-weight: 700; display: none; }
+  #touchUI.driving .texit { display: block; }
+  #touchUI.driving [data-k="inv"], #touchUI.driving [data-k="use"] { visibility: hidden; }
+  #touchUI:not(.creative) [data-k="fly"] { visibility: hidden; }
+  body.touch #bottombar { transform: scale(0.72); transform-origin: 50% 100%; }
+  body.touch #hotbar .slot { touch-action: none; }
+  @media (max-width: 700px) { body.touch #bottombar { transform: scale(0.6); } #touchUI .tbtns { grid-template-columns: repeat(3, 50px); } #touchUI button { width: 50px; height: 50px; } }
 </style>
 </head>
 <body>
@@ -840,6 +860,7 @@
 <script src="js/world.js" data-w></script>
 <script src="js/presets.js" data-w></script>
 <script src="js/structures.js" data-w></script>
+<script src="js/campus.js" data-w></script>
 <script src="js/campnou.js" data-w></script>
 <script src="js/dimensions.js" data-w></script>
 <script src="js/mesher.js" data-w></script>
@@ -858,6 +879,7 @@
 <script src="js/entities.js"></script>
 <script src="js/entity_render.js"></script>
 <script src="js/vehicles.js"></script>
+<script src="js/rides.js"></script>
 <script src="js/weather.js"></script>
 <script src="js/fluids.js"></script>
 <script src="js/wildlife.js"></script>
@@ -867,8 +889,10 @@
 <script src="js/minimap.js"></script>
 <script src="js/villages.js"></script>
 <script src="js/dimensions_game.js"></script>
+<script src="js/fire.js"></script>
 <script src="js/interact.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>
+<script src="js/touch.js"></script>
 </body>
 </html>

@@ -330,7 +330,8 @@ const Net = {
       a: (p.sneaking ? 1 : 0) | (Act.hand.swinging ? 2 : 0) | (p.parachute ? 4 : 0),
       h: Act.heldId(), s: this.seq, q: this.ops, k: G.settings.skin | 0,
     };
-    if (v) d.v = [r1(v.pos[0]), r1(v.pos[1]), r1(v.pos[2]), r3(v.yaw), r3(v.pitch), r3(v.roll), Math.round(v.throttle * 100), v.burner ? 1 : 0, Math.round(v.gear * 100), (v.missiles[0] ? 1 : 0) | (v.missiles[1] ? 2 : 0), G.mouse.left ? 1 : 0, Math.round(v.speed)];
+    if (v && v.ride) { d.v = null; d.rd = [RIDE_KEYS.indexOf(v.kind), r1(v.pos[0]), r1(v.pos[1]), r1(v.pos[2]), r3(v.yaw), r3(v.pitch), r3(v.roll), v.paint | 0, Math.round(v.speed * 10), Math.round((v.rpm || 0) * 100)]; }
+    else if (v) d.v = [r1(v.pos[0]), r1(v.pos[1]), r1(v.pos[2]), r3(v.yaw), r3(v.pitch), r3(v.roll), Math.round(v.throttle * 100), v.burner ? 1 : 0, Math.round(v.gear * 100), (v.missiles[0] ? 1 : 0) | (v.missiles[1] ? 2 : 0), G.mouse.left ? 1 : 0, Math.round(v.speed)];
     else d.v = null;
     return d;
   },
@@ -448,6 +449,13 @@ const Net = {
         Vehicles.effects(j, dt);
         if (r.firing) { r.gunT = (r.gunT || 0) - dt; if (r.gunT <= 0) { r.gunT = 0.06; this.remoteTracer(j); } }
       }
+      if (r.ride) {
+        const v = r.ride;
+        for (let i = 0; i < 3; i++) v.pos[i] += (r.rt.pos[i] - v.pos[i]) * k;
+        v.yaw += wrapAngle(r.rt.yaw - v.yaw) * k; v.pitch += (r.rt.pitch - v.pitch) * k; v.roll += (r.rt.roll - v.roll) * k;
+        v.basis();
+        v.wheel += v.speed * dt / 0.34; v.rotor += (v.rpm || 0) * dt * 28; v.blink += dt;
+      }
     }
     this.drawTags();
   },
@@ -489,6 +497,15 @@ const Net = {
       j.missiles = [!!(v[9] & 1), !!(v[9] & 2)]; j.speed = clamp(v[11], 0, 200);
       r.firing = !!v[10];
     } else { r.jet = null; r.jt = null; r.firing = false; }
+    // cars, bikes, boats... (rides.js)
+    const rd = Array.isArray(pr.rd) && pr.rd.length >= 10 && pr.rd.every((n) => Number.isFinite(Number(n))) ? pr.rd.map(Number) : null;
+    const kind = rd ? RIDE_KEYS[rd[0]] : null;
+    if (kind) {
+      if (!r.ride || r.ride.kind !== kind) { r.ride = new Ride(kind, rd[1], rd[2], rd[3], rd[4], rd[7]); r.ride.remote = true; }
+      r.rt = { pos: [rd[1], rd[2], rd[3]], yaw: rd[4], pitch: clamp(rd[5], -1, 1), roll: clamp(rd[6], -1, 1) };
+      r.ride.paint = clamp(rd[7] | 0, 0, RIDE_PAINTS.length - 1);
+      r.ride.speed = clamp(rd[8] / 10, -40, 40); r.ride.rpm = clamp(rd[9] / 100, 0, 1);
+    } else { r.ride = null; r.rt = null; }
     // shared ops
     const q = Array.isArray(pr.q) ? pr.q : [];
     const s = Number.isInteger(pr.s) ? pr.s : 0;
@@ -644,6 +661,11 @@ const Net = {
     if (!this.on) return;
     for (const r of this.peers.values()) {
       if (r.jet) { Vehicles.renderJet(r.jet.state, cp, false); continue; }
+      if (r.ride) {
+        Rides.render(r.ride, cp, false);
+        Rides.rider(r.ride, cp, r.skin || 0, NET_COLORS[r.color].map((c) => c / 255 * 1.1), r.yaw + Math.PI);
+        continue;
+      }
       const m = r.mob;
       m.pos = r.pos;
       m.bodyYaw = r.yaw + Math.PI;
@@ -669,7 +691,7 @@ const Net = {
         r.tag.className = 'ntag';
         host.append(r.tag);
       }
-      const base = r.jet ? [r.jet.pos[0], r.jet.pos[1] + 3.5, r.jet.pos[2]] : [r.pos[0], r.pos[1] + 2.25, r.pos[2]];
+      const base = r.jet ? [r.jet.pos[0], r.jet.pos[1] + 3.5, r.jet.pos[2]] : r.ride ? [r.ride.pos[0], r.ride.pos[1] + r.ride.def.h + 1, r.ride.pos[2]] : [r.pos[0], r.pos[1] + 2.25, r.pos[2]];
       const rel = [base[0] - cam[0], base[1] - cam[1], base[2] - cam[2]];
       const w = vp[3] * rel[0] + vp[7] * rel[1] + vp[11] * rel[2] + vp[15];
       const dist = Math.hypot(rel[0], rel[1], rel[2]);

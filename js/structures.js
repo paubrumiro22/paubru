@@ -297,6 +297,7 @@ function planVillage(g, cx, cz, rng, style) {
       if (t % 10 === 5) plan.pieces.push({ box: [px + dz * 2, pz + dx * 2, px + dz * 2, pz + dx * 2], build: (W) => buildLampPost(W, px + dz * 2, g.height(px + dz * 2, pz + dx * 2) + 1, pz + dx * 2, st) });
     }
     plan.radius = Math.max(plan.radius, len + 12);
+    (plan.roadDirs || (plan.roadDirs = [])).push([dx, dz, len]);
     // lots on both sides of the road
     for (let t = 7; t <= len - 2; t += 8 + Math.floor(rng() * 2)) {
       for (const side of [-1, 1]) {
@@ -775,6 +776,12 @@ function decorateStucom(g, plan) {
   plan.zones.push(sz > 0 ? [x0 - 1, zf - 7, x0 + W, zf - 2] : [x0 - 1, zf + 2, x0 + W, zf + 7]);
   const F = g.height(x0 + (W >> 1), zf + sz * (D >> 1)) + 1;
   plan.pieces.push({ box: rect, build: (Wr) => buildSchool(Wr, g, x0, zf, sz, F, st) });
+  // the forecourt between the school and the square (campus.js); mirrored when the school faces
+  // +z so that pictures and benches read the same way from the square
+  plan.stucomForecourt = {
+    X: (a) => (sz > 0 ? x0 + a : x0 + 16 - a), Z: (a, d) => zf + sz * d, out: sz > 0 ? 5 : 4, inw: sz > 0 ? 4 : 5,
+    F, cx, cz, rect: sz > 0 ? [x0 - 1, zf - 8, x0 + W, zf - 2] : [x0 - 1, zf + 2, x0 + W, zf + 8],
+  };
   plan.spawns.push({ kind: 'villager', prof: 'librarian', x: x0 + 4.5, y: F, z: zf + sz * 5 + 0.5 });
   plan.spawns.push({ kind: 'villager', prof: 'cleric', x: x0 + 12.5, y: F, z: zf + sz * 5 + 0.5 });
   // two free building plots on the other side of the square
@@ -795,6 +802,7 @@ function decorateStucom(g, plan) {
     plan.pieces.push({ box: [px0, pz0, px1, pz1], build: (Wr) => buildPlot(Wr, g, px0, pz0, px1, pz1, PF, st, (pz0 + pz1) / 2 < cz ? 1 : -1) });
     placed++;
   }
+  planCampus(g, plan, st, rough);
 }
 
 // A flat, fenced plot with lamps at the corners and a sign: room for the players' own builds.
@@ -886,6 +894,8 @@ function buildSchool(W, g, x0, zf, sz, F, st) {
   for (let a = 11; a <= 14; a++) set(a, F, 8, shapeId('oak', 'stairs'), out);
   W.pic(sz > 0 ? x0 + 14 : x0 + 12, F + 2, Z(D - 2), out, 3, 2, 'sunset');
   for (const a of [4, 12]) set(a, F + 5, 6, B.LANTERN, 8);
+  // lockers along the back of the lobby
+  for (let a = 3; a <= 8; a++) for (let y = F; y <= F + 1; y++) set(a, y, D - 2, B.LOCKER, out);
   // classrooms: desks and chairs facing a whiteboard on the back wall
   for (const fl of floors.slice(1)) {
     const board = fl === floors[2] ? B.CHALKBOARD : B.WHITEBOARD;                                 // one old-school room

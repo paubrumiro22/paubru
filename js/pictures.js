@@ -59,6 +59,77 @@ const PIC_BUILTIN = {
     peak([[0, 0.7], [0.25, 0.3], [0.45, 0.62], [0.7, 0.22], [1, 0.6]], '#6d7f95');
     peak([[0, 0.85], [0.3, 0.62], [0.55, 0.8], [0.8, 0.58], [1, 0.82]], '#3e6b43');
   } },
+  // ---- STUCOM campus signs (campus.js) ----
+  campus: { w: 3, h: 2, draw(g, W, H) {
+    g.fillStyle = '#f6f5f1'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#e4322b'; g.fillRect(0, 0, W, 18); g.fillStyle = '#243b8f'; g.fillRect(0, H - 18, W, 18);
+    g.fillStyle = '#232325'; g.textAlign = 'center';
+    g.font = '800 64px Arial, sans-serif'; g.fillText('stucom', W / 2, 96);
+    g.font = '600 26px Arial, sans-serif'; g.fillStyle = '#4a4a4e'; g.fillText('CAMPUS', W / 2, 132);
+    g.font = '500 20px Arial, sans-serif'; g.fillStyle = '#6a6a70';
+    g.fillText('Benvinguts · Welcome · Bienvenidos', W / 2, 176);
+    g.fillText('Biblioteca · Cafeteria · Poliesportiu · Metro', W / 2, 206);
+    g.fillText('Solars lliures per construir', W / 2, 236);
+  } },
+  annex: { w: 7, h: 2, draw(g, W, H) {
+    g.fillStyle = '#1f2a44'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#e4322b'; g.fillRect(0, 0, 10, H);
+    g.fillStyle = '#ffffff'; g.textAlign = 'left';
+    g.font = '800 44px Arial, sans-serif'; g.fillText('stucom', 34, 62);
+    g.font = '500 19px Arial, sans-serif'; g.fillStyle = '#c9d3ea';
+    g.fillText('Biblioteca \u00b7 Aula d\u2019Inform\u00e0tica \u00b7 Cafeteria', 34, 108);
+  } },
+  library: { w: 3, h: 2, draw(g, W, H) {
+    g.fillStyle = '#2d5a3d'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#f2ead6';
+    for (let i = 0; i < 9; i++) { const x = 70 + i * 42, h = 90 + (i * 37) % 50; g.fillStyle = ['#e9d9b0', '#c85a4a', '#e0b050', '#6a8ec8', '#f2ead6'][i % 5]; g.fillRect(x, 190 - h, 30, h); }
+    g.fillStyle = '#f2ead6'; g.textAlign = 'center'; g.font = '800 54px Georgia, serif'; g.fillText('BIBLIOTECA', W / 2, 260);
+    g.font = 'italic 24px Georgia, serif'; g.fillText('Silenci, si us plau', W / 2, 300);
+  } },
+  computers: { w: 3, h: 1, draw(g, W, H) {
+    g.fillStyle = '#0e1726'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#7fe3ff'; g.font = '700 38px ui-monospace, Consolas, monospace'; g.textAlign = 'center';
+    g.fillText('> AULA_INFO', W / 2, H / 2 + 6);
+    g.fillStyle = '#6ad08a'; g.font = '500 18px ui-monospace, Consolas, monospace'; g.fillText('DAM · DAW · ASIX', W / 2, H - 22);
+  } },
+  gym: { w: 6, h: 1, draw(g, W, H) {
+    g.fillStyle = '#12161c'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#ffd24a'; g.font = '800 40px Arial, sans-serif'; g.textAlign = 'center';
+    g.fillText('POLIESPORTIU STUCOM', W / 2, 56);
+  } },
+  bus: { w: 1, h: 1, draw(g, W, H) {
+    g.fillStyle = '#d8322a'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(W / 2, H / 2 - 30, 150, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#d8322a'; g.font = '900 150px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('BUS', W / 2, H / 2 + 22);
+    g.fillStyle = '#fff'; g.font = '700 54px Arial, sans-serif'; g.fillText('V15 · H12 · 59', W / 2, H - 40);
+  } },
+  timetable: { w: 1, h: 1, draw(g, W, H) {
+    g.fillStyle = '#f5f5f2'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#d8322a'; g.fillRect(0, 0, W, 80);
+    g.fillStyle = '#fff'; g.font = '800 46px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('STUCOM', W / 2, 56);
+    g.fillStyle = '#333'; g.font = '600 34px ui-monospace, Consolas, monospace'; g.textAlign = 'left';
+    ['V15  Pl. Universitat  5\'', 'H12  Pl. Catalunya  9\'', '59   Rambla        12\'', 'N7   Nit           ..'].forEach((t, i) => g.fillText(t, 26, 150 + i * 80));
+  } },
+  metro: { w: 1, h: 1, draw(g, W, H) {
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#d6202b';
+    const r = 56; g.beginPath(); g.moveTo(40 + r, 40); g.arcTo(W - 40, 40, W - 40, H - 40, r); g.arcTo(W - 40, H - 40, 40, H - 40, r); g.arcTo(40, H - 40, 40, 40, r); g.arcTo(40, 40, W - 40, 40, r); g.fill();
+    g.fillStyle = '#fff'; g.font = '900 300px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('M', W / 2, H / 2 + 14); g.textBaseline = 'alphabetic';
+  } },
+  metro_name: { w: 3, h: 1, draw(g, W, H) {
+    g.fillStyle = '#16213a'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#d6202b'; g.fillRect(18, 22, H - 44, H - 44);
+    g.fillStyle = '#fff'; g.font = '900 96px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('M', 18 + (H - 44) / 2, H / 2 + 34);
+    g.textAlign = 'left'; g.font = '700 64px Arial, sans-serif'; g.fillText('Universitat', H + 6, H / 2 + 22);
+  } },
+  metro_map: { w: 2, h: 1, draw(g, W, H) {
+    g.fillStyle = '#fbfbf8'; g.fillRect(0, 0, W, H);
+    const lines = [['#d6202b', 70], ['#8a4ea0', 130], ['#e9b418', 190]];
+    for (const [c, y] of lines) { g.strokeStyle = c; g.lineWidth = 16; g.beginPath(); g.moveTo(30, y); g.lineTo(W - 30, y + (y - 130) * 0.3); g.stroke(); }
+    g.fillStyle = '#fff'; g.strokeStyle = '#222'; g.lineWidth = 6;
+    for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(70 + i * 76, 130, 16, 0, Math.PI * 2); g.fill(); g.stroke(); }
+    g.fillStyle = '#222'; g.font = '700 22px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('Universitat', 70 + 2 * 76, 240);
+  } },
 };
 
 const Pictures = {

@@ -39,6 +39,10 @@
     'NETHER_BRICK_FENCE', 'SOUL_LANTERN', 'SOUL_TORCH', 'END_ROD', 'CHORUS_PLANT', 'CHORUS_FLOWER', 'END_CRYSTAL',
     'PURPUR_PILLAR', 'END_STONE_BRICKS', 'SCULK', 'SCULK_SENSOR', 'SCULK_SHRIEKER', 'SCULK_CATALYST', 'GLOW_LICHEN',
     'CRIMSON_PLANKS', 'WARPED_PLANKS',
+    // rails (one block per layout; the cart follows them, rides.js), campus furniture and streets
+    'RAIL', 'RAIL_EW', 'RAIL_NE', 'RAIL_ES', 'RAIL_SW', 'RAIL_WN',
+    'COMPUTER', 'LOCKER', 'VENDING_MACHINE', 'ASPHALT', 'ASPHALT_LINE', 'TURF', 'TURF_LINE',
+    'FIRE',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here
@@ -272,3 +276,28 @@ SOIL.add(B.SOUL_SAND);
 LOGS.push(B.DARK_OAK_LOG, B.CHERRY_LOG, B.ACACIA_LOG);
 PLANKS_ALL.push(B.DARK_OAK_PLANKS, B.CHERRY_PLANKS, B.ACACIA_PLANKS, B.BAMBOO_PLANKS, B.CRIMSON_PLANKS, B.WARPED_PLANKS);
 for (const id of [B.PODZOL, B.COARSE_DIRT, B.MOSS_BLOCK, B.MUD]) SOIL.add(id);
+
+// ---- rails: a thin bed of ballast, sleepers and two steel rails. Six layouts (straight N-S / E-W
+// and the four curves); placing a rail picks the layout from its neighbours (Rails.shape). They are
+// walked through like carpet. Directions: 0 north (-z), 1 east (+x), 2 south (+z), 3 west (-x).
+const SH_RAIL = 11;
+SHAPE_CANON[SH_RAIL] = { boxes: [[0, 0, 0, 16, 2, 16]], coll: [] };
+const RAIL_IDS = [B.RAIL, B.RAIL_EW, B.RAIL_NE, B.RAIL_ES, B.RAIL_SW, B.RAIL_WN];
+const RAIL_LINKS = [[0, 2], [1, 3], [0, 1], [1, 2], [2, 3], [3, 0]];
+const IS_RAIL = (id) => id >= B.RAIL && id <= B.RAIL_WN;
+['rail_ns', 'rail_ew', 'rail_ne', 'rail_es', 'rail_sw', 'rail_wn'].forEach((tex, i) => {
+  defBlock(RAIL_IDS[i], 'Rail', RT_SHAPE, { top: tex, side: 'rail_side', bottom: 'gravel' }, { atten: 0, hard: 0.7, tool: TOOL_PICK, snd: SND.METAL, support: SUP_FLOOR, solid: false, cat: i ? null : 'transport' });
+  BLOCK_SHAPE[RAIL_IDS[i]] = SH_RAIL;
+  BLOCK_HEIGHT[RAIL_IDS[i]] = 2;
+});
+// ---- campus and city ----
+defBlock(B.COMPUTER, 'Computer', RT_CUBE, { top: 'computer_top', bottom: 'computer_top', side: 'computer_side', front: 'computer_front' }, { hard: 1, tool: TOOL_PICK, snd: SND.METAL, emit: 4, cat: 'functional' });
+defBlock(B.LOCKER, 'Locker', RT_CUBE, { top: 'locker_side', side: 'locker_side', front: 'locker_front' }, { hard: 2, tool: TOOL_PICK, snd: SND.METAL, cat: 'functional' });
+defBlock(B.VENDING_MACHINE, 'Vending Machine', RT_CUBE, { top: 'locker_side', side: 'vending_side', front: 'vending_front' }, { hard: 2, tool: TOOL_PICK, snd: SND.METAL, emit: 9, cat: 'functional' });
+for (const id of [B.COMPUTER, B.LOCKER, B.VENDING_MACHINE]) FACING_BLOCKS.add(id);
+defBlock(B.ASPHALT, 'Asphalt', RT_CUBE, 'asphalt', XR({ hard: 1.5, cat: 'building' }));
+defBlock(B.ASPHALT_LINE, 'Asphalt with Road Line', RT_CUBE, { top: 'asphalt_line', side: 'asphalt', bottom: 'asphalt' }, XR({ hard: 1.5, cat: 'building' }));
+defBlock(B.TURF, 'Artificial Turf', RT_CUBE, { top: 'turf', side: 'turf_side', bottom: 'dirt' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRASS, cat: 'building' });
+defBlock(B.TURF_LINE, 'Artificial Turf with Line', RT_CUBE, { top: 'turf_line', side: 'turf_side', bottom: 'dirt' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRASS, cat: 'building' });
+// fire: crossed flame sprites that sway, burn what is flammable around them and die out (fire.js)
+defBlock(B.FIRE, 'Fire', RT_CROSS, 'fire', { emit: 15, atten: 0, hard: 0, snd: SND.WOOL, flags: FLAG_WAVE_PLANT | FLAG_TRANSLUCENT, replace: true, solid: false, cat: null });

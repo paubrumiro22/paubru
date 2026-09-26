@@ -434,6 +434,73 @@ SKINS.push(
     { part: 'head', box: [-4.6, 31.4, -4.6, 4.6, 33.4, 4.6], color: 0xeeeeea },
   ]),
 );
+// Students (STUCOM campus) in hoodies and jeans with a backpack, and a teacher in shirt and tie.
+function studentSkin(key, hoodie, pants, hair, skinTone, bag, long) {
+  return {
+    key: 's_' + key, name: 'Student', icon: '', hidden: true, student: true,
+    extras: [
+      { part: 'body', box: [-3, 13.5, -4.2, 3, 21.5, -2], color: bag },
+      { part: 'body', box: [-2.6, 21.5, -3.6, 2.6, 22.3, -2.2], color: bag },
+      ...(long ? [{ part: 'head', box: [-4.3, 22.5, -4.4, 4.3, 26, -3.4], color: hair }] : []),
+    ],
+    paint(P) {
+      const sk = rgb(skinTone), hr = rgb(hair), hd = rgb(hoodie), pt = rgb(pants);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'top') return hr;
+        if (f === 'front') {
+          if (y < 2 || (long && (x === 0 || x === 7) && y < 6)) return hr;
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x2a2a30);
+          if (y === 3 && (x === 1 || x === 6)) return rgb(0xf4f4f0);
+          if (y === 6 && x >= 3 && x <= 4) return rgb(0x9a5a4a);
+          return sk;
+        }
+        if (f === 'back') return y < (long ? 8 : 5) ? hr : sk;
+        return y < (long ? 6 : 3) ? hr : sk;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front' && y === 0 && x >= 2 && x <= 5) return shadec(hd, 0.7);      // hood
+        if (f === 'front' && y >= 5 && y <= 7 && x >= 2 && x <= 5) return shadec(hd, 0.85); // pocket
+        if (f === 'front' && y === 2 && (x === 3 || x === 4)) return rgb(0xf0f0f0);    // strings
+        return y >= h - 1 ? shadec(hd, 0.8) : hd;
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 2 ? sk : y === h - 3 ? shadec(hd, 0.8) : hd));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? (y === h - 1 ? rgb(0xdadada) : rgb(0xf6f6f6)) : (x + y * 3) % 7 === 0 ? shadec(pt, 1.12) : pt));
+    },
+  };
+}
+SKINS.push(
+  studentSkin('blue', 0x2d5fa8, 0x34466e, 0x2a1a10, 0xe0b090, 0xd83a2a),
+  studentSkin('red', 0xd84a3a, 0x2a2a2e, 0x6a4020, 0xc68a60, 0x2a2a2e, true),
+  studentSkin('green', 0x3a9a5a, 0x3a4a78, 0xd8b060, 0xf0c8a8, 0x2d5fa8),
+  studentSkin('grey', 0xd8d8d4, 0x5a4a3a, 0x1a1a1a, 0x8a5a3a, 0xf0a020),
+  studentSkin('purple', 0x7a4aa8, 0x34466e, 0x8a2a1a, 0xe8b898, 0x3a3a3e, true),
+  studentSkin('yellow', 0xf0c030, 0x2a2a2e, 0x3a2a1a, 0xb07850, 0x2a6a4a),
+  {
+    key: 'v_teacher', name: 'Teacher', icon: '', hidden: true, villager: 'teacher',
+    extras: [{ part: 'head', box: [-3.6, 27.2, 4.05, 3.6, 27.9, 4.4], color: 0x202024 }],
+    paint(P) {
+      const sk = rgb(0xd8a888), hr = rgb(0x5a5a5e), shirt = rgb(0xe8eef6), tie = rgb(0x8a2030), jacket = rgb(0x3a4458);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'top') return hr;
+        if (f === 'front') {
+          if (y < 1) return hr;
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x2a2a30);
+          if (y === 6 && x >= 2 && x <= 5) return rgb(0x7a7a7e);                   // beard
+          return sk;
+        }
+        return y < 4 ? hr : sk;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front' && x >= 2 && x <= 5) return (x === 3 || x === 4) && y < 8 ? tie : shirt;
+        return jacket;
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 2 ? sk : jacket));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x2a1a14) : rgb(0x34343c)));
+    },
+  },
+);
+const STUDENT_SKINS = [];
+SKINS.forEach((sk, i) => { if (sk.student) STUDENT_SKINS.push(i); });
 const VILLAGER_SKIN = {};
 SKINS.forEach((sk, i) => { if (sk.villager) VILLAGER_SKIN[sk.villager] = i; });
 
