@@ -32,12 +32,19 @@ const PIC_BUILTIN = {
     g.fillStyle = '#243b8f'; g.fillRect(cx - r, cy, r * 2, r);              // navy bottom
     g.fillStyle = '#9aa0a8'; g.fillRect(cx - r, cy - 7, r * 2, 14);          // grey band
     g.restore();
-    g.strokeStyle = '#ffffff'; g.lineWidth = 9; g.lineCap = 'round';          // the white S
-    g.beginPath(); g.arc(cx + 2, cy - 15, 16, Math.PI * 0.15, Math.PI * 1.35, false); g.stroke();
-    g.beginPath(); g.arc(cx - 2, cy + 15, 16, Math.PI * 1.15, Math.PI * 2.35, false); g.stroke();
+    g.fillStyle = '#ffffff'; g.font = '900 78px Arial Black, Arial, sans-serif'; g.textBaseline = 'middle';
+    g.fillText('S', cx, cy + 3);                                                // the white S
+    g.textBaseline = 'alphabetic';
     g.fillStyle = '#232325'; g.font = '700 86px Arial, sans-serif'; g.fillText('stucom', W / 2, 250);
     g.fillStyle = '#c9c9c9'; g.fillRect(40, 272, W - 80, 3);
     g.fillStyle = '#3a3a3c'; g.font = '500 26px Arial, sans-serif'; g.fillText('Batxillerat', W / 2, 314); g.fillText('Formació Professional', W / 2, 348);
+  } },
+  plot: { w: 2, h: 2, draw(g, W, H) {
+    g.fillStyle = '#f4efe2'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = '#8a6a3a'; g.lineWidth = 16; g.strokeRect(8, 8, W - 16, H - 16);
+    g.fillStyle = '#2f6d3a'; g.textAlign = 'center';
+    g.font = '800 64px Arial, sans-serif'; g.fillText('SOLAR', W / 2, H * 0.36); g.fillText('LLIURE', W / 2, H * 0.52);
+    g.fillStyle = '#5a4a36'; g.font = '600 34px Arial, sans-serif'; g.fillText('Free plot', W / 2, H * 0.7); g.fillText('build here!', W / 2, H * 0.82);
   } },
   sunset: { w: 3, h: 2, draw(g, W, H) {
     const s = g.createLinearGradient(0, 0, 0, H); s.addColorStop(0, '#2b3a78'); s.addColorStop(0.55, '#f08a4b'); s.addColorStop(0.56, '#1f4d6e'); s.addColorStop(1, '#0d2436');

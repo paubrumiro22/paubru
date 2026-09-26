@@ -204,7 +204,7 @@ function drawMapMarks(ctx, wx, wz, px, py, k, W, H, dpr, full, clampRad) {
       const s = P(p.x, p.z);
       if (!inside(s)) continue;
       ctx.fillText(STRUCT_ICONS[p.type] || '📍', s[0], s[1]);
-      if (k > 0.6) label(ctx, p.type === 'village' ? 'Village' : p.type[0].toUpperCase() + p.type.slice(1), s[0], s[1] + 16 * dpr, dpr);
+      if (k > 0.3) label(ctx, p.name || (p.type[0].toUpperCase() + p.type.slice(1)), s[0], s[1] + 16 * dpr, dpr);
     }
   }
   if (G.spawnPoint) { const s = pin(G.spawnPoint[0], G.spawnPoint[2], 8 * dpr); if (clampRad || inside(s)) ctx.fillText('🛏️', s[0], s[1]); }

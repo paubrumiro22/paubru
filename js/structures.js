@@ -362,6 +362,7 @@ function planVillage(g, cx, cz, rng, style) {
       }
     },
   });
+  plan.name = villageName(cx, cz, g.seed);
   // a couple of villagers wander the plaza
   plan.spawns.push({ kind: 'villager', prof: PROFESSIONS[profI++ % PROFESSIONS.length], x: cx + 2.5, y: F0, z: cz + 0.5 });
   return plan;
@@ -570,6 +571,7 @@ function planPort(g, cx, cz, rng, seaDir) {
     plan.spawns.push({ kind: 'villager', prof: 'fisher', x: hx + 0.5, y: HF, z: hz + 0.5 });
   }
   plan.spawns.push({ kind: 'villager', prof: 'fisher', x: cx + sx * (len - 2) + 0.5, y: F + 1, z: cz + sz * (len - 2) + 0.5 });
+  plan.name = 'Port ' + villageName(cx, cz, g.seed).replace(/^(Sant|Santa) /, '');
   return plan;
 }
 function buildPier(W, g, p0, dir, len, st) {
@@ -705,6 +707,201 @@ function planCell(g, ix, iz) {
   return null;
 }
 
+
+// ---- village names ----
+const VNAME_A = ['Vila', 'Riu', 'Mont', 'Pedra', 'Vall', 'Torre', 'Font', 'Castell', 'Coll', 'Pla', 'Mas', 'Cala', 'Roca', 'Serra', 'Prat', 'Puig'];
+const VNAME_B = ['clara', 'nova', 'blanca', 'roja', 'seca', 'fosca', 'verda', 'daurada', 'alta', 'llarga', 'freda', 'bella', 'plana', 'grossa'];
+const VNAME_SAINT = ['Pere', 'Joan', 'Martí', 'Jordi', 'Anna', 'Maria', 'Llúcia', 'Cugat', 'Feliu', 'Quirze', 'Esteve', 'Andreu'];
+const VNAME_OF = ['de Mar', 'del Riu', 'del Bosc', 'de Dalt', 'de Baix', 'de la Serra', 'dels Pins', 'de les Fonts'];
+function villageName(x, z, seed) {
+  const r = mulberry32((seed ^ Math.imul(x, 668265263) ^ Math.imul(z, 374761393)) | 0);
+  const pick = (a) => a[Math.floor(r() * a.length)];
+  const k = r();
+  if (k < 0.3) { const s = pick(VNAME_SAINT); return (/a$/.test(s) ? 'Santa ' : 'Sant ') + s + (r() < 0.5 ? ' ' + pick(VNAME_OF) : ''); }
+  if (k < 0.75) return pick(VNAME_A) + pick(VNAME_B);
+  return pick(VNAME_A) + ' ' + pick(VNAME_OF);
+}
+
+// ---- the STUCOM village: the village nearest the origin, which new worlds start next to ----
+// It gets the school (a replica of the STUCOM Centre d'Estudis on Carrer Pelai, Barcelona) and a
+// couple of flat fenced plots kept free for the players to build on.
+function stucomVillage(g) {
+  if (g._stucom !== undefined || g._stucomBusy) return g._stucom || null;
+  if (!g.structs || g.ver < 2 || g.type !== 'default') { g._stucom = null; return null; }
+  g._stucomBusy = true;
+  let best = null, bd = 1600;
+  for (const p of structuresIn(g, -1600, -1600, 1600, 1600)) {
+    const d = Math.hypot(p.x, p.z);
+    if (p.type === 'village' && d < bd) { bd = d; best = p; }
+  }
+  g._stucomBusy = false;
+  g._stucom = best;
+  if (best && !best.stucom) decorateStucom(g, best);
+  return best;
+}
+
+function decorateStucom(g, plan) {
+  plan.stucom = true;
+  plan.name = 'STUCOM';
+  const st = VSTYLE[plan.style];
+  const cx = plan.x, cz = plan.z;
+  const W = 17, D = 13;
+  const rough = (x0, z0, x1, z1) => {
+    let lo = 1e9, hi = -1e9;
+    for (const [x, z] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1], [(x0 + x1) >> 1, (z0 + z1) >> 1]]) {
+      const h = g.height(x, z);
+      if (h < SEA) return 99;
+      lo = Math.min(lo, h); hi = Math.max(hi, h);
+    }
+    return hi - lo;
+  };
+  // the school faces the square from one of its four sides
+  let site = null;
+  for (const sz of [1, -1]) for (const dx of [-8, 6, -24]) {
+    const x0 = cx + dx, zf = cz + sz * 6, zb = zf + sz * (D - 1);
+    const r = rough(x0, Math.min(zf, zb), x0 + W - 1, Math.max(zf, zb));
+    if (!site || r < site.r) site = { x0, zf, sz, r };
+  }
+  const { x0, zf, sz } = site;
+  const rect = [x0 - 1, Math.min(zf, zf + sz * (D - 1)) - 1, x0 + W, Math.max(zf, zf + sz * (D - 1)) + 1];
+  const hits = (b) => b[2] >= rect[0] && b[0] <= rect[2] && b[3] >= rect[1] && b[1] <= rect[3];
+  // make room: whatever was planned there goes (roads stay, the square stays)
+  plan.pieces = plan.pieces.filter((p, i) => i === 0 || !p.box || !hits(p.box) || (p.box[0] <= cx && p.box[2] >= cx && p.box[1] <= cz && p.box[3] >= cz));
+  plan.zones.splice(0, plan.zones.length, ...plan.zones.filter((z) => !hits(z) || (z[0] <= cx && z[2] >= cx && z[1] <= cz && z[3] >= cz)));
+  plan.spawns = plan.spawns.filter((s) => !(s.x >= rect[0] && s.x <= rect[2] + 1 && s.z >= rect[1] && s.z <= rect[3] + 1));
+  plan.zones.push(rect);
+  // keep trees off the forecourt so the entrance and the sign stay in view
+  plan.zones.push(sz > 0 ? [x0 - 1, zf - 7, x0 + W, zf - 2] : [x0 - 1, zf + 2, x0 + W, zf + 7]);
+  const F = g.height(x0 + (W >> 1), zf + sz * (D >> 1)) + 1;
+  plan.pieces.push({ box: rect, build: (Wr) => buildSchool(Wr, g, x0, zf, sz, F, st) });
+  plan.spawns.push({ kind: 'villager', prof: 'librarian', x: x0 + 4.5, y: F, z: zf + sz * 5 + 0.5 });
+  plan.spawns.push({ kind: 'villager', prof: 'cleric', x: x0 + 12.5, y: F, z: zf + sz * 5 + 0.5 });
+  // two free building plots on the other side of the square
+  let placed = 0;
+  const spots = [];
+  for (let r = 14; r <= 70; r += 7) for (let k = 0; k < 16; k++) {
+    const a = k / 16 * Math.PI * 2;
+    spots.push([Math.round(cx + Math.cos(a) * r) - 7, Math.round(cz + Math.sin(a) * r) - 7]);
+  }
+  for (const [px0, pz0] of spots) {
+    if (placed >= 2) break;
+    const px1 = px0 + 13, pz1 = pz0 + 13;
+    if (plan.zones.some((z) => px1 + 2 >= z[0] && px0 - 2 <= z[2] && pz1 + 2 >= z[1] && pz0 - 2 <= z[3])) continue;
+    if (Math.abs(px0 + 7 - cx) < 3 || Math.abs(pz0 + 7 - cz) < 3) continue;   // not across a road
+    if (rough(px0, pz0, px1, pz1) > 7) continue;
+    plan.zones.push([px0, pz0, px1, pz1]);
+    const PF = g.height((px0 + px1) >> 1, (pz0 + pz1) >> 1) + 1;
+    plan.pieces.push({ box: [px0, pz0, px1, pz1], build: (Wr) => buildPlot(Wr, g, px0, pz0, px1, pz1, PF, st, (pz0 + pz1) / 2 < cz ? 1 : -1) });
+    placed++;
+  }
+}
+
+// A flat, fenced plot with lamps at the corners and a sign: room for the players' own builds.
+function buildPlot(W, g, x0, z0, x1, z1, F, st, sz) {
+  if (!rectHits(W, x0, z0, x1, z1)) return;
+  for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) {
+    if (!W.has(x, z)) continue;
+    const h = g.height(x, z);
+    for (let y = Math.min(h, F - 2); y < F - 1; y++) if (y > 0) W.set(x, y, z, B.DIRT);
+    W.set(x, F - 1, z, B.GRASS);
+    for (let y = F; y <= F + 14; y++) W.set(x, y, z, B.AIR);
+    const corner = (x === x0 || x === x1) && (z === z0 || z === z1);
+    const edge = x === x0 || x === x1 || z === z0 || z === z1;
+    if (corner) { W.set(x, F, z, st.fence); W.set(x, F + 1, z, st.fence); W.set(x, F + 2, z, B.LANTERN, 0); }
+    else if (edge && (x + z) % 4 === 0) W.set(x, F, z, st.fence);
+  }
+  // sign on a post by the edge that faces the square
+  const zs = sz > 0 ? z1 : z0, f = sz > 0 ? 4 : 5, mx = (x0 + x1) >> 1;
+  W.set(mx, F, zs, B.PLASTER); W.set(mx + 1, F, zs, B.PLASTER);
+  W.set(mx, F + 1, zs, B.PLASTER); W.set(mx + 1, F + 1, zs, B.PLASTER);
+  W.pic(f === 4 ? mx : mx + 1, F, zs + (f === 4 ? 1 : -1), f, 2, 2, 'plot');
+}
+
+// The school: a Barcelona block front in stone and render, the arched entrance with the sign,
+// four floors of classrooms behind balconies, a stair-and-ladder core and a roof terrace.
+// Local frame: a (0..16) along the street, d (0..12) into the building; the front (d = 0) faces
+// the square, i.e. towards -sz in z.
+function buildSchool(W, g, x0, zf, sz, F, st) {
+  const Wd = 17, D = 13, floors = [F, F + 6, F + 10, F + 14, F + 18], roof = F + 22;
+  const Z = (d) => zf + sz * d;
+  const set = (a, y, d, id, f) => W.set(x0 + a, y, Z(d), id, f);
+  const zs = [Z(0), Z(D - 1)];
+  if (!rectHits(W, x0 - 1, Math.min(...zs) - 2, x0 + Wd, Math.max(...zs) + 1)) return;
+  const out = sz > 0 ? 5 : 4, inw = sz > 0 ? 4 : 5;          // facings towards the square / inside
+  const stairs = shapeId('stone_brick', 'stairs');
+  for (let a = -1; a <= Wd; a++) for (let d = -2; d <= D; d++) {
+    const x = x0 + a, z = Z(d);
+    if (!W.has(x, z)) continue;
+    const inside = a >= 0 && a < Wd && d >= 0 && d < D;
+    const h = g.height(x, z);
+    if (inside) for (let y = Math.min(h, F - 3); y < F; y++) if (y > 0) W.set(x, y, z, B.STONE_BRICKS);
+    for (let y = F; y <= roof + 4; y++) W.set(x, y, z, B.AIR);
+    if (!inside) {
+      // pavement in front of the school
+      if (d < 0) { for (let y = Math.min(h, F - 2); y < F - 1; y++) if (y > 0) W.set(x, y, z, B.STONE_BRICKS); W.set(x, F - 1, z, B.SMOOTH_STONE); }
+      continue;
+    }
+    const front = d === 0, back = d === D - 1, side = a === 0 || a === Wd - 1;
+    W.set(x, F - 1, z, front || back || side ? B.STONE_BRICKS : B.SPRUCE_PLANKS);
+    for (let y = F; y < roof; y++) {
+      const fl = floors.filter((q) => q <= y).pop();
+      let id = B.AIR;
+      if (front) {
+        if (y < F + 6) id = (y - F) % 2 ? B.SANDSTONE : B.PLASTER;                 // rusticated ground floor
+        else if (y === fl) id = B.SANDSTONE;                                        // floor band
+        else id = B.PLASTER;
+      } else if (back || side) id = y === fl && y > F ? B.SANDSTONE : B.PLASTER;
+      else if (y === fl && y > F) id = B.SPRUCE_PLANKS;                             // upper floors
+      set(a, y, d, id);
+    }
+    // roof terrace with a parapet
+    set(a, roof, d, B.SMOOTH_STONE);
+    if (front || back || side) set(a, roof + 1, d, front ? B.IRON_BARS : B.PLASTER);
+  }
+  // cornice along the top of the front
+  for (let a = -1; a <= Wd; a++) set(a, roof - 1, -1, shapeId('sandstone', 'stairs'), (sz > 0 ? 4 : 5) | 8);
+  // ---- ground floor: the arched entrance with the sign above the doors ----
+  for (let a = 5; a <= 11; a++) for (let y = F; y < F + 6; y++) set(a, y, 0, (a === 5 || a === 11) ? B.SANDSTONE : y < F + 3 ? B.AIR : B.PLASTER);
+  set(5, F + 5, 0, shapeId('stone_brick', 'arch'), sz > 0 ? 1 : 0); set(11, F + 5, 0, shapeId('stone_brick', 'arch'), sz > 0 ? 0 : 1);
+  for (let a = 6; a <= 10; a++) for (let d = 1; d <= 2; d++) { set(a, F - 1, d, B.SMOOTH_STONE); set(a, F + 3, d, B.PLASTER); }
+  for (let a = 6; a <= 10; a++) set(a, F, 2, a === 8 ? B.DOOR : B.GLASS_PANE, out), set(a, F + 1, 2, a === 8 ? B.DOOR_TOP : B.GLASS_PANE, out), set(a, F + 2, 2, B.GLASS_PANE);
+  // the sign: picture hung on the plaster above the doors, facing the square
+  const n = sz > 0 ? [0, -1] : [0, 1];
+  W.pic(sz > 0 ? x0 + 10 : x0 + 6, F + 3, Z(-1), out, 5, 3, 'stucom');
+  void n;
+  // ground-floor shop windows either side of the entrance
+  for (const a0 of [1, 13]) for (let a = a0; a < a0 + 3; a++) for (let y = F + 1; y <= F + 3; y++) set(a, y, 0, B.GLASS_PANE);
+  // ---- upper floors: tall windows with iron balconies ----
+  const bays = [[2, 3], [6, 7], [9, 10], [13, 14]];
+  for (const fl of floors.slice(1)) for (const [b0, b1] of bays) {
+    for (let a = b0; a <= b1; a++) for (let y = fl + 1; y <= fl + 3; y++) set(a, y, 0, B.GLASS_PANE);
+    set(b0 - 1, fl + 2, 0, B.SPRUCE_PLANKS); set(b1 + 1, fl + 2, 0, B.SPRUCE_PLANKS);   // shutters
+    for (let a = b0 - 1; a <= b1 + 1; a++) { set(a, fl, -1, B.SANDSTONE_SLAB, 8); set(a, fl + 1, -1, B.IRON_BARS); }
+  }
+  // ---- inside ----
+  // lobby: reception desk, benches, the school's sign picture, lamps
+  for (let a = 2; a <= 5; a++) set(a, F, 5, B.SPRUCE_PLANKS);
+  set(2, F + 1, 5, B.LANTERN, 0);
+  for (let a = 11; a <= 14; a++) set(a, F, 8, shapeId('oak', 'stairs'), out);
+  W.pic(sz > 0 ? x0 + 14 : x0 + 12, F + 2, Z(D - 2), out, 3, 2, 'sunset');
+  for (const a of [4, 12]) set(a, F + 5, 6, B.LANTERN, 8);
+  // classrooms: desks and chairs facing a whiteboard on the back wall
+  for (const fl of floors.slice(1)) {
+    for (let a = 4; a <= 12; a++) for (let y = fl + 1; y <= fl + 2; y++) set(a, y, D - 1, B.WOOL);   // whiteboard
+    set(8, fl + 1, D - 3, B.SPRUCE_PLANKS); set(9, fl + 1, D - 3, B.SPRUCE_PLANKS);                // teacher's desk
+    for (const d of [3, 5, 7]) for (const a of [3, 4, 7, 8, 11, 12]) {
+      set(a, fl + 1, d + 1, B.PLANK_SLAB);                      // desk
+      set(a, fl + 1, d, shapeId('oak', 'stairs'), out);         // chair, back to the windows
+    }
+    for (const a of [4, 8, 12]) set(a, fl + 3, 6, B.LANTERN, 8);
+  }
+  // stair core: a ladder in the back corner through every floor to the roof
+  for (let y = F; y <= roof + 1; y++) set(1, y, D - 2, B.LADDER, out);
+  for (let y = roof + 1; y <= roof + 3; y++) { set(0, y, D - 3, B.PLASTER); set(2, y, D - 3, B.PLASTER); set(1, y, D - 1, B.PLASTER); }
+  set(1, roof + 4, D - 2, B.SMOOTH_STONE); set(0, roof + 4, D - 2, B.SMOOTH_STONE); set(2, roof + 4, D - 2, B.SMOOTH_STONE);
+  void inw;
+}
+
 // Plans whose area may touch the rectangle.
 function structuresIn(g, x0, z0, x1, z1) {
   if (!g.structs) return [];
@@ -717,6 +914,8 @@ function structuresIn(g, x0, z0, x1, z1) {
     if (p === undefined) { p = planCell(g, i, j); g.structs.set(key, p); }
     if (p) out.push(p);
   }
+  // the STUCOM village is decided (and gets its school) before anything is built
+  if (g._stucom === undefined && !g._stucomBusy) stucomVillage(g);
   return out;
 }
 

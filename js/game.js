@@ -565,8 +565,8 @@ function findSpawn(gen) {
 function villageSpawn(gen, base) {
   if (!gen.structs) return null;
   const [bx, , bz] = base;
-  let best = null, bd = 1600;
-  for (const p of structuresIn(gen, bx - 1600, bz - 1600, bx + 1600, bz + 1600)) {
+  let best = stucomVillage(gen), bd = 1600;
+  if (!best) for (const p of structuresIn(gen, bx - 1600, bz - 1600, bx + 1600, bz + 1600)) {
     const d = Math.hypot(p.x - bx, p.z - bz);
     if (p.type === 'village' && d < bd) { bd = d; best = p; }
   }

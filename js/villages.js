@@ -85,6 +85,15 @@ const Villages = {
     const g = G.world && G.world.gen;
     if (!g || !g.structs || !G.rules.mobSpawning) return;
     const p = G.player.pos;
+    // entering a named place: show its name
+    let here = null;
+    for (const plan of structuresIn(g, p[0] - 60, p[2] - 60, p[0] + 60, p[2] + 60)) {
+      if (plan.name && Math.hypot(plan.x - p[0], plan.z - p[2]) < Math.max(24, (plan.radius || 30) * 0.8)) here = plan;
+    }
+    if (here !== this.here) {
+      this.here = here;
+      if (here) G.ui.banner(here.stucom ? '🏫' : here.type === 'port' ? '⚓' : '🏘️', here.name);
+    }
     for (const [plan, mobs] of this.populated) {
       const d = Math.hypot(plan.x - p[0], plan.z - p[2]);
       if (d > 170 || mobs.every((m) => m.removed)) { for (const m of mobs) m.removed = true; this.populated.delete(plan); }
