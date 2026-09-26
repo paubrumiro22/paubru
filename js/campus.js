@@ -150,6 +150,15 @@ function planCampus(g, plan, st, rough) {
     plan.pieces.push({ box: [Math.min(hx0, mt.x0) - 1, Math.min(hz0, mt.z0) - 1, Math.max(hx1, mt.x1) + 1, Math.max(hz1, mt.z1) + 1], build: (W) => buildMetro(W, g, L, mt.F) });
     plan.metro = { x: L.X(2, 17), z: L.Z(2, 17), y: mt.F - 8 };
   }
+  // Banc Central (bank.js runs it: money, services); added last so the other pieces keep their places
+  const bk = campus.bank = site(17, 20, 16, 96, 6) || site(17, 20, 14, 100, 10) || site(17, 20, 12, 102, 18);
+  if (bk) {
+    const L = lframe(bk.x0, bk.z0, 17, 20, bk.f);
+    add(bk, 3, (W) => buildBank(W, g, L, bk.F));
+    const FL = bk.F + 2;
+    for (const a of [4, 12]) plan.spawns.push({ kind: 'villager', prof: 'banker', x: L.X(a, 13) + 0.5, y: FL, z: L.Z(a, 13) + 0.5, home: [L.X(a, 13) + 0.5, L.Z(a, 13) + 0.5], homeR: 2.5 });
+    student(L.X(3, 8), FL, L.Z(3, 8));
+  }
   // bus stop at the side of a road, a little way out of the square
   for (const [dx, dz, len] of plan.roadDirs || []) {
     let done = false;
@@ -179,6 +188,79 @@ function planCampus(g, plan, st, rough) {
 }
 
 // ---- the pieces ----
+// Banc Central: a neoclassical bank on a podium, with a columned portico under a pediment, a
+// hall with a chequered floor, tellers' windows, the bankers behind them and the vault at the
+// back full of gold. 17 wide, 20 deep (d 0..2 are the steps, 1..3 the portico).
+function buildBank(W, g, L, F) {
+  const bx = L.box;
+  if (!rectHits(W, bx[0] - 2, bx[1] - 2, bx[2] + 2, bx[3] + 2)) return;
+  const S = lwriter(W, L);
+  const Wd = 17, D = 20, FL = F + 2, TOP = F + 9;
+  campusGround(W, g, bx[0] - 1, bx[1] - 1, bx[2] + 1, bx[3] + 1, F, B.PANOT, 24, B.STONE_BRICKS);
+  const qStairs = shapeId('quartz', 'stairs'), qPillar = shapeId('quartz', 'pillar');
+  for (let a = 0; a < Wd; a++) for (let d = 0; d < D; d++) {
+    // podium and the steps up to it
+    if (d === 0) { S.set(a, F, d, qStairs, L.inw); continue; }
+    if (d === 1) { S.set(a, F, d, B.QUARTZ_BLOCK); S.set(a, F + 1, d, qStairs, L.inw); continue; }
+    S.set(a, F, d, B.QUARTZ_BRICKS); S.set(a, F + 1, d, d <= 3 ? B.QUARTZ_BLOCK : B.CHECKER_TILE);
+    if (d <= 3) continue;
+    const edge = a === 0 || a === Wd - 1 || d === 4 || d === D - 1;
+    for (let y = FL; y <= TOP; y++) {
+      let id = B.AIR;
+      if (edge) {
+        id = y === TOP ? B.QUARTZ_BLOCK : (a === 0 || a === Wd - 1) && (d === 4 || d === D - 1) ? B.QUARTZ_PILLAR : B.QUARTZ_BRICKS;
+        const along = d === 4 || d === D - 1 ? a : d;
+        if (y >= FL + 1 && y <= FL + 4 && along % 3 === 1 && along > 1 && along < (d === 4 || d === D - 1 ? Wd - 2 : D - 2)) id = B.GLASS_PANE;
+      } else if (y === TOP) id = B.QUARTZ_BLOCK;
+      S.set(a, y, d, id);
+    }
+  }
+  // portico: six columns and the entablature with the name
+  for (const a of [1, 4, 7, 9, 12, 15]) for (let y = FL; y < TOP; y++) S.set(a, y, 2, qPillar);
+  for (let a = 0; a < Wd; a++) for (let d = 1; d <= 3; d++) S.set(a, TOP, d, d === 1 ? B.CHISELED_SANDSTONE : B.QUARTZ_BLOCK);
+  S.pic(3, TOP, 0, L.out, 11, 1, 'bank');
+  // the doorway, tall and wide
+  for (let a = 7; a <= 9; a++) for (let y = FL; y <= FL + 4; y++) S.set(a, y, 4, B.AIR);
+  S.set(7, FL + 5, 4, shapeId('quartz', 'arch'), L.back); S.set(9, FL + 5, 4, shapeId('quartz', 'arch'), L.along);
+  // pediment roof over everything (the ridge runs front to back)
+  const c0 = [L.X(0, 1), L.Z(0, 1)], c1 = [L.X(Wd - 1, D - 1), L.Z(Wd - 1, D - 1)];
+  roofGable(W, Math.min(c0[0], c1[0]), Math.min(c0[1], c1[1]), Math.max(c0[0], c1[0]), Math.max(c0[1], c1[1]), TOP + 1, { roof: 'quartz', ridge: B.QUARTZ_BLOCK }, B.QUARTZ_BRICKS);
+  // gold clock in the pediment
+  S.set(8, TOP + 3, 1, B.GOLD_BLOCK);
+  // ---- inside ----
+  // tellers' counter across the hall with glass windows, the bankers behind it
+  for (let a = 1; a < Wd - 1; a++) {
+    S.set(a, FL, 11, a === 8 ? B.AIR : B.POLISHED_DIORITE);
+    if (a !== 8) { S.set(a, FL + 1, 11, a % 3 === 2 ? B.POLISHED_DIORITE : B.GLASS_PANE); S.set(a, FL + 2, 11, B.GLASS_PANE); }
+    S.set(a, FL + 3, 11, B.DARK_OAK_PLANKS);
+  }
+  S.set(8, FL, 11, B.DOOR, L.inw); S.set(8, FL + 1, 11, B.DOOR_TOP, L.inw);
+  for (const a of [3, 6, 10, 13]) S.set(a, FL, 12, shapeId('dark_oak', 'stairs'), L.inw);
+  for (const a of [2, 5, 11, 14]) S.set(a, FL, 12, B.COMPUTER, L.out);
+  // waiting benches, plants and a rates board
+  for (const a of [2, 3, 13, 14]) S.set(a, FL, 7, shapeId('dark_oak', 'stairs'), L.out);
+  for (const [a, d] of [[1, 5], [15, 5], [1, 10], [15, 10]]) { S.set(a, FL, d, B.PODZOL); S.set(a, FL + 1, d, B.BUSH); }
+  S.pic(1, FL + 1, 8, L.along, 2, 2, 'bank_rates', true);
+  // chandeliers
+  for (const [a, d] of [[5, 7], [11, 7], [8, 14]]) { S.set(a, TOP - 1, d, B.IRON_BARS); S.set(a, TOP - 2, d, B.GLASS_LAMP); }
+  // the vault: iron walls, a round door and gold inside
+  for (let a = 4; a <= 12; a++) for (let d = 15; d <= D - 2; d++) for (let y = FL; y <= FL + 4; y++) {
+    const wall = a === 4 || a === 12 || d === 15 || y === FL + 4;
+    S.set(a, y, d, wall ? B.IRON_BLOCK : B.AIR);
+  }
+  for (let a = 7; a <= 9; a++) for (let y = FL; y <= FL + 2; y++) S.set(a, y, 15, a === 8 && y === FL + 1 ? B.GOLD_BLOCK : B.STEEL_PLATE);
+  S.set(8, FL, 15, B.IRON_BARS); S.set(8, FL + 1, 15, B.IRON_BARS);
+  for (let a = 5; a <= 11; a++) { S.set(a, FL, D - 2, a % 2 ? B.GOLD_BLOCK : B.EMERALD_BLOCK); S.set(a, FL + 1, D - 2, a % 3 === 0 ? B.GOLD_BLOCK : B.AIR); }
+  S.set(5, FL, 16, B.CHEST, L.along); W.loot(L.X(5, 16), FL, L.Z(5, 16), 'bank');
+  S.set(11, FL, 16, B.CHEST, L.back); W.loot(L.X(11, 16), FL, L.Z(11, 16), 'bank');
+  S.set(8, FL + 3, 17, B.LANTERN, 8);
+  // flags either side of the steps
+  for (const a of [-2, Wd + 1]) {
+    for (let y = F; y <= F + 7; y++) S.set(a, y, 0, B.IRON_BARS);
+    S.set(a, F + 7, 0, B.WOOL + 14); S.set(a, F + 6, 0, B.WOOL + 4); S.set(a, F + 5, 0, B.WOOL + 14);
+  }
+}
+
 // In front of the school: paving, trees in planters, benches, lamps, a bike rack and a sign.
 function buildForecourt(W, g, fc) {
   if (!rectHits(W, fc.rect[0], fc.rect[1], fc.rect[2], fc.rect[3])) return;

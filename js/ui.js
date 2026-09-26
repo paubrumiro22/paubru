@@ -325,6 +325,7 @@ const UI = {
       else if (s.kind === 'enchant') this.renderEnchantTop(top);
       else if (s.kind === 'brew') this.renderBrewTop(top);
       else if (s.kind === 'picture') this.renderPictureTop(top);
+      else if (s.kind === 'bank') Bank.renderTop(top, this);
       root.append(this.label('Inventory'));
       root.append(this.grid(main, 9, 'main'));
       const hb = this.grid(hot, 9, 'hotbar');

@@ -499,6 +499,34 @@ SKINS.push(
     },
   },
 );
+SKINS.push({
+  key: 'v_banker', name: 'Banker', icon: '', hidden: true, villager: 'banker',
+  extras: [
+    { part: 'head', box: [-5, 31.6, -5, 5, 32.4, 5], color: 0x1c1c20 }, { part: 'head', box: [-4, 32.4, -4, 4, 36, 4], color: 0x1c1c20 },
+    { part: 'head', box: [-4.05, 32.4, -4.05, 4.05, 33.2, 4.05], color: 0x8a2030 },
+  ],
+  paint(P) {
+    const sk = rgb(0xe0b494), hr = rgb(0x3a2a20), shirt = rgb(0xf2f2f0), tie = rgb(0x1f3a8a), suit = rgb(0x2a2e3a);
+    P.fill('head', (x, y, w, h, f) => {
+      if (f === 'top') return hr;
+      if (f === 'front') {
+        if (y < 1) return hr;
+        if (y === 3 && (x === 2 || x === 5)) return rgb(0x2a2a30);
+        if (y === 5 && x >= 2 && x <= 5) return rgb(0x5a3a28);                    // moustache
+        return sk;
+      }
+      return y < 3 ? hr : sk;
+    });
+    P.fill('body', (x, y, w, h, f) => {
+      if (f === 'front' && x >= 3 && x <= 4) return y < 9 ? tie : suit;
+      if (f === 'front' && (x === 2 || x === 5) && y < 5) return shirt;
+      if (f === 'front' && x === 1 && y === 3) return rgb(0xe0c040);               // gold pin
+      return suit;
+    });
+    P.fill('arm', (x, y, w, h) => (y >= h - 2 ? sk : y === h - 3 ? shirt : suit));
+    P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x141414) : suit));
+  },
+});
 const STUDENT_SKINS = [];
 SKINS.forEach((sk, i) => { if (sk.student) STUDENT_SKINS.push(i); });
 const VILLAGER_SKIN = {};

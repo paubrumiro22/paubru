@@ -7,6 +7,7 @@
 const LOOT = {
   house: [[I.BREAD, 1, 3, 0.6], [I.APPLE, 1, 3, 0.5], [I.STICK, 2, 6, 0.4], [B.TORCH, 2, 6, 0.4], [I.SEEDS, 2, 5, 0.3], [I.EMERALD, 1, 2, 0.3], [I.IRON_INGOT, 1, 2, 0.2], [I.BOOK, 1, 2, 0.2]],
   farm: [[I.WHEAT, 3, 8, 0.8], [I.SEEDS, 2, 8, 0.7], [I.BREAD, 1, 3, 0.5], [B.PUMPKIN, 1, 2, 0.3], [I.APPLE, 1, 4, 0.4], [I.EMERALD, 1, 2, 0.25]],
+  bank: [[I.GOLD_INGOT, 2, 6, 0.8], [I.EMERALD, 2, 6, 0.8], [I.DIAMOND, 1, 2, 0.35], [B.GOLD_BLOCK, 1, 1, 0.2], [I.PAPER, 4, 12, 0.6]],
   fish: [[I.RAW_FISH, 2, 6, 0.8], [I.COOKED_FISH, 1, 3, 0.5], [I.STRING, 1, 4, 0.5], [I.EMERALD, 1, 2, 0.3]],
   smith: [[I.IRON_INGOT, 2, 6, 0.8], [I.COAL, 3, 8, 0.7], [I.TOOL0 + 10, 1, 1, 0.25], [I.TOOL0 + 13, 1, 1, 0.25], [I.ARMOR0 + 5, 1, 1, 0.2], [I.GOLD_INGOT, 1, 3, 0.3], [I.EMERALD, 1, 3, 0.4], [I.DIAMOND, 1, 1, 0.08]],
   castle: [[I.IRON_INGOT, 2, 6, 0.7], [I.ARROW, 4, 16, 0.6], [I.BOW, 1, 1, 0.3], [I.TOOL0 + 13, 1, 1, 0.35], [I.ARMOR0 + 4, 1, 1, 0.25], [I.ARMOR0 + 6, 1, 1, 0.25], [I.GOLD_INGOT, 2, 5, 0.4], [I.EMERALD, 2, 5, 0.5], [I.BREAD, 2, 5, 0.5]],
@@ -55,6 +56,7 @@ const TRADES = {
   librarian: [[[I.PAPER, 24], [I.EMERALD, 1]], [[I.EMERALD, 1], [B.BOOKSHELF, 1]], [[I.EMERALD, 5], [I.ENCHANTED_BOOK, 1]], [[I.BOOK, 4], [I.EMERALD, 1]], [[I.EMERALD, 1], [B.LANTERN, 1]]],
   cleric: [[[I.ROTTEN_FLESH, 24], [I.EMERALD, 1]], [[I.EMERALD, 1], [B.GLOWSTONE, 2]], [[I.BONE, 12], [I.EMERALD, 1]], [[I.EMERALD, 4], [I.GOLDEN_APPLE, 1]], [[I.GOLD_INGOT, 3], [I.EMERALD, 1]]],
   mason: [[[B.CLAY, 10], [I.EMERALD, 1]], [[I.EMERALD, 1], [B.PLASTER, 8]], [[I.EMERALD, 1], [B.ROOF_TILES, 8]], [[I.EMERALD, 1], [B.MARBLE, 6]], [[I.EMERALD, 1], [B.SLATE, 8]], [[I.EMERALD, 2], [B.ARCH_TABLE, 1]]],
+  banker: [[[I.GOLD_INGOT, 3], [I.EMERALD, 1]], [[I.EMERALD, 1], [I.PAPER, 8]]],
   student: [[[I.PAPER, 16], [I.EMERALD, 1]], [[I.EMERALD, 1], [I.BREAD, 3]], [[I.EMERALD, 1], [I.APPLE, 3]], [[I.BOOK, 2], [I.EMERALD, 1]], [[I.EMERALD, 3], [I.BIKE, 1]], [[I.EMERALD, 2], [B.CRATE, 4]]],
   teacher: [[[I.EMERALD, 2], [B.COMPUTER, 1]], [[I.EMERALD, 1], [B.WHITEBOARD, 2]], [[I.EMERALD, 1], [B.CHALKBOARD, 2]], [[I.BOOK, 3], [I.EMERALD, 1]], [[I.EMERALD, 4], [I.ENCHANTED_BOOK, 1]], [[I.EMERALD, 1], [B.CORKBOARD, 2]], [[I.EMERALD, 1], [B.LOCKER, 2]]],
   shepherd: [[[B.WOOL, 16], [I.EMERALD, 1]], [[I.EMERALD, 1], [B.WOOL + 14, 4]], [[I.EMERALD, 1], [B.WOOL + 11, 4]], [[I.EMERALD, 2], [I.SHEARS, 1]], [[I.EMERALD, 2], [B.BED, 1]]],
@@ -71,7 +73,7 @@ function villagerTrades(m) {
 }
 
 const VILLAGER_NAMES = ['Aldo', 'Berta', 'Ciro', 'Dalia', 'Elio', 'Fina', 'Gael', 'Hana', 'Iker', 'Julia', 'Kai', 'Lola', 'Mateo', 'Nuria', 'Oto', 'Paz', 'Quim', 'Rosa', 'Saúl', 'Teo', 'Uma', 'Vera', 'Xoan', 'Yago', 'Zoe'];
-const PROF_NAMES = { student: 'Student', teacher: 'Teacher', farmer: 'Farmer', fisher: 'Fisher', smith: 'Blacksmith', librarian: 'Librarian', cleric: 'Cleric', mason: 'Mason', shepherd: 'Shepherd' };
+const PROF_NAMES = { banker: 'Banker', student: 'Student', teacher: 'Teacher', farmer: 'Farmer', fisher: 'Fisher', smith: 'Blacksmith', librarian: 'Librarian', cleric: 'Cleric', mason: 'Mason', shepherd: 'Shepherd' };
 
 // ---- population ----
 const Villages = {
@@ -120,8 +122,8 @@ const Villages = {
           m.skin = VILLAGER_SKIN[s.prof] || VILLAGER_SKIN.farmer;
           // students wear their own clothes: one of the student skins, picked by the seed
           if (s.prof === 'student') m.skin = STUDENT_SKINS[Math.abs(m.seed) % STUDENT_SKINS.length];
-          m.home = [plan.x, plan.z];
-          m.homeR = plan.type === 'castle' ? 12 : plan.type === 'port' ? 26 : Math.max(18, plan.radius * 0.8);
+          m.home = s.home || [plan.x, plan.z];
+          m.homeR = s.homeR || (plan.type === 'castle' ? 12 : plan.type === 'port' ? 26 : Math.max(18, plan.radius * 0.8));
           m.name = VILLAGER_NAMES[Math.abs(m.seed) % VILLAGER_NAMES.length];
         } else { m.home = [s.x, s.z]; m.homeR = 2.5; }
         mobs.push(m);

@@ -488,6 +488,28 @@
     .icons i { width: 13px; height: 13px; } .icons { height: 13px; }
     .book { width: 100%; border-left: 0; padding-left: 0; }
   }
+  /* ---- money and the bank (bank.js) ---- */
+  #money { position: absolute; left: 14px; top: 12px; padding: 6px 12px 6px 10px; border-radius: 999px; background: rgba(11, 16, 24, 0.72); border: 1px solid var(--line);
+    font: 700 15px var(--body); color: #ffe08a; letter-spacing: 0.02em; text-shadow: 0 1px 0 #000; }
+  #money.bump { animation: moneyBump 0.45s ease-out; }
+  @keyframes moneyBump { 0% { transform: scale(1); } 30% { transform: scale(1.18); color: #fff3b8; } 100% { transform: scale(1); } }
+  .bankbox { display: flex; flex-direction: column; gap: 10px; width: min(720px, 86vw); }
+  .bk-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-radius: 12px;
+    background: linear-gradient(135deg, #1d2740, #2c1f14); border: 1px solid rgba(255, 214, 120, 0.35); }
+  .bk-head b { display: block; font: 800 20px var(--body); color: #ffe7a8; letter-spacing: 0.04em; }
+  .bk-head small { color: #b8c0d4; font-size: 12px; }
+  .bk-bal { text-align: right; } .bk-bal span { font: 800 26px var(--body); color: #fff; } .bk-bal i { font-style: normal; margin-left: 6px; font-size: 22px; }
+  .bk-bal small { display: block; }
+  .bk-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .bk-col { overflow-y: auto; padding-right: 4px; max-height: 38vh; }
+  .bk-col h4 { margin: 2px 0 6px; font: 700 13px var(--body); color: #9fb0cc; text-transform: uppercase; letter-spacing: 0.08em; }
+  .bk-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); margin-bottom: 4px; }
+  .bk-row.dim { opacity: 0.5; }
+  .bk-ic { width: 30px; height: 30px; flex: none; background-size: contain; image-rendering: pixelated; font-style: normal; font-size: 22px; line-height: 30px; text-align: center; }
+  .bk-name { flex: 1; font-size: 13px; line-height: 1.2; } .bk-name small { display: block; color: #9aa6ba; font-size: 11px; }
+  .bk-price { color: #ffe08a; font-weight: 700; font-size: 13px; white-space: nowrap; }
+  .bk-row button { padding: 4px 10px; font-size: 12px; }
+  @media (max-width: 700px) { .bk-cols { grid-template-columns: 1fr; } .bk-col { max-height: 17vh; } }
   /* ---- touch controls (touch.js) ---- */
   #touchUI { position: fixed; inset: 0; pointer-events: none; z-index: 30; user-select: none; -webkit-user-select: none; }
   #touchUI.hidden { display: none; }
@@ -528,6 +550,7 @@
   </div>
   <div id="debug" class="hidden"></div>
   <div id="toast"></div>
+  <div id="money"></div>
   <div id="placeBanner"></div>
   <div id="nametags"></div>
   <div id="chatLog"></div>
@@ -8045,6 +8068,15 @@ function planCampus(g, plan, st, rough) {
     plan.pieces.push({ box: [Math.min(hx0, mt.x0) - 1, Math.min(hz0, mt.z0) - 1, Math.max(hx1, mt.x1) + 1, Math.max(hz1, mt.z1) + 1], build: (W) => buildMetro(W, g, L, mt.F) });
     plan.metro = { x: L.X(2, 17), z: L.Z(2, 17), y: mt.F - 8 };
   }
+  // Banc Central (bank.js runs it: money, services); added last so the other pieces keep their places
+  const bk = campus.bank = site(17, 20, 16, 96, 6) || site(17, 20, 14, 100, 10) || site(17, 20, 12, 102, 18);
+  if (bk) {
+    const L = lframe(bk.x0, bk.z0, 17, 20, bk.f);
+    add(bk, 3, (W) => buildBank(W, g, L, bk.F));
+    const FL = bk.F + 2;
+    for (const a of [4, 12]) plan.spawns.push({ kind: 'villager', prof: 'banker', x: L.X(a, 13) + 0.5, y: FL, z: L.Z(a, 13) + 0.5, home: [L.X(a, 13) + 0.5, L.Z(a, 13) + 0.5], homeR: 2.5 });
+    student(L.X(3, 8), FL, L.Z(3, 8));
+  }
   // bus stop at the side of a road, a little way out of the square
   for (const [dx, dz, len] of plan.roadDirs || []) {
     let done = false;
@@ -8074,6 +8106,79 @@ function planCampus(g, plan, st, rough) {
 }
 
 // ---- the pieces ----
+// Banc Central: a neoclassical bank on a podium, with a columned portico under a pediment, a
+// hall with a chequered floor, tellers' windows, the bankers behind them and the vault at the
+// back full of gold. 17 wide, 20 deep (d 0..2 are the steps, 1..3 the portico).
+function buildBank(W, g, L, F) {
+  const bx = L.box;
+  if (!rectHits(W, bx[0] - 2, bx[1] - 2, bx[2] + 2, bx[3] + 2)) return;
+  const S = lwriter(W, L);
+  const Wd = 17, D = 20, FL = F + 2, TOP = F + 9;
+  campusGround(W, g, bx[0] - 1, bx[1] - 1, bx[2] + 1, bx[3] + 1, F, B.PANOT, 24, B.STONE_BRICKS);
+  const qStairs = shapeId('quartz', 'stairs'), qPillar = shapeId('quartz', 'pillar');
+  for (let a = 0; a < Wd; a++) for (let d = 0; d < D; d++) {
+    // podium and the steps up to it
+    if (d === 0) { S.set(a, F, d, qStairs, L.inw); continue; }
+    if (d === 1) { S.set(a, F, d, B.QUARTZ_BLOCK); S.set(a, F + 1, d, qStairs, L.inw); continue; }
+    S.set(a, F, d, B.QUARTZ_BRICKS); S.set(a, F + 1, d, d <= 3 ? B.QUARTZ_BLOCK : B.CHECKER_TILE);
+    if (d <= 3) continue;
+    const edge = a === 0 || a === Wd - 1 || d === 4 || d === D - 1;
+    for (let y = FL; y <= TOP; y++) {
+      let id = B.AIR;
+      if (edge) {
+        id = y === TOP ? B.QUARTZ_BLOCK : (a === 0 || a === Wd - 1) && (d === 4 || d === D - 1) ? B.QUARTZ_PILLAR : B.QUARTZ_BRICKS;
+        const along = d === 4 || d === D - 1 ? a : d;
+        if (y >= FL + 1 && y <= FL + 4 && along % 3 === 1 && along > 1 && along < (d === 4 || d === D - 1 ? Wd - 2 : D - 2)) id = B.GLASS_PANE;
+      } else if (y === TOP) id = B.QUARTZ_BLOCK;
+      S.set(a, y, d, id);
+    }
+  }
+  // portico: six columns and the entablature with the name
+  for (const a of [1, 4, 7, 9, 12, 15]) for (let y = FL; y < TOP; y++) S.set(a, y, 2, qPillar);
+  for (let a = 0; a < Wd; a++) for (let d = 1; d <= 3; d++) S.set(a, TOP, d, d === 1 ? B.CHISELED_SANDSTONE : B.QUARTZ_BLOCK);
+  S.pic(3, TOP, 0, L.out, 11, 1, 'bank');
+  // the doorway, tall and wide
+  for (let a = 7; a <= 9; a++) for (let y = FL; y <= FL + 4; y++) S.set(a, y, 4, B.AIR);
+  S.set(7, FL + 5, 4, shapeId('quartz', 'arch'), L.back); S.set(9, FL + 5, 4, shapeId('quartz', 'arch'), L.along);
+  // pediment roof over everything (the ridge runs front to back)
+  const c0 = [L.X(0, 1), L.Z(0, 1)], c1 = [L.X(Wd - 1, D - 1), L.Z(Wd - 1, D - 1)];
+  roofGable(W, Math.min(c0[0], c1[0]), Math.min(c0[1], c1[1]), Math.max(c0[0], c1[0]), Math.max(c0[1], c1[1]), TOP + 1, { roof: 'quartz', ridge: B.QUARTZ_BLOCK }, B.QUARTZ_BRICKS);
+  // gold clock in the pediment
+  S.set(8, TOP + 3, 1, B.GOLD_BLOCK);
+  // ---- inside ----
+  // tellers' counter across the hall with glass windows, the bankers behind it
+  for (let a = 1; a < Wd - 1; a++) {
+    S.set(a, FL, 11, a === 8 ? B.AIR : B.POLISHED_DIORITE);
+    if (a !== 8) { S.set(a, FL + 1, 11, a % 3 === 2 ? B.POLISHED_DIORITE : B.GLASS_PANE); S.set(a, FL + 2, 11, B.GLASS_PANE); }
+    S.set(a, FL + 3, 11, B.DARK_OAK_PLANKS);
+  }
+  S.set(8, FL, 11, B.DOOR, L.inw); S.set(8, FL + 1, 11, B.DOOR_TOP, L.inw);
+  for (const a of [3, 6, 10, 13]) S.set(a, FL, 12, shapeId('dark_oak', 'stairs'), L.inw);
+  for (const a of [2, 5, 11, 14]) S.set(a, FL, 12, B.COMPUTER, L.out);
+  // waiting benches, plants and a rates board
+  for (const a of [2, 3, 13, 14]) S.set(a, FL, 7, shapeId('dark_oak', 'stairs'), L.out);
+  for (const [a, d] of [[1, 5], [15, 5], [1, 10], [15, 10]]) { S.set(a, FL, d, B.PODZOL); S.set(a, FL + 1, d, B.BUSH); }
+  S.pic(1, FL + 1, 8, L.along, 2, 2, 'bank_rates', true);
+  // chandeliers
+  for (const [a, d] of [[5, 7], [11, 7], [8, 14]]) { S.set(a, TOP - 1, d, B.IRON_BARS); S.set(a, TOP - 2, d, B.GLASS_LAMP); }
+  // the vault: iron walls, a round door and gold inside
+  for (let a = 4; a <= 12; a++) for (let d = 15; d <= D - 2; d++) for (let y = FL; y <= FL + 4; y++) {
+    const wall = a === 4 || a === 12 || d === 15 || y === FL + 4;
+    S.set(a, y, d, wall ? B.IRON_BLOCK : B.AIR);
+  }
+  for (let a = 7; a <= 9; a++) for (let y = FL; y <= FL + 2; y++) S.set(a, y, 15, a === 8 && y === FL + 1 ? B.GOLD_BLOCK : B.STEEL_PLATE);
+  S.set(8, FL, 15, B.IRON_BARS); S.set(8, FL + 1, 15, B.IRON_BARS);
+  for (let a = 5; a <= 11; a++) { S.set(a, FL, D - 2, a % 2 ? B.GOLD_BLOCK : B.EMERALD_BLOCK); S.set(a, FL + 1, D - 2, a % 3 === 0 ? B.GOLD_BLOCK : B.AIR); }
+  S.set(5, FL, 16, B.CHEST, L.along); W.loot(L.X(5, 16), FL, L.Z(5, 16), 'bank');
+  S.set(11, FL, 16, B.CHEST, L.back); W.loot(L.X(11, 16), FL, L.Z(11, 16), 'bank');
+  S.set(8, FL + 3, 17, B.LANTERN, 8);
+  // flags either side of the steps
+  for (const a of [-2, Wd + 1]) {
+    for (let y = F; y <= F + 7; y++) S.set(a, y, 0, B.IRON_BARS);
+    S.set(a, F + 7, 0, B.WOOL + 14); S.set(a, F + 6, 0, B.WOOL + 4); S.set(a, F + 5, 0, B.WOOL + 14);
+  }
+}
+
 // In front of the school: paving, trees in planters, benches, lamps, a bike rack and a sign.
 function buildForecourt(W, g, fc) {
   if (!rectHits(W, fc.rect[0], fc.rect[1], fc.rect[2], fc.rect[3])) return;
@@ -13123,6 +13228,34 @@ SKINS.push(
     },
   },
 );
+SKINS.push({
+  key: 'v_banker', name: 'Banker', icon: '', hidden: true, villager: 'banker',
+  extras: [
+    { part: 'head', box: [-5, 31.6, -5, 5, 32.4, 5], color: 0x1c1c20 }, { part: 'head', box: [-4, 32.4, -4, 4, 36, 4], color: 0x1c1c20 },
+    { part: 'head', box: [-4.05, 32.4, -4.05, 4.05, 33.2, 4.05], color: 0x8a2030 },
+  ],
+  paint(P) {
+    const sk = rgb(0xe0b494), hr = rgb(0x3a2a20), shirt = rgb(0xf2f2f0), tie = rgb(0x1f3a8a), suit = rgb(0x2a2e3a);
+    P.fill('head', (x, y, w, h, f) => {
+      if (f === 'top') return hr;
+      if (f === 'front') {
+        if (y < 1) return hr;
+        if (y === 3 && (x === 2 || x === 5)) return rgb(0x2a2a30);
+        if (y === 5 && x >= 2 && x <= 5) return rgb(0x5a3a28);                    // moustache
+        return sk;
+      }
+      return y < 3 ? hr : sk;
+    });
+    P.fill('body', (x, y, w, h, f) => {
+      if (f === 'front' && x >= 3 && x <= 4) return y < 9 ? tie : suit;
+      if (f === 'front' && (x === 2 || x === 5) && y < 5) return shirt;
+      if (f === 'front' && x === 1 && y === 3) return rgb(0xe0c040);               // gold pin
+      return suit;
+    });
+    P.fill('arm', (x, y, w, h) => (y >= h - 2 ? sk : y === h - 3 ? shirt : suit));
+    P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x141414) : suit));
+  },
+});
 const STUDENT_SKINS = [];
 SKINS.forEach((sk, i) => { if (sk.student) STUDENT_SKINS.push(i); });
 const VILLAGER_SKIN = {};
@@ -16628,6 +16761,7 @@ class Ride {
 
   // One step of driving; input is null for a parked (or abandoned) vehicle.
   drive(dt, input) {
+    if (this.scripted) return;   // moved by a script (cinematics), not by physics
     // nothing to stand on until the chunk streams in
     if (!G.world.isLoaded(Math.floor(this.pos[0]), Math.floor(this.pos[2]))) return;
     // a parked vehicle at rest only checks now and then that the ground is still there
@@ -16927,6 +17061,7 @@ const Rides = {
       heli: 'Space climb \u00b7 C descend \u00b7 W/S forward/back \u00b7 A/D turn \u00b7 V camera \u00b7 Shift get out',
       bike: 'W pedal \u00b7 S brake \u00b7 A/D steer \u00b7 LMB bell \u00b7 V camera \u00b7 Shift get off',
       cart: 'W go \u00b7 S brake (at a stop: reverse) \u00b7 follows the rails \u00b7 V camera \u00b7 Shift get out',
+      dozer: 'W/S drive \u00b7 A/D steer \u00b7 the blade levels what is in front \u00b7 V camera \u00b7 Shift get out',
     };
     G.ui.toast(tips[v.kind], 6000);
   },
@@ -18770,7 +18905,7 @@ function saveWorld() {
     v: 2, gen: G.world.genVer, seed: G.world.seed, type: G.world.type, cnv: G.slot === 'campnou' ? CN.ver : undefined, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
     dayTime: G.dayTime, mode: G.mode, difficulty: G.difficulty, rules: G.rules, worldSpawn: G.worldSpawn, spawnPoint: G.spawnPoint,
     player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, flying: p.flying }, inv: G.inv.serialize(), stats: G.stats.serialize(),
-    vehicles: Vehicles.serialize(), mobs: Ents.serializeMobs(),
+    vehicles: Vehicles.serialize(), mobs: Ents.serializeMobs(), money: G.money | 0,
     markers: G.markers || [], deaths: G.deaths || [],
   });
   if (!ok && G.ui) G.ui.toast('Could not save: browser storage is full');
@@ -18803,6 +18938,8 @@ function newWorld(seed, save, opts = {}) {
   Ents.clear();
   if (typeof Villages !== 'undefined') Villages.reset();
   if (typeof Fire !== 'undefined') Fire.reset();
+  if (typeof Bank !== 'undefined') Bank.reset();
+  G.money = MONEY_START;
   G.genPics = new Map();
   G.region = null;
   const type = save ? save.type : opts.type;
@@ -18838,6 +18975,7 @@ function newWorld(seed, save, opts = {}) {
     G.stats.load(save.stats);
     Vehicles.load(save.vehicles);
     Ents.loadMobs(save.mobs);
+    G.money = Number.isFinite(save.money) ? Math.max(0, Math.round(save.money)) : MONEY_START;
     G.markers = Array.isArray(save.markers) ? save.markers.filter((m) => m && Number.isFinite(m.x) && Number.isFinite(m.z)).slice(0, 64) : [];
     G.deaths = Array.isArray(save.deaths) ? save.deaths.filter((d) => Array.isArray(d) && d.length >= 3 && d.every(Number.isFinite)).slice(-5) : [];
   } else {
@@ -20419,6 +20557,7 @@ const WorldMap = {
 const LOOT = {
   house: [[I.BREAD, 1, 3, 0.6], [I.APPLE, 1, 3, 0.5], [I.STICK, 2, 6, 0.4], [B.TORCH, 2, 6, 0.4], [I.SEEDS, 2, 5, 0.3], [I.EMERALD, 1, 2, 0.3], [I.IRON_INGOT, 1, 2, 0.2], [I.BOOK, 1, 2, 0.2]],
   farm: [[I.WHEAT, 3, 8, 0.8], [I.SEEDS, 2, 8, 0.7], [I.BREAD, 1, 3, 0.5], [B.PUMPKIN, 1, 2, 0.3], [I.APPLE, 1, 4, 0.4], [I.EMERALD, 1, 2, 0.25]],
+  bank: [[I.GOLD_INGOT, 2, 6, 0.8], [I.EMERALD, 2, 6, 0.8], [I.DIAMOND, 1, 2, 0.35], [B.GOLD_BLOCK, 1, 1, 0.2], [I.PAPER, 4, 12, 0.6]],
   fish: [[I.RAW_FISH, 2, 6, 0.8], [I.COOKED_FISH, 1, 3, 0.5], [I.STRING, 1, 4, 0.5], [I.EMERALD, 1, 2, 0.3]],
   smith: [[I.IRON_INGOT, 2, 6, 0.8], [I.COAL, 3, 8, 0.7], [I.TOOL0 + 10, 1, 1, 0.25], [I.TOOL0 + 13, 1, 1, 0.25], [I.ARMOR0 + 5, 1, 1, 0.2], [I.GOLD_INGOT, 1, 3, 0.3], [I.EMERALD, 1, 3, 0.4], [I.DIAMOND, 1, 1, 0.08]],
   castle: [[I.IRON_INGOT, 2, 6, 0.7], [I.ARROW, 4, 16, 0.6], [I.BOW, 1, 1, 0.3], [I.TOOL0 + 13, 1, 1, 0.35], [I.ARMOR0 + 4, 1, 1, 0.25], [I.ARMOR0 + 6, 1, 1, 0.25], [I.GOLD_INGOT, 2, 5, 0.4], [I.EMERALD, 2, 5, 0.5], [I.BREAD, 2, 5, 0.5]],
@@ -20467,6 +20606,7 @@ const TRADES = {
   librarian: [[[I.PAPER, 24], [I.EMERALD, 1]], [[I.EMERALD, 1], [B.BOOKSHELF, 1]], [[I.EMERALD, 5], [I.ENCHANTED_BOOK, 1]], [[I.BOOK, 4], [I.EMERALD, 1]], [[I.EMERALD, 1], [B.LANTERN, 1]]],
   cleric: [[[I.ROTTEN_FLESH, 24], [I.EMERALD, 1]], [[I.EMERALD, 1], [B.GLOWSTONE, 2]], [[I.BONE, 12], [I.EMERALD, 1]], [[I.EMERALD, 4], [I.GOLDEN_APPLE, 1]], [[I.GOLD_INGOT, 3], [I.EMERALD, 1]]],
   mason: [[[B.CLAY, 10], [I.EMERALD, 1]], [[I.EMERALD, 1], [B.PLASTER, 8]], [[I.EMERALD, 1], [B.ROOF_TILES, 8]], [[I.EMERALD, 1], [B.MARBLE, 6]], [[I.EMERALD, 1], [B.SLATE, 8]], [[I.EMERALD, 2], [B.ARCH_TABLE, 1]]],
+  banker: [[[I.GOLD_INGOT, 3], [I.EMERALD, 1]], [[I.EMERALD, 1], [I.PAPER, 8]]],
   student: [[[I.PAPER, 16], [I.EMERALD, 1]], [[I.EMERALD, 1], [I.BREAD, 3]], [[I.EMERALD, 1], [I.APPLE, 3]], [[I.BOOK, 2], [I.EMERALD, 1]], [[I.EMERALD, 3], [I.BIKE, 1]], [[I.EMERALD, 2], [B.CRATE, 4]]],
   teacher: [[[I.EMERALD, 2], [B.COMPUTER, 1]], [[I.EMERALD, 1], [B.WHITEBOARD, 2]], [[I.EMERALD, 1], [B.CHALKBOARD, 2]], [[I.BOOK, 3], [I.EMERALD, 1]], [[I.EMERALD, 4], [I.ENCHANTED_BOOK, 1]], [[I.EMERALD, 1], [B.CORKBOARD, 2]], [[I.EMERALD, 1], [B.LOCKER, 2]]],
   shepherd: [[[B.WOOL, 16], [I.EMERALD, 1]], [[I.EMERALD, 1], [B.WOOL + 14, 4]], [[I.EMERALD, 1], [B.WOOL + 11, 4]], [[I.EMERALD, 2], [I.SHEARS, 1]], [[I.EMERALD, 2], [B.BED, 1]]],
@@ -20483,7 +20623,7 @@ function villagerTrades(m) {
 }
 
 const VILLAGER_NAMES = ['Aldo', 'Berta', 'Ciro', 'Dalia', 'Elio', 'Fina', 'Gael', 'Hana', 'Iker', 'Julia', 'Kai', 'Lola', 'Mateo', 'Nuria', 'Oto', 'Paz', 'Quim', 'Rosa', 'Sa\u00fal', 'Teo', 'Uma', 'Vera', 'Xoan', 'Yago', 'Zoe'];
-const PROF_NAMES = { student: 'Student', teacher: 'Teacher', farmer: 'Farmer', fisher: 'Fisher', smith: 'Blacksmith', librarian: 'Librarian', cleric: 'Cleric', mason: 'Mason', shepherd: 'Shepherd' };
+const PROF_NAMES = { banker: 'Banker', student: 'Student', teacher: 'Teacher', farmer: 'Farmer', fisher: 'Fisher', smith: 'Blacksmith', librarian: 'Librarian', cleric: 'Cleric', mason: 'Mason', shepherd: 'Shepherd' };
 
 // ---- population ----
 const Villages = {
@@ -20532,8 +20672,8 @@ const Villages = {
           m.skin = VILLAGER_SKIN[s.prof] || VILLAGER_SKIN.farmer;
           // students wear their own clothes: one of the student skins, picked by the seed
           if (s.prof === 'student') m.skin = STUDENT_SKINS[Math.abs(m.seed) % STUDENT_SKINS.length];
-          m.home = [plan.x, plan.z];
-          m.homeR = plan.type === 'castle' ? 12 : plan.type === 'port' ? 26 : Math.max(18, plan.radius * 0.8);
+          m.home = s.home || [plan.x, plan.z];
+          m.homeR = s.homeR || (plan.type === 'castle' ? 12 : plan.type === 'port' ? 26 : Math.max(18, plan.radius * 0.8));
           m.name = VILLAGER_NAMES[Math.abs(m.seed) % VILLAGER_NAMES.length];
         } else { m.home = [s.x, s.z]; m.homeR = 2.5; }
         mobs.push(m);
@@ -21746,6 +21886,308 @@ const DimAir = {
 </script>
 <script>
 'use strict';
+// Money and the Banc Central. Coins (\ud83e\ude99) are kept in the save and shown on the HUD. The bankers
+// in the STUCOM bank (campus.js builds it) open the bank screen: sell ores, crops and other goods
+// for coins, buy emeralds, and pay for services \u2014 excavator work orders that level an area
+// (right-click the ground with one), a bulldozer, cars and bikes, and a taxi. Savings earn
+// interest every morning. In creative mode money is unlimited.
+
+Object.assign(I, { DOZER: 416, DIG_S: 420, DIG_M: 421, DIG_L: 422 });
+
+const MONEY_START = 50;
+// what the bank buys, coins per item
+const BANK_BUYS = [
+  [I.DIAMOND, 50], [I.EMERALD, 10], [I.GOLD_INGOT, 8], [I.IRON_INGOT, 3], [I.NETHER_QUARTZ, 2], [I.COAL, 1],
+  [I.ECHO_SHARD, 30], [I.ENDER_PEARL, 12], [I.WHEAT, 1], [I.RAW_FISH, 1], [I.LEATHER, 2], [B.WOOL, 1], [B.PUMPKIN, 2], [B.MELON, 2],
+];
+const DIG_SIZES = { [I.DIG_S]: 9, [I.DIG_M]: 15, [I.DIG_L]: 25 };
+const BANK_SERVICES = [
+  { key: 'dig_s', name: 'Excavator 9\u00d79', desc: 'Levels a 9\u00d79 area where you click', price: 60, item: I.DIG_S },
+  { key: 'dig_m', name: 'Excavator 15\u00d715', desc: 'Levels a 15\u00d715 area where you click', price: 140, item: I.DIG_M },
+  { key: 'dig_l', name: 'Excavator 25\u00d725', desc: 'Levels a 25\u00d725 area where you click', price: 350, item: I.DIG_L },
+  { key: 'dozer', name: 'Bulldozer', desc: 'Drive it and its blade levels whatever is in front', price: 400, item: I.DOZER },
+  { key: 'car', name: 'Car', desc: 'Delivered to your inventory', price: 250, item: I.CAR },
+  { key: 'bike', name: 'Bicycle', desc: 'Cheap and cheerful', price: 40, item: I.BIKE },
+  { key: 'emerald', name: 'Emerald', desc: 'For trading with villagers', price: 12, item: I.EMERALD },
+  { key: 'taxi_stucom', name: 'Taxi to STUCOM', desc: 'A ride to the school square', price: 30, taxi: 'stucom' },
+  { key: 'taxi_home', name: 'Taxi home', desc: 'To your bed, or the world spawn', price: 30, taxi: 'home' },
+];
+
+const Bank = {
+  jobs: [],
+  lastDay: null,
+
+  get money() { return G.money | 0; },
+  unlimited() { return G.mode === 'creative'; },
+  pay(n) {
+    if (this.unlimited()) return true;
+    if (this.money < n) { UI.toast('Not enough coins: you need \ud83e\ude99 ' + n); sfx('villager_no', null, 1, 1); return false; }
+    G.money = this.money - n;
+    this.hud(true);
+    return true;
+  },
+  earn(n) { G.money = this.money + Math.round(n); this.hud(true); },
+  fmt(n) { return n.toLocaleString('en-US'); },
+
+  // ---- HUD pill ----
+  hud(bump) {
+    const el = $('money');
+    if (!el) return;
+    el.textContent = this.unlimited() ? '\ud83e\ude99 \u221e' : '\ud83e\ude99 ' + this.fmt(this.money);
+    if (bump) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+  },
+
+  open(m) {
+    if (m) sfx('villager_say', m.pos, 1, 0.9);
+    G.ui.open({ kind: 'bank', mob: m || null });
+  },
+
+  // ---- the bank screen (top half; the inventory is drawn under it) ----
+  renderTop(top, ui) {
+    const box = document.createElement('div');
+    box.className = 'bankbox';
+    const m = ui.screen.mob;
+    box.innerHTML = `<div class="bk-head"><div><b>Banc Central</b><small>${m ? m.name + ' \u00b7 Banker' : 'STUCOM'}</small></div>
+      <div class="bk-bal"><small>Balance</small><span>${this.unlimited() ? '\u221e' : this.fmt(this.money)}</span><i>\ud83e\ude99</i></div></div>`;
+    const cols = document.createElement('div');
+    cols.className = 'bk-cols';
+    // selling
+    const sell = document.createElement('div');
+    sell.className = 'bk-col';
+    sell.innerHTML = '<h4>We buy</h4>';
+    const icon = (id) => `<i class="bk-ic" style="background-image:url(${iconURL(id)})"></i>`;
+    let any = false;
+    for (const [id, price] of BANK_BUYS) {
+      const have = G.inv.count(id);
+      const row = document.createElement('div');
+      row.className = 'bk-row' + (have ? '' : ' dim');
+      row.innerHTML = `${icon(id)}<span class="bk-name">${itemName(id)}<small>\ud83e\ude99 ${price} each \u00b7 you have ${have}</small></span>`;
+      const b1 = document.createElement('button'), b2 = document.createElement('button');
+      b1.textContent = 'Sell 1'; b2.textContent = 'All';
+      b1.disabled = b2.disabled = !have;
+      b1.addEventListener('click', () => this.sell(id, price, 1));
+      b2.addEventListener('click', () => this.sell(id, price, have));
+      row.append(b1, b2);
+      if (have) { sell.insertBefore(row, sell.children[1] || null); any = true; } else sell.append(row);
+    }
+    if (!any) { const p = document.createElement('p'); p.className = 'archhint'; p.textContent = 'Bring ores, gems or crops to sell.'; sell.insertBefore(p, sell.children[1] || null); }
+    // services
+    const serv = document.createElement('div');
+    serv.className = 'bk-col';
+    serv.innerHTML = '<h4>Services</h4>';
+    for (const s of BANK_SERVICES) {
+      const row = document.createElement('div');
+      const can = this.unlimited() || this.money >= s.price;
+      row.className = 'bk-row' + (can ? '' : ' dim');
+      row.innerHTML = `${s.item ? icon(s.item) : '<i class="bk-ic bk-taxi">\ud83d\ude95</i>'}<span class="bk-name">${s.name}<small>${s.desc}</small></span><span class="bk-price">\ud83e\ude99 ${s.price}</span>`;
+      const b = document.createElement('button');
+      b.textContent = s.taxi ? 'Go' : 'Buy';
+      b.disabled = !can;
+      b.addEventListener('click', () => this.buy(s));
+      row.append(b);
+      serv.append(row);
+    }
+    const note = document.createElement('p');
+    note.className = 'archhint';
+    note.textContent = 'Savings earn 2% interest every morning (up to \ud83e\ude99 200 a day).';
+    serv.append(note);
+    cols.append(sell, serv);
+    box.append(cols);
+    top.append(box);
+  },
+
+  sell(id, price, n) {
+    n = Math.min(n, G.inv.count(id));
+    if (n <= 0) return;
+    G.inv.remove(id, n);
+    this.earn(price * n);
+    sfx('villager_yes', null, 1, 1.1);
+    sfx('pop', null, 0.6, 1.6);
+    G.ui.invDirty(); G.ui.render();
+  },
+
+  buy(s) {
+    if (s.taxi) {
+      const to = this.taxiTarget(s.taxi);
+      if (!to) { UI.toast(s.taxi === 'stucom' ? 'There is no STUCOM in this world' : 'Nowhere to go'); return; }
+      if (!this.pay(s.price)) return;
+      G.ui.closeScreen(true);
+      if (G.vehicle) Vehicles.dismount(true);
+      const p = G.player;
+      p.pos = to; p.vel = [0, 0, 0]; p.fallStart = null;
+      if (Net.teleported) Net.teleported();
+      sfx('horn', null, 1, 1);
+      UI.toast('\ud83d\ude95 Here we are!');
+      requestLock();
+      return;
+    }
+    if (!this.pay(s.price)) return;
+    const left = G.inv.add(mkStack(s.item, 1));
+    if (left > 0) G.ui.giveBack(mkStack(s.item, left));
+    sfx('villager_yes', null, 1, 1);
+    if (s.item === I.DIG_S || s.item === I.DIG_M || s.item === I.DIG_L) UI.toast('Right-click the ground where you want it level', 4000);
+    G.ui.invDirty(); G.ui.render();
+  },
+
+  taxiTarget(kind) {
+    const g = G.world.gen;
+    if (kind === 'home') {
+      const sp = G.spawnPoint || G.worldSpawn;
+      return [sp[0], sp[1] + 0.5, sp[2]];
+    }
+    const s = typeof stucomVillage === 'function' ? stucomVillage(g) : null;
+    if (!s) return null;
+    const x = s.x + 5, z = s.z + 5;
+    return [x + 0.5, g.height(x, z) + 1.2, z + 0.5];
+  },
+
+  // ---- excavator work orders ----
+  // Level an N x N square around (x, z) to the top of block y: everything above goes, holes and
+  // water below are filled up with earth. Done row by row over a few seconds, with dust.
+  flattenAt(x, y, z, n) {
+    const top = G.world.getBlock(x, y, z);
+    const surf = [B.GRASS, B.SAND, B.DIRT, B.SNOW, B.PODZOL].includes(top) ? top : B.GRASS;
+    const h = n >> 1;
+    this.jobs.push({ x0: x - h, z0: z - h, n, y, surf, row: 0, t: 0 });
+    sfx('ignite', [x + 0.5, y + 1, z + 0.5], 0.8, 0.5);
+    UI.toast('\ud83d\ude9c The excavator gets to work\u2026');
+  },
+  runJobs(dt) {
+    if (!this.jobs.length) return;
+    const j = this.jobs[0];
+    j.t -= dt;
+    if (j.t > 0) return;
+    j.t = 0.09;
+    const w = G.world;
+    const list = [];
+    const z = j.z0 + j.row;
+    for (let x = j.x0; x < j.x0 + j.n; x++) {
+      if (!w.isLoaded(x, z)) continue;
+      for (let y = j.y + 1; y <= Math.min(CH - 1, j.y + 40); y++) {
+        const id = w.getBlock(x, y, z);
+        if (id !== B.AIR && BLOCK_HARD[id] >= 0 && BLOCK_HARD[id] < 40) list.push([x, y, z, B.AIR]);
+      }
+      const cur = w.getBlock(x, j.y, z);
+      if (cur === B.AIR || IS_LIQUID(cur) || !BLOCK_SOLID[cur] || BLOCK_RT[cur] === RT_CROSS) list.push([x, j.y, z, j.surf]);
+      for (let y = j.y - 1, k = 0; y > 0 && k < 20; y--, k++) {
+        const id = w.getBlock(x, y, z);
+        if (id === B.AIR || IS_LIQUID(id) || BLOCK_RT[id] === RT_CROSS) list.push([x, y, z, B.DIRT]); else break;
+      }
+      if (Math.random() < 0.3) Particles.smoke(x + 0.5, j.y + 1.2, z + 0.5, 2, 0.6, false);
+    }
+    if (list.length) editBlocks(list);
+    sfx('place_9', [j.x0 + j.n / 2, j.y + 1, z + 0.5], 0.8, 0.7);
+    j.row++;
+    if (j.row >= j.n) { this.jobs.shift(); UI.toast('\ud83d\ude9c Done: the ground is level'); }
+  },
+
+  // ---- savings interest, once a morning ----
+  update(dt) {
+    this.runJobs(dt);
+    this.hudT = (this.hudT || 0) - dt;
+    if (this.hudT <= 0) { this.hudT = 0.5; this.hud(false); }
+    const d = G.dayTime;
+    if (this.lastDay !== null && this.lastDay > 0.9 && d < 0.1 && !this.unlimited() && this.money > 0) {
+      const gain = Math.min(200, Math.floor(this.money * 0.02));
+      if (gain > 0) { this.earn(gain); UI.toast('\ud83c\udfe6 Good morning! Your savings earned \ud83e\ude99 ' + gain); }
+    }
+    this.lastDay = d;
+  },
+
+  reset() { this.jobs.length = 0; this.lastDay = null; },
+};
+
+// ---- items: work orders and the bulldozer ----
+sprite('i_dig', (d) => {
+  const y = [240, 184, 30], dk = [60, 60, 66];
+  sprRect(d, 4, 16, 22, 24, y);
+  sprRect(d, 8, 9, 17, 16, y);
+  sprRect(d, 10, 10, 16, 15, [140, 190, 226]);
+  sprSeg(d, 20, 17, 26, 8, 2.4, y); sprSeg(d, 26, 8, 30, 14, 2, y);
+  sprPoly(d, [[27, 13], [31, 13], [30, 19], [26, 17]], dk);
+  sprRect(d, 3, 24, 23, 28, dk);
+  for (let x = 5; x < 23; x += 4) sprDisc(d, x, 26, 1.2, [120, 124, 130]);
+});
+sprite('i_dozer', (d) => {
+  const y = [240, 184, 30], dk = [50, 50, 56];
+  sprRect(d, 8, 14, 26, 22, y);
+  sprRect(d, 14, 6, 24, 14, y);
+  sprRect(d, 16, 7, 22, 12, [140, 190, 226]);
+  sprRect(d, 25, 5, 27, 12, dk);
+  sprPoly(d, [[1, 12], [7, 13], [7, 26], [1, 27]], [150, 156, 164]);
+  sprRect(d, 7, 22, 29, 28, dk);
+  for (let x = 9; x < 29; x += 4) sprDisc(d, x, 25, 1.3, [120, 124, 130]);
+});
+defItem(I.DIG_S, 'Excavator Order 9\u00d79', { sprite: 'i_dig', stack: 16, cat: 'transport' });
+defItem(I.DIG_M, 'Excavator Order 15\u00d715', { sprite: 'i_dig', stack: 16, cat: 'transport' });
+defItem(I.DIG_L, 'Excavator Order 25\u00d725', { sprite: 'i_dig', stack: 16, cat: 'transport' });
+defItem(I.DOZER, 'Bulldozer', { sprite: 'i_dozer', stack: 1, cat: 'transport' });
+shaped(I.DOZER, 1, ['  I', 'GFI', 'III'], { I: B.IRON_BLOCK, G: B.GLASS_PANE, F: B.FURNACE });
+
+// The bulldozer: slow and heavy, tracks instead of wheels, and a blade that clears what is in front.
+RIDE_KINDS.dozer = {
+  item: I.DOZER, name: 'Bulldozer', type: 'ground', max: 6, rev: 3, acc: 4, brake: 10, steer: 0.9, base: 2.2, step: 1.05, h: 2.8, len: 4.4, w: 2.4,
+  seat: [0, 1.25, -0.6], eye: [0, 2.2, -0.4], cam: 9, sit: true, sound: 'bus', paintDefault: 2, dig: true,
+  parts: [
+    [-1.2, 0, -1.9, -0.75, 0.75, 1.7, 'tire'],
+    [0.75, 0, -1.9, 1.2, 0.75, 1.7, 'tire'],
+    [-0.8, 0.5, -2.0, 0.8, 1.35, 1.3, 'white', { paint: true }],
+    [-0.8, 1.35, -1.6, 0.8, 2.6, -0.1, 'glass'],
+    [-0.84, 2.6, -1.7, 0.84, 2.72, 0, 'white', { paint: true }],
+    [0.3, 1.35, 0.4, 0.45, 2.3, 0.55, 'hullDark'],
+    [0.68, 0.7, 1.3, 0.8, 1.2, 2.05, 'white', { paint: true, m: true }],
+    [-1.35, 0.05, 2.05, 1.35, 1.35, 2.3, 'metal'],
+    [-1.35, 0.05, 2.3, 1.35, 0.25, 2.5, 'metal'],
+    [-0.5, 1.2, 2.0, 0.5, 1.3, 2.4, 'hullDark'],
+    [0.5, 1.05, 1.3, 0.75, 1.25, 1.35, 'navWhite', { m: true, glow: 1.2 }],
+    [-0.1, 2.72, -1.0, 0.1, 2.85, -0.8, 'glow', { strobe: true, c: [1, 0.6, 0.1] }],
+  ],
+  hit: [[-1.35, 0, -2, 1.35, 2.8, 2.5]],
+};
+RIDE_KEYS.push('dozer');
+{
+  const d = RIDE_KINDS.dozer;
+  d.key = 'dozer';
+  RIDE_BY_ITEM[d.item] = d;
+  const out = [];
+  for (const [x0, y0, z0, x1, y1, z1, sw, o = {}] of d.parts) {
+    out.push({ box: [x0, y0, z0, x1, y1, z1], sw, o });
+    if (o.m) out.push({ box: [-x1, y0, z0, -x0, y1, z1], sw, o });
+  }
+  d.model = out;
+  // the blade: before each move, blocks in front at wheel level and above are pushed away
+  const drive0 = Ride.prototype.drive;
+  Ride.prototype.drive = function (dt, input) {
+    if (this.def.dig && input && this.speed > 0.2 && G.world.isLoaded(Math.floor(this.pos[0]), Math.floor(this.pos[2]))) {
+      this.digT = (this.digT || 0) - dt;
+      if (this.digT <= 0) {
+        this.digT = 0.18;
+        const w = G.world, list = [];
+        const y0 = Math.floor(this.pos[1] + 0.05);
+        for (let s = -1.2; s <= 1.21; s += 0.6) for (const fwd of [2.7, 3.2]) {
+          const p = this.toWorld([s, 0, fwd]);
+          const bx = Math.floor(p[0]), bz = Math.floor(p[2]);
+          for (let y = y0; y <= y0 + 3; y++) {
+            const id = w.getBlock(bx, y, bz);
+            if (id !== B.AIR && !IS_LIQUID(id) && BLOCK_HARD[id] >= 0 && BLOCK_HARD[id] < 40) list.push([bx, y, bz, B.AIR]);
+          }
+        }
+        if (list.length) {
+          const seen = new Set(), uniq = list.filter((e) => { const k = e[0] + ',' + e[1] + ',' + e[2]; if (seen.has(k)) return false; seen.add(k); return true; });
+          const f = uniq[0];
+          Particles.blockBreak(f[0], f[1], f[2], w.getBlock(f[0], f[1], f[2]));
+          editBlocks(uniq);
+          sfx('place_9', this.pos, 1, 0.6);
+          G.shake = Math.max(G.shake, 0.12);
+        }
+      }
+    }
+    drive0.call(this, dt, input);
+  };
+}
+</script>
+<script>
+'use strict';
 // Player actions: mining with tools, attacking, placing oriented blocks, eating, bows,
 // buckets, hoes, bone meal, shears, dropping items, and the first-person hand animation.
 
@@ -22030,7 +22472,7 @@ const Act = {
     // entity interactions
     if (t && t.mob) {
       const m = t.mob;
-      if (initial && m.type === 'villager' && !m.dead) { G.ui.openTrade(m); this.swingHand(); return true; }
+      if (initial && m.type === 'villager' && !m.dead) { if (m.prof === 'banker') Bank.open(m); else G.ui.openTrade(m); this.swingHand(); return true; }
       if (initial && held && held.id === I.SHEARS && m.type === 'sheep' && !m.sheared) {
         m.sheared = true;
         Ents.spawnItem({ id: B.WOOL + m.woolColor, count: 1 + Math.floor(Math.random() * 3) }, m.pos[0], m.pos[1] + 1, m.pos[2]);
@@ -22135,6 +22577,13 @@ const Act = {
     }
     if (held.id === I.FLINT_STEEL) return initial && (Portals.ignite(hit) || Fire.light(hit));
     if (held.id === I.PICTURE) return initial && Pictures.begin(hit);
+    // excavator work order: level the area around the clicked block (bank.js)
+    if (DIG_SIZES[held.id]) {
+      if (!initial) return false;
+      Bank.flattenAt(x, y, z, DIG_SIZES[held.id]);
+      this.consume(); this.swingHand();
+      return true;
+    }
     return this.placeBlock(hit);
   },
 
@@ -22600,6 +23049,7 @@ const UI = {
       else if (s.kind === 'enchant') this.renderEnchantTop(top);
       else if (s.kind === 'brew') this.renderBrewTop(top);
       else if (s.kind === 'picture') this.renderPictureTop(top);
+      else if (s.kind === 'bank') Bank.renderTop(top, this);
       root.append(this.label('Inventory'));
       root.append(this.grid(main, 9, 'main'));
       const hb = this.grid(hot, 9, 'hotbar');
@@ -24484,7 +24934,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); }
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);
     Sound.setListener(cam.pos, cam.yaw);

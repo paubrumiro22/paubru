@@ -493,6 +493,28 @@
     .icons i { width: 13px; height: 13px; } .icons { height: 13px; }
     .book { width: 100%; border-left: 0; padding-left: 0; }
   }
+  /* ---- money and the bank (bank.js) ---- */
+  #money { position: absolute; left: 14px; top: 12px; padding: 6px 12px 6px 10px; border-radius: 999px; background: rgba(11, 16, 24, 0.72); border: 1px solid var(--line);
+    font: 700 15px var(--body); color: #ffe08a; letter-spacing: 0.02em; text-shadow: 0 1px 0 #000; }
+  #money.bump { animation: moneyBump 0.45s ease-out; }
+  @keyframes moneyBump { 0% { transform: scale(1); } 30% { transform: scale(1.18); color: #fff3b8; } 100% { transform: scale(1); } }
+  .bankbox { display: flex; flex-direction: column; gap: 10px; width: min(720px, 86vw); }
+  .bk-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-radius: 12px;
+    background: linear-gradient(135deg, #1d2740, #2c1f14); border: 1px solid rgba(255, 214, 120, 0.35); }
+  .bk-head b { display: block; font: 800 20px var(--body); color: #ffe7a8; letter-spacing: 0.04em; }
+  .bk-head small { color: #b8c0d4; font-size: 12px; }
+  .bk-bal { text-align: right; } .bk-bal span { font: 800 26px var(--body); color: #fff; } .bk-bal i { font-style: normal; margin-left: 6px; font-size: 22px; }
+  .bk-bal small { display: block; }
+  .bk-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .bk-col { overflow-y: auto; padding-right: 4px; max-height: 38vh; }
+  .bk-col h4 { margin: 2px 0 6px; font: 700 13px var(--body); color: #9fb0cc; text-transform: uppercase; letter-spacing: 0.08em; }
+  .bk-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); margin-bottom: 4px; }
+  .bk-row.dim { opacity: 0.5; }
+  .bk-ic { width: 30px; height: 30px; flex: none; background-size: contain; image-rendering: pixelated; font-style: normal; font-size: 22px; line-height: 30px; text-align: center; }
+  .bk-name { flex: 1; font-size: 13px; line-height: 1.2; } .bk-name small { display: block; color: #9aa6ba; font-size: 11px; }
+  .bk-price { color: #ffe08a; font-weight: 700; font-size: 13px; white-space: nowrap; }
+  .bk-row button { padding: 4px 10px; font-size: 12px; }
+  @media (max-width: 700px) { .bk-cols { grid-template-columns: 1fr; } .bk-col { max-height: 17vh; } }
   /* ---- touch controls (touch.js) ---- */
   #touchUI { position: fixed; inset: 0; pointer-events: none; z-index: 30; user-select: none; -webkit-user-select: none; }
   #touchUI.hidden { display: none; }
@@ -535,6 +557,7 @@
   </div>
   <div id="debug" class="hidden"></div>
   <div id="toast"></div>
+  <div id="money"></div>
   <div id="placeBanner"></div>
   <div id="nametags"></div>
   <div id="chatLog"></div>
@@ -890,6 +913,7 @@
 <script src="js/villages.js"></script>
 <script src="js/dimensions_game.js"></script>
 <script src="js/fire.js"></script>
+<script src="js/bank.js"></script>
 <script src="js/interact.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>

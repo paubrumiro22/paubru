@@ -283,7 +283,7 @@ const Act = {
     // entity interactions
     if (t && t.mob) {
       const m = t.mob;
-      if (initial && m.type === 'villager' && !m.dead) { G.ui.openTrade(m); this.swingHand(); return true; }
+      if (initial && m.type === 'villager' && !m.dead) { if (m.prof === 'banker') Bank.open(m); else G.ui.openTrade(m); this.swingHand(); return true; }
       if (initial && held && held.id === I.SHEARS && m.type === 'sheep' && !m.sheared) {
         m.sheared = true;
         Ents.spawnItem({ id: B.WOOL + m.woolColor, count: 1 + Math.floor(Math.random() * 3) }, m.pos[0], m.pos[1] + 1, m.pos[2]);
@@ -388,6 +388,13 @@ const Act = {
     }
     if (held.id === I.FLINT_STEEL) return initial && (Portals.ignite(hit) || Fire.light(hit));
     if (held.id === I.PICTURE) return initial && Pictures.begin(hit);
+    // excavator work order: level the area around the clicked block (bank.js)
+    if (DIG_SIZES[held.id]) {
+      if (!initial) return false;
+      Bank.flattenAt(x, y, z, DIG_SIZES[held.id]);
+      this.consume(); this.swingHand();
+      return true;
+    }
     return this.placeBlock(hit);
   },
 

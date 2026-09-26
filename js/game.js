@@ -690,7 +690,7 @@ function saveWorld() {
     v: 2, gen: G.world.genVer, seed: G.world.seed, type: G.world.type, cnv: G.slot === 'campnou' ? CN.ver : undefined, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
     dayTime: G.dayTime, mode: G.mode, difficulty: G.difficulty, rules: G.rules, worldSpawn: G.worldSpawn, spawnPoint: G.spawnPoint,
     player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, flying: p.flying }, inv: G.inv.serialize(), stats: G.stats.serialize(),
-    vehicles: Vehicles.serialize(), mobs: Ents.serializeMobs(),
+    vehicles: Vehicles.serialize(), mobs: Ents.serializeMobs(), money: G.money | 0,
     markers: G.markers || [], deaths: G.deaths || [],
   });
   if (!ok && G.ui) G.ui.toast('Could not save: browser storage is full');
@@ -723,6 +723,8 @@ function newWorld(seed, save, opts = {}) {
   Ents.clear();
   if (typeof Villages !== 'undefined') Villages.reset();
   if (typeof Fire !== 'undefined') Fire.reset();
+  if (typeof Bank !== 'undefined') Bank.reset();
+  G.money = MONEY_START;
   G.genPics = new Map();
   G.region = null;
   const type = save ? save.type : opts.type;
@@ -758,6 +760,7 @@ function newWorld(seed, save, opts = {}) {
     G.stats.load(save.stats);
     Vehicles.load(save.vehicles);
     Ents.loadMobs(save.mobs);
+    G.money = Number.isFinite(save.money) ? Math.max(0, Math.round(save.money)) : MONEY_START;
     G.markers = Array.isArray(save.markers) ? save.markers.filter((m) => m && Number.isFinite(m.x) && Number.isFinite(m.z)).slice(0, 64) : [];
     G.deaths = Array.isArray(save.deaths) ? save.deaths.filter((d) => Array.isArray(d) && d.length >= 3 && d.every(Number.isFinite)).slice(-5) : [];
   } else {

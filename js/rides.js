@@ -213,6 +213,7 @@ class Ride {
 
   // One step of driving; input is null for a parked (or abandoned) vehicle.
   drive(dt, input) {
+    if (this.scripted) return;   // moved by a script (cinematics), not by physics
     // nothing to stand on until the chunk streams in
     if (!G.world.isLoaded(Math.floor(this.pos[0]), Math.floor(this.pos[2]))) return;
     // a parked vehicle at rest only checks now and then that the ground is still there
@@ -512,6 +513,7 @@ const Rides = {
       heli: 'Space climb · C descend · W/S forward/back · A/D turn · V camera · Shift get out',
       bike: 'W pedal · S brake · A/D steer · LMB bell · V camera · Shift get off',
       cart: 'W go · S brake (at a stop: reverse) · follows the rails · V camera · Shift get out',
+      dozer: 'W/S drive · A/D steer · the blade levels what is in front · V camera · Shift get out',
     };
     G.ui.toast(tips[v.kind], 6000);
   },
