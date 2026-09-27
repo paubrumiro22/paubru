@@ -16,7 +16,8 @@ const SETTINGS_UI = [
   { key: 'weather', group: 'world', label: 'Weather', hint: 'Rain, storms, snow where it is cold, and fog.', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow'], ['fog', 'Fog']] },
   { key: 'events', group: 'world', label: 'World events', hint: 'Meteor showers on clear nights and volcano eruptions.', type: 'check' },
   { key: 'wildlife', group: 'world', label: 'Wildlife', hint: 'Birds, bees, butterflies and fish.', type: 'check' },
-  { key: 'volume', group: 'sound', label: 'Master volume', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => Math.round(v * 100) + '%' },
+  { key: 'volume', group: 'sound', label: 'Effects volume', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => Math.round(v * 100) + '%' },
+  { key: 'music', group: 'sound', label: 'Music volume', hint: 'Soft music written live for each place: days, nights, fights, the Nether, the End, the stadium.', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => (v ? Math.round(v * 100) + '%' : 'Off') },
   { key: 'minimap', group: 'hud', label: 'Minimap', hint: 'The round map in the corner. Press M for the big map.', type: 'select', options: [['normal', 'Close'], ['large', 'Far'], ['off', 'Off']] },
   { key: 'bobbing', group: 'hud', label: 'View bobbing', hint: 'The camera sways as you walk.', type: 'check' },
   { key: 'sensitivity', group: 'controls', label: 'Mouse sensitivity', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: (v) => v.toFixed(2) + '×' },
@@ -1025,6 +1026,7 @@ function frame(now) {
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
     if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
+    Music.update(dt);
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);
     Sound.setListener(cam.pos, cam.yaw);
