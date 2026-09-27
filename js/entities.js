@@ -806,6 +806,7 @@ const Ents = {
     const p = G.player.pos;
     this.unstash();
     for (const m of this.mobs) {
+      if (m.type === 'wyrm') continue;   // boss.js decides when the Wyrm goes
       const d = Math.hypot(m.pos[0] - p[0], m.pos[2] - p[2]);
       if (!G.world.isLoaded(Math.floor(m.pos[0]), Math.floor(m.pos[2]))) { m.removed = true; this.stash(m); continue; }
       if (!m.def.hostile && d > (m.persistent ? 175 : 120)) { m.removed = true; this.stash(m); continue; }
