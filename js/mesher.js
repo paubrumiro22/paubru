@@ -279,7 +279,7 @@ function emitArch(world, p, x, y, z, id, rt, flags, wx, wz) {
       for (const poly of g.polys) emitPoly(meshOpaque, p, x, y, z, poly, poly.slant ? tex(poly.n[1] > 0 ? 2 : 3) : tex(poly.n[0] > 0 ? 0 : poly.n[0] < 0 ? 1 : poly.n[1] > 0 ? 2 : poly.n[1] < 0 ? 3 : poly.n[2] > 0 ? 4 : 5), flags);
       boxes = g.boxes;
     }
-    for (const b of boxes) emitBox(meshOpaque, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], b.length > 6 ? () => b[6] : tex, flags, WHITE_TINT, null, true);
+    for (const b of boxes) emitBox(b.length > 6 && SHAPE_CUTOUT.has(b[6]) ? meshCutout : meshOpaque, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], b.length > 6 ? () => b[6] : tex, flags, WHITE_TINT, null, true);
     return;
   }
   if (rt === RT_CONNECT) {

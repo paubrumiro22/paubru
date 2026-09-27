@@ -1721,6 +1721,7 @@ const _shapeCache = new Map();
 // shapes drawn from their neighbours (get(dx, dy, dz) -> block id), like signal wire.
 const SHAPE_FN = {};
 const SHAPE_NB = {};
+const SHAPE_CUTOUT = new Set();   // texture layers of shape boxes drawn with see-through pixels (glass)
 // Oriented geometry of a shape: { boxes, polys: [{ p, n, slant, code, uv }], coll } (1/16 units).
 function shapeGeom(kind, f) {
   const key = kind * 16 + (f & 15);
@@ -1873,6 +1874,8 @@ function div16(b) { return [b[0] / 16, b[1] / 16, b[2] / 16, b[3] / 16, b[4] / 1
     'LEVER', 'LEVER_ON', 'BUTTON', 'BUTTON_ON', 'WOOD_BUTTON', 'WOOD_BUTTON_ON', 'PLATE', 'PLATE_ON', 'WOOD_PLATE', 'WOOD_PLATE_ON',
     'WIRE', 'WIRE_ON', 'SIGNAL_LAMP', 'SIGNAL_LAMP_ON', 'PISTON', 'PISTON_ON', 'STICKY_PISTON', 'STICKY_PISTON_ON',
     'PISTON_HEAD', 'STICKY_HEAD', 'TIMER', 'TIMER_ON', 'SIGNAL_BLOCK',
+    // automatic sliding doors (mech_blocks.js, autodoor.js) and street paint (the STUCOM district)
+    'AUTO_DOOR', 'AUTO_DOOR_TOP', 'AUTO_DOOR_OPEN', 'AUTO_DOOR_OPEN_TOP', 'ASPHALT_LINE_X', 'ROAD_WHITE',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here
@@ -2127,6 +2130,8 @@ defBlock(B.VENDING_MACHINE, 'Vending Machine', RT_CUBE, { top: 'locker_side', si
 for (const id of [B.COMPUTER, B.LOCKER, B.VENDING_MACHINE]) FACING_BLOCKS.add(id);
 defBlock(B.ASPHALT, 'Asphalt', RT_CUBE, 'asphalt', XR({ hard: 1.5, cat: 'building' }));
 defBlock(B.ASPHALT_LINE, 'Asphalt with Road Line', RT_CUBE, { top: 'asphalt_line', side: 'asphalt', bottom: 'asphalt' }, XR({ hard: 1.5, cat: 'building' }));
+defBlock(B.ASPHALT_LINE_X, 'Asphalt with Cross Line', RT_CUBE, { top: 'asphalt_line_x', side: 'asphalt', bottom: 'asphalt' }, XR({ hard: 1.5, cat: 'building' }));
+defBlock(B.ROAD_WHITE, 'Road Paint', RT_CUBE, { top: 'road_white', side: 'asphalt', bottom: 'asphalt' }, XR({ hard: 1.5, cat: 'building' }));
 defBlock(B.TURF, 'Artificial Turf', RT_CUBE, { top: 'turf', side: 'turf_side', bottom: 'dirt' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRASS, cat: 'building' });
 defBlock(B.TURF_LINE, 'Artificial Turf with Line', RT_CUBE, { top: 'turf_line', side: 'turf_side', bottom: 'dirt' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRASS, cat: 'building' });
 // fire: crossed flame sprites that sway, burn what is flammable around them and die out (fire.js)
@@ -2203,6 +2208,34 @@ const headShape = (face) => (f) => { const b = pistonXf(f, [[0, 0, 0, 16, 16, 4,
 SHAPE_FN[SH_PISTON_HEAD] = headShape(MT.pface);
 SHAPE_FN[SH_STICKY_HEAD] = headShape(MT.sface);
 
+// Automatic sliding door: an aluminium-framed glass leaf in the middle of the cell, with the track
+// housing (and its sensor) along the top of the upper block. Open, the leaf has slid away and only
+// the jamb on one side is left. Facing 0 1 4 5 as FACE_DIR (the leaf spans x for 4/5, z for 0/1);
+// +8 puts the jamb on the other side (double doors part from the middle).
+const SH_ADOOR = 24, SH_ADOOR_TOP = 25, SH_ADOOR_OPEN = 26, SH_ADOOR_OPEN_TOP = 27;
+const ADT = { frame: defTex('adoor_frame'), lo: defTex('adoor_glass_lo'), hi: defTex('adoor_glass_hi'), head: defTex('adoor_head') };
+function adoorXf(f, list) {
+  const r = f & 7, mir = f & 8;
+  return list.map((b) => {
+    const m = mir ? [16 - b[3], b[1], b[2], 16 - b[0], b[4], b[5]] : b.slice(0, 6);
+    const q = xfBox(r === 0 || r === 1 || r === 4 ? r : 5, m);
+    if (b.length > 6) q.push(b[6]);
+    return q;
+  });
+}
+SHAPE_CUTOUT.add(ADT.lo); SHAPE_CUTOUT.add(ADT.hi);
+const ADOOR_HEAD = [0, 14, 5, 16, 16, 11, ADT.head];
+SHAPE_FN[SH_ADOOR] = (f) => ({
+  boxes: adoorXf(f, [[0, 0, 7, 1, 16, 9, ADT.frame], [15, 0, 7, 16, 16, 9, ADT.frame], [1, 0, 7, 15, 1, 9, ADT.frame], [1, 1, 7, 15, 16, 9, ADT.lo]]),
+  coll: adoorXf(f, [[0, 0, 7, 16, 16, 9]]),
+});
+SHAPE_FN[SH_ADOOR_TOP] = (f) => ({
+  boxes: adoorXf(f, [[0, 0, 7, 1, 14, 9, ADT.frame], [15, 0, 7, 16, 14, 9, ADT.frame], [1, 13, 7, 15, 14, 9, ADT.frame], [1, 0, 7, 15, 13, 9, ADT.hi], ADOOR_HEAD]),
+  coll: adoorXf(f, [[0, 0, 7, 16, 16, 9], [0, 14, 5, 16, 16, 11]]),
+});
+SHAPE_FN[SH_ADOOR_OPEN] = (f) => ({ boxes: adoorXf(f, [[0, 0, 6, 2, 16, 10, ADT.frame]]) });
+SHAPE_FN[SH_ADOOR_OPEN_TOP] = (f) => ({ boxes: adoorXf(f, [[0, 0, 6, 2, 14, 10, ADT.frame], ADOOR_HEAD]) });
+
 // Signal wire: a flat line that joins wire and mechanisms around it and climbs one block.
 const IS_WIRE = (id) => id === B.WIRE || id === B.WIRE_ON;
 const MECH_JOIN = new Uint8Array(MAX_BLOCK);
@@ -2256,6 +2289,13 @@ SHAPE_NB[SH_WIRE] = wireBoxes;
   defBlock(B.TIMER, 'Timer', RT_CUBE, { top: 'timer_top', bottom: 'smooth_stone', side: 'timer_side' }, { hard: 0.8, snd: SND.STONE, tool: TOOL_PICK, cat: 'mechanisms' });
   defBlock(B.TIMER_ON, 'Timer', RT_CUBE, { top: 'timer_top_on', bottom: 'smooth_stone', side: 'timer_side_on' }, { hard: 0.8, snd: SND.STONE, tool: TOOL_PICK, emit: 7, cat: null });
   defBlock(B.SIGNAL_BLOCK, 'Signal Block', RT_CUBE, 'signal_block', { hard: 3, snd: SND.METAL, tool: TOOL_PICK, emit: 4, cat: 'mechanisms' });
+  // automatic sliding doors: two blocks tall, opened by autodoor.js when someone comes near
+  const AD = { hard: 2, snd: SND.GLASS, tool: TOOL_PICK, atten: 0, cat: null };
+  const adoor = (id, k, o) => { defBlock(id, 'Automatic Door', RT_SHAPE, 'adoor_frame', with_(AD, o)); BLOCK_SHAPE[id] = k; };
+  adoor(B.AUTO_DOOR, SH_ADOOR, { solid: true, cat: 'mechanisms' });
+  adoor(B.AUTO_DOOR_TOP, SH_ADOOR_TOP, { solid: true });
+  adoor(B.AUTO_DOOR_OPEN, SH_ADOOR_OPEN, { solid: false });
+  adoor(B.AUTO_DOOR_OPEN_TOP, SH_ADOOR_OPEN_TOP, { solid: false });
   for (const id of [B.LEVER, B.LEVER_ON, B.BUTTON, B.BUTTON_ON, B.WOOD_BUTTON, B.WOOD_BUTTON_ON, B.PLATE, B.PLATE_ON, B.WOOD_PLATE, B.WOOD_PLATE_ON,
     B.WIRE, B.WIRE_ON, B.SIGNAL_LAMP, B.SIGNAL_LAMP_ON, B.PISTON, B.PISTON_ON, B.STICKY_PISTON, B.STICKY_PISTON_ON, B.TIMER, B.TIMER_ON, B.SIGNAL_BLOCK,
     B.TNT, B.DOOR, B.DOOR_OPEN, B.TRAPDOOR, B.TRAPDOOR_OPEN]) MECH_JOIN[id] = 1;
@@ -5310,6 +5350,16 @@ gen('asphalt_line', (d, rng, ctx) => {
   TEX_GEN.asphalt(d, rng, ctx);
   fillTile(d, (x, y) => { if (x >= 14 && x <= 17 && y >= 4 && y <= 27) put(d, x, y, [236, 236, 228], 0.9 + rng() * 0.1); });
 }, { smooth: 0.2, bump: 1.6 });
+gen('asphalt_line_x', (d, rng, ctx) => {
+  TEX_GEN.asphalt(d, rng, ctx);
+  fillTile(d, (x, y) => { if (y >= 14 && y <= 17 && x >= 4 && x <= 27) put(d, x, y, [236, 236, 228], 0.9 + rng() * 0.1); });
+}, { smooth: 0.2, bump: 1.6 });
+// zebra-crossing paint: worn white over the asphalt, a little grit showing through
+gen('road_white', (d, rng, ctx) => {
+  TEX_GEN.asphalt(d, rng, ctx);
+  const f = fbm(rng, 4, 2);
+  fillTile(d, (x, y, k) => { if (f[k] + rng() * 0.25 > 0.32) put(d, x, y, [234, 234, 226], 0.86 + rng() * 0.12); });
+}, { smooth: 0.25, bump: 1.2 });
 gen('turf', (d, rng) => {
   fillTile(d, (x, y) => {
     const stripe = Math.floor(x / 16) & 1;
@@ -5332,6 +5382,8 @@ shaped(B.LOCKER, 1, ['II', 'II', 'II'], { I: I.IRON_INGOT });
 shaped(B.VENDING_MACHINE, 1, ['IGI', 'IAI', 'III'], { I: I.IRON_INGOT, G: B.GLASS_PANE, A: I.APPLE });
 shaped(B.ASPHALT, 8, ['GGG', 'GCG', 'GGG'], { G: B.GRAVEL, C: TAG.coal });
 shaped(B.ASPHALT_LINE, 4, ['AWA', 'AWA'], { A: B.ASPHALT, W: B.CONCRETE });
+shaped(B.ASPHALT_LINE_X, 4, ['AA', 'WW', 'AA'], { A: B.ASPHALT, W: B.CONCRETE });
+shaped(B.ROAD_WHITE, 4, ['AW', 'WA'], { A: B.ASPHALT, W: B.CONCRETE });
 shaped(B.TURF, 8, ['WWW', 'WDW', 'WWW'], { W: B.WOOL + 5, D: B.DIRT });
 shaped(B.TURF_LINE, 4, ['TWT', 'TWT'], { T: B.TURF, W: B.CONCRETE });
 {
@@ -7978,7 +8030,8 @@ function stucomVillage(g) {
   }
   g._stucomBusy = false;
   g._stucom = best;
-  if (best && !best.stucom) decorateStucom(g, best);
+  // generator 4: a planned district with no village left in it (district.js)
+  if (best && !best.stucom) { if (g.ver >= 4) planDistrict(g, best); else decorateStucom(g, best); }
   return best;
 }
 
@@ -8086,7 +8139,7 @@ function buildPlot(W, g, x0, z0, x1, z1, F, st, sz) {
 // four floors of classrooms behind balconies, a stair-and-ladder core and a roof terrace.
 // Local frame: a (0..16) along the street, d (0..12) into the building; the front (d = 0) faces
 // the square, i.e. towards -sz in z.
-function buildSchool(W, g, x0, zf, sz, F, st) {
+function buildSchool(W, g, x0, zf, sz, F, st, modern) {
   const Wd = 17, D = 13, floors = [F, F + 6, F + 10, F + 14, F + 18], roof = F + 22;
   const Z = (d) => zf + sz * d;
   const set = (a, y, d, id, f) => W.set(x0 + a, y, Z(d), id, f);
@@ -8103,7 +8156,7 @@ function buildSchool(W, g, x0, zf, sz, F, st) {
     for (let y = F; y <= roof + 4; y++) W.set(x, y, z, B.AIR);
     if (!inside) {
       // pavement in front of the school
-      if (d < 0) { for (let y = Math.min(h, F - 2); y < F - 1; y++) if (y > 0) W.set(x, y, z, B.STONE_BRICKS); W.set(x, F - 1, z, B.SMOOTH_STONE); }
+      if (d < 0) { for (let y = Math.min(h, F - 2); y < F - 1; y++) if (y > 0) W.set(x, y, z, B.STONE_BRICKS); W.set(x, F - 1, z, modern ? B.PANOT : B.SMOOTH_STONE); }
       continue;
     }
     const front = d === 0, back = d === D - 1, side = a === 0 || a === Wd - 1;
@@ -8130,6 +8183,8 @@ function buildSchool(W, g, x0, zf, sz, F, st) {
   set(5, F + 5, 0, shapeId('stone_brick', 'arch'), sz > 0 ? 1 : 0); set(11, F + 5, 0, shapeId('stone_brick', 'arch'), sz > 0 ? 0 : 1);
   for (let a = 6; a <= 10; a++) for (let d = 1; d <= 2; d++) { set(a, F - 1, d, B.SMOOTH_STONE); set(a, F + 3, d, B.PLASTER); }
   for (let a = 6; a <= 10; a++) set(a, F, 2, a === 8 ? B.DOOR : B.GLASS_PANE, out), set(a, F + 1, 2, a === 8 ? B.DOOR_TOP : B.GLASS_PANE, out), set(a, F + 2, 2, B.GLASS_PANE);
+  // modern: three automatic sliding doors that part from the middle
+  if (modern) placeADoors(W, [7, 8, 9].map((a) => [x0 + a, Z(2)]), F, out);
   // the sign: picture hung on the plaster above the doors, facing the square
   const n = sz > 0 ? [0, -1] : [0, 1];
   W.pic(sz > 0 ? x0 + 10 : x0 + 6, F + 3, Z(-1), out, 5, 3, 'stucom');
@@ -8144,6 +8199,7 @@ function buildSchool(W, g, x0, zf, sz, F, st) {
     for (let a = b0 - 1; a <= b1 + 1; a++) { set(a, fl, -1, B.SANDSTONE_SLAB, 8); set(a, fl + 1, -1, B.IRON_BARS); }
   }
   // ---- inside ----
+  if (modern) { schoolStairs(W, x0, Z, sz, F, floors, roof); schoolFurnish(W, x0, Z, set, F, floors, out); return; }
   // lobby: reception desk, benches, the school's sign picture, lamps
   for (let a = 2; a <= 5; a++) set(a, F, 5, B.SPRUCE_PLANKS);
   set(2, F + 1, 5, B.LANTERN, 0);
@@ -8174,6 +8230,9 @@ function buildSchool(W, g, x0, zf, sz, F, st) {
 // Plans whose area may touch the rectangle.
 function structuresIn(g, x0, z0, x1, z1) {
   if (!g.structs) return [];
+  // the STUCOM village is decided (and gets its school) before anything is built; in generator 4
+  // it also clears the other plans off the district, so it comes first
+  if (g._stucom === undefined && !g._stucomBusy) stucomVillage(g);
   const out = [];
   const i0 = Math.floor((x0 - STRUCT_REACH) / STRUCT_CELL), i1 = Math.floor((x1 + STRUCT_REACH) / STRUCT_CELL);
   const j0 = Math.floor((z0 - STRUCT_REACH) / STRUCT_CELL), j1 = Math.floor((z1 + STRUCT_REACH) / STRUCT_CELL);
@@ -8183,8 +8242,6 @@ function structuresIn(g, x0, z0, x1, z1) {
     if (p === undefined) { p = planCell(g, i, j); g.structs.set(key, p); }
     if (p) out.push(p);
   }
-  // the STUCOM village is decided (and gets its school) before anything is built
-  if (g._stucom === undefined && !g._stucomBusy) stucomVillage(g);
   return out;
 }
 
@@ -8443,7 +8500,7 @@ function planCampus(g, plan, st, rough) {
 // Banc Central: a neoclassical bank on a podium, with a columned portico under a pediment, a
 // hall with a chequered floor, tellers' windows, the bankers behind them and the vault at the
 // back full of gold. 17 wide, 20 deep (d 0..2 are the steps, 1..3 the portico).
-function buildBank(W, g, L, F, others) {
+function buildBank(W, g, L, F, others, modern) {
   const bx = L.box;
   if (!rectHits(W, bx[0] - 2, bx[1] - 2, bx[2] + 2, bx[3] + 2)) return;
   const S = lwriter(W, L);
@@ -8495,7 +8552,12 @@ function buildBank(W, g, L, F, others) {
     if (a !== 8) { S.set(a, FL + 1, 11, a % 3 === 2 ? B.POLISHED_DIORITE : B.GLASS_PANE); S.set(a, FL + 2, 11, B.GLASS_PANE); }
     S.set(a, FL + 3, 11, B.DARK_OAK_PLANKS);
   }
-  S.set(8, FL, 11, B.DOOR, L.inw); S.set(8, FL + 1, 11, B.DOOR_TOP, L.inw);
+  if (modern) {
+    // automatic glass doors in the tall doorway (glass above them) and at the counter
+    placeADoors(W, [7, 8, 9].map((a) => [L.X(a, 4), L.Z(a, 4)]), FL, L.out);
+    for (let a = 7; a <= 9; a++) for (let y = FL + 2; y <= FL + 4; y++) S.set(a, y, 4, B.GLASS_PANE);
+    placeADoors(W, [[L.X(8, 11), L.Z(8, 11)]], FL, L.inw);
+  } else { S.set(8, FL, 11, B.DOOR, L.inw); S.set(8, FL + 1, 11, B.DOOR_TOP, L.inw); }
   for (const a of [3, 6, 10, 13]) S.set(a, FL, 12, shapeId('dark_oak', 'stairs'), L.inw);
   for (const a of [2, 5, 11, 14]) S.set(a, FL, 12, B.COMPUTER, L.out);
   // waiting benches, plants and a rates board
@@ -8557,7 +8619,7 @@ function buildForecourt(W, g, fc) {
 }
 
 // Cafeteria downstairs; library and computer room upstairs; solar panels on the roof.
-function buildAnnex(W, g, L, F) {
+function buildAnnex(W, g, L, F, modern) {
   const bx = L.box;
   if (!rectHits(W, bx[0] - 2, bx[1] - 2, bx[2] + 2, bx[3] + 2)) return;
   const S = lwriter(W, L);
@@ -8584,8 +8646,11 @@ function buildAnnex(W, g, L, F) {
     if (edge) S.set(a, R + 1, d, B.CONCRETE);
   }
   // entrance: double doors in the glass front, a canopy and the sign above
-  S.set(7, F, 0, B.DOOR, L.out); S.set(7, F + 1, 0, B.DOOR_TOP, L.out);
-  S.set(6, F, 0, B.GLASS_PANE); S.set(8, F, 0, B.GLASS_PANE);
+  if (modern) placeADoors(W, [6, 7, 8].map((a) => [L.X(a, 0), L.Z(a, 0)]), F, L.out);
+  else {
+    S.set(7, F, 0, B.DOOR, L.out); S.set(7, F + 1, 0, B.DOOR_TOP, L.out);
+    S.set(6, F, 0, B.GLASS_PANE); S.set(8, F, 0, B.GLASS_PANE);
+  }
   for (let a = 5; a <= 9; a++) S.set(a, F + 2, -1, B.CONCRETE_SLAB, 8);
   for (let a = 5; a <= 9; a++) { S.set(a, F - 1, -1, B.PANOT); S.set(a, F - 1, -2, B.PANOT); }
   S.pic(4, F + 3, -1, L.out, 7, 2, 'annex');
@@ -8865,6 +8930,536 @@ function buildMetroLine(W, g, L, S, floor, o, rail, exitOk) {
   }
   S.set(-2, F, D0 + 16, B.LADDER, L.out);
   S.pic(-2, F + 3, D0 + 14, L.out, 1, 1, 'metro');
+}
+</script>
+<script data-w>
+'use strict';
+// The STUCOM district (worlds with generator 4 and up; structures.js calls planDistrict from
+// stucomVillage instead of turning a village into the campus). No village houses: a small
+// planned Eixample-style grid on levelled ground, three by three blocks ("illes") 36 wide with
+// chamfered corners, separated by 10-wide streets (panot pavements, asphalt, lane lines, zebra
+// crossings, plane trees and lamps). The middle block is Pla\u00e7a Universitat (fountain, benches,
+// kiosk, bus stop and the metro entrance); around it the school with real stairs and automatic
+// doors, the Banc Central, the football pitch and a park with the annex and the Catalunya exit.
+// The four corner blocks hold sixteen free building plots for the players. The metro runs under
+// the square from Universitat to Catalunya, with wide stairs down that nothing is built over.
+// Loaded in the chunk workers too (data-w): only deterministic code.
+
+const DI = 36, DS = 10, DP = DI + DS;      // block ("illa") size, street width, grid pitch
+const DHALF = 74, DBLEND = 18, DOUT = DHALF + DBLEND;
+const METRO_DEPTH = 13;                    // platform this far under the street
+
+// Position across a street (st 0..9) or, inside a block, its index k and local coordinate r.
+function dBand(u) {
+  const k = Math.floor((u + DI / 2) / DP), r = u + DI / 2 - k * DP;
+  return r >= DI ? { st: r - DI, k, r: -1 } : { st: -1, k, r };
+}
+
+// Facing of an automatic door whose jamb (where the leaf slides to) is towards dir (0 1 4 5).
+function adoorFacing(f, dir) {
+  for (const q of [f, f | 8]) {
+    const b = shapeGeom(SH_ADOOR_OPEN, q).boxes[0];
+    const x = (b[0] + b[3]) / 2 - 8, z = (b[2] + b[5]) / 2 - 8;
+    if ((Math.abs(x) > Math.abs(z) ? (x > 0 ? 0 : 1) : (z > 0 ? 4 : 5)) === dir) return q;
+  }
+  return f;
+}
+// A row of automatic doors (cells in order along the row) in a wall facing f: the outer ones
+// slide outwards, so a pair or a trio parts from the middle.
+function placeADoors(W, cells, y, f) {
+  const n = cells.length;
+  for (let i = 0; i < n; i++) {
+    const [x, z] = cells[i];
+    const o = i < n / 2 ? cells[0] : cells[n - 1], p = i < n / 2 ? cells[n - 1] : cells[0];
+    const dx = Math.sign(o[0] - p[0]), dz = Math.sign(o[1] - p[1]);
+    const q = n === 1 ? f : adoorFacing(f, dx > 0 ? 0 : dx < 0 ? 1 : dz > 0 ? 4 : 5);
+    W.set(x, y, z, B.AUTO_DOOR, q); W.set(x, y + 1, z, B.AUTO_DOOR_TOP, q);
+  }
+}
+
+// ---------------------------------------------------------------- planning ----
+function planDistrict(g, plan) {
+  const cx = plan.x, cz = plan.z;
+  // one level for everything: the median ground height over the grid
+  const hs = [];
+  for (let u = -66; u <= 66; u += 12) for (let v = -66; v <= 66; v += 12) hs.push(g.height(cx + u, cz + v));
+  hs.sort((a, b) => a - b);
+  const F = Math.max(SEA + 3, hs[hs.length >> 1] + 1);
+  Object.assign(plan, {
+    stucom: true, district: true, name: 'STUCOM', y: F, radius: 90, roadDirs: [],
+    pieces: [], spawns: [], zones: [[cx - DOUT, cz - DOUT, cx + DOUT - 1, cz + DOUT - 1]],
+  });
+  // nothing else is built on the district or its edge
+  for (const [k, p] of g.structs) {
+    if (p && p !== plan && Math.max(Math.abs(p.x - cx), Math.abs(p.z - cz)) < DOUT + (p.radius || 40) + 6) g.structs.set(k, null);
+  }
+  const D = { cx, cz, F, P: F - METRO_DEPTH, furn: [] };
+  const box = (u0, v0, u1, v1) => [cx + u0, cz + v0, cx + u1, cz + v1];
+  const piece = (b, build) => plan.pieces.push({ box: b, build });
+  const home = (kind, prof, u, y, v, hu, hv, r) => plan.spawns.push({ kind, prof, x: cx + u + 0.5, y, z: cz + v + 0.5, home: [cx + hu + 0.5, cz + hv + 0.5], homeR: r });
+
+  // plane trees and lamps along every pavement, clear of the crossings
+  for (const b0 of [-74, -28, 18, 64]) for (let t = -DHALF; t < DHALF; t++) {
+    const bt = dBand(t);
+    if (bt.st >= 0) continue;
+    // symmetric about the middle of each block, which stays clear (entrances face it)
+    const kind = [5, 13, 22, 30].includes(bt.r) ? 'tree' : bt.r === 9 || bt.r === 26 ? 'lamp' : null;
+    if (!kind) continue;
+    for (const s of [1, 8]) {
+      D.furn.push([cx + b0 + s, cz + t, kind]);   // street running along z
+      D.furn.push([cx + t, cz + b0 + s, kind]);   // street running along x
+    }
+  }
+  piece(box(-DOUT, -DOUT, DOUT - 1, DOUT - 1), (W) => buildDistrictBase(W, g, D));
+
+  // ---- the square: Pla\u00e7a Universitat ----
+  piece(box(-19, -19, 18, 18), (W) => buildPlaza(W, g, D));
+  plan.spawnAt = [cx - 5 + 0.5, F, cz - 4 + 0.5];
+  home('villager', 'student', -3, F, 3, 0, 2, 12);
+  home('villager', 'student', 5, F, 10, 2, 6, 12);
+  home('villager', 'student', -12, F, -6, -8, 0, 10);
+
+  // ---- north: the school, facing the square across the street ----
+  const sx0 = cx - 8, szf = cz - 32;
+  piece(box(-18, -64, 17, -29), (W) => buildSchoolBlock(W, g, D));
+  piece([sx0 - 2, szf - 13, sx0 + 18, szf + 3], (W) => buildSchool(W, g, sx0, szf, -1, F, VSTYLE.temperate, true));
+  home('villager', 'teacher', 0, F, -37, 0, -37, 5);
+  home('villager', 'student', 5, F, -38, 4, -38, 5);
+  home('villager', 'student', -4, F + 7, -37, -3, -37, 5);
+  home('villager', 'teacher', 2, F + 11, -43, 2, -42, 4);
+  home('villager', 'student', -3, F, -55, 0, -55, 9);
+
+  // ---- west: the football pitch (its front towards the square) ----
+  const campus = plan.campus = {};
+  const pt = campus.pitch = { x0: cx - 51, z0: cz - 15, x1: cx - 30, z1: cz + 14, f: 0, F };
+  {
+    const L = lframe(pt.x0, pt.z0, 30, 22, 0);
+    piece(box(-64, -18, -29, 17), (W) => buildGreenBlock(W, g, D, -1, 0));
+    piece([pt.x0 - 1, pt.z0 - 1, pt.x1 + 1, pt.z1 + 1], (W) => buildPitch(W, g, L, F));
+    const pc = [L.X(15, 9) - cx, L.Z(15, 9) - cz];
+    for (const [a, d] of [[8, 8], [20, 10], [14, 5]]) home('villager', 'student', L.X(a, d) - cx, F, L.Z(a, d) - cz, pc[0], pc[1], 12);
+  }
+
+  // ---- east: Banc Central, its steps towards the square ----
+  const bk = campus.bank = { x0: cx + 31, z0: cz - 8, x1: cx + 50, z1: cz + 8, f: 1, F };
+  {
+    const L = lframe(bk.x0, bk.z0, 17, 20, 1);
+    piece(box(28, -18, 63, 17), (W) => buildGreenBlock(W, g, D, 1, 0));
+    piece([bk.x0 - 3, bk.z0 - 3, bk.x1 + 2, bk.z1 + 3], (W) => buildBank(W, g, L, F, [[-1e9, -1e9, 1e9, 1e9]], true));
+    for (const a of [4, 12]) plan.spawns.push({ kind: 'villager', prof: 'banker', x: L.X(a, 13) + 0.5, y: F + 2, z: L.Z(a, 13) + 0.5, home: [L.X(a, 13) + 0.5, L.Z(a, 13) + 0.5], homeR: 2.5 });
+    home('villager', 'student', L.X(3, 8) - cx, F + 2, L.Z(3, 8) - cz, L.X(8, 8) - cx, L.Z(8, 8) - cz, 5);
+  }
+
+  // ---- south: the park with the annex, a garden and the Catalunya exit ----
+  const an = campus.annex = { x0: cx + 2, z0: cz + 31, x1: cx + 16, z1: cz + 41, f: 5, F };
+  campus.garden = { x0: cx + 3, z0: cz + 46, x1: cx + 15, z1: cz + 58, F };
+  {
+    const L = lframe(an.x0, an.z0, 15, 11, 5);
+    piece(box(-18, 28, 17, 63), (W) => buildParkBlock(W, g, D));
+    piece([an.x0 - 2, an.z0 - 2, an.x1 + 2, an.z1 + 2], (W) => buildAnnex(W, g, L, F, true));
+    piece([cx + 2, cz + 45, cx + 16, cz + 59], (W) => buildGarden(W, g, cx + 3, cz + 46, F));
+    const at = (a, d, y, r) => home('villager', y > F ? (a > 7 ? 'teacher' : 'student') : 'student', L.X(a, d) - cx, y, L.Z(a, d) - cz, L.X(a, d) - cx, L.Z(a, d) - cz, r);
+    at(6, 4, F, 4); at(7, 6, F, 4); at(5, 6, F + 6, 2); at(10, 3, F + 6, 2);
+    home('villager', 'student', 9, F, 49, 9, 50, 6);
+    home('villager', 'student', -12, F, 50, -10, 48, 9);
+  }
+
+  // ---- the four corner blocks: free building plots ----
+  for (const i of [-1, 1]) for (const j of [-1, 1]) {
+    const u0 = i * DP - DI / 2, v0 = j * DP - DI / 2;
+    piece(box(u0, v0, u0 + DI - 1, v0 + DI - 1), (W) => buildPlotBlock(W, g, D, u0, v0));
+  }
+
+  // ---- the metro, last: nothing is ever built over its stairs ----
+  const tx = cx + 12, at = (v) => [tx + 0.5, D.P - 1, cz + v + 0.5];
+  piece(box(-5, -18, 16, 60), (W) => buildDistrictMetro(W, g, D));
+  plan.metro = {
+    x: cx + 7, z: cz, y: D.P, depth: METRO_DEPTH, track: [tx, cz - 14, tx, cz + 56],
+    line: { a: at(-14), b: at(56), stops: [{ name: 'Universitat', at: at(-9) }, { name: 'Catalunya', at: at(51) }] },
+  };
+}
+
+// ---------------------------------------------------------------- ground and streets ----
+function districtTop(u, v) {
+  const bu = dBand(u), bv = dBand(v);
+  if (bu.st >= 0 && bv.st >= 0) return B.ASPHALT;
+  if (bu.st >= 0 || bv.st >= 0) {
+    const alongZ = bu.st >= 0, s = alongZ ? bu.st : bv.st, r = alongZ ? bv.r : bu.r;
+    if (s <= 1 || s >= 8) return B.PANOT;
+    if (r <= 2 || r >= DI - 3) return s % 2 === 0 ? B.ROAD_WHITE : B.ASPHALT;              // zebra crossing
+    if (s === 5 && r % 4 < 2) return alongZ ? B.ASPHALT_LINE : B.ASPHALT_LINE_X;          // dashed lane line
+    return B.ASPHALT;
+  }
+  const a = bu.r, b = bv.r;
+  if (Math.min(a, DI - 1 - a) + Math.min(b, DI - 1 - b) < 5) return B.PANOT;              // chamfered corner
+  if (bu.k === 0 && bv.k === 0) return B.PANOT;                                            // the square
+  if (bu.k !== 0 && bv.k !== 0) return (a >= 17 && a <= 18) || (b >= 17 && b <= 18) ? B.PANOT : B.GRASS;   // plots
+  return B.GRASS;
+}
+
+// Levels the district (fills hollows, closes shallow caves, clears hills and trees above), lays
+// the street surfaces, and blends the ground back into the countryside around it.
+function buildDistrictBase(W, g, D) {
+  const { cx, cz, F } = D;
+  const xa = Math.max(W.x0, cx - DOUT), xb = Math.min(W.x1, cx + DOUT - 1);
+  const za = Math.max(W.z0, cz - DOUT), zb = Math.min(W.z1, cz + DOUT - 1);
+  if (xa > xb || za > zb) return;
+  for (let x = xa; x <= xb; x++) for (let z = za; z <= zb; z++) {
+    const u = x - cx, v = z - cz, h = g.height(x, z);
+    const e = Math.max(-DHALF - u, u - (DHALF - 1), -DHALF - v, v - (DHALF - 1), 0);
+    if (e > 0) {
+      const t = Math.min(1, e / DBLEND), s = t * t * (3 - 2 * t);
+      const top = Math.round((F - 1) + (h - (F - 1)) * s);
+      if (top === h) continue;
+      for (let y = Math.min(h + 1, top); y < top; y++) if (y > 0) W.set(x, y, z, top - y > 3 ? B.STONE : B.DIRT);
+      W.set(x, top, z, B.GRASS);
+      for (let y = top + 1; y <= Math.max(h, top) + 12 && y < CH; y++) {
+        const id = W.get(x, y, z);
+        if (id !== B.AIR && !(IS_LIQUID(id) && y <= SEA)) W.set(x, y, z, B.AIR);
+      }
+      continue;
+    }
+    for (let y = Math.min(h + 1, F - 7); y <= F - 2; y++) if (y > 0 && (y > h || !BLOCK_SOLID[W.get(x, y, z)])) W.set(x, y, z, y >= F - 4 ? B.DIRT : B.STONE);
+    W.set(x, F - 1, z, districtTop(u, v));
+    for (let y = F; y <= Math.max(h, F) + 14 && y < CH; y++) if (W.get(x, y, z) !== B.AIR) W.set(x, y, z, B.AIR);
+  }
+  // street trees in grated pits and lamps
+  for (const [x, z, kind] of D.furn) {
+    if (x < W.x0 - 3 || x > W.x1 + 3 || z < W.z0 - 3 || z > W.z1 + 3) continue;
+    if (kind === 'lamp') { campusLamp(W, x, F, z); continue; }
+    if (W.has(x, z)) W.set(x, F - 1, z, B.COARSE_DIRT);
+    campusTree(W, x, F, z, hash3(x, 7, z, 3) < 0.5 ? 'oak' : 'birch', 5);
+  }
+}
+
+// ---------------------------------------------------------------- the square ----
+function buildPlaza(W, g, D) {
+  const { cx, cz, F } = D;
+  const L = { X: (a) => a, Z: (a, d) => d };
+  const S = lwriter(W, L);
+  const set = (u, y, v, id, f) => W.set(cx + u, y, cz + v, id, f);
+  const fu = -8, fv = 7;                                   // fountain
+  const inMetro = (u, v) => u >= -5 && u <= 5 && v >= -10 && v <= 1;
+  // paving: panot with bands of polished stone, hydraulic tiles around the fountain
+  for (let u = -18; u <= 17; u++) for (let v = -18; v <= 17; v++) {
+    const x = cx + u, z = cz + v;
+    if (!W.has(x, z) || districtTop(u, v) !== B.PANOT) continue;
+    const r = Math.hypot(u - fu, v - fv);
+    W.set(x, F - 1, z, r < 7.5 ? B.HYDRAULIC_TILE : (u + 18) % 6 === 0 || (v + 18) % 6 === 0 ? B.POLISHED_ANDESITE : B.PANOT);
+    if (r < 3.6) { W.set(x, F - 1, z, B.WATER); W.set(x, F - 2, z, B.PRISMARINE_BRICKS); }
+    else if (r < 4.7) { W.set(x, F - 1, z, B.POLISHED_DIORITE); W.set(x, F, z, B.POLISHED_DIORITE_SLAB); }
+  }
+  // the fountain's column with a glowing top
+  for (let y = F - 2; y <= F + 1; y++) set(fu, y, fv, B.QUARTZ_PILLAR);
+  set(fu, F + 2, fv, B.SEA_LANTERN);
+  // benches round the fountain, backs to it
+  for (const [u, v, f] of [[fu - 1, fv - 6, 5], [fu, fv - 6, 5], [fu - 1, fv + 6, 4], [fu, fv + 6, 4], [fu - 6, fv - 1, 1], [fu - 6, fv, 1], [fu + 6, fv - 1, 0], [fu + 6, fv, 0]]) set(u, F, v, shapeId('oak', 'stairs'), f);
+  // big trees in raised planters
+  for (const [u, v, kind] of [[-13, -12, 'cherry'], [11, -12, 'oak'], [12, 12, 'cherry'], [-15, 15, 'oak'], [13, 0, 'birch']]) {
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+      set(u + a, F - 1, v + b, B.GRASS);
+      if (a || b) set(u + a, F, v + b, B.STONE_BRICK_SLAB);
+    }
+    campusTree(W, cx + u, F, cz + v, kind, 5);
+  }
+  // lamps
+  for (const [u, v] of [[-16, -5], [-16, 5], [16, -5], [16, 5], [-6, -16], [7, -16], [-6, 16], [3, 16]]) campusLamp(W, cx + u, F, cz + v);
+  // newspaper kiosk: green walls, a counter window and a red roof
+  for (let u = 6; u <= 9; u++) for (let v = 5; v <= 7; v++) {
+    const edge = u === 6 || u === 9 || v === 5 || v === 7;
+    for (let y = F; y <= F + 1; y++) set(u, y, v, !edge ? B.AIR : v === 7 && y === F + 1 && u > 6 && u < 9 ? B.GLASS_PANE : B.CONCRETE + 13);
+    set(u, F + 2, v, B.CONCRETE + 14);
+  }
+  for (let u = 6; u <= 9; u++) set(u, F + 2, 8, B.CONCRETE_SLAB, 8);
+  set(7, F, 8, B.CRATE);
+  // bus stop at the south edge, facing the street
+  for (let u = 9; u <= 13; u++) {
+    for (const v of [15, 16, 17]) set(u, F + 2, v, B.CONCRETE_SLAB, 8);
+    if (u === 9 || u === 13) { set(u, F, 15, B.IRON_BARS); set(u, F + 1, 15, B.IRON_BARS); }
+    else { set(u, F, 15, B.GLASS_PANE); set(u, F + 1, 15, B.GLASS_PANE); set(u, F, 16, shapeId('oak', 'stairs'), 5); }
+  }
+  W.pic(cx + 11, F + 1, cz + 16, 4, 1, 1, 'timetable');
+  for (let y = F; y <= F + 1; y++) set(15, y, 17, B.IRON_BARS);
+  set(15, F + 2, 17, B.CONCRETE + 14);
+  W.pic(cx + 15, F + 2, cz + 18, 4, 1, 1, 'bus');
+  // bike rack and the campus sign on a quartz plinth
+  for (let u = -16; u <= -12; u++) set(u, F, -16, B.IRON_BARS);
+  for (let u = -8; u <= -6; u++) { set(u, F, -17, B.QUARTZ_BLOCK); set(u, F + 1, -17, B.QUARTZ_BLOCK); }
+  S.pic(-8, F, -16, 4, 3, 2, 'campus');
+  void inMetro;
+}
+
+// ---------------------------------------------------------------- the blocks ----
+// North block: forecourt, lawns with cherry trees beside the school and a basketball court behind.
+function buildSchoolBlock(W, g, D) {
+  const { cx, cz, F } = D;
+  const set = (u, y, v, id, f) => W.set(cx + u, y, cz + v, id, f);
+  for (let u = -18; u <= 17; u++) for (let v = -64; v <= -29; v++) {
+    if (!W.has(cx + u, cz + v) || districtTop(u, v) !== B.GRASS) continue;
+    const court = u >= -13 && u <= 12 && v >= -61 && v <= -49;
+    const line = court && (u === -13 || u === 12 || v === -61 || v === -49 || u === 0 || Math.abs(Math.hypot(u + 0.5, v + 55) - 3) < 0.5);
+    set(u, F - 1, v, v >= -31 ? (Math.abs(u) <= 3 ? B.HYDRAULIC_TILE : B.PANOT) : court ? (line ? B.CONCRETE : B.CONCRETE + 11) : (u === -1 || u === 0) && v < -44 ? B.PANOT : B.GRASS);
+  }
+  // basketball hoops
+  for (const [u, s] of [[-15, 1], [14, -1]]) {
+    for (let y = F; y <= F + 3; y++) set(u, y, -55, B.BLACKSTONE_WALL);
+    for (let v = -56; v <= -54; v++) for (let y = F + 3; y <= F + 4; y++) set(u + s, y, v, B.CONCRETE);
+    set(u + 2 * s, F + 3, -55, B.IRON_BARS);
+  }
+  // trees and benches on the lawns either side of the school
+  for (const u of [-15, -12, 12, 15]) for (const v of [-42, -35]) campusTree(W, cx + u, F, cz + v, (u + v) % 2 ? 'cherry' : 'birch', 4);
+  for (const u of [-16, -15, 13, 14]) set(u, F, -30, shapeId('oak', 'stairs'), 5);
+  for (const [u, v] of [[-17, -46], [16, -46], [-17, -62], [16, -62]]) campusLamp(W, cx + u, F, cz + v);
+  for (let u = 11; u <= 15; u++) set(u, F, -47, B.IRON_BARS);
+}
+
+// West and east blocks around the pitch and the bank: lawns, trees, a paved forecourt before the
+// bank and a small car park behind it.
+function buildGreenBlock(W, g, D, i) {
+  const { cx, cz, F } = D;
+  const u0 = i * DP - DI / 2;
+  const set = (u, y, v, id, f) => W.set(cx + u, y, cz + v, id, f);
+  for (let u = u0; u < u0 + DI; u++) for (let v = -18; v <= 17; v++) {
+    if (!W.has(cx + u, cz + v) || districtTop(u, v) !== B.GRASS) continue;
+    let top = B.GRASS;
+    if (i > 0 && u <= 30) top = B.PANOT;                                  // before the bank's steps
+    if (i > 0 && u >= 53 && u <= 61 && v >= -12 && v <= 11) top = (v + 12) % 4 === 0 && u >= 55 ? B.ROAD_WHITE : B.ASPHALT;   // car park
+    if (i < 0 && u >= -29) top = B.PANOT;                                 // before the pitch gate
+    set(u, F - 1, v, top);
+  }
+  const trees = i > 0 ? [[56, -16], [60, -16], [56, 15], [60, 15], [32, -15], [32, 14], [46, -15], [46, 14]] : [[-59, -12], [-59, -4], [-59, 4], [-59, 12], [-40, -17], [-40, 16]];
+  for (const [u, v] of trees) campusTree(W, cx + u, F, cz + v, (u + v) & 1 ? 'oak' : 'birch', 5);
+  const benches = i > 0 ? [] : [[-61, -8, 1], [-61, -7, 1], [-61, 7, 1], [-61, 8, 1]];
+  for (const [u, v, f] of benches) set(u, F, v, shapeId('oak', 'stairs'), f);
+  for (const [u, v] of i > 0 ? [[52, -13], [52, 12]] : [[-62, 0], [-45, -17], [-45, 16]]) campusLamp(W, cx + u, F, cz + v);
+}
+
+// South block: lawns with a hedge, paths, trees, a playground, the garden and the annex (their own
+// pieces) and the stairs down to Catalunya (the metro piece).
+function buildParkBlock(W, g, D) {
+  const { cx, cz, F } = D;
+  const set = (u, y, v, id, f) => W.set(cx + u, y, cz + v, id, f);
+  const reserved = (u, v) => (u >= 0 && v <= 43) || (u >= 1 && u <= 17 && v >= 44 && v <= 60) || (u >= -5 && u <= 5 && v >= 45 && v <= 56);
+  const path = (u, v) => (v >= 44 && v <= 45) || (u >= -10 && u <= -9) || (v >= 54 && v <= 55 && u >= -10 && u <= 0) || (u >= -2 && u <= 0 && v <= 43) || (u >= 6 && u <= 12 && v <= 30);
+  for (let u = -18; u <= 17; u++) for (let v = 28; v <= 63; v++) {
+    const x = cx + u, z = cz + v;
+    if (!W.has(x, z) || districtTop(u, v) !== B.GRASS) continue;
+    if (path(u, v)) { W.set(x, F - 1, z, B.PANOT); continue; }
+    if (reserved(u, v)) continue;
+    const bu = dBand(u).r, bv = dBand(v).r;
+    const edge = bu === 0 || bu === DI - 1 || bv === 0 || bv === DI - 1;
+    if (edge) W.set(x, F, z, B.LEAVES);
+    else if (u >= -17 && u <= -12 && v >= 56 && v <= 61) { W.set(x, F - 1, z, B.SAND); if (u === -17 || u === -12 || v === 56 || v === 61) W.set(x, F, z, B.PLANK_SLAB); }
+    else if (hash3(x, 2, z, 9) < 0.05) W.set(x, F, z, [B.DANDELION, B.ROSE, B.DAISY, B.CORNFLOWER][Math.floor(hash3(x, 4, z, 9) * 4)]);
+  }
+  // a climbing frame by the sandpit
+  for (const [u, v] of [[-16, 58], [-13, 58]]) for (let y = F; y <= F + 2; y++) set(u, y, v, B.OAK_FENCE);
+  for (let u = -16; u <= -13; u++) set(u, F + 3, 58, B.OAK_FENCE);
+  // trees on the lawns, benches by the paths, lamps
+  for (const [u, v, k] of [[-15, 32, 'oak'], [-5, 33, 'cherry'], [-15, 40, 'birch'], [-6, 39, 'oak'], [-14, 49, 'cherry'], [-5, 60, 'birch'], [-3, 61, 'oak']]) campusTree(W, cx + u, F, cz + v, k, 5);
+  for (const [u, v, f] of [[-16, 43, 5], [-15, 43, 5], [-6, 46, 4], [-5, 46, 4], [-11, 36, 1], [-11, 37, 1]]) set(u, F, v, shapeId('oak', 'stairs'), f);
+  for (const [u, v] of [[-8, 43], [-8, 56], [-17, 46], [-3, 42]]) campusLamp(W, cx + u, F, cz + v);
+}
+
+// Corner blocks: four fenced 14 x 14 plots each, with paths between them.
+function buildPlotBlock(W, g, D, u0, v0) {
+  const { cx, cz, F } = D;
+  for (const a0 of [3, 19]) for (const b0 of [3, 19]) {
+    const x0 = cx + u0 + a0, z0 = cz + v0 + b0, x1 = x0 + 13, z1 = z0 + 13;
+    if (!rectHits(W, x0, z0, x1, z1)) continue;
+    // lawn inside a flat stone kerb, a lantern on a post at each corner
+    for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) {
+      if (!W.has(x, z)) continue;
+      const edge = x === x0 || x === x1 || z === z0 || z === z1;
+      W.set(x, F - 1, z, edge ? B.POLISHED_ANDESITE : B.GRASS);
+      if ((x === x0 || x === x1) && (z === z0 || z === z1)) { W.set(x, F, z, B.BLACKSTONE_WALL); W.set(x, F + 1, z, B.LANTERN, 0); }
+    }
+    // the "SOLAR LLIURE" sign on a low quartz plinth by the edge that faces the street
+    const zs = b0 > 10 ? z1 : z0, f = b0 > 10 ? 4 : 5, mx = x0 + 6;
+    for (let x = mx; x <= mx + 1; x++) { W.set(x, F, zs, B.QUARTZ_BLOCK); W.set(x, F + 1, zs, B.QUARTZ_BLOCK); }
+    W.pic(f === 4 ? mx : mx + 1, F, zs + (f === 4 ? 1 : -1), f, 2, 2, 'plot');
+  }
+  campusLamp(W, cx + u0 + 17, F, cz + v0 + 17);
+  for (const [a, b, f] of [[17, 10, 1], [17, 11, 1], [18, 26, 0], [18, 25, 0]]) W.set(cx + u0 + a, F, cz + v0 + b, shapeId('oak', 'stairs'), f);
+}
+
+// ---------------------------------------------------------------- the metro ----
+// Universitat under the square, a straight tunnel and Catalunya under the park. The track runs
+// along z at u = 12, the platform on its west side. Each station has a wide stair from the street
+// (open at the top, with railings, a glass canopy and the red M) down to a landing that opens onto
+// the platform.
+function buildDistrictMetro(W, g, D) {
+  const { cx, cz, F, P } = D;
+  const set = (u, y, v, id, f) => W.set(cx + u, y, cz + v, id, f);
+  const L = { X: (a) => cx + a, Z: (a, d) => cz + d };
+  const S = lwriter(W, L);
+  const hall = (v0, v1, stripe, mouth) => {
+    const vb = mouth === v0 ? v1 - 1 : v0 + 1;      // buffer stop at the closed end
+    for (let u = 3; u <= 14; u++) for (let v = v0; v <= v1; v++) {
+      const endWall = v === v0 || v === v1, open = u >= 11 && u <= 13 && v === mouth;
+      const wall = u === 3 || u === 14 || (endWall && !open);
+      for (let y = P - 3; y <= P + 6; y++) {
+        let id = B.AIR;
+        if (y === P + 6) id = B.CONCRETE;
+        else if (y === P + 5) id = !wall && (u + v) % 4 === 0 ? B.GLASS_LAMP : B.CONCRETE + 8;
+        else if (wall) id = y === P + 1 ? stripe : y < P - 1 ? B.CONCRETE + 7 : B.CONCRETE;
+        else if (y === P - 1) id = u <= 10 ? (u === 10 ? B.CONCRETE + 4 : B.TERRAZZO) : u === 12 && (mouth === v1 ? v > vb && v <= v1 : v >= v0 && v < vb) ? B.RAIL : B.AIR;
+        else if (y === P - 2) id = u >= 11 ? B.GRAVEL : B.CONCRETE + 7;
+        else if (y < P - 2) id = B.CONCRETE + 7;
+        set(u, y, v, id);
+      }
+    }
+    for (let u = 11; u <= 13; u++) { set(u, P - 1, vb, B.CONCRETE + 15); set(u, P, vb, B.CONCRETE + 14); }
+  };
+  hall(-16, 12, B.BLUE_TILES, 12);
+  hall(31, 58, B.CONCRETE + 14, 31);
+  // tunnel between them: walls, a vault, lamps, the track
+  for (let v = 13; v <= 30; v++) for (let u = 10; u <= 14; u++) for (let y = P - 3; y <= P + 4; y++) {
+    const wall = u === 10 || u === 14, roof = y === P + 4 || (y === P + 3 && (u === 11 || u === 13));
+    let id = B.AIR;
+    if (y <= P - 2) id = y === P - 2 && !wall ? B.GRAVEL : B.CONCRETE + 7;
+    else if (wall || roof) id = y === P ? B.BLUE_TILES : B.CONCRETE + 8;
+    else if (y === P + 3 && u === 12) id = v % 8 === 4 ? B.GLASS_LAMP : B.CONCRETE + 8;
+    else if (y === P - 1 && u === 12) id = B.RAIL;
+    set(u, y, v, id);
+  }
+  // platform furniture: columns, benches against the wall, signs, map, a ticket machine
+  for (const [v0, v1, name, stripe, benches] of [[-16, 12, 'metro_name', B.BLUE_TILES, [-9, -8, 3, 4]], [31, 58, 'metro_name2', B.CONCRETE + 14, [45, 46, 50, 51]]]) {
+    for (let v = v0 + 5; v < v1 - 3; v += 7) for (let y = P; y <= P + 4; y++) set(7, y, v, y === P + 1 ? stripe : B.QUARTZ_PILLAR);
+    for (const v of benches) set(4, P, v, shapeId('oak', 'stairs'), 1);
+    S.pic(13, P + 2, v0 + 6, 1, 3, 1, name, true);
+    S.pic(13, P + 2, v1 - 10, 1, 3, 1, name, true);
+    S.pic(13, P + 1, v0 + 16, 1, 2, 1, v0 < 0 ? 'sunset' : 'mountains', true);
+    S.pic(4, P + 1, v0 + 3, 0, 2, 1, 'metro_map', true);
+    S.pic(4, P + 2, v0 + 12, 0, 1, 1, 'metro', true);
+    set(4, P, v0 + 1, B.VENDING_MACHINE, 0);
+  }
+  // the stairs: 3 wide at u -1..1 between tiled walls; dir = the way they go down along z
+  const stairs = (vTop, dir, stripe) => {
+    const n = F - P, face = dir > 0 ? 5 : 4, st = shapeId('terrazzo', 'stairs');
+    for (let k = 0; k < n; k++) {
+      const v = vTop + dir * k, y = F - 1 - k, open = k <= 4;
+      const clear = open ? F + 3 : y + 4;
+      for (let u = -1; u <= 1; u++) {
+        set(u, y, v, st, face);
+        set(u, y - 1, v, B.TERRAZZO);
+        for (let yy = y + 1; yy <= clear; yy++) set(u, yy, v, B.AIR);
+        if (!open && clear + 1 < F - 1) set(u, clear + 1, v, u === 0 && k % 3 === 0 ? B.GLASS_LAMP : B.CONCRETE + 8);
+      }
+      for (const u of [-2, 2]) for (let yy = y - 1; yy <= Math.min(clear + 1, F - 2); yy++) set(u, yy, v, yy === y + 2 ? stripe : B.CONCRETE);
+    }
+    // landing at platform level and the way through into the hall
+    for (let j = 1; j <= 3; j++) {
+      const v = vTop + dir * (n - 1 + j);
+      for (let u = -2; u <= 3; u++) for (let y = P - 2; y <= P + 4; y++) {
+        const edge = u === -2;
+        let id = B.AIR;
+        if (y === P - 2) id = B.CONCRETE + 7;
+        else if (y === P - 1) id = B.TERRAZZO;
+        else if (y === P + 4) id = u === 0 && j === 2 ? B.GLASS_LAMP : B.CONCRETE + 8;
+        else if (edge) id = y === P + 1 ? stripe : B.CONCRETE;
+        else if (u >= 2 && y > P + 2) id = B.CONCRETE;
+        set(u, y, v, id);
+      }
+    }
+    const vEnd = vTop + dir * (n + 3);
+    for (let u = -2; u <= 3; u++) for (let y = P - 1; y <= P + 4; y++) set(u, y, vEnd, y === P + 1 ? stripe : B.CONCRETE);
+    S.pic(-1, P + 1, vEnd - dir, dir > 0 ? 5 : 4, 3, 1, 'metro_map');
+    // surface: railings round the opening, a glass canopy on posts with a red front, the M
+    const top = [vTop, vTop + dir * 4], v0 = Math.min(...top), v1 = Math.max(...top);
+    const vIn = vTop - dir, vBack = vTop + dir * 5;
+    for (let v = Math.min(v0, vBack); v <= Math.max(v1, vBack); v++) for (const u of [-2, 2]) set(u, F, v, B.IRON_BARS);
+    for (let u = -1; u <= 1; u++) set(u, F, vBack, B.IRON_BARS);
+    // a paved surround, so the edge of the opening is stone and not earth
+    for (let v = Math.min(vIn, vBack) - 1; v <= Math.max(vIn, vBack) + 1; v++) for (let u = -3; u <= 3; u++) {
+      const hole = Math.abs(u) <= 1 && (v - vTop) * dir >= 0 && (v - vTop) * dir <= 4;
+      if (!hole) set(u, F - 1, v, B.POLISHED_ANDESITE);
+    }
+    for (let u = -2; u <= 2; u++) for (let v = Math.min(vIn, vTop + dir * 3); v <= Math.max(vIn, vTop + dir * 3); v++) {
+      set(u, F + 3, v, v === vIn ? B.CONCRETE + 14 : B.GLASS);
+      set(u, F - 1, vIn, B.POLISHED_ANDESITE);
+    }
+    for (const u of [-2, 2]) for (let y = F; y <= F + 2; y++) { set(u, y, vIn, B.BLACKSTONE_WALL); if (y > F) set(u, y, vTop + dir * 3, B.BLACKSTONE_WALL); }
+    for (let u = -1; u <= 1; u++) for (let y = F; y <= F + 2; y++) set(u, y, vIn, B.AIR);
+    S.pic(-1, F + 3, vIn - dir, dir > 0 ? 5 : 4, 3, 1, stripe === B.BLUE_TILES ? 'metro_name' : 'metro_name2');
+    // the pole with the M beside the entrance
+    for (let y = F; y <= F + 3; y++) set(-4, y, vIn, B.BLACKSTONE_WALL);
+    set(-4, F + 4, vIn, B.CONCRETE + 14);
+    S.pic(-4, F + 4, vIn - dir, dir > 0 ? 5 : 4, 1, 1, 'metro');
+    S.pic(-4, F + 4, vIn + dir, dir > 0 ? 4 : 5, 1, 1, 'metro');
+  };
+  stairs(-6, 1, B.BLUE_TILES);
+  stairs(52, -1, B.CONCRETE + 14);
+}
+
+// ---------------------------------------------------------------- the school, generator 4 ----
+// Real stairs instead of the old ladder: flights of terrazzo steps in the left bay, switching
+// back at each floor (up towards the back in lanes a 1..2, up towards the front in lanes 4..5),
+// glass balustrades, railings round every opening and a stair hut on the roof terrace.
+function schoolStairs(W, x0, Z, sz, F, floors, roof) {
+  const set = (a, y, d, id, f) => W.set(x0 + a, y, Z(d), id, f);
+  const st = shapeId('terrazzo', 'stairs'), fBack = sz > 0 ? 4 : 5, fFront = sz > 0 ? 5 : 4;
+  const flights = [
+    { a0: 1, dir: 1, d0: 3, y0: F, n: 6 },
+    { a0: 4, dir: -1, d0: 9, y0: F + 7, n: 3 },
+    { a0: 1, dir: 1, d0: 7, y0: F + 11, n: 3 },
+    { a0: 4, dir: -1, d0: 9, y0: F + 15, n: 3 },
+    { a0: 1, dir: 1, d0: 7, y0: roof - 3, n: 3 },
+  ];
+  for (const fl of flights) for (let k = 0; k < fl.n; k++) {
+    const d = fl.d0 + fl.dir * k, y = fl.y0 + k;
+    for (let a = fl.a0; a <= fl.a0 + 1; a++) {
+      for (let yy = fl.y0; yy < y; yy++) set(a, yy, d, B.PLASTER);          // solid under the steps
+      set(a, y, d, st, fl.dir > 0 ? fBack : fFront);
+      for (let yy = y + 1; yy <= y + 3; yy++) set(a, yy, d, B.AIR);         // headroom through the floor above
+    }
+  }
+  // glass balustrades between the flights and along their open sides
+  for (let d = 4; d <= 8; d++) for (let y = F; y <= F + Math.min(5, d - 1); y++) set(3, y, d, B.GLASS_PANE);
+  for (const y0 of [F + 7, F + 11, F + 15, F + 19]) for (let d = 7; d <= 9; d++) for (let y = y0; y <= y0 + 2; y++) set(3, y, d, B.GLASS_PANE);
+  for (let d = 6; d <= 8; d++) for (let y = F + 7; y <= F + 9; y++) set(3, y, d, B.GLASS_PANE);
+  for (const y0 of [F + 7, F + 15]) for (let d = 7; d <= 9; d++) for (let y = y0; y <= y0 + 4; y++) if (y !== y0 + 3) set(6, y, d, B.GLASS_PANE);
+  // railings round the openings in each floor
+  for (let a = 1; a <= 2; a++) { set(a, F + 7, 5, B.IRON_BARS); set(a, F + 15, 6, B.IRON_BARS); }
+  for (const y of [F + 11, F + 19]) for (let a = 4; a <= 5; a++) set(a, y, 10, B.IRON_BARS);
+  // the stair hut on the roof: a lamp inside, the way out onto the terrace towards +a
+  for (let a = 0; a <= 3; a++) for (let d = 6; d <= 11; d++) {
+    const wall = a === 0 || a === 3 || d === 6 || d === 11;
+    for (let y = roof + 1; y <= roof + 3; y++) {
+      const door = a === 3 && d === 10 && y <= roof + 2;
+      if (wall && !door) set(a, y, d, a === 3 && (d === 8 || d === 9) && y === roof + 2 ? B.GLASS_PANE : B.PLASTER);
+      else if (!wall && d === 10) set(a, y, d, B.AIR);
+    }
+    set(a, roof + 4, d, B.SMOOTH_STONE);
+  }
+  set(1, roof + 3, 10, B.LANTERN, 8);
+  set(1, roof + 5, 8, B.SANDSTONE_SLAB);
+}
+
+// Lobby, lockers and classrooms, kept clear of the stairs.
+function schoolFurnish(W, x0, Z, set, F, floors, out) {
+  const D = 13;
+  // lobby: reception desk with a lamp, benches, lockers, the sunset picture, lamps
+  for (let a = 11; a <= 14; a++) set(a, F, 4, B.SPRUCE_PLANKS);
+  set(14, F + 1, 4, B.LANTERN, 0);
+  set(12, F, 5, shapeId('oak', 'stairs'), out);
+  for (let a = 11; a <= 14; a++) set(a, F, 9, shapeId('oak', 'stairs'), out);
+  for (let a = 5; a <= 10; a++) for (let y = F; y <= F + 1; y++) set(a, y, D - 2, B.LOCKER, out);
+  W.pic(out === 5 ? x0 + 14 : x0 + 12, F + 2, Z(D - 2), out, 3, 2, 'sunset');
+  for (const a of [8, 12]) set(a, F + 5, 6, B.LANTERN, 8);
+  for (const [a, d] of [[15, 1], [15, 11]]) { set(a, F, d, B.PODZOL); set(a, F + 1, d, B.BUSH); }
+  // classrooms: desks and chairs facing the board on the back wall
+  for (const fl of floors.slice(1)) {
+    const board = fl === floors[2] ? B.CHALKBOARD : B.WHITEBOARD;
+    for (let a = 7; a <= 14; a++) for (let y = fl + 1; y <= fl + 2; y++) set(a, y, D - 1, board, out);
+    set(15, fl + 2, D - 1, B.CORKBOARD, out);
+    set(11, fl + 1, D - 3, B.SPRUCE_PLANKS); set(12, fl + 1, D - 3, B.SPRUCE_PLANKS);
+    for (const d of [3, 5, 7]) for (const a of [8, 9, 11, 12, 14, 15]) {
+      set(a, fl + 1, d + 1, B.PLANK_SLAB);
+      set(a, fl + 1, d, shapeId('oak', 'stairs'), out);
+    }
+    for (const a of [9, 13]) set(a, fl + 3, 6, B.LANTERN, 8);
+  }
 }
 </script>
 <script data-w>
@@ -10152,7 +10747,7 @@ function emitArch(world, p, x, y, z, id, rt, flags, wx, wz) {
       for (const poly of g.polys) emitPoly(meshOpaque, p, x, y, z, poly, poly.slant ? tex(poly.n[1] > 0 ? 2 : 3) : tex(poly.n[0] > 0 ? 0 : poly.n[0] < 0 ? 1 : poly.n[1] > 0 ? 2 : poly.n[1] < 0 ? 3 : poly.n[2] > 0 ? 4 : 5), flags);
       boxes = g.boxes;
     }
-    for (const b of boxes) emitBox(meshOpaque, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], b.length > 6 ? () => b[6] : tex, flags, WHITE_TINT, null, true);
+    for (const b of boxes) emitBox(b.length > 6 && SHAPE_CUTOUT.has(b[6]) ? meshCutout : meshOpaque, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], b.length > 6 ? () => b[6] : tex, flags, WHITE_TINT, null, true);
     return;
   }
   if (rt === RT_CONNECT) {
@@ -19285,6 +19880,7 @@ function villageSpawn(gen, base) {
     if (p.type === 'village' && d < bd) { bd = d; best = p; }
   }
   if (!best) return null;
+  if (best.spawnAt) return best.spawnAt.slice();   // the STUCOM district: in Pla\u00e7a Universitat
   const a0 = Math.atan2(bz - best.z, bx - best.x);
   for (let k = 0; k < 16; k++) {
     const a = a0 + (k >> 1) * 0.4 * (k & 1 ? -1 : 1);
@@ -22542,6 +23138,7 @@ const Bank = {
     }
     const s = typeof stucomVillage === 'function' ? stucomVillage(g) : null;
     if (!s) return null;
+    if (s.spawnAt) return [s.spawnAt[0], s.spawnAt[1] + 0.2, s.spawnAt[2]];
     const x = s.x + 5, z = s.z + 5;
     return [x + 0.5, g.height(x, z) + 1.2, z + 0.5];
   },
@@ -24553,6 +25150,216 @@ const Act = {
     if (p.inWater && Math.hypot(p.vel[0], p.vel[2]) > 1) { this.stepAcc += dt; if (this.stepAcc > 0.7) { this.stepAcc = 0; sfx('swim', null, 0.6, rand(0.9, 1.1)); } }
   },
 };
+</script>
+<script>
+'use strict';
+// Automatic sliding doors (blocks in mech_blocks.js): a glass leaf in an aluminium frame that
+// slides open with a soft whoosh when anyone comes near (you, other players online, villagers,
+// animals, monsters too) and closes again a moment after the last one has gone through. Like the
+// power of mechanisms, opening and closing is worked out on every player's machine from where
+// everyone stands, so those edits are not sent online.
+
+const ADOOR_IDS = new Set([B.AUTO_DOOR, B.AUTO_DOOR_TOP, B.AUTO_DOOR_OPEN, B.AUTO_DOOR_OPEN_TOP]);
+const isADoorTop = (id) => id === B.AUTO_DOOR_TOP || id === B.AUTO_DOOR_OPEN_TOP;
+const ADOOR_REACH = 2.7, ADOOR_HOLD = 0.9;
+
+const AutoDoor = {
+  open: new Map(),   // posKey of the lower half -> { x, y, z, idle }
+  t: 0,
+
+  reset() { this.open.clear(); },
+
+  // feet positions of everyone who can walk through
+  walkers() {
+    const p = G.player, out = [];
+    if (!G.vehicle) out.push(p.pos);
+    for (const r of Net.peers.values()) if (r.pos) out.push(r.pos);
+    for (const m of Ents.mobs) {
+      if (m.dead || m.removed || m.type === 'wyrm') continue;
+      if (Math.abs(m.pos[0] - p.pos[0]) > 48 || Math.abs(m.pos[2] - p.pos[2]) > 48) continue;
+      out.push(m.pos);
+    }
+    return out;
+  },
+
+  update(dt) {
+    const w = G.world;
+    if (!w || !G.started || G.onTitle) return;
+    this.t -= dt;
+    if (this.t > 0) return;
+    const step = 0.1 - this.t;
+    this.t = 0.1;
+    const who = this.walkers();
+    // doors near someone open (and ones found open, e.g. from a save, are looked after)
+    for (const q of who) {
+      const fx = Math.floor(q[0]), fy = Math.floor(q[1] + 0.2), fz = Math.floor(q[2]);
+      for (let x = fx - 3; x <= fx + 3; x++) for (let z = fz - 3; z <= fz + 3; z++) for (let y = fy - 1; y <= fy + 1; y++) {
+        const id = w.getBlock(x, y, z);
+        if (id !== B.AUTO_DOOR && id !== B.AUTO_DOOR_OPEN) continue;
+        if (id === B.AUTO_DOOR_OPEN) { if (!this.open.has(posKey(x, y, z))) this.open.set(posKey(x, y, z), { x, y, z, idle: 0 }); continue; }
+        if (Math.hypot(q[0] - x - 0.5, q[2] - z - 0.5) <= ADOOR_REACH && q[1] > y - 1.2 && q[1] < y + 1.6) this.setOpen(x, y, z, true);
+      }
+    }
+    // open doors close a little after the last one has left (never onto someone)
+    for (const [k, e] of this.open) {
+      const id = w.getBlock(e.x, e.y, e.z);
+      if (id !== B.AUTO_DOOR_OPEN) { this.open.delete(k); continue; }
+      const near = who.some((q) => Math.hypot(q[0] - e.x - 0.5, q[2] - e.z - 0.5) <= ADOOR_REACH + 0.3 && q[1] > e.y - 1.4 && q[1] < e.y + 1.8);
+      e.idle = near ? 0 : e.idle + step;
+      if (e.idle >= ADOOR_HOLD && !Act.entityBlocks(e.x, e.y, e.z, 2)) this.setOpen(e.x, e.y, e.z, false);
+    }
+  },
+
+  setOpen(x, y, z, open) {
+    const w = G.world, f = w.getFacing(x, y, z);
+    const edits = [[x, y, z, open ? B.AUTO_DOOR_OPEN : B.AUTO_DOOR, f]];
+    if (ADOOR_IDS.has(w.getBlock(x, y + 1, z))) edits.push([x, y + 1, z, open ? B.AUTO_DOOR_OPEN_TOP : B.AUTO_DOOR_TOP, w.getFacing(x, y + 1, z)]);
+    const was = Net.capture;
+    Net.capture = false;
+    try { editBlocks(edits); } finally { Net.capture = was; }
+    if (open) this.open.set(posKey(x, y, z), { x, y, z, idle: 0 });
+    else this.open.delete(posKey(x, y, z));
+    // double doors are heard once
+    const k = Math.floor(x / 2) + ',' + y + ',' + Math.floor(z / 2) + (open ? 'o' : 'c');
+    const now = performance.now();
+    if (this.lastSnd !== k || now - (this.lastT || 0) > 400) sfx(open ? 'adoor_open' : 'adoor_close', [x + 0.5, y + 1, z + 0.5], 0.9, 0.95 + Math.random() * 0.1);
+    this.lastSnd = k; this.lastT = now;
+  },
+
+  // side of the cell where the jamb stands for a facing ([dx, dz])
+  jambDir(f) {
+    const b = shapeGeom(SH_ADOOR_OPEN, f).boxes[0];
+    const cx = (b[0] + b[3]) / 2 - 8, cz = (b[2] + b[5]) / 2 - 8;
+    return [Math.sign(Math.round(cx)), Math.sign(Math.round(cz))];
+  },
+
+  // Placing one: two blocks tall, the leaf across the way you look; next to another automatic
+  // door they become a pair that parts from the middle.
+  place(hit) {
+    const w = G.world;
+    let [x, y, z] = hit.pos;
+    const n = hit.normal;
+    if (!BLOCK_REPLACE[hit.id]) { x += n[0]; y += n[1]; z += n[2]; }
+    if (y < 1 || y + 1 >= CH) return false;
+    if (!BLOCK_REPLACE[w.getBlock(x, y, z)] || !BLOCK_REPLACE[w.getBlock(x, y + 1, z)] || !BLOCK_SOLID[w.getBlock(x, y - 1, z)]) return false;
+    if (Act.entityBlocks(x, y, z, 2)) return false;
+    const lk = G.player.lookDir();
+    let f = Math.abs(lk[0]) > Math.abs(lk[2]) ? (lk[0] > 0 ? 0 : 1) : (lk[2] > 0 ? 4 : 5);
+    const along = f === 4 || f === 5 ? [1, 0] : [0, 1];
+    const edits = [];
+    for (const s of [1, -1]) {
+      const px = x + along[0] * s, pz = z + along[1] * s, pid = w.getBlock(px, y, pz);
+      if (pid !== B.AUTO_DOOR) continue;
+      // our jamb away from the partner, the partner's away from us
+      const pf = w.getFacing(px, y, pz) & 7;
+      if ((pf === 4 || pf === 5) !== (f === 4 || f === 5)) continue;
+      const j = this.jambDir(f);
+      if (j[0] === along[0] * s && j[1] === along[1] * s) f ^= 8;
+      let qf = pf;
+      const jq = this.jambDir(qf);
+      if (jq[0] === -along[0] * s && jq[1] === -along[1] * s) qf ^= 8;
+      edits.push([px, y, pz, B.AUTO_DOOR, qf]);
+      if (w.getBlock(px, y + 1, pz) === B.AUTO_DOOR_TOP) edits.push([px, y + 1, pz, B.AUTO_DOOR_TOP, qf]);
+      break;
+    }
+    edits.push([x, y, z, B.AUTO_DOOR, f], [x, y + 1, z, B.AUTO_DOOR_TOP, f]);
+    editBlocks(edits);
+    sfx('place_' + BLOCK_SOUND[B.AUTO_DOOR], [x + 0.5, y + 0.5, z + 0.5], 1, 0.9);
+    Act.consume(); Act.swingHand();
+    return true;
+  },
+};
+
+// ---------------------------------------------------------------- hooks ----
+{
+  const place = Act.placeBlock;
+  Act.placeBlock = function (hit) {
+    const held = G.inv.held, d = held && ITEM_DEF[held.id];
+    if (d && d.block === B.AUTO_DOOR) return AutoDoor.place(hit);
+    return place.call(this, hit);
+  };
+  // the other half goes with it
+  const destroy = destroyBlock;
+  // eslint-disable-next-line no-global-assign
+  destroyBlock = function (x, y, z, opts) {
+    const w = G.world, id = w && w.getBlock(x, y, z);
+    if (id && ADOOR_IDS.has(id)) {
+      const oy = isADoorTop(id) ? y - 1 : y + 1;
+      if (ADOOR_IDS.has(w.getBlock(x, oy, z))) editBlock(x, oy, z, B.AIR);
+    }
+    return destroy.call(this, x, y, z, opts);
+  };
+  const drops = blockDrops;
+  // eslint-disable-next-line no-global-assign
+  blockDrops = function (id, toolItem, rnd) {
+    if (id === B.AUTO_DOOR || id === B.AUTO_DOOR_OPEN) return [[B.AUTO_DOOR, 1]];
+    if (id === B.AUTO_DOOR_TOP || id === B.AUTO_DOOR_OPEN_TOP) return [];
+    return drops(id, toolItem, rnd);
+  };
+  for (const id of ADOOR_IDS) PISTON_IMMOVABLE.add(id);
+  const it = ITEM_DEF[B.AUTO_DOOR];
+  it.render = 'sprite'; it.layer = defTex('i_autodoor');
+}
+
+// ---------------------------------------------------------------- sounds ----
+SYNTH.adoor_open = (ctx, o, t, p) => {
+  Sound.noise(ctx, o, t, 0.55, { type: 'bandpass', freq: 500 * p, freqEnd: 1500 * p, q: 0.9, gain: 0.16, attack: 0.08 });
+  Sound.tone(ctx, o, t, 0.5, { wave: 'triangle', f0: 95 * p, f1: 120 * p, gain: 0.07, attack: 0.06 });
+};
+SYNTH.adoor_close = (ctx, o, t, p) => {
+  Sound.noise(ctx, o, t, 0.5, { type: 'bandpass', freq: 1400 * p, freqEnd: 480 * p, q: 0.9, gain: 0.13, attack: 0.08 });
+  Sound.tone(ctx, o, t + 0.46, 0.08, { wave: 'triangle', f0: 160 * p, f1: 110 * p, gain: 0.12 });
+};
+
+// ---------------------------------------------------------------- textures ----
+// brushed aluminium: fine horizontal grain, bright edge, darker shadow line
+gen('adoor_frame', (d, rng) => {
+  const grain = [];
+  for (let y = 0; y < TS; y++) grain.push(0.92 + rng() * 0.1);
+  fillTile(d, (x, y) => put(d, x, y, [178, 184, 190], grain[y] * (0.97 + rng() * 0.05) * (x === 0 || y === 0 ? 1.12 : x === TM || y === TM ? 0.8 : 1)));
+}, { smooth: 0.82, bump: 0.3 });
+// clear glass: see-through with soft reflections; a frosted safety band (dots) on the lower leaf
+// near hand height and a frosted strip with a thin line on the upper one
+function adoorGlass(lower) {
+  return (d, rng) => {
+    clearTile(d, [200, 226, 236]);
+    fillTile(d, (x, y) => {
+      if (x < 2 || x > 29) { put(d, x, y, [150, 158, 164], 0.95 + rng() * 0.08); return; }   // gasket
+      const band = lower ? y >= 3 && y <= 6 : y >= 20 && y <= 24;
+      if (band && (lower ? (x + (y & 1) * 2) % 4 === 0 : (y === 22 || (x + y) % 3 === 0))) put(d, x, y, [236, 242, 244], 0.94 + rng() * 0.06);
+    });
+    const streak = (x0, y0, n, c) => { for (let i = 0; i < n; i++) put(d, x0 + i, y0 - i, c); };
+    if (lower) { streak(6, 28, 8, [232, 246, 252]); streak(9, 29, 4, [220, 240, 248]); streak(19, 20, 6, [232, 246, 252]); }
+    else { streak(8, 16, 9, [232, 246, 252]); streak(12, 17, 4, [220, 240, 248]); streak(20, 9, 5, [232, 246, 252]); }
+  };
+}
+gen('adoor_glass_lo', adoorGlass(true), { smooth: 0.95, bump: 0 });
+gen('adoor_glass_hi', adoorGlass(false), { smooth: 0.95, bump: 0 });
+// the track housing: dark anodised with the motion sensor and a green light in the middle
+gen('adoor_head', (d, rng, ctx) => fillTile(d, (x, y, k) => {
+  const sensor = x >= 12 && x <= 19 && ((y >= 1 && y <= 5) || (y >= 26 && y <= 30));
+  if (sensor) {
+    const led = x === 18 && (y === 3 || y === 28);
+    put(d, x, y, led ? [90, 240, 120] : [26, 28, 34], led ? 1 : 0.9 + rng() * 0.15);
+    if (led) ctx.emit[k] = 1;
+    return;
+  }
+  put(d, x, y, [70, 74, 80], (0.92 + rng() * 0.08) * (y % 8 === 0 ? 1.15 : 1));
+}), { smooth: 0.7, bump: 0.5 });
+sprite('i_autodoor', (d) => {
+  sprRect(d, 6, 2, 26, 5, [70, 74, 80]);
+  sprRect(d, 19, 3, 21, 4, [90, 240, 120]);
+  for (const x0 of [6, 16]) {
+    sprRect(d, x0, 5, x0 + 10, 30, [178, 184, 190]);
+    sprRect(d, x0 + 1, 6, x0 + 9, 29, [196, 228, 240]);
+    sprRect(d, x0 + 1, 15, x0 + 9, 17, [236, 242, 244]);
+    for (let i = 0; i < 5; i++) put(d, x0 + 3 + i, 13 - i, [240, 250, 254]);
+  }
+  sprRect(d, 15, 5, 17, 30, [150, 158, 164]);
+});
+
+// ---------------------------------------------------------------- recipe ----
+shaped(B.AUTO_DOOR, 2, ['IGI', 'IGI', 'IWI'], { I: I.IRON_INGOT, G: B.GLASS, W: B.WIRE });
 </script>
 <script>
 'use strict';
@@ -28076,7 +28883,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
     Music.update(dt);
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);

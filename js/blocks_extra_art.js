@@ -767,6 +767,16 @@ gen('asphalt_line', (d, rng, ctx) => {
   TEX_GEN.asphalt(d, rng, ctx);
   fillTile(d, (x, y) => { if (x >= 14 && x <= 17 && y >= 4 && y <= 27) put(d, x, y, [236, 236, 228], 0.9 + rng() * 0.1); });
 }, { smooth: 0.2, bump: 1.6 });
+gen('asphalt_line_x', (d, rng, ctx) => {
+  TEX_GEN.asphalt(d, rng, ctx);
+  fillTile(d, (x, y) => { if (y >= 14 && y <= 17 && x >= 4 && x <= 27) put(d, x, y, [236, 236, 228], 0.9 + rng() * 0.1); });
+}, { smooth: 0.2, bump: 1.6 });
+// zebra-crossing paint: worn white over the asphalt, a little grit showing through
+gen('road_white', (d, rng, ctx) => {
+  TEX_GEN.asphalt(d, rng, ctx);
+  const f = fbm(rng, 4, 2);
+  fillTile(d, (x, y, k) => { if (f[k] + rng() * 0.25 > 0.32) put(d, x, y, [234, 234, 226], 0.86 + rng() * 0.12); });
+}, { smooth: 0.25, bump: 1.2 });
 gen('turf', (d, rng) => {
   fillTile(d, (x, y) => {
     const stripe = Math.floor(x / 16) & 1;
@@ -789,6 +799,8 @@ shaped(B.LOCKER, 1, ['II', 'II', 'II'], { I: I.IRON_INGOT });
 shaped(B.VENDING_MACHINE, 1, ['IGI', 'IAI', 'III'], { I: I.IRON_INGOT, G: B.GLASS_PANE, A: I.APPLE });
 shaped(B.ASPHALT, 8, ['GGG', 'GCG', 'GGG'], { G: B.GRAVEL, C: TAG.coal });
 shaped(B.ASPHALT_LINE, 4, ['AWA', 'AWA'], { A: B.ASPHALT, W: B.CONCRETE });
+shaped(B.ASPHALT_LINE_X, 4, ['AA', 'WW', 'AA'], { A: B.ASPHALT, W: B.CONCRETE });
+shaped(B.ROAD_WHITE, 4, ['AW', 'WA'], { A: B.ASPHALT, W: B.CONCRETE });
 shaped(B.TURF, 8, ['WWW', 'WDW', 'WWW'], { W: B.WOOL + 5, D: B.DIRT });
 shaped(B.TURF_LINE, 4, ['TWT', 'TWT'], { T: B.TURF, W: B.CONCRETE });
 {

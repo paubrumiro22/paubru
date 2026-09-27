@@ -589,6 +589,7 @@ function villageSpawn(gen, base) {
     if (p.type === 'village' && d < bd) { bd = d; best = p; }
   }
   if (!best) return null;
+  if (best.spawnAt) return best.spawnAt.slice();   // the STUCOM district: in Plaça Universitat
   const a0 = Math.atan2(bz - best.z, bx - best.x);
   for (let k = 0; k < 16; k++) {
     const a = a0 + (k >> 1) * 0.4 * (k & 1 ? -1 : 1);

@@ -150,6 +150,7 @@ const Bank = {
     }
     const s = typeof stucomVillage === 'function' ? stucomVillage(g) : null;
     if (!s) return null;
+    if (s.spawnAt) return [s.spawnAt[0], s.spawnAt[1] + 0.2, s.spawnAt[2]];
     const x = s.x + 5, z = s.z + 5;
     return [x + 0.5, g.height(x, z) + 1.2, z + 0.5];
   },

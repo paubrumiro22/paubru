@@ -234,7 +234,7 @@ function planCampus(g, plan, st, rough) {
 // Banc Central: a neoclassical bank on a podium, with a columned portico under a pediment, a
 // hall with a chequered floor, tellers' windows, the bankers behind them and the vault at the
 // back full of gold. 17 wide, 20 deep (d 0..2 are the steps, 1..3 the portico).
-function buildBank(W, g, L, F, others) {
+function buildBank(W, g, L, F, others, modern) {
   const bx = L.box;
   if (!rectHits(W, bx[0] - 2, bx[1] - 2, bx[2] + 2, bx[3] + 2)) return;
   const S = lwriter(W, L);
@@ -286,7 +286,12 @@ function buildBank(W, g, L, F, others) {
     if (a !== 8) { S.set(a, FL + 1, 11, a % 3 === 2 ? B.POLISHED_DIORITE : B.GLASS_PANE); S.set(a, FL + 2, 11, B.GLASS_PANE); }
     S.set(a, FL + 3, 11, B.DARK_OAK_PLANKS);
   }
-  S.set(8, FL, 11, B.DOOR, L.inw); S.set(8, FL + 1, 11, B.DOOR_TOP, L.inw);
+  if (modern) {
+    // automatic glass doors in the tall doorway (glass above them) and at the counter
+    placeADoors(W, [7, 8, 9].map((a) => [L.X(a, 4), L.Z(a, 4)]), FL, L.out);
+    for (let a = 7; a <= 9; a++) for (let y = FL + 2; y <= FL + 4; y++) S.set(a, y, 4, B.GLASS_PANE);
+    placeADoors(W, [[L.X(8, 11), L.Z(8, 11)]], FL, L.inw);
+  } else { S.set(8, FL, 11, B.DOOR, L.inw); S.set(8, FL + 1, 11, B.DOOR_TOP, L.inw); }
   for (const a of [3, 6, 10, 13]) S.set(a, FL, 12, shapeId('dark_oak', 'stairs'), L.inw);
   for (const a of [2, 5, 11, 14]) S.set(a, FL, 12, B.COMPUTER, L.out);
   // waiting benches, plants and a rates board
@@ -348,7 +353,7 @@ function buildForecourt(W, g, fc) {
 }
 
 // Cafeteria downstairs; library and computer room upstairs; solar panels on the roof.
-function buildAnnex(W, g, L, F) {
+function buildAnnex(W, g, L, F, modern) {
   const bx = L.box;
   if (!rectHits(W, bx[0] - 2, bx[1] - 2, bx[2] + 2, bx[3] + 2)) return;
   const S = lwriter(W, L);
@@ -375,8 +380,11 @@ function buildAnnex(W, g, L, F) {
     if (edge) S.set(a, R + 1, d, B.CONCRETE);
   }
   // entrance: double doors in the glass front, a canopy and the sign above
-  S.set(7, F, 0, B.DOOR, L.out); S.set(7, F + 1, 0, B.DOOR_TOP, L.out);
-  S.set(6, F, 0, B.GLASS_PANE); S.set(8, F, 0, B.GLASS_PANE);
+  if (modern) placeADoors(W, [6, 7, 8].map((a) => [L.X(a, 0), L.Z(a, 0)]), F, L.out);
+  else {
+    S.set(7, F, 0, B.DOOR, L.out); S.set(7, F + 1, 0, B.DOOR_TOP, L.out);
+    S.set(6, F, 0, B.GLASS_PANE); S.set(8, F, 0, B.GLASS_PANE);
+  }
   for (let a = 5; a <= 9; a++) S.set(a, F + 2, -1, B.CONCRETE_SLAB, 8);
   for (let a = 5; a <= 9; a++) { S.set(a, F - 1, -1, B.PANOT); S.set(a, F - 1, -2, B.PANOT); }
   S.pic(4, F + 3, -1, L.out, 7, 2, 'annex');

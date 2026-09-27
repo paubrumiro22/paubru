@@ -750,7 +750,8 @@ function stucomVillage(g) {
   }
   g._stucomBusy = false;
   g._stucom = best;
-  if (best && !best.stucom) decorateStucom(g, best);
+  // generator 4: a planned district with no village left in it (district.js)
+  if (best && !best.stucom) { if (g.ver >= 4) planDistrict(g, best); else decorateStucom(g, best); }
   return best;
 }
 
@@ -858,7 +859,7 @@ function buildPlot(W, g, x0, z0, x1, z1, F, st, sz) {
 // four floors of classrooms behind balconies, a stair-and-ladder core and a roof terrace.
 // Local frame: a (0..16) along the street, d (0..12) into the building; the front (d = 0) faces
 // the square, i.e. towards -sz in z.
-function buildSchool(W, g, x0, zf, sz, F, st) {
+function buildSchool(W, g, x0, zf, sz, F, st, modern) {
   const Wd = 17, D = 13, floors = [F, F + 6, F + 10, F + 14, F + 18], roof = F + 22;
   const Z = (d) => zf + sz * d;
   const set = (a, y, d, id, f) => W.set(x0 + a, y, Z(d), id, f);
@@ -875,7 +876,7 @@ function buildSchool(W, g, x0, zf, sz, F, st) {
     for (let y = F; y <= roof + 4; y++) W.set(x, y, z, B.AIR);
     if (!inside) {
       // pavement in front of the school
-      if (d < 0) { for (let y = Math.min(h, F - 2); y < F - 1; y++) if (y > 0) W.set(x, y, z, B.STONE_BRICKS); W.set(x, F - 1, z, B.SMOOTH_STONE); }
+      if (d < 0) { for (let y = Math.min(h, F - 2); y < F - 1; y++) if (y > 0) W.set(x, y, z, B.STONE_BRICKS); W.set(x, F - 1, z, modern ? B.PANOT : B.SMOOTH_STONE); }
       continue;
     }
     const front = d === 0, back = d === D - 1, side = a === 0 || a === Wd - 1;
@@ -902,6 +903,8 @@ function buildSchool(W, g, x0, zf, sz, F, st) {
   set(5, F + 5, 0, shapeId('stone_brick', 'arch'), sz > 0 ? 1 : 0); set(11, F + 5, 0, shapeId('stone_brick', 'arch'), sz > 0 ? 0 : 1);
   for (let a = 6; a <= 10; a++) for (let d = 1; d <= 2; d++) { set(a, F - 1, d, B.SMOOTH_STONE); set(a, F + 3, d, B.PLASTER); }
   for (let a = 6; a <= 10; a++) set(a, F, 2, a === 8 ? B.DOOR : B.GLASS_PANE, out), set(a, F + 1, 2, a === 8 ? B.DOOR_TOP : B.GLASS_PANE, out), set(a, F + 2, 2, B.GLASS_PANE);
+  // modern: three automatic sliding doors that part from the middle
+  if (modern) placeADoors(W, [7, 8, 9].map((a) => [x0 + a, Z(2)]), F, out);
   // the sign: picture hung on the plaster above the doors, facing the square
   const n = sz > 0 ? [0, -1] : [0, 1];
   W.pic(sz > 0 ? x0 + 10 : x0 + 6, F + 3, Z(-1), out, 5, 3, 'stucom');
@@ -916,6 +919,7 @@ function buildSchool(W, g, x0, zf, sz, F, st) {
     for (let a = b0 - 1; a <= b1 + 1; a++) { set(a, fl, -1, B.SANDSTONE_SLAB, 8); set(a, fl + 1, -1, B.IRON_BARS); }
   }
   // ---- inside ----
+  if (modern) { schoolStairs(W, x0, Z, sz, F, floors, roof); schoolFurnish(W, x0, Z, set, F, floors, out); return; }
   // lobby: reception desk, benches, the school's sign picture, lamps
   for (let a = 2; a <= 5; a++) set(a, F, 5, B.SPRUCE_PLANKS);
   set(2, F + 1, 5, B.LANTERN, 0);
@@ -946,6 +950,9 @@ function buildSchool(W, g, x0, zf, sz, F, st) {
 // Plans whose area may touch the rectangle.
 function structuresIn(g, x0, z0, x1, z1) {
   if (!g.structs) return [];
+  // the STUCOM village is decided (and gets its school) before anything is built; in generator 4
+  // it also clears the other plans off the district, so it comes first
+  if (g._stucom === undefined && !g._stucomBusy) stucomVillage(g);
   const out = [];
   const i0 = Math.floor((x0 - STRUCT_REACH) / STRUCT_CELL), i1 = Math.floor((x1 + STRUCT_REACH) / STRUCT_CELL);
   const j0 = Math.floor((z0 - STRUCT_REACH) / STRUCT_CELL), j1 = Math.floor((z1 + STRUCT_REACH) / STRUCT_CELL);
@@ -955,8 +962,6 @@ function structuresIn(g, x0, z0, x1, z1) {
     if (p === undefined) { p = planCell(g, i, j); g.structs.set(key, p); }
     if (p) out.push(p);
   }
-  // the STUCOM village is decided (and gets its school) before anything is built
-  if (g._stucom === undefined && !g._stucomBusy) stucomVillage(g);
   return out;
 }
 

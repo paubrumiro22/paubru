@@ -229,6 +229,7 @@ const _shapeCache = new Map();
 // shapes drawn from their neighbours (get(dx, dy, dz) -> block id), like signal wire.
 const SHAPE_FN = {};
 const SHAPE_NB = {};
+const SHAPE_CUTOUT = new Set();   // texture layers of shape boxes drawn with see-through pixels (glass)
 // Oriented geometry of a shape: { boxes, polys: [{ p, n, slant, code, uv }], coll } (1/16 units).
 function shapeGeom(kind, f) {
   const key = kind * 16 + (f & 15);
