@@ -308,6 +308,7 @@ const ER = {
     Vehicles.renderAll(cp, extra.cockpit);
     Net.render(cp);
     Pictures.render(cp);
+    if (typeof Football !== 'undefined') Football.render(cp);
     if (extra.self) this.mob(null, extra.self, cp);
     Weather.render(cp);
     Wildlife.render(cp);
