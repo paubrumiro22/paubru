@@ -158,6 +158,7 @@ function editBlock(x, y, z, id, facing) {
   Net.edit(x, y, z, id, facing);
   if (old !== id) cleanupBlockEntity(x, y, z, old, id);
   Fluids.touch(x, y, z);
+  Mech.touch(x, y, z);
   const c = list[0];
   const lx = x & 15, lz = z & 15;
   if (neighborsLoaded(c.cx, c.cz)) meshChunk(c); else c.needsMesh = true;
@@ -182,6 +183,7 @@ function editBlocks(list) {
     Net.edit(x, y, z, id, facing);
     if (old !== id) cleanupBlockEntity(x, y, z, old, id);
     Fluids.touch(x, y, z);
+    Mech.touch(x, y, z);
     for (const c of res) dirty.add(c);
   }
   for (const c of dirty) c.needsMesh = true;
@@ -226,6 +228,14 @@ function canStay(id, x, y, z, facing) {
     case SUP_SOIL: return SOIL.has(below);
     case SUP_SAND: return below === B.SAND || below === B.DIRT || below === B.GRASS || below === B.TERRACOTTA;
     case SUP_SOLID: return BLOCK_OPAQUE[below] === 1;
+    case SUP_ATTACH: {
+      // levers and buttons: facing +8 stands on the floor, otherwise hangs on the wall it faces
+      const f = facing !== undefined ? facing : w.getFacing(x, y, z);
+      if (f & 8) return BLOCK_SOLID[below] === 1 && BLOCK_HEIGHT[below] === 16;
+      const d = FACE_DIR[f & 7] || [0, 0, -1];
+      const b = w.getBlock(x + d[0], y, z + d[2]);
+      return !!BLOCK_SOLID[b] && BLOCK_HEIGHT[b] === 16;
+    }
     case SUP_FARMLAND: return below === B.FARMLAND;
     case SUP_CANE: {
       if (below === B.SUGAR_CANE) return true;
@@ -723,6 +733,7 @@ function newWorld(seed, save, opts = {}) {
   Ents.clear();
   if (typeof Villages !== 'undefined') Villages.reset();
   if (typeof Fire !== 'undefined') Fire.reset();
+  if (typeof Mech !== 'undefined') Mech.reset();
   if (typeof Bank !== 'undefined') Bank.reset();
   G.money = MONEY_START;
   G.genPics = new Map();

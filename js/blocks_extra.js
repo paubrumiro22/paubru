@@ -43,6 +43,10 @@
     'RAIL', 'RAIL_EW', 'RAIL_NE', 'RAIL_ES', 'RAIL_SW', 'RAIL_WN',
     'COMPUTER', 'LOCKER', 'VENDING_MACHINE', 'ASPHALT', 'ASPHALT_LINE', 'TURF', 'TURF_LINE',
     'FIRE',
+    // mechanisms (mech_blocks.js, mechanisms.js)
+    'LEVER', 'LEVER_ON', 'BUTTON', 'BUTTON_ON', 'WOOD_BUTTON', 'WOOD_BUTTON_ON', 'PLATE', 'PLATE_ON', 'WOOD_PLATE', 'WOOD_PLATE_ON',
+    'WIRE', 'WIRE_ON', 'SIGNAL_LAMP', 'SIGNAL_LAMP_ON', 'PISTON', 'PISTON_ON', 'STICKY_PISTON', 'STICKY_PISTON_ON',
+    'PISTON_HEAD', 'STICKY_HEAD', 'TIMER', 'TIMER_ON', 'SIGNAL_BLOCK',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here

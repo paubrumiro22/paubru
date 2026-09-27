@@ -357,7 +357,7 @@ function recipeFits(r, gw) { return r.shaped ? r.w <= gw && r.h <= gw : r.ings.l
 const CREATIVE_TABS = [
   { key: 'building', name: 'Building' }, { key: 'architecture', name: 'Architecture' }, { key: 'nature', name: 'Nature' }, { key: 'functional', name: 'Functional' },
   { key: 'tools', name: 'Tools' }, { key: 'combat', name: 'Combat' }, { key: 'food', name: 'Food' },
-  { key: 'materials', name: 'Materials' }, { key: 'transport', name: 'Vehicles' },
+  { key: 'materials', name: 'Materials' }, { key: 'transport', name: 'Vehicles' }, { key: 'mechanisms', name: 'Mechanisms' },
 ];
 function creativeItems(tab) {
   const out = [];

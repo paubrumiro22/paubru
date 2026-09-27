@@ -153,6 +153,14 @@ const Act = {
     const upper = n[1] < 0 || (n[1] === 0 && hit.point && hit.point[1] - Math.floor(hit.point[1]) > 0.5);
     const flip = upper ? 8 : 0;
     if (id === B.LANTERN) return n[1] < 0 ? 8 : 0;
+    // levers and buttons hang on the clicked wall or stand on the floor; pistons face the player
+    if (IS_MOUNTED(id)) return n[1] === 0 ? this.dirIndex([-n[0], 0, -n[2]]) : (Math.abs(lk[0]) > Math.abs(lk[2]) ? (lk[0] > 0 ? 0 : 1) : (lk[2] > 0 ? 4 : 5)) | 8;
+    if (IS_PISTON(id)) {
+      if (lk[1] < -0.72) return 8;
+      if (lk[1] > 0.72) return 9;
+      return Math.abs(lk[0]) > Math.abs(lk[2]) ? (lk[0] > 0 ? 1 : 0) : (lk[2] > 0 ? 5 : 4);
+    }
+    if (IS_PLATE(id) || IS_WIRE(id)) return 0;
     if (BLOCK_RT[id] === RT_SLAB) return flip;
     const look = Math.abs(lk[0]) > Math.abs(lk[2]) ? (lk[0] > 0 ? 0 : 1) : (lk[2] > 0 ? 4 : 5);
     const k = BLOCK_SHAPE[id];
@@ -306,6 +314,9 @@ const Act = {
         case B.CHEST: case B.BARREL: G.ui.openChest(x, y, z); return true;
         case B.ARCH_TABLE: G.ui.open({ kind: 'arch' }); return true;
         case B.BED: trySleep(x, y, z); return true;
+        case B.LEVER: case B.LEVER_ON: case B.BUTTON: case B.BUTTON_ON: case B.WOOD_BUTTON: case B.WOOD_BUTTON_ON: case B.TIMER: case B.TIMER_ON:
+          if (Mech.use(x, y, z, hit.id)) { this.swingHand(); return true; }
+          break;
         case B.DOOR: case B.DOOR_TOP: case B.DOOR_OPEN: case B.DOOR_OPEN_TOP: case B.TRAPDOOR: case B.TRAPDOOR_OPEN:
           toggleDoor(x, y, z); this.swingHand(); return true;
         case B.TNT:

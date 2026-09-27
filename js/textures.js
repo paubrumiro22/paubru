@@ -1493,10 +1493,10 @@ function shapeIconFaces(bid) {
   const faces = [];
   const tex = (d) => BLOCK_TEX[bid * 6 + d];
   const addBox = (b) => {
-    const [x0, y0, z0, x1, y1, z1] = b.map((v) => v / 16);
+    const [x0, y0, z0, x1, y1, z1] = b.slice(0, 6).map((v) => v / 16);
     for (let d = 0; d < 6; d++) {
       const p = FACE_CORNERS[d].map((c) => [c[0] ? x1 : x0, c[1] ? y1 : y0, c[2] ? z1 : z0]);
-      faces.push({ p, n: DIRS[d], uv: p.map((q) => [faceU(d, q[0], q[1], q[2]), faceV(d, q[0], q[1], q[2])]), layer: tex(d) });
+      faces.push({ p, n: DIRS[d], uv: p.map((q) => [faceU(d, q[0], q[1], q[2]), faceV(d, q[0], q[1], q[2])]), layer: b.length > 6 ? b[6] : tex(d) });
     }
   };
   if (BLOCK_RT[bid] === RT_CONNECT) {
@@ -1505,6 +1505,7 @@ function shapeIconFaces(bid) {
   }
   const k = BLOCK_SHAPE[bid];
   if (k === SH_PILLAR) { for (const b of pillarBoxes(false, false)) addBox(b); return faces; }
+  if (SHAPE_NB[k]) { for (const b of SHAPE_NB[k](() => 0, bid, true)) addBox(b); return faces; }
   const g = shapeGeom(k, k === SH_OUTER || k === SH_INNER ? 0 : 5);
   for (const b of g.boxes) addBox(b);
   for (const q of g.polys) {

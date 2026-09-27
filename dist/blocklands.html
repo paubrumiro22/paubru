@@ -1642,11 +1642,22 @@ function slopeCode(n) {
 }
 
 const _shapeCache = new Map();
+// Shapes described by code instead of a canonical table: SHAPE_FN[kind](facing) -> { boxes, coll }
+// (a box may carry a 7th value, the texture layer of all its faces), and SHAPE_NB[kind](get) for
+// shapes drawn from their neighbours (get(dx, dy, dz) -> block id), like signal wire.
+const SHAPE_FN = {};
+const SHAPE_NB = {};
 // Oriented geometry of a shape: { boxes, polys: [{ p, n, slant, code, uv }], coll } (1/16 units).
 function shapeGeom(kind, f) {
   const key = kind * 16 + (f & 15);
   let g = _shapeCache.get(key);
   if (g) return g;
+  if (SHAPE_FN[kind]) {
+    const r = SHAPE_FN[kind](f & 15);
+    g = { boxes: r.boxes, polys: [], coll: r.coll || r.boxes.map((b) => b.slice(0, 6)) };
+    _shapeCache.set(key, g);
+    return g;
+  }
   const c = SHAPE_CANON[kind];
   g = { boxes: (c.boxes || []).map((b) => xfBox(f, b)), polys: [], coll: null };
   for (const q of c.polys || []) {
@@ -1725,6 +1736,7 @@ function specialBoxes(id, facing, get, tall) {
   if (rt === RT_SHAPE) {
     const k = BLOCK_SHAPE[id];
     if (k === SH_PILLAR) return pillarBoxes(get(0, -1, 0) === id, get(0, 1, 0) === id).slice(0, 1).map(div16);
+    if (SHAPE_NB[k]) return [[0, 0, 0, 1, 1 / 16, 1]];
     return shapeGeom(k, facing).coll.map(div16);
   }
   if (rt === RT_CONNECT) {
@@ -1783,6 +1795,10 @@ function div16(b) { return [b[0] / 16, b[1] / 16, b[2] / 16, b[3] / 16, b[4] / 1
     'RAIL', 'RAIL_EW', 'RAIL_NE', 'RAIL_ES', 'RAIL_SW', 'RAIL_WN',
     'COMPUTER', 'LOCKER', 'VENDING_MACHINE', 'ASPHALT', 'ASPHALT_LINE', 'TURF', 'TURF_LINE',
     'FIRE',
+    // mechanisms (mech_blocks.js, mechanisms.js)
+    'LEVER', 'LEVER_ON', 'BUTTON', 'BUTTON_ON', 'WOOD_BUTTON', 'WOOD_BUTTON_ON', 'PLATE', 'PLATE_ON', 'WOOD_PLATE', 'WOOD_PLATE_ON',
+    'WIRE', 'WIRE_ON', 'SIGNAL_LAMP', 'SIGNAL_LAMP_ON', 'PISTON', 'PISTON_ON', 'STICKY_PISTON', 'STICKY_PISTON_ON',
+    'PISTON_HEAD', 'STICKY_HEAD', 'TIMER', 'TIMER_ON', 'SIGNAL_BLOCK',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here
@@ -2041,6 +2057,135 @@ defBlock(B.TURF, 'Artificial Turf', RT_CUBE, { top: 'turf', side: 'turf_side', b
 defBlock(B.TURF_LINE, 'Artificial Turf with Line', RT_CUBE, { top: 'turf_line', side: 'turf_side', bottom: 'dirt' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRASS, cat: 'building' });
 // fire: crossed flame sprites that sway, burn what is flammable around them and die out (fire.js)
 defBlock(B.FIRE, 'Fire', RT_CROSS, 'fire', { emit: 15, atten: 0, hard: 0, snd: SND.WOOL, flags: FLAG_WAVE_PLANT | FLAG_TRANSLUCENT, replace: true, solid: false, cat: null });
+</script>
+<script data-w>
+'use strict';
+// Mechanism blocks: levers, buttons, pressure plates, signal wire, lamps, pistons, timers and the
+// signal block. Only their look and hit boxes live here (the file is shared with the workers);
+// how power flows is in mechanisms.js. Sources and consumers come in off / on pairs of ids.
+
+const SH_LEVER = 12, SH_LEVER_ON = 13, SH_BUTTON = 14, SH_BUTTON_ON = 15, SH_PLATE = 16, SH_PLATE_ON = 17;
+const SH_WIRE = 18, SH_PISTON = 19, SH_PISTON_EXT = 20, SH_PISTON_HEAD = 21, SH_STICKY = 22, SH_STICKY_HEAD = 23;
+const SUP_ATTACH = 10;   // levers and buttons: on the wall behind them or the floor under them
+
+const MECH_TEX = {
+  base: defTex('smooth_stone'), stick: defTex('lever_stick'), knob: defTex('lever_knob'), knobOn: defTex('lever_knob_on'),
+  pside: defTex('piston_side'), pface: defTex('piston_face'), sface: defTex('sticky_face'), rod: defTex('piston_rod'),
+};
+
+// Facing of a mounted piece: 0 1 4 5 = the wall it hangs on is towards +X -X +Z -Z (shape frame:
+// wall at -Z), +8 = standing on the floor and turned that way.
+function mountBoxes(wall, floor, f) {
+  const src = f & 8 ? floor : wall;
+  const r = f & 7;
+  return src.map((b) => { const q = xfBox(r === 0 || r === 1 || r === 4 ? r : 5, b.slice(0, 6)); if (b.length > 6) q.push(b[6]); return q; });
+}
+function bounds(boxes) {
+  const u = [16, 16, 16, 0, 0, 0];
+  for (const b of boxes) for (let k = 0; k < 3; k++) { u[k] = Math.min(u[k], b[k]); u[k + 3] = Math.max(u[k + 3], b[k + 3]); }
+  return [u];
+}
+
+const MT = MECH_TEX;
+const LEVER_WALL = (on) => [
+  [5, 3, 0, 11, 13, 3, MT.base],
+  [7, 7, 3, 9, 9, 6, MT.stick],
+  on ? [7, 9, 6, 9, 11, 9, MT.stick] : [7, 5, 6, 9, 7, 9, MT.stick],
+  on ? [6, 10, 8, 10, 13, 11, MT.knobOn] : [6, 3, 8, 10, 6, 11, MT.knob],
+];
+const LEVER_FLOOR = (on) => [
+  [4, 0, 5, 12, 3, 11, MT.base],
+  [7, 3, 7, 9, 6, 9, MT.stick],
+  on ? [7, 6, 9, 9, 9, 11, MT.stick] : [7, 6, 5, 9, 9, 7, MT.stick],
+  on ? [6, 8, 10, 10, 11, 13, MT.knobOn] : [6, 8, 3, 10, 11, 6, MT.knob],
+];
+for (const [k, on] of [[SH_LEVER, false], [SH_LEVER_ON, true]]) {
+  SHAPE_FN[k] = (f) => { const b = mountBoxes(LEVER_WALL(on), LEVER_FLOOR(on), f); return { boxes: b, coll: bounds(b) }; };
+}
+for (const [k, on] of [[SH_BUTTON, false], [SH_BUTTON_ON, true]]) {
+  SHAPE_FN[k] = (f) => ({ boxes: mountBoxes([[5, 6, 0, 11, 10, on ? 1 : 2]], [[5, 0, 6, 11, on ? 1 : 2, 10]], f) });
+}
+SHAPE_FN[SH_PLATE] = () => ({ boxes: [[1, 0, 1, 15, 2, 15]] });
+SHAPE_FN[SH_PLATE_ON] = () => ({ boxes: [[1, 0, 1, 15, 1, 15]] });
+
+// Pistons point where their face is: 0 1 4 5 horizontal (as FACE_DIR), 8 up, 9 down.
+const PISTON_DIRS = { 0: [1, 0, 0], 1: [-1, 0, 0], 4: [0, 0, 1], 5: [0, 0, -1], 8: [0, 1, 0], 9: [0, -1, 0] };
+// Boxes in a frame where the face is at -Z, turned to face f.
+function pistonXf(f, list) {
+  return list.map((b) => {
+    let q;
+    if (f === 8) q = [b[0], 16 - b[5], b[1], b[3], 16 - b[2], b[4]];   // face (-Z) turned to +Y
+    else if (f === 9) q = [b[0], b[2], b[1], b[3], b[5], b[4]];          // face turned to -Y
+    else q = xfBox(PISTON_DIRS[f] ? f : 5, b);
+    if (b.length > 6) q.push(b[6]);
+    return q;
+  });
+}
+const pistonShape = (face) => (f) => ({ boxes: pistonXf(f, [[0, 0, 4, 16, 16, 16, MT.pside], [0, 0, 0, 16, 16, 4, face]]), coll: [[0, 0, 0, 16, 16, 16]] });
+SHAPE_FN[SH_PISTON] = pistonShape(MT.pface);
+SHAPE_FN[SH_STICKY] = pistonShape(MT.sface);
+SHAPE_FN[SH_PISTON_EXT] = (f) => { const b = pistonXf(f, [[0, 0, 4, 16, 16, 16, MT.pside], [6, 6, 0, 10, 10, 4, MT.rod]]); return { boxes: b, coll: [b[0].slice(0, 6)] }; };
+const headShape = (face) => (f) => { const b = pistonXf(f, [[0, 0, 0, 16, 16, 4, face], [6, 6, 4, 10, 10, 16, MT.rod]]); return { boxes: b, coll: b.map((q) => q.slice(0, 6)) }; };
+SHAPE_FN[SH_PISTON_HEAD] = headShape(MT.pface);
+SHAPE_FN[SH_STICKY_HEAD] = headShape(MT.sface);
+
+// Signal wire: a flat line that joins wire and mechanisms around it and climbs one block.
+const IS_WIRE = (id) => id === B.WIRE || id === B.WIRE_ON;
+const MECH_JOIN = new Uint8Array(MAX_BLOCK);
+function wireBoxes(get, id, icon) {
+  const join = (dx, dz) => MECH_JOIN[get(dx, 0, dz)] || IS_WIRE(get(dx, -1, dz)) || (IS_WIRE(get(dx, 1, dz)) && !BLOCK_OPAQUE[get(0, 1, 0)]);
+  const px = icon || join(1, 0), nx = icon || join(-1, 0), pz = icon || join(0, 1), nz = icon || join(0, -1);
+  const out = [[6, 0, 6, 10, 1, 10]];
+  const any = px || nx || pz || nz;
+  const lx = px || (!any) || (nx && !pz && !nz), ln = nx || (!any) || (px && !pz && !nz);
+  const lz = pz || (!any) || (nz && !px && !nx), lnz = nz || (!any) || (pz && !px && !nx);
+  if (lx) out.push([10, 0, 7, 16, 1, 9]);
+  if (ln) out.push([0, 0, 7, 6, 1, 9]);
+  if (lz) out.push([7, 0, 10, 9, 1, 16]);
+  if (lnz) out.push([7, 0, 0, 9, 1, 6]);
+  if (!icon && !BLOCK_OPAQUE[get(0, 1, 0)]) {
+    // up the side of the block next to it
+    if (IS_WIRE(get(1, 1, 0))) out.push([15, 1, 7, 16, 16, 9]);
+    if (IS_WIRE(get(-1, 1, 0))) out.push([0, 1, 7, 1, 16, 9]);
+    if (IS_WIRE(get(0, 1, 1))) out.push([7, 1, 15, 9, 16, 16]);
+    if (IS_WIRE(get(0, 1, -1))) out.push([7, 1, 0, 9, 16, 1]);
+  }
+  return out;
+}
+SHAPE_NB[SH_WIRE] = wireBoxes;
+
+{
+  const M = { hard: 0.5, snd: SND.STONE, tool: TOOL_PICK, atten: 0, solid: false, cat: 'mechanisms' };
+  const shaped = (id, name, tex, k, o) => { defBlock(id, name, RT_SHAPE, tex, with_(M, o || {})); BLOCK_SHAPE[id] = k; };
+  shaped(B.LEVER, 'Lever', 'smooth_stone', SH_LEVER, { support: SUP_ATTACH });
+  shaped(B.LEVER_ON, 'Lever', 'smooth_stone', SH_LEVER_ON, { support: SUP_ATTACH, cat: null });
+  shaped(B.BUTTON, 'Stone Button', 'smooth_stone', SH_BUTTON, { support: SUP_ATTACH });
+  shaped(B.BUTTON_ON, 'Stone Button', 'smooth_stone', SH_BUTTON_ON, { support: SUP_ATTACH, cat: null });
+  shaped(B.WOOD_BUTTON, 'Wooden Button', 'planks', SH_BUTTON, { support: SUP_ATTACH, snd: SND.WOOD, tool: TOOL_AXE });
+  shaped(B.WOOD_BUTTON_ON, 'Wooden Button', 'planks', SH_BUTTON_ON, { support: SUP_ATTACH, snd: SND.WOOD, tool: TOOL_AXE, cat: null });
+  shaped(B.PLATE, 'Stone Pressure Plate', 'smooth_stone', SH_PLATE, { support: SUP_FLOOR });
+  shaped(B.PLATE_ON, 'Stone Pressure Plate', 'smooth_stone', SH_PLATE_ON, { support: SUP_FLOOR, cat: null });
+  shaped(B.WOOD_PLATE, 'Wooden Pressure Plate', 'planks', SH_PLATE, { support: SUP_FLOOR, snd: SND.WOOD, tool: TOOL_AXE });
+  shaped(B.WOOD_PLATE_ON, 'Wooden Pressure Plate', 'planks', SH_PLATE_ON, { support: SUP_FLOOR, snd: SND.WOOD, tool: TOOL_AXE, cat: null });
+  shaped(B.WIRE, 'Signal Wire', 'wire', SH_WIRE, { hard: 0, support: SUP_FLOOR, replace: false });
+  shaped(B.WIRE_ON, 'Signal Wire', 'wire_on', SH_WIRE, { hard: 0, support: SUP_FLOOR, emit: 5, cat: null });
+  const P = { hard: 1.5, snd: SND.STONE, tool: TOOL_PICK, atten: 15, solid: true, cat: 'mechanisms' };
+  const piston = (id, name, k, o) => { defBlock(id, name, RT_SHAPE, 'piston_side', with_(P, o || {})); BLOCK_SHAPE[id] = k; };
+  piston(B.PISTON, 'Piston', SH_PISTON);
+  piston(B.STICKY_PISTON, 'Sticky Piston', SH_STICKY);
+  piston(B.PISTON_ON, 'Piston', SH_PISTON_EXT, { cat: null, atten: 1 });
+  piston(B.STICKY_PISTON_ON, 'Sticky Piston', SH_PISTON_EXT, { cat: null, atten: 1 });
+  piston(B.PISTON_HEAD, 'Piston Head', SH_PISTON_HEAD, { cat: null, atten: 1 });
+  piston(B.STICKY_HEAD, 'Piston Head', SH_STICKY_HEAD, { cat: null, atten: 1 });
+  defBlock(B.SIGNAL_LAMP, 'Signal Lamp', RT_CUBE, 'lamp_off', { hard: 0.3, snd: SND.GLASS, cat: 'mechanisms' });
+  defBlock(B.SIGNAL_LAMP_ON, 'Signal Lamp', RT_CUBE, 'lamp_on', { hard: 0.3, snd: SND.GLASS, emit: 15, cat: null });
+  defBlock(B.TIMER, 'Timer', RT_CUBE, { top: 'timer_top', bottom: 'smooth_stone', side: 'timer_side' }, { hard: 0.8, snd: SND.STONE, tool: TOOL_PICK, cat: 'mechanisms' });
+  defBlock(B.TIMER_ON, 'Timer', RT_CUBE, { top: 'timer_top_on', bottom: 'smooth_stone', side: 'timer_side_on' }, { hard: 0.8, snd: SND.STONE, tool: TOOL_PICK, emit: 7, cat: null });
+  defBlock(B.SIGNAL_BLOCK, 'Signal Block', RT_CUBE, 'signal_block', { hard: 3, snd: SND.METAL, tool: TOOL_PICK, emit: 4, cat: 'mechanisms' });
+  for (const id of [B.LEVER, B.LEVER_ON, B.BUTTON, B.BUTTON_ON, B.WOOD_BUTTON, B.WOOD_BUTTON_ON, B.PLATE, B.PLATE_ON, B.WOOD_PLATE, B.WOOD_PLATE_ON,
+    B.WIRE, B.WIRE_ON, B.SIGNAL_LAMP, B.SIGNAL_LAMP_ON, B.PISTON, B.PISTON_ON, B.STICKY_PISTON, B.STICKY_PISTON_ON, B.TIMER, B.TIMER_ON, B.SIGNAL_BLOCK,
+    B.TNT, B.DOOR, B.DOOR_OPEN, B.TRAPDOOR, B.TRAPDOOR_OPEN]) MECH_JOIN[id] = 1;
+}
 </script>
 <script>
 'use strict';
@@ -2402,7 +2547,7 @@ function recipeFits(r, gw) { return r.shaped ? r.w <= gw && r.h <= gw : r.ings.l
 const CREATIVE_TABS = [
   { key: 'building', name: 'Building' }, { key: 'architecture', name: 'Architecture' }, { key: 'nature', name: 'Nature' }, { key: 'functional', name: 'Functional' },
   { key: 'tools', name: 'Tools' }, { key: 'combat', name: 'Combat' }, { key: 'food', name: 'Food' },
-  { key: 'materials', name: 'Materials' }, { key: 'transport', name: 'Vehicles' },
+  { key: 'materials', name: 'Materials' }, { key: 'transport', name: 'Vehicles' }, { key: 'mechanisms', name: 'Mechanisms' },
 ];
 function creativeItems(tab) {
   const out = [];
@@ -3910,10 +4055,10 @@ function shapeIconFaces(bid) {
   const faces = [];
   const tex = (d) => BLOCK_TEX[bid * 6 + d];
   const addBox = (b) => {
-    const [x0, y0, z0, x1, y1, z1] = b.map((v) => v / 16);
+    const [x0, y0, z0, x1, y1, z1] = b.slice(0, 6).map((v) => v / 16);
     for (let d = 0; d < 6; d++) {
       const p = FACE_CORNERS[d].map((c) => [c[0] ? x1 : x0, c[1] ? y1 : y0, c[2] ? z1 : z0]);
-      faces.push({ p, n: DIRS[d], uv: p.map((q) => [faceU(d, q[0], q[1], q[2]), faceV(d, q[0], q[1], q[2])]), layer: tex(d) });
+      faces.push({ p, n: DIRS[d], uv: p.map((q) => [faceU(d, q[0], q[1], q[2]), faceV(d, q[0], q[1], q[2])]), layer: b.length > 6 ? b[6] : tex(d) });
     }
   };
   if (BLOCK_RT[bid] === RT_CONNECT) {
@@ -3922,6 +4067,7 @@ function shapeIconFaces(bid) {
   }
   const k = BLOCK_SHAPE[bid];
   if (k === SH_PILLAR) { for (const b of pillarBoxes(false, false)) addBox(b); return faces; }
+  if (SHAPE_NB[k]) { for (const b of SHAPE_NB[k](() => 0, bid, true)) addBox(b); return faces; }
   const g = shapeGeom(k, k === SH_OUTER || k === SH_INNER ? 0 : 5);
   for (const b of g.boxes) addBox(b);
   for (const q of g.polys) {
@@ -6467,6 +6613,7 @@ class World {
     this.chunks.set(chunkKey(cx, cz), c);
     if (c.gpics && typeof Pictures !== 'undefined' && this === G.world) Pictures.chunkLoaded(c);
     if (typeof Fluids !== 'undefined' && this === G.world) Fluids.chunkAdded(c);
+    if (typeof Mech !== 'undefined' && this === G.world) Mech.chunkAdded(c);
     // neighbours may now be meshable / need border faces refreshed
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
       if (!dx && !dz) continue;
@@ -9767,6 +9914,7 @@ function emitArch(world, p, x, y, z, id, rt, flags, wx, wz) {
     const k = BLOCK_SHAPE[id];
     let boxes;
     if (k === SH_PILLAR) boxes = pillarBoxes(pb[p - RSS] === id, pb[p + RSS] === id);
+    else if (SHAPE_NB[k]) boxes = SHAPE_NB[k]((dx, dy, dz) => pb[p + dx + dz * RS + dy * RSS], id);
     else if (k === SH_SEAT) {
       const f = world.getFacing(wx, y, wz), noBottom = (d) => (d === 3 ? -1 : tex(d));
       for (const b of SEAT_DRAW) { const q = xfBox(f, b); emitBox(meshOpaque, p, x, y, z, q[0], q[1], q[2], q[3], q[4], q[5], noBottom, flags, WHITE_TINT, null, true); }
@@ -9776,7 +9924,7 @@ function emitArch(world, p, x, y, z, id, rt, flags, wx, wz) {
       for (const poly of g.polys) emitPoly(meshOpaque, p, x, y, z, poly, poly.slant ? tex(poly.n[1] > 0 ? 2 : 3) : tex(poly.n[0] > 0 ? 0 : poly.n[0] < 0 ? 1 : poly.n[1] > 0 ? 2 : poly.n[1] < 0 ? 3 : poly.n[2] > 0 ? 4 : 5), flags);
       boxes = g.boxes;
     }
-    for (const b of boxes) emitBox(meshOpaque, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], tex, flags, WHITE_TINT, null, true);
+    for (const b of boxes) emitBox(meshOpaque, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], b.length > 6 ? () => b[6] : tex, flags, WHITE_TINT, null, true);
     return;
   }
   if (rt === RT_CONNECT) {
@@ -18473,6 +18621,7 @@ function editBlock(x, y, z, id, facing) {
   Net.edit(x, y, z, id, facing);
   if (old !== id) cleanupBlockEntity(x, y, z, old, id);
   Fluids.touch(x, y, z);
+  Mech.touch(x, y, z);
   const c = list[0];
   const lx = x & 15, lz = z & 15;
   if (neighborsLoaded(c.cx, c.cz)) meshChunk(c); else c.needsMesh = true;
@@ -18497,6 +18646,7 @@ function editBlocks(list) {
     Net.edit(x, y, z, id, facing);
     if (old !== id) cleanupBlockEntity(x, y, z, old, id);
     Fluids.touch(x, y, z);
+    Mech.touch(x, y, z);
     for (const c of res) dirty.add(c);
   }
   for (const c of dirty) c.needsMesh = true;
@@ -18541,6 +18691,14 @@ function canStay(id, x, y, z, facing) {
     case SUP_SOIL: return SOIL.has(below);
     case SUP_SAND: return below === B.SAND || below === B.DIRT || below === B.GRASS || below === B.TERRACOTTA;
     case SUP_SOLID: return BLOCK_OPAQUE[below] === 1;
+    case SUP_ATTACH: {
+      // levers and buttons: facing +8 stands on the floor, otherwise hangs on the wall it faces
+      const f = facing !== undefined ? facing : w.getFacing(x, y, z);
+      if (f & 8) return BLOCK_SOLID[below] === 1 && BLOCK_HEIGHT[below] === 16;
+      const d = FACE_DIR[f & 7] || [0, 0, -1];
+      const b = w.getBlock(x + d[0], y, z + d[2]);
+      return !!BLOCK_SOLID[b] && BLOCK_HEIGHT[b] === 16;
+    }
     case SUP_FARMLAND: return below === B.FARMLAND;
     case SUP_CANE: {
       if (below === B.SUGAR_CANE) return true;
@@ -19038,6 +19196,7 @@ function newWorld(seed, save, opts = {}) {
   Ents.clear();
   if (typeof Villages !== 'undefined') Villages.reset();
   if (typeof Fire !== 'undefined') Fire.reset();
+  if (typeof Mech !== 'undefined') Mech.reset();
   if (typeof Bank !== 'undefined') Bank.reset();
   G.money = MONEY_START;
   G.genPics = new Map();
@@ -22288,6 +22447,485 @@ RIDE_KEYS.push('dozer');
 </script>
 <script>
 'use strict';
+// Mechanisms: how signal power flows (the blocks are in mech_blocks.js).
+// - Sources: lever, button (1 s, wooden 1.5 s), pressure plate (while something stands on it),
+//   timer (switches on and off by itself) and the signal block (always on). A source powers the
+//   six cells around it, and a lever or button also powers the block it is fixed to, which then
+//   powers everything touching it (so a lever on a wall works a door on the other side).
+// - Signal wire carries power up to 15 blocks and glows while it does.
+// - Consumers: signal lamps, doors and trapdoors (opened when power arrives, closed when it goes,
+//   still usable by hand), TNT (lit), pistons (push up to 12 blocks; sticky ones pull one back).
+// Changes are handled a tick after the edit that caused them (Mech.touch -> queue). What follows
+// from power (lamps, doors, pistons, wire) is worked out on every player's machine from the same
+// levers and buttons, so it is not sent online, like flowing water.
+
+const MECH_SOURCE = new Uint8Array(MAX_BLOCK);
+for (const id of [B.LEVER_ON, B.BUTTON_ON, B.WOOD_BUTTON_ON, B.PLATE_ON, B.WOOD_PLATE_ON, B.TIMER_ON, B.SIGNAL_BLOCK]) MECH_SOURCE[id] = 1;
+const MECH_ANY = new Uint8Array(MAX_BLOCK);
+for (let i = 0; i < MAX_BLOCK; i++) if (MECH_JOIN[i]) MECH_ANY[i] = 1;
+for (const id of [B.PISTON_HEAD, B.STICKY_HEAD, B.DOOR_TOP, B.DOOR_OPEN_TOP]) MECH_ANY[id] = 1;
+const IS_MOUNTED = (id) => id === B.LEVER || id === B.LEVER_ON || id === B.BUTTON || id === B.BUTTON_ON || id === B.WOOD_BUTTON || id === B.WOOD_BUTTON_ON;
+const IS_PLATE = (id) => id === B.PLATE || id === B.PLATE_ON || id === B.WOOD_PLATE || id === B.WOOD_PLATE_ON;
+const IS_PISTON = (id) => id === B.PISTON || id === B.STICKY_PISTON;
+const IS_PISTON_EXT = (id) => id === B.PISTON_ON || id === B.STICKY_PISTON_ON;
+const IS_HEAD = (id) => id === B.PISTON_HEAD || id === B.STICKY_HEAD;
+const N6 = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+const TIMER_PERIODS = { 0: 0.5, 1: 1, 4: 2, 5: 4 };
+const PISTON_PUSH = 12;
+const PISTON_IMMOVABLE = new Set([B.BEDROCK, B.OBSIDIAN, B.CRYING_OBSIDIAN, B.NETHER_PORTAL, B.END_PORTAL, B.DEEP_PORTAL,
+  B.REINFORCED_DEEPSLATE, B.ENDER_FRAME, B.CHEST, B.BARREL, B.FURNACE, B.FURNACE_LIT, B.BREWING_STAND, B.ENCHANT_TABLE, B.BED,
+  B.DOOR, B.DOOR_TOP, B.DOOR_OPEN, B.DOOR_OPEN_TOP, B.PISTON_ON, B.STICKY_PISTON_ON, B.PISTON_HEAD, B.STICKY_HEAD]);
+
+const Mech = {
+  queue: new Map(),     // posKey -> [x, y, z] waiting to be looked at
+  timers: new Map(),    // posKey -> { x, y, z, t }
+  buttons: new Map(),   // posKey -> { x, y, z, t, mine }
+  platesOn: new Map(),  // posKey -> { x, y, z, t }
+  last: new Map(),      // posKey -> power a door last saw (doors only follow changes)
+  plateT: 0,
+
+  reset() { this.queue.clear(); this.timers.clear(); this.buttons.clear(); this.platesOn.clear(); this.last.clear(); },
+
+  // Something changed at x, y, z (called by every block edit).
+  touch(x, y, z) {
+    const w = G.world;
+    if (!w) return;
+    let near = MECH_ANY[w.getBlock(x, y, z)];
+    for (let i = 0; i < 6 && !near; i++) near = MECH_ANY[w.getBlock(x + N6[i][0], y + N6[i][1], z + N6[i][2])];
+    // a lever's wall two cells away can matter too
+    if (!near) for (let i = 0; i < 6 && !near; i++) {
+      const a = x + N6[i][0], b = y + N6[i][1], c = z + N6[i][2];
+      if (!BLOCK_SOLID[w.getBlock(a, b, c)]) continue;
+      for (let j = 0; j < 6 && !near; j++) near = MECH_SOURCE[w.getBlock(a + N6[j][0], b + N6[j][1], c + N6[j][2])];
+    }
+    if (near) this.queue.set(posKey(x, y, z), [x, y, z]);
+  },
+
+  // A chunk arrived: look at the mechanisms players built in it.
+  chunkAdded(c) {
+    const e = G.world.edits.get(chunkKey(c.cx, c.cz));
+    if (!e) return;
+    for (const [idx, id] of e) {
+      if (!MECH_ANY[id]) continue;
+      const x = c.cx * CS + (idx % CS), z = c.cz * CS + (Math.floor(idx / CS) % CS), y = Math.floor(idx / (CS * CS));
+      this.queue.set(posKey(x, y, z), [x, y, z]);
+    }
+  },
+
+  // ---------------------------------------------------------------- player actions ----
+  use(x, y, z, id) {
+    const w = G.world, f = w.getFacing(x, y, z), at = [x + 0.5, y + 0.5, z + 0.5];
+    if (id === B.LEVER || id === B.LEVER_ON) {
+      editBlock(x, y, z, id === B.LEVER ? B.LEVER_ON : B.LEVER, f);
+      sfx('lever', at, 1, id === B.LEVER ? 1.1 : 0.9);
+      return true;
+    }
+    if (id === B.BUTTON || id === B.WOOD_BUTTON) {
+      editBlock(x, y, z, id + 1, f);
+      this.buttons.set(posKey(x, y, z), { x, y, z, t: id === B.WOOD_BUTTON ? 1.5 : 1, mine: true });
+      sfx('lever', at, 0.8, 1.4);
+      return true;
+    }
+    if (id === B.BUTTON_ON || id === B.WOOD_BUTTON_ON) return true;
+    if (id === B.TIMER || id === B.TIMER_ON) {
+      const next = { 0: 1, 1: 4, 4: 5, 5: 0 }[TIMER_PERIODS[f] ? f : 0];
+      editBlock(x, y, z, id, next);
+      G.ui.toast('Timer: switches every ' + TIMER_PERIODS[next] + ' s');
+      sfx('click', at, 1, 1);
+      return true;
+    }
+    return false;
+  },
+
+  // ---------------------------------------------------------------- every frame ----
+  update(dt) {
+    const w = G.world;
+    if (!w || !G.started) return;
+    const was = Net.capture;
+    Net.capture = false;
+    try {
+      // buttons pop back out (the one who pressed it shares that)
+      for (const [k, b] of this.buttons) {
+        b.t -= dt;
+        if (b.t > 0) continue;
+        this.buttons.delete(k);
+        const id = w.getBlock(b.x, b.y, b.z);
+        if (id !== B.BUTTON_ON && id !== B.WOOD_BUTTON_ON) continue;
+        Net.capture = b.mine;
+        editBlock(b.x, b.y, b.z, id - 1, w.getFacing(b.x, b.y, b.z));
+        Net.capture = false;
+        sfx('lever', [b.x + 0.5, b.y + 0.5, b.z + 0.5], 0.6, 1.2);
+      }
+      // timers
+      for (const [k, t] of this.timers) {
+        const id = w.getBlock(t.x, t.y, t.z);
+        if (id !== B.TIMER && id !== B.TIMER_ON) { this.timers.delete(k); continue; }
+        if (!w.isLoaded(t.x, t.z)) continue;
+        t.t -= dt;
+        if (t.t > 0) continue;
+        const f = w.getFacing(t.x, t.y, t.z);
+        t.t = TIMER_PERIODS[f] || 1;
+        editBlock(t.x, t.y, t.z, id === B.TIMER ? B.TIMER_ON : B.TIMER, f);
+        sfx('click', [t.x + 0.5, t.y + 0.5, t.z + 0.5], 0.35, id === B.TIMER ? 1.3 : 1);
+      }
+      // pressure plates
+      this.plateT -= dt;
+      if (this.plateT <= 0) { this.plateT = 0.1; this.plates(); }
+      // power changes
+      let n = 0;
+      for (const [k, p] of this.queue) {
+        this.queue.delete(k);
+        this.process(p[0], p[1], p[2]);
+        if (++n >= 64) break;
+      }
+    } finally { Net.capture = was; }
+  },
+
+  plates() {
+    const w = G.world, seen = new Set();
+    const feel = (pos) => {
+      const x = Math.floor(pos[0]), y = Math.floor(pos[1] + 0.05), z = Math.floor(pos[2]);
+      const id = w.getBlock(x, y, z);
+      if (!IS_PLATE(id)) return;
+      const k = posKey(x, y, z);
+      seen.add(k);
+      if (id === B.PLATE || id === B.WOOD_PLATE) { editBlock(x, y, z, id + 1, 0); sfx('lever', [x + 0.5, y, z + 0.5], 0.7, 0.8); }
+      this.platesOn.set(k, { x, y, z, t: 0.4 });
+    };
+    if (!G.stats.dead && !G.vehicle) feel(G.player.pos);
+    for (const m of Ents.mobs) if (!m.dead) feel(m.pos);
+    for (const r of Net.peers.values()) if (!r.jet) feel(r.pos);
+    for (const [k, p] of this.platesOn) {
+      if (seen.has(k)) continue;
+      p.t -= 0.1;
+      if (p.t > 0) continue;
+      this.platesOn.delete(k);
+      const id = w.getBlock(p.x, p.y, p.z);
+      if (id === B.PLATE_ON || id === B.WOOD_PLATE_ON) { editBlock(p.x, p.y, p.z, id - 1, 0); sfx('lever', [p.x + 0.5, p.y, p.z + 0.5], 0.6, 0.7); }
+    }
+  },
+
+  // ---------------------------------------------------------------- power ----
+  // The block a lever / button hangs on or a plate lies on (it passes their power on).
+  attachOf(id, x, y, z) {
+    const w = G.world;
+    if (IS_MOUNTED(id)) {
+      const f = w.getFacing(x, y, z);
+      if (f & 8) return [x, y - 1, z];
+      const d = FACE_DIR[f & 7] || [0, 0, -1];
+      return [x + d[0], y, z + d[2]];
+    }
+    if (IS_PLATE(id)) return [x, y - 1, z];
+    return null;
+  },
+  // A solid block that a lit source is fixed to.
+  strongly(x, y, z) {
+    const w = G.world;
+    if (!BLOCK_SOLID[w.getBlock(x, y, z)]) return false;
+    for (const [dx, dy, dz] of N6) {
+      const sx = x + dx, sy = y + dy, sz = z + dz, id = w.getBlock(sx, sy, sz);
+      if (!MECH_SOURCE[id] || !(IS_MOUNTED(id) || IS_PLATE(id))) continue;
+      const a = this.attachOf(id, sx, sy, sz);
+      if (a && a[0] === x && a[1] === y && a[2] === z) return true;
+    }
+    return false;
+  },
+  // Power reaching a cell from its neighbours (skip: a cell not to count, like a piston's face).
+  powered(x, y, z, skip, viaWire = true) {
+    const w = G.world;
+    for (const [dx, dy, dz] of N6) {
+      const nx = x + dx, ny = y + dy, nz = z + dz;
+      if (skip && skip[0] === nx && skip[1] === ny && skip[2] === nz) continue;
+      const id = w.getBlock(nx, ny, nz);
+      if (MECH_SOURCE[id]) return true;
+      if (viaWire && id === B.WIRE_ON) return true;
+      if (BLOCK_SOLID[id] && !MECH_ANY[id] && this.strongly(nx, ny, nz)) return true;
+    }
+    return false;
+  },
+
+  // Wire joined to the wire at x, y, z (flat, or one block up or down a step).
+  wireLinks(x, y, z) {
+    const w = G.world, out = [];
+    const upFree = !BLOCK_OPAQUE[w.getBlock(x, y + 1, z)];
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      if (IS_WIRE(w.getBlock(x + dx, y, z + dz))) out.push([x + dx, y, z + dz]);
+      if (upFree && IS_WIRE(w.getBlock(x + dx, y + 1, z + dz))) out.push([x + dx, y + 1, z + dz]);
+      if (!BLOCK_OPAQUE[w.getBlock(x + dx, y, z + dz)] && IS_WIRE(w.getBlock(x + dx, y - 1, z + dz))) out.push([x + dx, y - 1, z + dz]);
+    }
+    return out;
+  },
+
+  // Relight a whole stretch of wire: distance from the powered ends, lit up to 15.
+  wireNet(x, y, z, consumers) {
+    const w = G.world;
+    const cells = new Map(), list = [];
+    const add = (p) => { const k = posKey(p[0], p[1], p[2]); if (!cells.has(k)) { cells.set(k, p); list.push(p); } };
+    add([x, y, z]);
+    for (let i = 0; i < list.length && list.length < 600; i++) for (const q of this.wireLinks(...list[i])) add(q);
+    const dist = new Map(), front = [];
+    for (const [k, p] of cells) if (this.powered(p[0], p[1], p[2], null, false)) { dist.set(k, 0); front.push(p); }
+    for (let i = 0; i < front.length; i++) {
+      const p = front[i], d = dist.get(posKey(p[0], p[1], p[2]));
+      if (d >= 15) continue;
+      for (const q of this.wireLinks(...p)) {
+        const k = posKey(q[0], q[1], q[2]);
+        if (!cells.has(k) || dist.has(k)) continue;
+        dist.set(k, d + 1); front.push(q);
+      }
+    }
+    for (const [k, p] of cells) {
+      const want = dist.has(k) ? B.WIRE_ON : B.WIRE;
+      if (w.getBlock(p[0], p[1], p[2]) !== want) editBlock(p[0], p[1], p[2], want, 0);
+      for (const [dx, dy, dz] of N6) consumers.push([p[0] + dx, p[1] + dy, p[2] + dz]);
+    }
+    return cells.keys();
+  },
+
+  process(x, y, z) {
+    const w = G.world;
+    if (!w.isLoaded(x, z)) return;
+    const id0 = w.getBlock(x, y, z);
+    if (id0 === B.TIMER || id0 === B.TIMER_ON) {
+      const k = posKey(x, y, z);
+      if (!this.timers.has(k)) this.timers.set(k, { x, y, z, t: TIMER_PERIODS[w.getFacing(x, y, z)] || 1 });
+    }
+    if ((id0 === B.BUTTON_ON || id0 === B.WOOD_BUTTON_ON) && !this.buttons.has(posKey(x, y, z))) this.buttons.set(posKey(x, y, z), { x, y, z, t: 1, mine: false });
+    // everything within two cells, plus the wire those touch
+    const cand = [], wires = [];
+    for (let dy = -2; dy <= 2; dy++) for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
+      if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) > 3) continue;
+      const p = [x + dx, y + dy, z + dz], id = w.getBlock(p[0], p[1], p[2]);
+      if (!MECH_ANY[id]) continue;
+      (IS_WIRE(id) ? wires : cand).push(p);
+    }
+    const done = new Set();
+    for (const p of wires) {
+      if (done.has(posKey(p[0], p[1], p[2]))) continue;
+      for (const k of this.wireNet(p[0], p[1], p[2], cand)) done.add(k);
+    }
+    const seen = new Set();
+    for (const p of cand) {
+      const k = posKey(p[0], p[1], p[2]);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      this.consumer(p[0], p[1], p[2]);
+    }
+    // a mounted piece or plate falls off when what holds it goes
+    if (IS_MOUNTED(id0) && !canStay(id0, x, y, z)) destroyBlock(x, y, z);
+    for (const [dx, dy, dz] of N6) {
+      const nx = x + dx, ny = y + dy, nz = z + dz, id = w.getBlock(nx, ny, nz);
+      if (IS_MOUNTED(id) && !canStay(id, nx, ny, nz)) destroyBlock(nx, ny, nz);
+    }
+  },
+
+  consumer(x, y, z) {
+    const w = G.world;
+    const id = w.getBlock(x, y, z);
+    if (id === B.SIGNAL_LAMP || id === B.SIGNAL_LAMP_ON) {
+      const want = this.powered(x, y, z) ? B.SIGNAL_LAMP_ON : B.SIGNAL_LAMP;
+      if (want !== id) editBlock(x, y, z, want);
+      return;
+    }
+    if (id === B.TNT) { if (this.powered(x, y, z)) igniteTNT(x, y, z); return; }
+    if (DOOR_IDS.has(id) || id === B.TRAPDOOR || id === B.TRAPDOOR_OPEN) {
+      const trap = id === B.TRAPDOOR || id === B.TRAPDOOR_OPEN;
+      const by = !trap && isDoorTop(id) ? y - 1 : y;
+      const on = this.powered(x, by, z) || (!trap && this.powered(x, by + 1, z));
+      const k = posKey(x, by, z), prev = this.last.get(k);
+      this.last.set(k, on);
+      if (prev === on || (prev === undefined && !on)) return;
+      const open = trap ? id === B.TRAPDOOR_OPEN : isOpenDoor(w.getBlock(x, by, z));
+      if (open !== on) toggleDoor(x, by, z);
+      return;
+    }
+    if (IS_PISTON(id) || IS_PISTON_EXT(id)) {
+      const f = w.getFacing(x, y, z), d = PISTON_DIRS[f] || [0, 0, -1];
+      const face = [x + d[0], y + d[1], z + d[2]];
+      const on = this.powered(x, y, z, face);
+      const sticky = id === B.STICKY_PISTON || id === B.STICKY_PISTON_ON;
+      if (IS_PISTON(id) && on) this.extend(x, y, z, f, d, sticky);
+      else if (IS_PISTON_EXT(id)) {
+        const head = w.getBlock(face[0], face[1], face[2]);
+        if (!IS_HEAD(head)) editBlock(x, y, z, sticky ? B.STICKY_PISTON : B.PISTON, f);
+        else if (!on) this.retract(x, y, z, f, d, sticky);
+      }
+      return;
+    }
+    if (IS_HEAD(id)) {
+      // a head without its piston goes
+      const f = w.getFacing(x, y, z), d = PISTON_DIRS[f] || [0, 0, -1];
+      const base = w.getBlock(x - d[0], y - d[1], z - d[2]);
+      if (!IS_PISTON_EXT(base)) editBlock(x, y, z, B.AIR);
+    }
+  },
+
+  extend(x, y, z, f, d, sticky) {
+    const w = G.world, line = [];
+    for (let i = 1; ; i++) {
+      const px = x + d[0] * i, py = y + d[1] * i, pz = z + d[2] * i;
+      if (py < 0 || py >= CH || !w.isLoaded(px, pz)) return false;
+      const id = w.getBlock(px, py, pz);
+      if (id === B.AIR || BLOCK_REPLACE[id]) break;
+      if (PISTON_IMMOVABLE.has(id) || IS_PISTON_EXT(id) || i > PISTON_PUSH) return false;
+      line.push([px, py, pz, id, w.getFacing(px, py, pz)]);
+    }
+    const edits = [];
+    for (let j = line.length - 1; j >= 0; j--) {
+      const b = line[j];
+      edits.push([b[0] + d[0], b[1] + d[1], b[2] + d[2], b[3], b[4]]);
+    }
+    edits.push([x + d[0], y + d[1], z + d[2], sticky ? B.STICKY_HEAD : B.PISTON_HEAD, f]);
+    edits.push([x, y, z, sticky ? B.STICKY_PISTON_ON : B.PISTON_ON, f]);
+    editBlocks(edits);
+    this.shove(x, y, z, d, line.length + 1);
+    sfx('piston', [x + 0.5, y + 0.5, z + 0.5], 1, 1);
+    for (const e of edits) this.queue.set(posKey(e[0], e[1], e[2]), [e[0], e[1], e[2]]);
+    return true;
+  },
+
+  retract(x, y, z, f, d, sticky) {
+    const w = G.world;
+    const hx = x + d[0], hy = y + d[1], hz = z + d[2];
+    const edits = [[hx, hy, hz, B.AIR], [x, y, z, sticky ? B.STICKY_PISTON : B.PISTON, f]];
+    if (sticky) {
+      const bx = hx + d[0], by = hy + d[1], bz = hz + d[2], id = w.getBlock(bx, by, bz);
+      if (id !== B.AIR && !BLOCK_REPLACE[id] && !PISTON_IMMOVABLE.has(id) && !IS_PISTON_EXT(id)) {
+        edits[0] = [hx, hy, hz, id, w.getFacing(bx, by, bz)];
+        edits.push([bx, by, bz, B.AIR]);
+      }
+    }
+    editBlocks(edits);
+    sfx('piston', [x + 0.5, y + 0.5, z + 0.5], 0.9, 0.8);
+    for (const e of edits) this.queue.set(posKey(e[0], e[1], e[2]), [e[0], e[1], e[2]]);
+  },
+
+  // Players and mobs in the cells a piston just filled get pushed along.
+  shove(x, y, z, d, n) {
+    const hit = (pos, hw, h) => {
+      for (let i = 1; i <= n; i++) {
+        const cx = x + d[0] * i, cy = y + d[1] * i, cz = z + d[2] * i;
+        if (pos[0] + hw > cx && pos[0] - hw < cx + 1 && pos[2] + hw > cz && pos[2] - hw < cz + 1 && pos[1] + h > cy && pos[1] < cy + 1) return true;
+      }
+      return false;
+    };
+    const push = (e, hw, h) => {
+      if (!hit(e.pos, hw, h)) return;
+      e.pos[0] += d[0] * 1.02; e.pos[1] += d[1] * 1.02 + (d[1] > 0 ? 0.05 : 0); e.pos[2] += d[2] * 1.02;
+      if (e.vel) { e.vel[0] += d[0] * 3; e.vel[1] += Math.max(0, d[1]) * 4; e.vel[2] += d[2] * 3; }
+    };
+    push(G.player, PLAYER_HALF_W, 1.8);
+    for (const m of Ents.mobs) if (!m.dead) push(m, m.hw || 0.3, m.h || 1);
+  },
+};
+
+// ---------------------------------------------------------------- sounds ----
+SYNTH.lever = (ctx, o, t, p) => {
+  Sound.tone(ctx, o, t, 0.04, { wave: 'square', f0: 900 * p, f1: 500 * p, gain: 0.12, filter: ['lowpass', 2500, 1] });
+  Sound.noise(ctx, o, t, 0.05, { type: 'bandpass', freq: 2400 * p, q: 3, gain: 0.3 });
+};
+SYNTH.piston = (ctx, o, t, p) => {
+  Sound.noise(ctx, o, t, 0.22, { type: 'bandpass', freq: 500 * p, freqEnd: 1600 * p, q: 1.5, gain: 0.45 });
+  Sound.tone(ctx, o, t + 0.12, 0.12, { wave: 'triangle', f0: 180 * p, f1: 90 * p, gain: 0.35 });
+};
+
+// ---------------------------------------------------------------- textures ----
+const SIG_OFF = [62, 86, 92], SIG_ON = [90, 236, 246];
+gen('lever_stick', (d, rng) => fillTile(d, (x, y) => put(d, x, y, [132, 98, 58], (x & 3 ? 1 : 0.85) * (0.9 + rng() * 0.12))), { smooth: 0.4, bump: 1 });
+gen('lever_knob', (d, rng) => fillTile(d, (x, y) => put(d, x, y, [70, 90, 98], 0.9 + rng() * 0.15)), { smooth: 0.7, bump: 0.6 });
+gen('lever_knob_on', (d, rng, ctx) => fillTile(d, (x, y, k) => { put(d, x, y, SIG_ON, 0.9 + rng() * 0.12); ctx.emit[k] = 0.9; }), { smooth: 0.7, bump: 0.4 });
+gen('wire', (d, rng) => fillTile(d, (x, y) => put(d, x, y, SIG_OFF, (0.8 + rng() * 0.3) * ((x + y) % 5 ? 1 : 0.8))), { smooth: 0.5, bump: 0.6 });
+gen('wire_on', (d, rng, ctx) => fillTile(d, (x, y, k) => { const s = (x + y) % 5 ? 1 : 1.15; put(d, x, y, SIG_ON, (0.85 + rng() * 0.2) * s); ctx.emit[k] = 0.95; }), { smooth: 0.5, bump: 0.4 });
+function lampTile(on) {
+  return (d, rng, ctx) => fillTile(d, (x, y, k) => {
+    const frame = x < 3 || y < 3 || x > 28 || y > 28;
+    const bar = !frame && (x % 9 === 3 || y % 9 === 3);
+    if (frame) { put(d, x, y, [92, 84, 72], (x < 1 || y < 1 ? 1.2 : x > 30 || y > 30 ? 0.7 : 1) * (0.9 + rng() * 0.1)); return; }
+    if (bar) { put(d, x, y, on ? [180, 150, 90] : [74, 68, 60], 0.9 + rng() * 0.1); if (on) ctx.emit[k] = 0.5; return; }
+    const cx = x - 15.5, cy = y - 15.5, r = Math.hypot(cx, cy) / 16;
+    if (on) { put(d, x, y, [255, 214 - r * 50, 120 - r * 60], 1.05 - r * 0.2 + rng() * 0.05); ctx.emit[k] = 1; }
+    else put(d, x, y, [70, 60, 48], 0.85 + rng() * 0.15 + (r < 0.3 ? 0.2 : 0));
+  });
+}
+gen('lamp_off', lampTile(false), { smooth: 0.6, bump: 1.2 });
+gen('lamp_on', lampTile(true), { smooth: 0.6, bump: 0.8 });
+gen('piston_side', (d, rng) => fillTile(d, (x, y) => {
+  // stone body with a wooden band at the face end (top of the tile)
+  if (y < 8) { put(d, x, y, [150, 118, 76], (y === 0 ? 1.2 : y === 7 ? 0.72 : 1) * ((x & 7) === 0 ? 0.82 : 1) * (0.9 + rng() * 0.12)); return; }
+  put(d, x, y, [118, 118, 116], (y === 8 ? 1.15 : 1) * (x === 0 || x === 31 ? 0.8 : 1) * (0.86 + rng() * 0.16));
+}), { smooth: 0.3, bump: 1.4 });
+function pistonFace(ring) {
+  return (d, rng) => fillTile(d, (x, y) => {
+    const edge = x < 2 || y < 2 || x > 29 || y > 29;
+    if (edge) { put(d, x, y, [120, 120, 118], 0.9 + rng() * 0.1); return; }
+    const cx = x - 15.5, cy = y - 15.5;
+    if (ring && Math.hypot(cx, cy) < 11) { put(d, x, y, [120, 170, 70], 0.85 + rng() * 0.25); return; }
+    put(d, x, y, [160, 126, 82], ((y & 7) === 0 ? 0.78 : 1) * (0.9 + rng() * 0.12));
+  });
+}
+gen('piston_face', pistonFace(false), { smooth: 0.3, bump: 1.2 });
+gen('sticky_face', pistonFace(true), { smooth: 0.5, bump: 1 });
+gen('piston_rod', (d, rng) => fillTile(d, (x, y) => put(d, x, y, [178, 170, 150], (x % 4 === 0 ? 0.85 : 1.05) * (0.9 + rng() * 0.1))), { smooth: 0.6, bump: 0.8 });
+function timerTile(top, on) {
+  return (d, rng, ctx) => fillTile(d, (x, y, k) => {
+    const edge = x < 2 || y < 2 || x > 29 || y > 29;
+    if (edge) { put(d, x, y, [110, 110, 112], 0.9 + rng() * 0.1); return; }
+    if (!top) {
+      const lit = y > 12 && y < 19 && x > 6 && x < 25;
+      if (lit) { put(d, x, y, on ? SIG_ON : SIG_OFF, 0.9 + rng() * 0.1); if (on) ctx.emit[k] = 0.8; return; }
+      put(d, x, y, [150, 150, 150], 0.86 + rng() * 0.14);
+      return;
+    }
+    const cx = x - 15.5, cy = y - 15.5, r = Math.hypot(cx, cy);
+    if (r < 12) {
+      const hand = (Math.abs(cx) < 1.2 && cy < 0 && cy > -10) || (Math.abs(cy) < 1.2 && cx > 0 && cx < 7);
+      const tick = r > 9.5 && Math.abs(Math.atan2(cy, cx) * 6 / Math.PI % 1) < 0.12;
+      put(d, x, y, hand ? [30, 34, 40] : tick ? [70, 80, 90] : on ? [200, 250, 252] : [226, 222, 208], 0.95 + rng() * 0.05);
+      if (on && !hand) ctx.emit[k] = 0.6;
+      return;
+    }
+    put(d, x, y, [150, 150, 150], 0.86 + rng() * 0.14);
+  });
+}
+gen('timer_top', timerTile(true, false), { smooth: 0.7, bump: 0.8 });
+gen('timer_top_on', timerTile(true, true), { smooth: 0.7, bump: 0.8 });
+gen('timer_side', timerTile(false, false), { smooth: 0.4, bump: 1 });
+gen('timer_side_on', timerTile(false, true), { smooth: 0.4, bump: 1 });
+gen('signal_block', (d, rng, ctx) => fillTile(d, (x, y, k) => {
+  const trace = (x % 8 === 3 && y % 16 < 12) || (y % 8 === 5 && x % 16 > 4) || (x % 8 === 3 && y % 8 === 5);
+  if (trace) { put(d, x, y, SIG_ON, 0.9 + rng() * 0.15); ctx.emit[k] = 0.7; return; }
+  put(d, x, y, [40, 64, 72], (x === 0 || y === 0 ? 1.25 : x === 31 || y === 31 ? 0.7 : 1) * (0.85 + rng() * 0.15));
+}), { smooth: 0.7, bump: 1 });
+
+// ---------------------------------------------------------------- recipes and drops ----
+shaped(B.LEVER, 1, ['S', 'C'], { S: I.STICK, C: B.COBBLE });
+shaped(B.BUTTON, 1, ['S'], { S: B.STONE });
+shaped(B.WOOD_BUTTON, 1, ['P'], { P: TAG.planks });
+shaped(B.PLATE, 1, ['SS'], { S: B.STONE });
+shaped(B.WOOD_PLATE, 1, ['PP'], { P: TAG.planks });
+shaped(B.WIRE, 16, ['GGG'], { G: I.GOLD_INGOT });
+shaped(B.SIGNAL_LAMP, 1, [' G ', 'GLG', ' W '], { G: B.GLASS, L: B.GLOWSTONE, W: B.WIRE });
+shaped(B.PISTON, 1, ['PPP', 'CIC', 'CWC'], { P: TAG.planks, C: B.COBBLE, I: I.IRON_INGOT, W: B.WIRE });
+shaped(B.STICKY_PISTON, 1, ['H', 'P'], { H: B.HONEYCOMB, P: B.PISTON });
+shaped(B.TIMER, 1, ['CWC', 'WIW', 'CWC'], { C: B.COBBLE, W: B.WIRE, I: I.IRON_INGOT });
+shaped(B.SIGNAL_BLOCK, 1, ['WWW', 'WWW', 'WWW'], { W: B.WIRE });
+{
+  const base = blockDrops;
+  const off = {
+    [B.LEVER_ON]: B.LEVER, [B.BUTTON_ON]: B.BUTTON, [B.WOOD_BUTTON_ON]: B.WOOD_BUTTON, [B.PLATE_ON]: B.PLATE, [B.WOOD_PLATE_ON]: B.WOOD_PLATE,
+    [B.WIRE_ON]: B.WIRE, [B.SIGNAL_LAMP_ON]: B.SIGNAL_LAMP, [B.PISTON_ON]: B.PISTON, [B.STICKY_PISTON_ON]: B.STICKY_PISTON, [B.TIMER_ON]: B.TIMER,
+  };
+  // eslint-disable-next-line no-global-assign
+  blockDrops = function (id, toolItem, rnd) {
+    if (IS_HEAD(id)) return [];
+    if (off[id]) return [[off[id], 1]];
+    if (MECH_ANY[id] && MECH_JOIN[id] && id !== B.TNT && !DOOR_IDS.has(id) && id !== B.TRAPDOOR && id !== B.TRAPDOOR_OPEN) return [[id, 1]];
+    return base(id, toolItem, rnd);
+  };
+}
+</script>
+<script>
+'use strict';
 // Player actions: mining with tools, attacking, placing oriented blocks, eating, bows,
 // buckets, hoes, bone meal, shears, dropping items, and the first-person hand animation.
 
@@ -22442,6 +23080,14 @@ const Act = {
     const upper = n[1] < 0 || (n[1] === 0 && hit.point && hit.point[1] - Math.floor(hit.point[1]) > 0.5);
     const flip = upper ? 8 : 0;
     if (id === B.LANTERN) return n[1] < 0 ? 8 : 0;
+    // levers and buttons hang on the clicked wall or stand on the floor; pistons face the player
+    if (IS_MOUNTED(id)) return n[1] === 0 ? this.dirIndex([-n[0], 0, -n[2]]) : (Math.abs(lk[0]) > Math.abs(lk[2]) ? (lk[0] > 0 ? 0 : 1) : (lk[2] > 0 ? 4 : 5)) | 8;
+    if (IS_PISTON(id)) {
+      if (lk[1] < -0.72) return 8;
+      if (lk[1] > 0.72) return 9;
+      return Math.abs(lk[0]) > Math.abs(lk[2]) ? (lk[0] > 0 ? 1 : 0) : (lk[2] > 0 ? 5 : 4);
+    }
+    if (IS_PLATE(id) || IS_WIRE(id)) return 0;
     if (BLOCK_RT[id] === RT_SLAB) return flip;
     const look = Math.abs(lk[0]) > Math.abs(lk[2]) ? (lk[0] > 0 ? 0 : 1) : (lk[2] > 0 ? 4 : 5);
     const k = BLOCK_SHAPE[id];
@@ -22595,6 +23241,9 @@ const Act = {
         case B.CHEST: case B.BARREL: G.ui.openChest(x, y, z); return true;
         case B.ARCH_TABLE: G.ui.open({ kind: 'arch' }); return true;
         case B.BED: trySleep(x, y, z); return true;
+        case B.LEVER: case B.LEVER_ON: case B.BUTTON: case B.BUTTON_ON: case B.WOOD_BUTTON: case B.WOOD_BUTTON_ON: case B.TIMER: case B.TIMER_ON:
+          if (Mech.use(x, y, z, hit.id)) { this.swingHand(); return true; }
+          break;
         case B.DOOR: case B.DOOR_TOP: case B.DOOR_OPEN: case B.DOOR_OPEN_TOP: case B.TRAPDOOR: case B.TRAPDOOR_OPEN:
           toggleDoor(x, y, z); this.swingHand(); return true;
         case B.TNT:
@@ -23717,7 +24366,7 @@ const UI = {
     for (const t of all) {
       const b = document.createElement('button');
       b.className = 'ctab' + (this.creativeTab === t.key ? ' on' : '');
-      const iconId = { building: B.BRICKS, architecture: shapeId('tiles', 'slope'), nature: B.GRASS, functional: B.CRAFTING_TABLE, tools: I.TOOL0 + 20, combat: I.TOOL0 + 23, food: I.APPLE, materials: I.DIAMOND, transport: I.JET, search: I.BOOK, inv: B.CHEST }[t.key];
+      const iconId = { building: B.BRICKS, architecture: shapeId('tiles', 'slope'), nature: B.GRASS, functional: B.CRAFTING_TABLE, tools: I.TOOL0 + 20, combat: I.TOOL0 + 23, food: I.APPLE, materials: I.DIAMOND, transport: I.JET, mechanisms: B.PISTON, search: I.BOOK, inv: B.CHEST }[t.key];
       b.innerHTML = `<i style="background-image:url(${iconURL(iconId)})"></i><span>${t.name}</span>`;
       b.addEventListener('click', () => { this.creativeTab = t.key; sfx('click', null, 1, 1); this.render(); });
       tabs.append(b);
@@ -25034,7 +25683,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); }
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);
     Sound.setListener(cam.pos, cam.yaw);

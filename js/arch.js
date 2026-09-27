@@ -224,11 +224,22 @@ function slopeCode(n) {
 }
 
 const _shapeCache = new Map();
+// Shapes described by code instead of a canonical table: SHAPE_FN[kind](facing) -> { boxes, coll }
+// (a box may carry a 7th value, the texture layer of all its faces), and SHAPE_NB[kind](get) for
+// shapes drawn from their neighbours (get(dx, dy, dz) -> block id), like signal wire.
+const SHAPE_FN = {};
+const SHAPE_NB = {};
 // Oriented geometry of a shape: { boxes, polys: [{ p, n, slant, code, uv }], coll } (1/16 units).
 function shapeGeom(kind, f) {
   const key = kind * 16 + (f & 15);
   let g = _shapeCache.get(key);
   if (g) return g;
+  if (SHAPE_FN[kind]) {
+    const r = SHAPE_FN[kind](f & 15);
+    g = { boxes: r.boxes, polys: [], coll: r.coll || r.boxes.map((b) => b.slice(0, 6)) };
+    _shapeCache.set(key, g);
+    return g;
+  }
   const c = SHAPE_CANON[kind];
   g = { boxes: (c.boxes || []).map((b) => xfBox(f, b)), polys: [], coll: null };
   for (const q of c.polys || []) {
@@ -307,6 +318,7 @@ function specialBoxes(id, facing, get, tall) {
   if (rt === RT_SHAPE) {
     const k = BLOCK_SHAPE[id];
     if (k === SH_PILLAR) return pillarBoxes(get(0, -1, 0) === id, get(0, 1, 0) === id).slice(0, 1).map(div16);
+    if (SHAPE_NB[k]) return [[0, 0, 0, 1, 1 / 16, 1]];
     return shapeGeom(k, facing).coll.map(div16);
   }
   if (rt === RT_CONNECT) {

@@ -893,7 +893,7 @@ const UI = {
     for (const t of all) {
       const b = document.createElement('button');
       b.className = 'ctab' + (this.creativeTab === t.key ? ' on' : '');
-      const iconId = { building: B.BRICKS, architecture: shapeId('tiles', 'slope'), nature: B.GRASS, functional: B.CRAFTING_TABLE, tools: I.TOOL0 + 20, combat: I.TOOL0 + 23, food: I.APPLE, materials: I.DIAMOND, transport: I.JET, search: I.BOOK, inv: B.CHEST }[t.key];
+      const iconId = { building: B.BRICKS, architecture: shapeId('tiles', 'slope'), nature: B.GRASS, functional: B.CRAFTING_TABLE, tools: I.TOOL0 + 20, combat: I.TOOL0 + 23, food: I.APPLE, materials: I.DIAMOND, transport: I.JET, mechanisms: B.PISTON, search: I.BOOK, inv: B.CHEST }[t.key];
       b.innerHTML = `<i style="background-image:url(${iconURL(iconId)})"></i><span>${t.name}</span>`;
       b.addEventListener('click', () => { this.creativeTab = t.key; sfx('click', null, 1, 1); this.render(); });
       tabs.append(b);

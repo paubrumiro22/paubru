@@ -793,6 +793,7 @@ class World {
     this.chunks.set(chunkKey(cx, cz), c);
     if (c.gpics && typeof Pictures !== 'undefined' && this === G.world) Pictures.chunkLoaded(c);
     if (typeof Fluids !== 'undefined' && this === G.world) Fluids.chunkAdded(c);
+    if (typeof Mech !== 'undefined' && this === G.world) Mech.chunkAdded(c);
     // neighbours may now be meshable / need border faces refreshed
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
       if (!dx && !dz) continue;

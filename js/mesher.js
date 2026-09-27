@@ -269,6 +269,7 @@ function emitArch(world, p, x, y, z, id, rt, flags, wx, wz) {
     const k = BLOCK_SHAPE[id];
     let boxes;
     if (k === SH_PILLAR) boxes = pillarBoxes(pb[p - RSS] === id, pb[p + RSS] === id);
+    else if (SHAPE_NB[k]) boxes = SHAPE_NB[k]((dx, dy, dz) => pb[p + dx + dz * RS + dy * RSS], id);
     else if (k === SH_SEAT) {
       const f = world.getFacing(wx, y, wz), noBottom = (d) => (d === 3 ? -1 : tex(d));
       for (const b of SEAT_DRAW) { const q = xfBox(f, b); emitBox(meshOpaque, p, x, y, z, q[0], q[1], q[2], q[3], q[4], q[5], noBottom, flags, WHITE_TINT, null, true); }
@@ -278,7 +279,7 @@ function emitArch(world, p, x, y, z, id, rt, flags, wx, wz) {
       for (const poly of g.polys) emitPoly(meshOpaque, p, x, y, z, poly, poly.slant ? tex(poly.n[1] > 0 ? 2 : 3) : tex(poly.n[0] > 0 ? 0 : poly.n[0] < 0 ? 1 : poly.n[1] > 0 ? 2 : poly.n[1] < 0 ? 3 : poly.n[2] > 0 ? 4 : 5), flags);
       boxes = g.boxes;
     }
-    for (const b of boxes) emitBox(meshOpaque, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], tex, flags, WHITE_TINT, null, true);
+    for (const b of boxes) emitBox(meshOpaque, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], b.length > 6 ? () => b[6] : tex, flags, WHITE_TINT, null, true);
     return;
   }
   if (rt === RT_CONNECT) {
