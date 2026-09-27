@@ -328,6 +328,7 @@
   .place .pi { font-size: 22px; line-height: 1.1; }
   .place b { font-size: 14px; }
   .place small { color: var(--muted); font-size: 12px; }
+  .place.locked { opacity: 0.55; cursor: default; }
   .place:hover { background: rgba(242, 185, 75, 0.16); border-color: rgba(242, 185, 75, 0.55); }
   #placesPanel .panel { width: min(720px, 100%); }
   .jetbtn { margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -698,7 +699,7 @@
 <div id="placesPanel" class="overlay hidden">
   <div class="panel">
     <div class="brand"><h1>PLA<span>CES</span></h1></div>
-    <p class="tagline">Every world hides eight landscapes about 1.4 km from the centre. Walk or fly there, or travel instantly.</p>
+    <p class="tagline">Every world hides eight landscapes 1 to 2.6 km from the centre, in different spots on every world. Find them to put them on your map and travel back instantly.</p>
     <div class="places" id="placesGridTitle"></div>
     <div class="row" style="margin-top:16px"><button id="placesBack">Back</button></div>
   </div>
@@ -799,7 +800,7 @@
 
         <!-- PLACES -->
         <section class="opt-sec" data-tab="places">
-          <div class="sec-head"><h2>Places</h2><p>Eight landscapes about 1.4 km from the centre of every world. Walk, fly or travel there instantly.</p></div>
+          <div class="sec-head"><h2>Places</h2><p>Eight landscapes hidden 1 to 2.6 km out, in different spots on every world. Once you find one it goes on your map and you can travel back instantly.</p></div>
           <div class="places" id="placesGridMenu"></div>
           <h3 class="sub">Hangar</h3>
           <div class="card pad jetbtn">

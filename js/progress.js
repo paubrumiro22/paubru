@@ -146,6 +146,17 @@ const Progress = {
       if (st && Math.hypot(p.pos[0] - st.x, p.pos[2] - st.z) < 70) this.unlock('stucom');
     }
     if (p.gliding) this.unlock('glide');
+    // discovering a themed place puts it on the map
+    const g = G.world && G.world.gen;
+    if (g && g.regions) for (const r of g.regions) {
+      const pr = this.prog();
+      if (!pr.found) pr.found = {};
+      if (pr.found[r.key] || Math.hypot(p.pos[0] - r.x, p.pos[2] - r.z) > REGION_OUT) continue;
+      pr.found[r.key] = Date.now();
+      if (G.ui.banner) G.ui.banner(r.p.icon, r.p.name);
+      G.ui.toast('New place discovered: ' + r.p.name + ' · it is on your map now', 3500);
+      sfx('achieve', null, 0.8, 0.9);
+    }
     this.renderTracker();
   },
 

@@ -137,40 +137,59 @@ function planCampus(g, plan, st, rough) {
     add(gd, 1, (W) => buildGarden(W, g, gd.x0, gd.z0, gd.F));
     student(gd.x0 + 3, gd.F, gd.z0 + 6); student(gd.x0 + 9, gd.F, gd.z0 + 7);
   }
-  // the metro: a stair entrance near the square and the station underneath
+  // the metro: a stair entrance near the square and the station underneath. Its depth is worked
+  // out after the bank is placed (planMetro below), so it passes under every building.
   const mt = campus.metro = site(5, 9, 10, 46, 3);
+  let planMetro = null;
   if (mt) {
-    const L = lframe(mt.x0, mt.z0, 5, 9, mt.f);
-    // the station hall runs on beyond the stairs, deep enough to pass under whatever is there:
-    // its ceiling stays 4 below the lowest ground or campus floor over it (the stairs grow longer)
-    const hallAt = (N) => [[-4, N + 1], [8, N + 1], [-4, N + 19], [8, N + 19]].map(([a, d]) => [L.X(a, d), L.Z(a, d)]);
-    let N = 7;
-    for (let tries = 0; tries < 12; tries++) {
-      const hall = hallAt(N);
-      const x0 = Math.min(...hall.map((p) => p[0])) - 1, x1 = Math.max(...hall.map((p) => p[0])) + 1;
-      const z0 = Math.min(...hall.map((p) => p[1])) - 1, z1 = Math.max(...hall.map((p) => p[1])) + 1;
-      let lo = Infinity;
-      for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) lo = Math.min(lo, g.height(x, z));
-      for (const c of Object.values(campus)) if (c && c.x0 <= x1 && c.x1 >= x0 && c.z0 <= z1 && c.z1 >= z0) lo = Math.min(lo, c.F - 1);
-      const want = Math.max(7, mt.F - 1 - (lo - 10));    // floor = F - 1 - N, ceiling slab at floor + 6
-      if (want <= N) break;
-      N = want;
-    }
-    const hall = hallAt(N);
-    const hx0 = Math.min(...hall.map((p) => p[0])), hx1 = Math.max(...hall.map((p) => p[0]));
-    const hz0 = Math.min(...hall.map((p) => p[1])), hz1 = Math.max(...hall.map((p) => p[1]));
     zones.push([mt.x0, mt.z0, mt.x1, mt.z1]);
-    plan.pieces.push({ box: [Math.min(hx0, mt.x0) - 1, Math.min(hz0, mt.z0) - 1, Math.max(hx1, mt.x1) + 1, Math.max(hz1, mt.z1) + 1], build: (W) => buildMetro(W, g, L, mt.F, N) });
-    plan.metro = { x: L.X(2, N + 10), z: L.Z(2, N + 10), y: mt.F - 1 - N, depth: N, track: [L.X(6, N + 2), L.Z(6, N + 2), L.X(6, N + 18), L.Z(6, N + 18)] };
-    // the line runs on to Catalunya (buildMetroLine): where the trains start, stop and end
-    {
-      const o = N - 7, D0 = 27 + o + METRO_TUNNEL, ty = mt.F - 1 - N - 1;
-      const at = (d) => [L.X(6, d) + 0.5, ty, L.Z(6, d) + 0.5];
-      plan.metro.line = { a: at(9 + o), b: at(D0 + 17), stops: [{ name: 'Universitat', at: at(14 + o) }, { name: 'Catalunya', at: at(D0 + 12) }] };
-      const far = [[-6, D0 + 21], [10, D0 + 21]].map(([a, d]) => [L.X(a, d), L.Z(a, d)]);
-      const pc = plan.pieces[plan.pieces.length - 1];
-      pc.box = [Math.min(pc.box[0], ...far.map((q) => q[0])), Math.min(pc.box[1], ...far.map((q) => q[1])), Math.max(pc.box[2], ...far.map((q) => q[0])), Math.max(pc.box[3], ...far.map((q) => q[1]))];
-    }
+    const piece = { box: [mt.x0 - 1, mt.z0 - 1, mt.x1 + 1, mt.z1 + 1], build: () => {} };
+    plan.pieces.push(piece);
+    planMetro = () => {
+      const L = lframe(mt.x0, mt.z0, 5, 9, mt.f);
+      // lowest ground (or campus floor) over a set of cells in the station's frame
+      const lowOver = (cells) => {
+        let lo = Infinity;
+        const xs = [], zs = [];
+        for (const [a, d] of cells) { const x = L.X(a, d), z = L.Z(a, d); lo = Math.min(lo, g.height(x, z)); xs.push(x); zs.push(z); }
+        const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+        for (const c of Object.values(campus)) if (c && c.x0 <= x1 && c.x1 >= x0 && c.z0 <= z1 && c.z1 >= z0) lo = Math.min(lo, c.F - 2);
+        return lo;
+      };
+      const box = (a0, a1, d0, d1, step = 2) => { const out = []; for (let a = a0; a <= a1; a += step) for (let d = d0; d <= d1; d += step) out.push([a, d]); out.push([a1, d1]); return out; };
+      // the hall runs on beyond the stairs; with the line, a tunnel and the Catalunya hall follow.
+      // Everything keeps at least 5 blocks of rock over its roof (the stairs grow longer).
+      const depthFor = (withLine) => {
+        let N = 7;
+        for (let tries = 0; tries < 14; tries++) {
+          const o = N - 7, D0 = 27 + o + METRO_TUNNEL;
+          let lo = lowOver(box(-4, 8, N + 1, N + 19, 1));
+          if (withLine) lo = Math.min(lo, lowOver(box(4, 8, 27 + o, D0 + 18)), lowOver(box(-4, 8, D0, D0 + 18)));
+          const want = Math.max(7, mt.F - 1 - (lo - 11));    // floor = F - 1 - N, hall roof at floor + 6
+          if (want <= N) break;
+          N = want;
+        }
+        return N;
+      };
+      let N = depthFor(true), line = mt.F - 1 - N >= 10;
+      if (!line) N = depthFor(false);
+      const o = N - 7, D0 = 27 + o + METRO_TUNNEL;
+      // the street exit at Catalunya only where nothing of the campus stands
+      const ex = L.X(-2, D0 + 16), ez = L.Z(-2, D0 + 16);
+      const exitOk = line && !zones.some((r) => ex >= r[0] - 3 && ex <= r[2] + 3 && ez >= r[1] - 3 && ez <= r[3] + 3);
+      const corners = [[-6, N + 1], [10, N + 1], [-6, N + 20], [10, N + 20]];
+      if (line) corners.push([-6, D0 + 21], [10, D0 + 21]);
+      const pts = corners.map(([a, d]) => [L.X(a, d), L.Z(a, d)]).concat([[mt.x0, mt.z0], [mt.x1, mt.z1]]);
+      piece.box = [Math.min(...pts.map((q) => q[0])) - 1, Math.min(...pts.map((q) => q[1])) - 1, Math.max(...pts.map((q) => q[0])) + 1, Math.max(...pts.map((q) => q[1])) + 1];
+      piece.build = (W) => buildMetro(W, g, L, mt.F, N, line, exitOk);
+      plan.metro = { x: L.X(2, N + 10), z: L.Z(2, N + 10), y: mt.F - 1 - N, depth: N, track: [L.X(6, N + 2), L.Z(6, N + 2), L.X(6, N + 18), L.Z(6, N + 18)] };
+      if (line) {
+        const ty = mt.F - 1 - N - 1;
+        const at = (d) => [L.X(6, d) + 0.5, ty, L.Z(6, d) + 0.5];
+        // where the trains start, stop and end (metro.js)
+        plan.metro.line = { a: at(9 + o), b: at(D0 + 17), stops: [{ name: 'Universitat', at: at(14 + o) }, { name: 'Catalunya', at: at(D0 + 12) }] };
+      }
+    };
   }
   // Banc Central (bank.js runs it: money, services); added last so the other pieces keep their places
   const bk = campus.bank = site(17, 20, 16, 96, 6) || site(17, 20, 14, 100, 10) || site(17, 20, 12, 102, 18);
@@ -182,6 +201,7 @@ function planCampus(g, plan, st, rough) {
     for (const a of [4, 12]) plan.spawns.push({ kind: 'villager', prof: 'banker', x: L.X(a, 13) + 0.5, y: FL, z: L.Z(a, 13) + 0.5, home: [L.X(a, 13) + 0.5, L.Z(a, 13) + 0.5], homeR: 2.5 });
     student(L.X(3, 8), FL, L.Z(3, 8));
   }
+  if (planMetro) planMetro();
   // bus stop at the side of a road, a little way out of the square
   for (const [dx, dz, len] of plan.roadDirs || []) {
     let done = false;
@@ -499,7 +519,7 @@ function buildBusStop(W, g, px, pz, dx, dz, ox, oz, F, back) {
 // Metro "Universitat": stairs down from the street under a canopy to a tiled hall with the platform
 // along a track (real rails: bring a rail cart). L: frame of the 5 x 9 surface entrance;
 // N: how far down the platform is (the stairs take N + 1 steps, the hall starts after them).
-function buildMetro(W, g, L, F, N = 7) {
+function buildMetro(W, g, L, F, N = 7, line = false, exitOk = false) {
   const S = lwriter(W, L);
   const floor = F - 1 - N, top = floor + 5, o = N - 7;   // o shifts the hall back for deeper stations
   // surface: paving, railings around the opening, the sign pole
@@ -555,8 +575,8 @@ function buildMetro(W, g, L, F, N = 7) {
   for (let d = 9 + o; d <= 25 + o; d++) { S.set(4, floor - 1, d, B.CONCRETE + 4); S.set(6, floor - 1, d, rail); }
   // the tunnel mouths at both ends, dark after a couple of blocks
   for (const d of [8 + o, 26 + o]) for (let a = 5; a <= 7; a++) for (let y = floor - 2; y <= floor + 2; y++) S.set(a, y, d, y === floor - 2 ? B.GRAVEL : y === floor - 1 && a === 6 ? rail : B.AIR);
-  for (const d of [7 + o]) for (let a = 5; a <= 7; a++) for (let y = floor - 2; y <= floor + 3; y++) S.set(a, y, d, B.CONCRETE + 15);
-  buildMetroLine(W, g, L, S, floor, o, rail);
+  for (const d of line ? [7 + o] : [7 + o, 27 + o]) for (let a = 5; a <= 7; a++) for (let y = floor - 2; y <= floor + 3; y++) S.set(a, y, d, B.CONCRETE + 15);
+  if (line) buildMetroLine(W, g, L, S, floor, o, rail, exitOk);
   // tiled columns along the platform and posters between them
   for (const d of [11 + o, 16 + o, 21 + o]) for (let y = floor; y < top; y++) S.set(2, y, d, y === floor + 1 ? B.BLUE_TILES : B.QUARTZ_PILLAR);
   S.pic(7, floor + 1, 22 + o, L.back, 2, 1, 'sunset', true);
@@ -574,7 +594,7 @@ function buildMetro(W, g, L, F, N = 7) {
 // straight on to a second station, Catalunya, whose far end has a ladder shaft up to a glass
 // kiosk on the street (none if the street is under water). Trains run it by themselves (metro.js).
 const METRO_TUNNEL = 46;
-function buildMetroLine(W, g, L, S, floor, o, rail) {
+function buildMetroLine(W, g, L, S, floor, o, rail, exitOk) {
   const d1 = 27 + o, D0 = d1 + METRO_TUNNEL;
   // tunnel: track bed, walls, a vaulted ceiling with a lamp every 8 blocks
   for (let d = d1; d < D0; d++) {
@@ -614,7 +634,7 @@ function buildMetroLine(W, g, L, S, floor, o, rail) {
   // the way out: a ladder shaft at the far corner up to a kiosk on the street
   const sx = L.X(-2, D0 + 16), sz = L.Z(-2, D0 + 16);
   const surf = g.height(sx, sz);
-  if (surf < SEA || surf > floor + 60) return;
+  if (!exitOk || surf < SEA || surf > floor + 60) return;
   const F = surf + 1;
   for (let y = floor; y <= F + 2; y++) for (let a = -3; a <= -1; a++) for (let d = D0 + 15; d <= D0 + 17; d++) {
     const inner = a === -2 && d === D0 + 16;

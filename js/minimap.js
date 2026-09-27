@@ -185,6 +185,10 @@ function mapKeyForWorld() {
   return G.slot ? 'slot.' + G.slot : Net.server ? 'srv.' + Net.server.code : G.online ? 'online' : 'main';
 }
 
+// A themed place shows on the maps (and in the Places list) once you have been there.
+function placeFound(r) {
+  return !!(G.prog && G.prog.found && G.prog.found[r.key]) || (typeof MapStore !== 'undefined' && MapStore.explored(r.x, r.z));
+}
 const STRUCT_ICONS = { village: '🏘️', castle: '🏰', mine: '⛏️', port: '⚓', watchtower: '🗼', ruins: '🏛️' };
 
 // Things drawn on both maps: places, structures you have seen, markers, deaths, bed, players.
@@ -204,6 +208,7 @@ function drawMapMarks(ctx, wx, wz, px, py, k, W, H, dpr, full, clampRad) {
   ctx.font = Math.round((full ? 18 : 13) * dpr) + 'px system-ui, "Segoe UI Emoji", sans-serif';
   const g = G.world && G.world.gen;
   if (g) for (const r of g.regions) {
+    if (!placeFound(r)) continue;
     const s = pin(r.x, r.z, 9 * dpr);
     if (!clampRad && !inside(s)) continue;
     ctx.fillText(r.p.icon, s[0], s[1]);

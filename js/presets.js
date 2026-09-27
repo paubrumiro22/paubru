@@ -372,14 +372,34 @@ function presetFromText(text) {
 const REGION_RING = 1400, REGION_IN = 240, REGION_OUT = 370;
 const REGION_ORDER = ['beach', 'meadow', 'volcano', 'forest', 'peaks', 'islands', 'canyon', 'oasis'];
 
-function placeRegions(seed) {
-  const a0 = hash3(seed, 3, 7, 1234) * Math.PI * 2;
-  return REGION_ORDER.map((key, i) => {
-    const a = a0 + (i / REGION_ORDER.length) * Math.PI * 2;
-    // snap to the chunk grid so local and world chunk borders line up
-    const x = Math.round(Math.cos(a) * REGION_RING / CS) * CS, z = Math.round(Math.sin(a) * REGION_RING / CS) * CS;
-    return { key, p: WORLD_PRESETS[key], x, z };
-  });
+function placeRegions(seed, ver = 1) {
+  if (ver < 4) {
+    const a0 = hash3(seed, 3, 7, 1234) * Math.PI * 2;
+    return REGION_ORDER.map((key, i) => {
+      const a = a0 + (i / REGION_ORDER.length) * Math.PI * 2;
+      // snap to the chunk grid so local and world chunk borders line up
+      const x = Math.round(Math.cos(a) * REGION_RING / CS) * CS, z = Math.round(Math.sin(a) * REGION_RING / CS) * CS;
+      return { key, p: WORLD_PRESETS[key], x, z };
+    });
+  }
+  // generator 4: every world (every server) shuffles the places and scatters them 1-2.6 km out,
+  // each in its own direction, never closer than 900 blocks to another one
+  const rng = mulberry32((seed ^ 0x2545f491) | 0);
+  const order = REGION_ORDER.slice();
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  const a0 = rng() * Math.PI * 2, out = [];
+  for (let i = 0; i < order.length; i++) {
+    let best = null;
+    for (let tries = 0; tries < 30 && !best; tries++) {
+      const a = a0 + (i + 0.5 + (rng() - 0.5) * 0.8) / order.length * Math.PI * 2;
+      const r = 1000 + rng() * 1600;
+      const x = Math.round(Math.cos(a) * r / CS) * CS, z = Math.round(Math.sin(a) * r / CS) * CS;
+      if (out.every((q) => Math.hypot(q.x - x, q.z - z) > 900)) best = { key: order[i], p: WORLD_PRESETS[order[i]], x, z };
+    }
+    if (!best) { const a = a0 + i / order.length * Math.PI * 2; best = { key: order[i], p: WORLD_PRESETS[order[i]], x: Math.round(Math.cos(a) * 2200 / CS) * CS, z: Math.round(Math.sin(a) * 2200 / CS) * CS }; }
+    out.push(best);
+  }
+  return out;
 }
 
 // Nearest themed place around (x, z) with its blend factor t (0 = fully the place, 1 = outside).

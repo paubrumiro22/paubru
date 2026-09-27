@@ -261,6 +261,14 @@ function buildPlaces(el, after) {
   const p = G.player.pos;
   const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   for (const r of g.regions) {
+    if (!placeFound(r)) {
+      // still a secret: somewhere out there
+      const b = document.createElement('button');
+      b.className = 'place locked'; b.disabled = true;
+      b.innerHTML = '<span class="pi">❔</span><b>Undiscovered</b><small>Explore to find it</small>';
+      el.append(b);
+      continue;
+    }
     const dx = r.x - p[0], dz = r.z - p[2];
     const d = Math.hypot(dx, dz);
     const dir = dirs[((Math.round(Math.atan2(dx, -dz) / (Math.PI / 4)) % 8) + 8) % 8];

@@ -93,7 +93,9 @@ class WorldGen {
     this.nPatch = new SimplexNoise(s + 131);
     this.nRiver = new SimplexNoise(s + 149);
     // themed places scattered through the regular world (see presets.js)
-    this.regions = this.type === 'default' ? placeRegions(this.seed) : [];
+    this.regions = this.type === 'default' ? placeRegions(this.seed, this.ver) : [];
+    // generator 4: each world leans a little warmer or colder, wetter or drier, with bigger or smaller biomes
+    this.clim = this.ver >= 4 ? { t: (hash3(s, 1, 2, 3) - 0.5) * 0.24, h: (hash3(s, 4, 5, 6) - 0.5) * 0.24, k: 0.8 + hash3(s, 7, 8, 9) * 0.45 } : { t: 0, h: 0, k: 1 };
     this.structs = this.ver >= 2 && this.type === 'default' ? new Map() : null;   // cell -> plan (structures.js)
   }
 
@@ -149,8 +151,8 @@ class WorldGen {
   climate(x, z) {
     if (this.type === 'flat') return { temp: 0.05, hum: 0 };
     return {
-      temp: this.nTemp.fbm2(x * 0.0011, z * 0.0011, 3),
-      hum: this.nHum.fbm2(x * 0.0014 + 100, z * 0.0014 - 100, 3),
+      temp: this.nTemp.fbm2(x * 0.0011 * this.clim.k, z * 0.0011 * this.clim.k, 3) + this.clim.t,
+      hum: this.nHum.fbm2(x * 0.0014 * this.clim.k + 100, z * 0.0014 * this.clim.k - 100, 3) + this.clim.h,
     };
   }
 

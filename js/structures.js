@@ -9,7 +9,7 @@
 
 const STRUCT_CELL = 320;
 const STRUCT_REACH = 200;       // no structure reaches further than this from its centre (the STUCOM metro line is the longest)
-const GEN_LATEST = 3;
+const GEN_LATEST = 4;
 
 // ---- building materials by village style ----
 const VSTYLE = {
@@ -732,7 +732,19 @@ function stucomVillage(g) {
   if (!g.structs || g.ver < 2 || g.type !== 'default') { g._stucom = null; return null; }
   g._stucomBusy = true;
   let best = null, bd = 1600;
-  for (const p of structuresIn(g, -1600, -1600, 1600, 1600)) {
+  if (g.ver >= 4) {
+    // generator 4: a mild, green, dry-footed spot like Barcelona's Eixample: a temperate village
+    // on plains, away from rivers, beaches and deserts, as near the centre as possible
+    let bs = Infinity;
+    for (const p of structuresIn(g, -2400, -2400, 2400, 2400)) {
+      if (p.type !== 'village' || p.style !== 'temperate') continue;
+      const d = Math.hypot(p.x, p.z);
+      if (d > 2400) continue;
+      const score = d + stucomSiteCost(g, p);
+      if (score < bs) { bs = score; best = p; }
+    }
+  }
+  if (!best) for (const p of structuresIn(g, -1600, -1600, 1600, 1600)) {
     const d = Math.hypot(p.x, p.z);
     if (p.type === 'village' && d < bd) { bd = d; best = p; }
   }
@@ -740,6 +752,22 @@ function stucomVillage(g) {
   g._stucom = best;
   if (best && !best.stucom) decorateStucom(g, best);
   return best;
+}
+
+// How badly a village suits STUCOM: rivers, low wet ground, sand and slopes around it cost extra.
+function stucomSiteCost(g, p) {
+  let cost = 0, low = 0, n = 0, lo = 1e9, hi = -1e9;
+  for (let r = 16; r <= 88; r += 18) for (let k = 0; k < 12; k++) {
+    const a = k / 12 * Math.PI * 2, x = Math.round(p.x + Math.cos(a) * r), z = Math.round(p.z + Math.sin(a) * r);
+    const h = g.height(x, z);
+    n++;
+    if (h < SEA + 3) low++;
+    if (g.riverAt(x, z) > 0.12) cost += 400;
+    const { temp, hum } = g.climate(x, z), b = g.biome(h, temp, hum);
+    if (b === BIOME.DESERT || b === BIOME.BEACH || b === BIOME.SNOWY) cost += 250;
+    if (r <= 52) { lo = Math.min(lo, h); hi = Math.max(hi, h); }
+  }
+  return cost + (low / n) * 3000 + Math.max(0, hi - lo - 8) * 40;
 }
 
 function decorateStucom(g, plan) {

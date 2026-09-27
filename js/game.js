@@ -651,6 +651,8 @@ function travelTo(key) {
   const g = G.world.gen;
   const sp = regionSpawn(g, key);
   if (!sp) { G.ui.toast('Themed places only exist in default worlds'); return false; }
+  const reg = g.regions.find((r) => r.key === key);
+  if (reg && typeof placeFound === 'function' && !placeFound(reg)) { G.ui.toast('You have not discovered that place yet: explore to find it'); return false; }
   if (G.vehicle) Vehicles.dismount(true);
   const p = G.player;
   const x = Math.floor(sp.pos[0]), z = Math.floor(sp.pos[2]);
