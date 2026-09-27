@@ -16577,7 +16577,7 @@ const Vehicles = {
 // camera. They live in the same Vehicles.list as jets (flag `ride`), so saving, boarding with
 // right click, picking up and the minimap work for both; Vehicles' jet code is wrapped below.
 
-Object.assign(I, { CAR: 410, BUS: 411, BOAT: 412, HELI: 413, BIKE: 414, CART: 415 });
+Object.assign(I, { CAR: 410, BUS: 411, BOAT: 412, HELI: 413, BIKE: 414, CART: 415, METRO: 417 });
 
 const RIDE_PAINTS = [[0.86, 0.16, 0.14], [0.14, 0.34, 0.8], [0.95, 0.78, 0.16], [0.93, 0.93, 0.93], [0.16, 0.16, 0.18], [0.12, 0.56, 0.3], [0.9, 0.46, 0.12], [0.55, 0.62, 0.7]];
 const RIDE_DIRV = [[0, -1], [1, 0], [0, 1], [-1, 0]];   // north, east, south, west
@@ -16716,6 +16716,45 @@ const RIDE_KINDS = {
     hit: [[-0.6, 0, -0.8, 0.6, 0.9, 0.8]],
   },
 };
+// Metro train: three coupled cars (drawn as one rigid train behind the lead car) that follow the
+// rails like the cart. White and red livery, window band, doors, lit cab and headlights.
+RIDE_KINDS.metro = (() => {
+  const parts = [];
+  const CAR = 8, GAP = 0.35;
+  for (let c = 0; c < 3; c++) {
+    const z0 = -CAR / 2 - c * (CAR + GAP), z1 = z0 + CAR, cab = c === 0;
+    parts.push(
+      // Barcelona style: white body, red skirt, dark window band
+      [-1.3, 0.55, z0, 1.3, 0.9, z1, 'white', { c: [0.8, 0.08, 0.1] }],
+      [-1.3, 0.9, z0, 1.3, 1.5, z1, 'white', { c: [0.94, 0.94, 0.92] }],
+      [-1.31, 1.5, z0 + 0.3, 1.31, 2.45, z1 - (cab ? 1.2 : 0.3), 'glass'],
+      [-1.3, 2.45, z0, 1.3, 2.9, z1, 'white', { c: [0.92, 0.92, 0.9] }],
+      [-1.15, 2.9, z0 + 0.2, 1.15, 3.1, z1 - 0.2, 'metal'],
+      [-1.2, 0.2, z0 + 0.6, 1.2, 0.55, z0 + 2.2, 'hullDark'],
+      [-1.2, 0.2, z1 - 2.2, 1.2, 0.55, z1 - 0.6, 'hullDark'],
+    );
+    for (const dz of [-2.2, 1.6]) parts.push([1.32, 0.6, (z0 + z1) / 2 + dz - 0.6, 1.34, 2.4, (z0 + z1) / 2 + dz + 0.6, 'hullDark', { m: true }]);
+    if (c < 2) parts.push([-0.9, 0.6, z0 - GAP, 0.9, 2.6, z0, 'hullDark']);
+  }
+  // the cab end: windscreen, route sign, lights
+  parts.push(
+    [-1.25, 1.5, CAR / 2 - 1.2, 1.25, 2.45, CAR / 2 - 1.1, 'hullDark'],
+    [-1.1, 1.45, CAR / 2, 1.1, 2.45, CAR / 2 + 0.06, 'glass'],
+    [-0.7, 2.5, CAR / 2, 0.7, 2.8, CAR / 2 + 0.07, 'glow', { glow: 2, c: [1, 0.55, 0.15] }],
+    [0.75, 0.8, CAR / 2, 1.1, 1.05, CAR / 2 + 0.08, 'navWhite', { m: true, glow: 2.2 }],
+    // the red front mask around the windscreen
+    [-1.3, 0.55, CAR / 2, 1.3, 1.45, CAR / 2 + 0.05, 'white', { c: [0.8, 0.08, 0.1] }],
+    [-1.3, 1.45, CAR / 2, -1.1, 2.9, CAR / 2 + 0.05, 'white', { c: [0.8, 0.08, 0.1] }],
+    [1.1, 1.45, CAR / 2, 1.3, 2.9, CAR / 2 + 0.05, 'white', { c: [0.8, 0.08, 0.1] }],
+    [-1.3, 2.8, CAR / 2, 1.3, 2.9, CAR / 2 + 0.05, 'white', { c: [0.8, 0.08, 0.1] }],
+    [0.75, 0.8, -CAR / 2 - 2 * (CAR + GAP) - 0.08, 1.1, 1.05, -CAR / 2 - 2 * (CAR + GAP), 'navRed', { m: true, glow: 1.2 }],
+  );
+  return {
+    item: I.METRO, name: 'Metro Train', type: 'rail', max: 20, rev: 0, acc: 3.2, brake: 7, steer: 0, base: 6, step: 1.05, h: 3.1, len: 8, w: 2.6,
+    seat: [0.55, 0.75, 2.8], eye: [0.55, 2.05, 3.0], cam: 14, sit: true, hide: true, sound: 'bus', paintDefault: 0,
+    parts, hit: [[-1.35, 0, -21.5, 1.35, 3.1, 4.2]],
+  };
+})();
 const RIDE_KEYS = Object.keys(RIDE_KINDS);
 const RIDE_BY_ITEM = {};
 for (const k of RIDE_KEYS) {
@@ -17084,6 +17123,7 @@ const Rides = {
       heli: 'Space climb \u00b7 C descend \u00b7 W/S forward/back \u00b7 A/D turn \u00b7 V camera \u00b7 Shift get out',
       bike: 'W pedal \u00b7 S brake \u00b7 A/D steer \u00b7 LMB bell \u00b7 V camera \u00b7 Shift get off',
       cart: 'W go \u00b7 S brake (at a stop: reverse) \u00b7 follows the rails \u00b7 V camera \u00b7 Shift get out',
+      metro: 'W go \u00b7 S brake (at a stop: reverse) \u00b7 the train follows the rails \u00b7 V camera \u00b7 Shift get out',
       dozer: 'W/S drive \u00b7 A/D steer \u00b7 the blade levels what is in front \u00b7 V camera \u00b7 Shift get out',
     };
     G.ui.toast(tips[v.kind], 6000);
@@ -17349,6 +17389,8 @@ defItem(I.BOAT, 'Motor Boat', { sprite: 'i_boat', stack: 1, cat: 'transport' });
 defItem(I.HELI, 'Helicopter', { sprite: 'i_heli', stack: 1, cat: 'transport' });
 defItem(I.BIKE, 'Bicycle', { sprite: 'i_bike', stack: 1, cat: 'transport' });
 defItem(I.CART, 'Rail Cart', { sprite: 'i_cart', stack: 1, cat: 'transport' });
+defItem(I.METRO, 'Metro Train', { sprite: 'i_metro', stack: 1, cat: 'transport' });
+shaped(I.METRO, 1, ['GGG', 'ICI', 'CCC'], { G: B.GLASS_PANE, I: B.IRON_BLOCK, C: I.CART });
 shaped(I.CAR, 1, [' G ', 'IFI', 'C C'], { G: B.GLASS_PANE, I: I.IRON_INGOT, F: B.FURNACE, C: TAG.coal });
 shaped(I.BUS, 1, ['GGG', 'IFI', 'I I'], { G: B.GLASS_PANE, I: B.IRON_BLOCK, F: B.FURNACE });
 shaped(I.BOAT, 1, ['P P', 'PFP'], { P: TAG.planks, F: B.FURNACE });
@@ -17402,6 +17444,17 @@ sprite('i_bike', (d) => {
   sprSeg(d, 22, 12, 15, 21, 1.4, fr); sprSeg(d, 22, 12, 24, 21, 1.4, fr); sprSeg(d, 8, 21, 12, 12, 1.4, fr);
   sprSeg(d, 21, 12, 20, 8, 1.2, [120, 124, 130]); sprSeg(d, 18, 8, 23, 8, 1.4, [50, 50, 56]);
   sprSeg(d, 12, 12, 11, 9, 1.2, [120, 124, 130]); sprRect(d, 8, 8, 14, 9, [40, 40, 44]);
+});
+sprite('i_metro', (d) => {
+  sprRect(d, 1, 9, 31, 25, [236, 236, 232]);
+  sprRect(d, 1, 21, 31, 25, [206, 22, 26]);
+  sprRect(d, 25, 9, 31, 25, [206, 22, 26]);
+  for (let x = 3; x < 25; x += 6) sprRect(d, x, 11, x + 4, 16, [120, 170, 210]);
+  sprRect(d, 26, 11, 31, 16, [120, 170, 210]);
+  sprRect(d, 9, 19, 12, 25, [70, 70, 76]); sprRect(d, 20, 19, 23, 25, [70, 70, 76]);
+  sprRect(d, 27, 21, 30, 23, [255, 236, 170]);
+  for (const cx of [6, 26]) sprDisc(d, cx, 26, 2.4, [40, 40, 44]);
+  sprSeg(d, 0, 28.5, 32, 28.5, 1.2, [150, 154, 160]);
 });
 sprite('i_cart', (d) => {
   sprPoly(d, [[3, 10], [29, 10], [26, 23], [6, 23]], [110, 122, 138]);
