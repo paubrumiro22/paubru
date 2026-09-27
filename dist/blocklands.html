@@ -8814,7 +8814,7 @@ function buildMetro(W, g, L, F, N = 7, line = false, exitOk = false) {
   // opening, then a tiled tunnel with lamps in the ceiling
   for (let k = 0; k <= N; k++) {
     const d = k + 1, y = F - 1 - k, open = d <= 7;
-    const clearTop = open ? F + 1 : Math.min(y + 4, top - 1);
+    const clearTop = open ? F + 1 : y + 4;
     for (let a = 1; a <= 3; a++) {
       for (let yy = y + 1; yy <= clearTop; yy++) S.set(a, yy, d, B.AIR);
       if (!open) S.set(a, clearTop + 1, d, a === 2 && k % 3 === 0 ? B.GLASS_LAMP : B.CONCRETE + 8);
