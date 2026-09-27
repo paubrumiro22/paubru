@@ -115,6 +115,7 @@ const Villages = {
         const m = Ents.spawnMob(s.kind, s.x, y + 0.01, s.z);
         m.persistent = true;
         m.vid = plan.x + ',' + plan.z + ':' + i;
+        m.town = plan.name || '';
         this.byVid.set(m.vid, m);
         m.seed = (hash3(plan.x, i, plan.z, w.seed) * 2147483647) | 0;
         if (s.kind === 'villager') {

@@ -492,6 +492,50 @@
     .qpresets, .twocol { grid-template-columns: 1fr 1fr; }
   }
 
+  /* Journal, achievements and quests */
+  #journal { z-index: 7; }
+  .panel.jr { width: min(900px, 100%); height: min(720px, calc(100vh - 32px)); max-height: none; padding: 0; display: flex; flex-direction: column; overflow: hidden; animation: pop .18s ease-out; }
+  .jr-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between; padding: 16px 22px; border-bottom: 1px solid var(--line); }
+  .jr-title { font: 700 22px/1.2 var(--body); text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 2px; }
+  #jrSummary { color: var(--muted); font-size: 13px; }
+  .jr-prog { width: 220px; height: 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.1); overflow: hidden; margin-top: 6px; }
+  .jr-prog i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #ffe3a0); }
+  .jr-tabs { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .jr-tabs button { border: 0; border-radius: 0; background: transparent; padding: 8px 16px; }
+  .jr-tabs button.on { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  .jr-body { flex: 1; overflow-y: auto; padding: 18px 22px 26px; }
+  .achgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+  .ach { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); opacity: 0.72; }
+  .ach > i { flex: none; width: 40px; height: 40px; border-radius: 9px; background: rgba(0, 0, 0, 0.3) center / 30px no-repeat; image-rendering: pixelated; filter: grayscale(1) brightness(0.7); }
+  .ach b { display: block; font-size: 14px; }
+  .ach span { display: block; color: var(--muted); font-size: 12.5px; }
+  .ach small { color: var(--muted); font-size: 11px; }
+  .ach em { display: block; font-style: normal; font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  .ach.got { opacity: 1; border-color: rgba(242, 185, 75, 0.5); background: linear-gradient(135deg, rgba(242, 185, 75, 0.14), rgba(255, 255, 255, 0.02)); }
+  .ach.got > i { filter: none; box-shadow: 0 0 0 2px rgba(242, 185, 75, 0.5); }
+  .ach.got em { color: var(--accent-hover); }
+  .questcard { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid rgba(242, 185, 75, 0.45); background: linear-gradient(135deg, rgba(242, 185, 75, 0.12), rgba(255, 255, 255, 0.02)); margin-bottom: 10px; }
+  .questcard.wide { margin-bottom: 12px; }
+  .qc-head { display: flex; gap: 10px; align-items: center; }
+  .qc-head > i { flex: none; width: 34px; height: 34px; background: center / contain no-repeat; image-rendering: pixelated; }
+  .qc-head b { display: block; font-size: 14px; }
+  .qc-head small { display: block; color: var(--muted); font-size: 12px; }
+  .qc-bar { height: 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.1); overflow: hidden; margin: 4px 0 2px; }
+  .qc-bar i { display: block; height: 100%; background: linear-gradient(90deg, #6fcf7a, #b8f0a0); }
+  .questcard button { align-self: flex-start; }
+  #achPop { position: absolute; right: 14px; top: 228px; display: flex; gap: 12px; align-items: center; padding: 12px 16px 12px 12px; border-radius: 14px; background: linear-gradient(135deg, rgba(40, 30, 10, 0.92), rgba(12, 16, 24, 0.92)); border: 1px solid rgba(242, 185, 75, 0.7); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(242, 185, 75, 0.25); opacity: 0; transform: translateX(120%); max-width: 330px; }
+  #achPop.show { animation: achIn 4s cubic-bezier(.2, 1.2, .4, 1) forwards; }
+  @keyframes achIn { 0% { opacity: 0; transform: translateX(120%); } 10% { opacity: 1; transform: none; } 85% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateX(120%); } }
+  #achPop > i { flex: none; width: 44px; height: 44px; border-radius: 10px; background: rgba(0, 0, 0, 0.35) center / 32px no-repeat; image-rendering: pixelated; box-shadow: 0 0 0 2px rgba(242, 185, 75, 0.6); }
+  #achPop small { display: block; font: 400 10px/1.2 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+  #achPop b { display: block; font-size: 16px; }
+  #achPop span { display: block; font-size: 12.5px; color: #d9cfb8; }
+  #questTracker { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 5px; max-width: 250px; pointer-events: none; }
+  #questTracker div { padding: 6px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.45); border-left: 3px solid var(--accent); font-size: 12.5px; text-shadow: 0 1px 2px #000; }
+  #questTracker div.done { border-left-color: #6fcf7a; }
+  #questTracker b { display: block; font-weight: 600; }
+  #questTracker span { color: #d6dde6; font-size: 11.5px; }
+
   @media (max-width: 560px) {
     .slot { width: 36px; height: 36px; } .slot i { inset: 4px; }
     .brand h1 { font-size: 26px; } .panel { padding: 18px; }
@@ -658,6 +702,7 @@
       </div>
       <div class="opt-actions">
         <span id="lockHint" class="opt-hint"><kbd>Esc</kbd>opens this menu</span>
+        <button id="journalBtn">Journal <kbd>J</kbd></button>
         <button id="titleBtn">Title screen</button>
         <button id="playBtn" class="primary">Play</button>
       </div>
@@ -844,6 +889,7 @@
             <div><kbd>T</kbd>Fast-forward time (creative)</div>
             <div><kbd>Arrows</kbd>Look around</div>
             <div><kbd>M</kbd>World map</div>
+            <div><kbd>J</kbd>Journal: achievements and quests</div>
             <div><kbd>Enter</kbd>Chat (online)</div>
             <div><kbd>F5</kbd>Third person / front view</div>
             <div><kbd>F3</kbd>Debug info</div>
@@ -864,6 +910,16 @@
         </section>
       </main>
     </div>
+  </div>
+</div>
+<div id="journal" class="overlay hidden">
+  <div class="panel jr">
+    <header class="jr-head">
+      <div><h2 class="jr-title">Journal</h2><span id="jrSummary"></span><div class="jr-prog"><i id="jrBar"></i></div></div>
+      <div class="jr-tabs"><button data-t="ach">Achievements</button><button data-t="quests">Quests</button></div>
+      <button id="jrClose" class="primary">Back to game</button>
+    </header>
+    <div id="jrBody" class="jr-body"></div>
   </div>
 </div>
 <div id="errorBox" class="overlay hidden">
@@ -925,6 +981,7 @@
 <script src="js/boss.js"></script>
 <script src="js/interact.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/progress.js"></script>
 <script src="js/main.js"></script>
 <script src="js/touch.js"></script>
 </body>

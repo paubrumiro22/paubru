@@ -482,6 +482,10 @@ function buildSkinPicker() {
 
 function onKeyDown(e) {
   if (G.dead) return;
+  if (Progress.open) {
+    if (e.code === 'Escape' || e.code === 'KeyJ') { e.preventDefault(); Progress.close(); }
+    return;
+  }
   if (WorldMap.open) {
     const typingName = e.target && e.target.tagName === 'INPUT';
     if (e.code === 'Escape' || (e.code === 'KeyM' && !typingName)) { e.preventDefault(); WorldMap.close(); }
@@ -511,6 +515,7 @@ function onKeyDown(e) {
   const creative = G.mode === 'creative';
   if (e.code === 'Enter' && Net.on) { Net.openChat(); return; }
   if (e.code === 'KeyM') { WorldMap.toggle(); return; }
+  if (e.code === 'KeyJ') { Progress.show(); return; }
   if (G.vehicle && vehicleKey(e.code)) return;
   switch (e.code) {
     case 'KeyW':
@@ -707,6 +712,9 @@ function bindInput() {
     requestLock();
   });
   $('tCredits').addEventListener('click', showCredits);
+  $('journalBtn').addEventListener('click', () => { sfx('click', null, 1, 1); Progress.show(); });
+  $('jrClose').addEventListener('click', () => Progress.close());
+  document.querySelectorAll('#journal .jr-tabs button').forEach((b) => b.addEventListener('click', () => { sfx('click', null, 1, 1.1); Progress.tab = b.dataset.t; Progress.renderJournal(); }));
   $('autoQualityBtn').addEventListener('click', () => { sfx('click', null, 1, 1); AutoQuality.start(true); requestLock(); });
   $('autoQualityCheck').checked = G.settings.autoQuality;
   $('autoQualityCheck').addEventListener('change', (e) => AutoQuality.toggle(e.target.checked));
@@ -1016,7 +1024,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); Wyrm.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); Wyrm.update(dt); Progress.update(dt); }
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);
     Sound.setListener(cam.pos, cam.yaw);
