@@ -544,6 +544,8 @@ function buildMetro(W, g, L, F, N = 7, line = false, exitOk = false) {
     for (let a = 1; a <= 3; a++) {
       for (let yy = y + 1; yy <= clearTop; yy++) S.set(a, yy, d, B.AIR);
       if (!open) S.set(a, clearTop + 1, d, a === 2 && k % 3 === 0 ? B.GLASS_LAMP : B.CONCRETE + 8);
+      // a tiled lintel over the tunnel mouth instead of bare earth
+      if (d === 8) for (let yy = clearTop + 2; yy < F - 1; yy++) S.set(a, yy, d, yy === clearTop + 2 ? B.BLUE_TILES : B.CONCRETE);
       S.set(a, y, d, shapeId('terrazzo', 'stairs'), L.out);   // rising back towards the street
       S.set(a, y - 1, d, B.TERRAZZO);
     }
