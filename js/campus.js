@@ -141,14 +141,27 @@ function planCampus(g, plan, st, rough) {
   const mt = campus.metro = site(5, 9, 10, 46, 3);
   if (mt) {
     const L = lframe(mt.x0, mt.z0, 5, 9, mt.f);
-    // the station hall runs on beyond the stairs, deep under whatever is there
-    const hall = [];
-    for (const [a, d] of [[-4, 8], [8, 8], [-4, 26], [8, 26]]) hall.push([L.X(a, d), L.Z(a, d)]);
+    // the station hall runs on beyond the stairs, deep enough to pass under whatever is there:
+    // its ceiling stays 4 below the lowest ground or campus floor over it (the stairs grow longer)
+    const hallAt = (N) => [[-4, N + 1], [8, N + 1], [-4, N + 19], [8, N + 19]].map(([a, d]) => [L.X(a, d), L.Z(a, d)]);
+    let N = 7;
+    for (let tries = 0; tries < 12; tries++) {
+      const hall = hallAt(N);
+      const x0 = Math.min(...hall.map((p) => p[0])) - 1, x1 = Math.max(...hall.map((p) => p[0])) + 1;
+      const z0 = Math.min(...hall.map((p) => p[1])) - 1, z1 = Math.max(...hall.map((p) => p[1])) + 1;
+      let lo = Infinity;
+      for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) lo = Math.min(lo, g.height(x, z));
+      for (const c of Object.values(campus)) if (c && c.x0 <= x1 && c.x1 >= x0 && c.z0 <= z1 && c.z1 >= z0) lo = Math.min(lo, c.F - 1);
+      const want = Math.max(7, mt.F - 1 - (lo - 10));    // floor = F - 1 - N, ceiling slab at floor + 6
+      if (want <= N) break;
+      N = want;
+    }
+    const hall = hallAt(N);
     const hx0 = Math.min(...hall.map((p) => p[0])), hx1 = Math.max(...hall.map((p) => p[0]));
     const hz0 = Math.min(...hall.map((p) => p[1])), hz1 = Math.max(...hall.map((p) => p[1]));
     zones.push([mt.x0, mt.z0, mt.x1, mt.z1]);
-    plan.pieces.push({ box: [Math.min(hx0, mt.x0) - 1, Math.min(hz0, mt.z0) - 1, Math.max(hx1, mt.x1) + 1, Math.max(hz1, mt.z1) + 1], build: (W) => buildMetro(W, g, L, mt.F) });
-    plan.metro = { x: L.X(2, 17), z: L.Z(2, 17), y: mt.F - 8 };
+    plan.pieces.push({ box: [Math.min(hx0, mt.x0) - 1, Math.min(hz0, mt.z0) - 1, Math.max(hx1, mt.x1) + 1, Math.max(hz1, mt.z1) + 1], build: (W) => buildMetro(W, g, L, mt.F, N) });
+    plan.metro = { x: L.X(2, N + 10), z: L.Z(2, N + 10), y: mt.F - 1 - N, depth: N, track: [L.X(6, N + 2), L.Z(6, N + 2), L.X(6, N + 18), L.Z(6, N + 18)] };
   }
   // Banc Central (bank.js runs it: money, services); added last so the other pieces keep their places
   const bk = campus.bank = site(17, 20, 16, 96, 6) || site(17, 20, 14, 100, 10) || site(17, 20, 12, 102, 18);
@@ -475,10 +488,11 @@ function buildBusStop(W, g, px, pz, dx, dz, ox, oz, F, back) {
 }
 
 // Metro "Universitat": stairs down from the street under a canopy to a tiled hall with the platform
-// along a track (real rails: bring a rail cart). L: frame of the 5 x 9 surface entrance.
-function buildMetro(W, g, L, F) {
+// along a track (real rails: bring a rail cart). L: frame of the 5 x 9 surface entrance;
+// N: how far down the platform is (the stairs take N + 1 steps, the hall starts after them).
+function buildMetro(W, g, L, F, N = 7) {
   const S = lwriter(W, L);
-  const floor = F - 8, top = F - 3;
+  const floor = F - 1 - N, top = floor + 5, o = N - 7;   // o shifts the hall back for deeper stations
   // surface: paving, railings around the opening, the sign pole
   for (let a = -1; a <= 5; a++) for (let d = -1; d <= 8; d++) {
     const x = L.X(a, d), z = L.Z(a, d);
@@ -493,17 +507,18 @@ function buildMetro(W, g, L, F) {
   // a red portal over the top of the stairs
   for (const a of [0, 4]) for (let y = F; y <= F + 2; y++) S.set(a, y, 0, B.BLACKSTONE_WALL);
   for (let a = 0; a <= 4; a++) S.set(a, F + 3, 0, B.CONCRETE + 14);
-  // stairs: 7 steps down from the front, walls of white tile
-  for (let k = 0; k <= 7; k++) {
-    const d = k + 1, y = F - 1 - k;
-    // open to the sky over the stairs; the last step already runs under the ground
-    const clearTop = k <= 6 ? F + 1 : top - 1;
+  // stairs: N + 1 steps down from the front, walls of white tile; open to the sky under the
+  // opening, then a tiled tunnel with lamps in the ceiling
+  for (let k = 0; k <= N; k++) {
+    const d = k + 1, y = F - 1 - k, open = d <= 7;
+    const clearTop = open ? F + 1 : Math.min(y + 4, top - 1);
     for (let a = 1; a <= 3; a++) {
       for (let yy = y + 1; yy <= clearTop; yy++) S.set(a, yy, d, B.AIR);
+      if (!open) S.set(a, clearTop + 1, d, a === 2 && k % 3 === 0 ? B.GLASS_LAMP : B.CONCRETE + 8);
       S.set(a, y, d, shapeId('terrazzo', 'stairs'), L.out);   // rising back towards the street
       S.set(a, y - 1, d, B.TERRAZZO);
     }
-    for (const a of [0, 4]) for (let yy = y - 1; yy < F - 1; yy++) S.set(a, yy, d, yy === y + 1 ? B.BLUE_TILES : B.CONCRETE);
+    for (const a of [0, 4]) for (let yy = y - 1; yy < (open ? F - 1 : clearTop + 2); yy++) S.set(a, yy, d, yy === y + 1 ? B.BLUE_TILES : B.CONCRETE);
   }
   S.set(1, F, 0, B.AIR); S.set(2, F, 0, B.AIR); S.set(3, F, 0, B.AIR);
   // the sign: a pole with the red M and the station's name
@@ -511,9 +526,9 @@ function buildMetro(W, g, L, F) {
   S.set(-1, F + 3, 0, B.CONCRETE + 14);
   S.pic(-1, F + 3, -1, L.out, 1, 1, 'metro');
   S.pic(1, F + 3, -1, L.out, 3, 1, 'metro_name');
-  // the hall: a = -4..8, d = 9..26, floor at `floor`, ceiling at `top`
-  for (let a = -4; a <= 8; a++) for (let d = 8; d <= 26; d++) {
-    const edge = a === -4 || a === 8 || d === 26 || (d === 8 && (a < 1 || a > 3));
+  // the hall: a = -4..8, d = 8..26 (+ o), floor at `floor`, ceiling at `top`
+  for (let a = -4; a <= 8; a++) for (let d = 8 + o; d <= 26 + o; d++) {
+    const edge = a === -4 || a === 8 || d === 26 + o || (d === 8 + o && (a < 1 || a > 3));
     for (let y = floor - 2; y <= top + 1; y++) {
       let id = B.AIR;
       if (y === top + 1) id = B.CONCRETE;
@@ -524,23 +539,23 @@ function buildMetro(W, g, L, F) {
       else if (y < floor - 1) id = B.CONCRETE + 7;
       S.set(a, y, d, id);
     }
-    if (d === 8 && a >= 1 && a <= 3) for (let y = floor; y < top; y++) S.set(a, y, d, B.AIR);
+    if (d === 8 + o && a >= 1 && a <= 3) for (let y = floor; y < top; y++) S.set(a, y, d, B.AIR);
   }
   // platform edge, the track and tunnel mouths at both ends
   const rail = L.out === 4 || L.out === 5 ? B.RAIL : B.RAIL_EW;
-  for (let d = 9; d <= 25; d++) { S.set(4, floor - 1, d, B.CONCRETE + 4); S.set(6, floor - 1, d, rail); }
+  for (let d = 9 + o; d <= 25 + o; d++) { S.set(4, floor - 1, d, B.CONCRETE + 4); S.set(6, floor - 1, d, rail); }
   // the tunnel mouths at both ends, dark after a couple of blocks
-  for (const d of [8, 26]) for (let a = 5; a <= 7; a++) for (let y = floor - 2; y <= floor + 2; y++) S.set(a, y, d, y === floor - 2 ? B.GRAVEL : y === floor - 1 && a === 6 ? rail : B.AIR);
-  for (const d of [7, 27]) for (let a = 5; a <= 7; a++) for (let y = floor - 2; y <= floor + 3; y++) S.set(a, y, d, B.CONCRETE + 15);
+  for (const d of [8 + o, 26 + o]) for (let a = 5; a <= 7; a++) for (let y = floor - 2; y <= floor + 2; y++) S.set(a, y, d, y === floor - 2 ? B.GRAVEL : y === floor - 1 && a === 6 ? rail : B.AIR);
+  for (const d of [7 + o, 27 + o]) for (let a = 5; a <= 7; a++) for (let y = floor - 2; y <= floor + 3; y++) S.set(a, y, d, B.CONCRETE + 15);
   // tiled columns along the platform and posters between them
-  for (const d of [11, 16, 21]) for (let y = floor; y < top; y++) S.set(2, y, d, y === floor + 1 ? B.BLUE_TILES : B.QUARTZ_PILLAR);
-  S.pic(7, floor + 1, 22, L.back, 2, 1, 'sunset', true);
-  S.pic(7, floor + 1, 15, L.back, 2, 1, 'mountains', true);
+  for (const d of [11 + o, 16 + o, 21 + o]) for (let y = floor; y < top; y++) S.set(2, y, d, y === floor + 1 ? B.BLUE_TILES : B.QUARTZ_PILLAR);
+  S.pic(7, floor + 1, 22 + o, L.back, 2, 1, 'sunset', true);
+  S.pic(7, floor + 1, 15 + o, L.back, 2, 1, 'mountains', true);
   // benches, signs with the name, a map and a ticket machine on the platform
-  for (const d of [12, 13, 20, 21]) S.set(-3, floor, d, shapeId('oak', 'stairs'), L.back);
-  for (const d of [11, 18, 23]) S.pic(-3, floor + 1, d, L.along, 1, 1, 'metro');
-  S.pic(7, floor + 2, 12, L.back, 3, 1, 'metro_name', true);
-  S.pic(7, floor + 2, 19, L.back, 3, 1, 'metro_name', true);
-  S.pic(-3, floor + 1, 14, L.along, 2, 1, 'metro_map', true);
-  S.set(-3, floor, 16, B.VENDING_MACHINE, L.along);
+  for (const d of [12, 13, 20, 21]) S.set(-3, floor, d + o, shapeId('oak', 'stairs'), L.back);
+  for (const d of [11, 18, 23]) S.pic(-3, floor + 1, d + o, L.along, 1, 1, 'metro');
+  S.pic(7, floor + 2, 12 + o, L.back, 3, 1, 'metro_name', true);
+  S.pic(7, floor + 2, 19 + o, L.back, 3, 1, 'metro_name', true);
+  S.pic(-3, floor + 1, 14 + o, L.along, 2, 1, 'metro_map', true);
+  S.set(-3, floor, 16 + o, B.VENDING_MACHINE, L.along);
 }
