@@ -530,6 +530,11 @@
   #achPop small { display: block; font: 400 10px/1.2 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
   #achPop b { display: block; font-size: 16px; }
   #achPop span { display: block; font-size: 12.5px; color: #d9cfb8; }
+  #metroSign { position: absolute; left: 50%; top: 96px; transform: translate(-50%, -12px); display: flex; align-items: center; gap: 12px; padding: 10px 18px 10px 10px; border-radius: 12px; background: #16213a; border: 2px solid #d6202b; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); opacity: 0; transition: opacity .3s, transform .3s; }
+  #metroSign.show { opacity: 1; transform: translate(-50%, 0); }
+  #metroSign i { width: 38px; height: 38px; border-radius: 6px; background: #d6202b; color: #fff; font: 900 26px/38px Arial, sans-serif; text-align: center; font-style: normal; }
+  #metroSign b { display: block; font: 700 20px/1.1 Arial, sans-serif; color: #fff; }
+  #metroSign span { display: block; font-size: 12px; color: #ffcf6a; letter-spacing: 0.04em; }
   #questTracker { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 5px; max-width: 250px; pointer-events: none; }
   #questTracker div { padding: 6px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.45); border-left: 3px solid var(--accent); font-size: 12.5px; text-shadow: 0 1px 2px #000; }
   #questTracker div.done { border-left-color: #6fcf7a; }
@@ -979,6 +984,7 @@
 <script src="js/bank.js"></script>
 <script src="js/mechanisms.js"></script>
 <script src="js/boss.js"></script>
+<script src="js/metro.js"></script>
 <script src="js/interact.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/progress.js"></script>

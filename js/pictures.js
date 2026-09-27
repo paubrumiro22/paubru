@@ -122,6 +122,12 @@ const PIC_BUILTIN = {
     g.fillStyle = '#fff'; g.font = '900 96px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('M', 18 + (H - 44) / 2, H / 2 + 34);
     g.textAlign = 'left'; g.font = '700 64px Arial, sans-serif'; g.fillText('Universitat', H + 6, H / 2 + 22);
   } },
+  metro_name2: { w: 3, h: 1, draw(g, W, H) {
+    g.fillStyle = '#16213a'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#d6202b'; g.fillRect(18, 22, H - 44, H - 44);
+    g.fillStyle = '#fff'; g.font = '900 96px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('M', 18 + (H - 44) / 2, H / 2 + 34);
+    g.textAlign = 'left'; g.font = '700 64px Arial, sans-serif'; g.fillText('Catalunya', H + 6, H / 2 + 22);
+  } },
   bank: { w: 11, h: 1, draw(g, W, H) {
     g.fillStyle = '#e9e4d6'; g.fillRect(0, 0, W, H);
     g.fillStyle = '#b8912e'; g.font = '800 34px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';

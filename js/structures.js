@@ -8,7 +8,7 @@
 // chests hold loot. Loaded in the chunk workers too (data-w).
 
 const STRUCT_CELL = 320;
-const STRUCT_REACH = 110;       // no structure reaches further than this from its centre
+const STRUCT_REACH = 200;       // no structure reaches further than this from its centre (the STUCOM metro line is the longest)
 const GEN_LATEST = 3;
 
 // ---- building materials by village style ----

@@ -666,6 +666,9 @@ const Net = {
         Rides.rider(r.ride, cp, r.skin || 0, NET_COLORS[r.color].map((c) => c / 255 * 1.1), r.yaw + Math.PI);
         continue;
       }
+      // a passenger sits in someone's vehicle (metro.js)
+      const seated = typeof Passengers !== 'undefined' && Passengers.seatOf(r);
+      if (seated) { Passengers.renderSeated(seated.v, seated.seat, cp, r.skin || 0, NET_COLORS[r.color].map((c) => c / 255 * 1.1)); continue; }
       const m = r.mob;
       m.pos = r.pos;
       m.bodyYaw = r.yaw + Math.PI;

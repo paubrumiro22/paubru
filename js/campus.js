@@ -162,6 +162,15 @@ function planCampus(g, plan, st, rough) {
     zones.push([mt.x0, mt.z0, mt.x1, mt.z1]);
     plan.pieces.push({ box: [Math.min(hx0, mt.x0) - 1, Math.min(hz0, mt.z0) - 1, Math.max(hx1, mt.x1) + 1, Math.max(hz1, mt.z1) + 1], build: (W) => buildMetro(W, g, L, mt.F, N) });
     plan.metro = { x: L.X(2, N + 10), z: L.Z(2, N + 10), y: mt.F - 1 - N, depth: N, track: [L.X(6, N + 2), L.Z(6, N + 2), L.X(6, N + 18), L.Z(6, N + 18)] };
+    // the line runs on to Catalunya (buildMetroLine): where the trains start, stop and end
+    {
+      const o = N - 7, D0 = 27 + o + METRO_TUNNEL, ty = mt.F - 1 - N - 1;
+      const at = (d) => [L.X(6, d) + 0.5, ty, L.Z(6, d) + 0.5];
+      plan.metro.line = { a: at(9 + o), b: at(D0 + 17), stops: [{ name: 'Universitat', at: at(14 + o) }, { name: 'Catalunya', at: at(D0 + 12) }] };
+      const far = [[-6, D0 + 21], [10, D0 + 21]].map(([a, d]) => [L.X(a, d), L.Z(a, d)]);
+      const pc = plan.pieces[plan.pieces.length - 1];
+      pc.box = [Math.min(pc.box[0], ...far.map((q) => q[0])), Math.min(pc.box[1], ...far.map((q) => q[1])), Math.max(pc.box[2], ...far.map((q) => q[0])), Math.max(pc.box[3], ...far.map((q) => q[1]))];
+    }
   }
   // Banc Central (bank.js runs it: money, services); added last so the other pieces keep their places
   const bk = campus.bank = site(17, 20, 16, 96, 6) || site(17, 20, 14, 100, 10) || site(17, 20, 12, 102, 18);
@@ -546,7 +555,8 @@ function buildMetro(W, g, L, F, N = 7) {
   for (let d = 9 + o; d <= 25 + o; d++) { S.set(4, floor - 1, d, B.CONCRETE + 4); S.set(6, floor - 1, d, rail); }
   // the tunnel mouths at both ends, dark after a couple of blocks
   for (const d of [8 + o, 26 + o]) for (let a = 5; a <= 7; a++) for (let y = floor - 2; y <= floor + 2; y++) S.set(a, y, d, y === floor - 2 ? B.GRAVEL : y === floor - 1 && a === 6 ? rail : B.AIR);
-  for (const d of [7 + o, 27 + o]) for (let a = 5; a <= 7; a++) for (let y = floor - 2; y <= floor + 3; y++) S.set(a, y, d, B.CONCRETE + 15);
+  for (const d of [7 + o]) for (let a = 5; a <= 7; a++) for (let y = floor - 2; y <= floor + 3; y++) S.set(a, y, d, B.CONCRETE + 15);
+  buildMetroLine(W, g, L, S, floor, o, rail);
   // tiled columns along the platform and posters between them
   for (const d of [11 + o, 16 + o, 21 + o]) for (let y = floor; y < top; y++) S.set(2, y, d, y === floor + 1 ? B.BLUE_TILES : B.QUARTZ_PILLAR);
   S.pic(7, floor + 1, 22 + o, L.back, 2, 1, 'sunset', true);
@@ -558,4 +568,70 @@ function buildMetro(W, g, L, F, N = 7) {
   S.pic(7, floor + 2, 19 + o, L.back, 3, 1, 'metro_name', true);
   S.pic(-3, floor + 1, 14 + o, L.along, 2, 1, 'metro_map', true);
   S.set(-3, floor, 16 + o, B.VENDING_MACHINE, L.along);
+}
+
+// ---- the metro line: from Universitat's far tunnel mouth a tiled tunnel runs METRO_TUNNEL blocks
+// straight on to a second station, Catalunya, whose far end has a ladder shaft up to a glass
+// kiosk on the street (none if the street is under water). Trains run it by themselves (metro.js).
+const METRO_TUNNEL = 46;
+function buildMetroLine(W, g, L, S, floor, o, rail) {
+  const d1 = 27 + o, D0 = d1 + METRO_TUNNEL;
+  // tunnel: track bed, walls, a vaulted ceiling with a lamp every 8 blocks
+  for (let d = d1; d < D0; d++) {
+    for (let a = 4; a <= 8; a++) for (let y = floor - 3; y <= floor + 4; y++) {
+      const wall = a === 4 || a === 8, roof = y === floor + 4 || (y === floor + 3 && (a === 5 || a === 7));
+      let id = B.AIR;
+      if (y <= floor - 2) id = y === floor - 2 && !wall ? B.GRAVEL : B.CONCRETE + 7;
+      else if (wall || roof) id = y === floor ? B.BLUE_TILES : B.CONCRETE + 8;
+      else if (y === floor + 3 && a === 6) id = (d - d1) % 8 === 4 ? B.GLASS_LAMP : B.CONCRETE + 8;
+      else if (y === floor - 1 && a === 6) id = rail;
+      S.set(a, y, d, id);
+    }
+  }
+  // Catalunya: the same hall as Universitat, a = -4..8, d = D0..D0 + 18
+  const top = floor + 5;
+  for (let a = -4; a <= 8; a++) for (let d = D0; d <= D0 + 18; d++) {
+    const edge = a === -4 || a === 8 || d === D0 + 18 || (d === D0 && (a < 5 || a > 7));
+    for (let y = floor - 2; y <= top + 1; y++) {
+      let id = B.AIR;
+      if (y === top + 1) id = B.CONCRETE;
+      else if (y === top) id = (a + d) % 4 === 0 && !edge ? B.GLASS_LAMP : B.CONCRETE + 8;
+      else if (edge) id = y === floor + 1 ? B.CONCRETE + 14 : y < floor ? B.CONCRETE + 7 : B.CONCRETE;
+      else if (y === floor - 1) id = a >= 5 ? B.AIR : B.TERRAZZO;
+      else if (y === floor - 2 && a >= 5) id = B.GRAVEL;
+      else if (y < floor - 1) id = B.CONCRETE + 7;
+      S.set(a, y, d, id);
+    }
+  }
+  for (let d = D0; d <= D0 + 17; d++) { S.set(4, floor - 1, d, B.CONCRETE + 4); S.set(6, floor - 1, d, rail); }
+  for (let a = 5; a <= 7; a++) for (let y = floor - 1; y <= floor + 1; y++) S.set(a, y, D0 + 18, y === floor - 1 ? B.CONCRETE + 15 : B.CONCRETE + 14);   // buffer
+  for (const d of [D0 + 4, D0 + 9, D0 + 14]) for (let y = floor; y < top; y++) S.set(2, y, d, y === floor + 1 ? B.CONCRETE + 14 : B.QUARTZ_PILLAR);
+  for (const d of [D0 + 6, D0 + 7, D0 + 11, D0 + 12]) S.set(-3, floor, d, shapeId('oak', 'stairs'), L.back);
+  S.pic(7, floor + 2, D0 + 5, L.back, 3, 1, 'metro_name2', true);
+  S.pic(7, floor + 2, D0 + 12, L.back, 3, 1, 'metro_name2', true);
+  S.pic(-3, floor + 1, D0 + 9, L.along, 2, 1, 'metro_map', true);
+  S.pic(-3, floor + 1, D0 + 3, L.along, 1, 1, 'metro');
+  // the way out: a ladder shaft at the far corner up to a kiosk on the street
+  const sx = L.X(-2, D0 + 16), sz = L.Z(-2, D0 + 16);
+  const surf = g.height(sx, sz);
+  if (surf < SEA || surf > floor + 60) return;
+  const F = surf + 1;
+  for (let y = floor; y <= F + 2; y++) for (let a = -3; a <= -1; a++) for (let d = D0 + 15; d <= D0 + 17; d++) {
+    const inner = a === -2 && d === D0 + 16;
+    if (y < top) { if (inner) S.set(a, y, d, B.AIR); continue; }
+    if (y <= F - 1) S.set(a, y, d, inner ? B.AIR : B.CONCRETE);
+  }
+  for (let y = floor; y < F; y++) S.set(-2, y, D0 + 16, B.LADDER, L.out);
+  S.set(-2, floor, D0 + 17, B.CONCRETE); for (let y = floor; y < F + 1; y++) S.set(-2, y, D0 + 17, B.CONCRETE);
+  // kiosk: glass on three sides, open towards the station's front, red roof and the sign
+  for (let a = -3; a <= -1; a++) for (let d = D0 + 15; d <= D0 + 17; d++) {
+    S.set(a, F - 1, d, a === -2 && d === D0 + 16 ? B.AIR : B.PANOT);
+    for (let y = F; y <= F + 2; y++) {
+      const side = a !== -2 || d === D0 + 17;
+      S.set(a, y, d, side && !(d === D0 + 15 && a === -2) ? (y === F + 2 ? B.CONCRETE + 14 : B.GLASS) : B.AIR);
+    }
+    S.set(a, F + 3, d, B.CONCRETE + 14);
+  }
+  S.set(-2, F, D0 + 16, B.LADDER, L.out);
+  S.pic(-2, F + 3, D0 + 14, L.out, 1, 1, 'metro');
 }

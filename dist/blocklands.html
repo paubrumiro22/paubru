@@ -525,6 +525,11 @@
   #achPop small { display: block; font: 400 10px/1.2 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
   #achPop b { display: block; font-size: 16px; }
   #achPop span { display: block; font-size: 12.5px; color: #d9cfb8; }
+  #metroSign { position: absolute; left: 50%; top: 96px; transform: translate(-50%, -12px); display: flex; align-items: center; gap: 12px; padding: 10px 18px 10px 10px; border-radius: 12px; background: #16213a; border: 2px solid #d6202b; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); opacity: 0; transition: opacity .3s, transform .3s; }
+  #metroSign.show { opacity: 1; transform: translate(-50%, 0); }
+  #metroSign i { width: 38px; height: 38px; border-radius: 6px; background: #d6202b; color: #fff; font: 900 26px/38px Arial, sans-serif; text-align: center; font-style: normal; }
+  #metroSign b { display: block; font: 700 20px/1.1 Arial, sans-serif; color: #fff; }
+  #metroSign span { display: block; font-size: 12px; color: #ffcf6a; letter-spacing: 0.04em; }
   #questTracker { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 5px; max-width: 250px; pointer-events: none; }
   #questTracker div { padding: 6px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.45); border-left: 3px solid var(--accent); font-size: 12.5px; text-shadow: 0 1px 2px #000; }
   #questTracker div.done { border-left-color: #6fcf7a; }
@@ -5649,6 +5654,12 @@ const PIC_BUILTIN = {
     g.fillStyle = '#fff'; g.font = '900 96px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('M', 18 + (H - 44) / 2, H / 2 + 34);
     g.textAlign = 'left'; g.font = '700 64px Arial, sans-serif'; g.fillText('Universitat', H + 6, H / 2 + 22);
   } },
+  metro_name2: { w: 3, h: 1, draw(g, W, H) {
+    g.fillStyle = '#16213a'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#d6202b'; g.fillRect(18, 22, H - 44, H - 44);
+    g.fillStyle = '#fff'; g.font = '900 96px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('M', 18 + (H - 44) / 2, H / 2 + 34);
+    g.textAlign = 'left'; g.font = '700 64px Arial, sans-serif'; g.fillText('Catalunya', H + 6, H / 2 + 22);
+  } },
   bank: { w: 11, h: 1, draw(g, W, H) {
     g.fillStyle = '#e9e4d6'; g.fillRect(0, 0, W, H);
     g.fillStyle = '#b8912e'; g.font = '800 34px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -7196,7 +7207,7 @@ function regionSpawn(g, key) {
 // chests hold loot. Loaded in the chunk workers too (data-w).
 
 const STRUCT_CELL = 320;
-const STRUCT_REACH = 110;       // no structure reaches further than this from its centre
+const STRUCT_REACH = 200;       // no structure reaches further than this from its centre (the STUCOM metro line is the longest)
 const GEN_LATEST = 3;
 
 // ---- building materials by village style ----
@@ -8303,6 +8314,15 @@ function planCampus(g, plan, st, rough) {
     zones.push([mt.x0, mt.z0, mt.x1, mt.z1]);
     plan.pieces.push({ box: [Math.min(hx0, mt.x0) - 1, Math.min(hz0, mt.z0) - 1, Math.max(hx1, mt.x1) + 1, Math.max(hz1, mt.z1) + 1], build: (W) => buildMetro(W, g, L, mt.F, N) });
     plan.metro = { x: L.X(2, N + 10), z: L.Z(2, N + 10), y: mt.F - 1 - N, depth: N, track: [L.X(6, N + 2), L.Z(6, N + 2), L.X(6, N + 18), L.Z(6, N + 18)] };
+    // the line runs on to Catalunya (buildMetroLine): where the trains start, stop and end
+    {
+      const o = N - 7, D0 = 27 + o + METRO_TUNNEL, ty = mt.F - 1 - N - 1;
+      const at = (d) => [L.X(6, d) + 0.5, ty, L.Z(6, d) + 0.5];
+      plan.metro.line = { a: at(9 + o), b: at(D0 + 17), stops: [{ name: 'Universitat', at: at(14 + o) }, { name: 'Catalunya', at: at(D0 + 12) }] };
+      const far = [[-6, D0 + 21], [10, D0 + 21]].map(([a, d]) => [L.X(a, d), L.Z(a, d)]);
+      const pc = plan.pieces[plan.pieces.length - 1];
+      pc.box = [Math.min(pc.box[0], ...far.map((q) => q[0])), Math.min(pc.box[1], ...far.map((q) => q[1])), Math.max(pc.box[2], ...far.map((q) => q[0])), Math.max(pc.box[3], ...far.map((q) => q[1]))];
+    }
   }
   // Banc Central (bank.js runs it: money, services); added last so the other pieces keep their places
   const bk = campus.bank = site(17, 20, 16, 96, 6) || site(17, 20, 14, 100, 10) || site(17, 20, 12, 102, 18);
@@ -8687,7 +8707,8 @@ function buildMetro(W, g, L, F, N = 7) {
   for (let d = 9 + o; d <= 25 + o; d++) { S.set(4, floor - 1, d, B.CONCRETE + 4); S.set(6, floor - 1, d, rail); }
   // the tunnel mouths at both ends, dark after a couple of blocks
   for (const d of [8 + o, 26 + o]) for (let a = 5; a <= 7; a++) for (let y = floor - 2; y <= floor + 2; y++) S.set(a, y, d, y === floor - 2 ? B.GRAVEL : y === floor - 1 && a === 6 ? rail : B.AIR);
-  for (const d of [7 + o, 27 + o]) for (let a = 5; a <= 7; a++) for (let y = floor - 2; y <= floor + 3; y++) S.set(a, y, d, B.CONCRETE + 15);
+  for (const d of [7 + o]) for (let a = 5; a <= 7; a++) for (let y = floor - 2; y <= floor + 3; y++) S.set(a, y, d, B.CONCRETE + 15);
+  buildMetroLine(W, g, L, S, floor, o, rail);
   // tiled columns along the platform and posters between them
   for (const d of [11 + o, 16 + o, 21 + o]) for (let y = floor; y < top; y++) S.set(2, y, d, y === floor + 1 ? B.BLUE_TILES : B.QUARTZ_PILLAR);
   S.pic(7, floor + 1, 22 + o, L.back, 2, 1, 'sunset', true);
@@ -8699,6 +8720,72 @@ function buildMetro(W, g, L, F, N = 7) {
   S.pic(7, floor + 2, 19 + o, L.back, 3, 1, 'metro_name', true);
   S.pic(-3, floor + 1, 14 + o, L.along, 2, 1, 'metro_map', true);
   S.set(-3, floor, 16 + o, B.VENDING_MACHINE, L.along);
+}
+
+// ---- the metro line: from Universitat's far tunnel mouth a tiled tunnel runs METRO_TUNNEL blocks
+// straight on to a second station, Catalunya, whose far end has a ladder shaft up to a glass
+// kiosk on the street (none if the street is under water). Trains run it by themselves (metro.js).
+const METRO_TUNNEL = 46;
+function buildMetroLine(W, g, L, S, floor, o, rail) {
+  const d1 = 27 + o, D0 = d1 + METRO_TUNNEL;
+  // tunnel: track bed, walls, a vaulted ceiling with a lamp every 8 blocks
+  for (let d = d1; d < D0; d++) {
+    for (let a = 4; a <= 8; a++) for (let y = floor - 3; y <= floor + 4; y++) {
+      const wall = a === 4 || a === 8, roof = y === floor + 4 || (y === floor + 3 && (a === 5 || a === 7));
+      let id = B.AIR;
+      if (y <= floor - 2) id = y === floor - 2 && !wall ? B.GRAVEL : B.CONCRETE + 7;
+      else if (wall || roof) id = y === floor ? B.BLUE_TILES : B.CONCRETE + 8;
+      else if (y === floor + 3 && a === 6) id = (d - d1) % 8 === 4 ? B.GLASS_LAMP : B.CONCRETE + 8;
+      else if (y === floor - 1 && a === 6) id = rail;
+      S.set(a, y, d, id);
+    }
+  }
+  // Catalunya: the same hall as Universitat, a = -4..8, d = D0..D0 + 18
+  const top = floor + 5;
+  for (let a = -4; a <= 8; a++) for (let d = D0; d <= D0 + 18; d++) {
+    const edge = a === -4 || a === 8 || d === D0 + 18 || (d === D0 && (a < 5 || a > 7));
+    for (let y = floor - 2; y <= top + 1; y++) {
+      let id = B.AIR;
+      if (y === top + 1) id = B.CONCRETE;
+      else if (y === top) id = (a + d) % 4 === 0 && !edge ? B.GLASS_LAMP : B.CONCRETE + 8;
+      else if (edge) id = y === floor + 1 ? B.CONCRETE + 14 : y < floor ? B.CONCRETE + 7 : B.CONCRETE;
+      else if (y === floor - 1) id = a >= 5 ? B.AIR : B.TERRAZZO;
+      else if (y === floor - 2 && a >= 5) id = B.GRAVEL;
+      else if (y < floor - 1) id = B.CONCRETE + 7;
+      S.set(a, y, d, id);
+    }
+  }
+  for (let d = D0; d <= D0 + 17; d++) { S.set(4, floor - 1, d, B.CONCRETE + 4); S.set(6, floor - 1, d, rail); }
+  for (let a = 5; a <= 7; a++) for (let y = floor - 1; y <= floor + 1; y++) S.set(a, y, D0 + 18, y === floor - 1 ? B.CONCRETE + 15 : B.CONCRETE + 14);   // buffer
+  for (const d of [D0 + 4, D0 + 9, D0 + 14]) for (let y = floor; y < top; y++) S.set(2, y, d, y === floor + 1 ? B.CONCRETE + 14 : B.QUARTZ_PILLAR);
+  for (const d of [D0 + 6, D0 + 7, D0 + 11, D0 + 12]) S.set(-3, floor, d, shapeId('oak', 'stairs'), L.back);
+  S.pic(7, floor + 2, D0 + 5, L.back, 3, 1, 'metro_name2', true);
+  S.pic(7, floor + 2, D0 + 12, L.back, 3, 1, 'metro_name2', true);
+  S.pic(-3, floor + 1, D0 + 9, L.along, 2, 1, 'metro_map', true);
+  S.pic(-3, floor + 1, D0 + 3, L.along, 1, 1, 'metro');
+  // the way out: a ladder shaft at the far corner up to a kiosk on the street
+  const sx = L.X(-2, D0 + 16), sz = L.Z(-2, D0 + 16);
+  const surf = g.height(sx, sz);
+  if (surf < SEA || surf > floor + 60) return;
+  const F = surf + 1;
+  for (let y = floor; y <= F + 2; y++) for (let a = -3; a <= -1; a++) for (let d = D0 + 15; d <= D0 + 17; d++) {
+    const inner = a === -2 && d === D0 + 16;
+    if (y < top) { if (inner) S.set(a, y, d, B.AIR); continue; }
+    if (y <= F - 1) S.set(a, y, d, inner ? B.AIR : B.CONCRETE);
+  }
+  for (let y = floor; y < F; y++) S.set(-2, y, D0 + 16, B.LADDER, L.out);
+  S.set(-2, floor, D0 + 17, B.CONCRETE); for (let y = floor; y < F + 1; y++) S.set(-2, y, D0 + 17, B.CONCRETE);
+  // kiosk: glass on three sides, open towards the station's front, red roof and the sign
+  for (let a = -3; a <= -1; a++) for (let d = D0 + 15; d <= D0 + 17; d++) {
+    S.set(a, F - 1, d, a === -2 && d === D0 + 16 ? B.AIR : B.PANOT);
+    for (let y = F; y <= F + 2; y++) {
+      const side = a !== -2 || d === D0 + 17;
+      S.set(a, y, d, side && !(d === D0 + 15 && a === -2) ? (y === F + 2 ? B.CONCRETE + 14 : B.GLASS) : B.AIR);
+    }
+    S.set(a, F + 3, d, B.CONCRETE + 14);
+  }
+  S.set(-2, F, D0 + 16, B.LADDER, L.out);
+  S.pic(-2, F + 3, D0 + 14, L.out, 1, 1, 'metro');
 }
 </script>
 <script data-w>
@@ -19993,6 +20080,9 @@ const Net = {
         Rides.rider(r.ride, cp, r.skin || 0, NET_COLORS[r.color].map((c) => c / 255 * 1.1), r.yaw + Math.PI);
         continue;
       }
+      // a passenger sits in someone's vehicle (metro.js)
+      const seated = typeof Passengers !== 'undefined' && Passengers.seatOf(r);
+      if (seated) { Passengers.renderSeated(seated.v, seated.seat, cp, r.skin || 0, NET_COLORS[r.color].map((c) => c / 255 * 1.1)); continue; }
       const m = r.mob;
       m.pos = r.pos;
       m.bodyYaw = r.yaw + Math.PI;
@@ -23547,6 +23637,289 @@ SYNTH.wyrm_breath = (ctx, o, t) => { Sound.noise(ctx, o, t, 1.6, { type: 'bandpa
 </script>
 <script>
 'use strict';
+// The STUCOM metro line runs by itself, and players can ride in other players' vehicles.
+//
+// Line: campus.js builds Universitat (under the campus) and Catalunya at the end of a tunnel;
+// plan.metro.line holds the track and the two stops. While you are near it a train (a metro ride
+// with `auto`) shuttles between them: it pulls into the platform, opens for a few seconds with
+// the chime and the next station on the sign, then leaves the other way (the driver changes cab:
+// the train keeps its place on the track and the lead car becomes the other end). Right-click it
+// to get on as a passenger; Shift gets off. It is local to each player and never saved.
+//
+// Passengers: right-click another player's car, bus, boat, helicopter or metro to sit in one of
+// its free seats. Your position then follows their vehicle, and your presence says where you sit
+// (`ps`: [driver's peer id, seat]) so everybody draws you there.
+
+const METRO_LEN = 20.7;   // from the lead car's centre to the back of the last car
+const METRO_STOP = { dwell: 9, announce: 5 };
+// Passenger seats in each vehicle (local coordinates, like def.seat).
+const PASSENGER_SEATS = {
+  car: [[-0.42, 0.42, -0.1], [0.42, 0.42, -1.25], [-0.42, 0.42, -1.25]],
+  bus: [[-0.6, 0.95, 2.6], [0.6, 0.95, 1.2], [-0.6, 0.95, 1.2], [0.6, 0.95, -0.4], [-0.6, 0.95, -0.4], [0.6, 0.95, -2], [-0.6, 0.95, -2]],
+  boat: [[0, 0.4, 0.35], [0, 0.4, -0.35]],
+  heli: [[-0.42, 0.55, 0.55], [0.42, 0.55, -0.6], [-0.42, 0.55, -0.6]],
+  metro: [[0.7, 0.75, -2], [-0.7, 0.75, -2], [0.7, 0.75, -10.5], [-0.7, 0.75, -10.5], [0.7, 0.75, -18.5], [-0.7, 0.75, -18.5]],
+  dozer: [[0.5, 1.3, -0.6]],
+};
+
+const Metro = {
+  line: null, lineKey: null, train: null, sign: null, signT: 0,
+
+  lineOf() {
+    const w = G.world;
+    if (!w || !w.gen || !w.gen.structs) return null;
+    const key = w.seed + ':' + w.genVer;
+    if (this.lineKey !== key) {
+      this.lineKey = key;
+      const st = typeof stucomVillage === 'function' ? stucomVillage(w.gen) : null;
+      if (st && !st.metro) structuresIn(w.gen, st.x, st.z, st.x, st.z);   // pieces are planned lazily
+      this.line = st && st.metro && st.metro.line ? st.metro.line : null;
+      if (this.line) {
+        const L = this.line;
+        const A = L.stops[0].at, Bp = L.stops[1].at, l = Math.hypot(Bp[0] - A[0], Bp[2] - A[2]) || 1;
+        L.u = [(Bp[0] - A[0]) / l, 0, (Bp[2] - A[2]) / l];
+      }
+      this.train = null;
+    }
+    return this.line;
+  },
+
+  update(dt) {
+    const L = this.lineOf();
+    this.updateSign(dt);
+    Passengers.update(dt);
+    if (!L) return;
+    const p = G.player, w = G.world;
+    const A = L.stops[0].at, Bp = L.stops[1].at;
+    const mid = [(A[0] + Bp[0]) / 2, (A[2] + Bp[2]) / 2];
+    const near = Math.hypot(p.pos[0] - mid[0], p.pos[2] - mid[1]) < 110 && Math.abs(p.pos[1] - A[1]) < 50;
+    const t = this.train;
+    if (t && (t.removed || !Vehicles.list.includes(t))) this.train = null;
+    if (!near) {
+      if (this.train && G.vehicle !== this.train) { this.train.removed = true; this.train = null; }
+      return;
+    }
+    if (!this.train && w.isLoaded(Math.floor(A[0]), Math.floor(A[2])) && IS_RAIL(w.getBlock(Math.floor(A[0]), Math.floor(A[1]), Math.floor(A[2])))) {
+      // start at Universitat, pulled in from the tunnel (so its lead car faces the city end)
+      const yaw = Math.atan2(-L.u[0], -L.u[2]);
+      const v = Rides.spawn('metro', A[0], A[1] + 2 / 16, A[2], yaw, 0);
+      if (v.findRail()) {
+        v.auto = { stop: 0, state: 'dwell', t: METRO_STOP.dwell, said: false };
+        this.train = v;
+      } else v.removed = true;
+    }
+  },
+
+  // One step of the autopilot: accelerate, brake into the platform, wait, change cab.
+  drive(v, dt) {
+    const L = this.line, a = v.auto;
+    if (!L || !v.rail) { v.drive(dt, null); return; }
+    const keys = new Set();
+    if (a.state === 'run') {
+      const to = L.stops[a.stop].at;
+      const f = [Math.sin(v.yaw), Math.cos(v.yaw)];
+      const s = (to[0] - v.pos[0]) * f[0] + (to[2] - v.pos[2]) * f[1];
+      const brakeDist = v.speed * v.speed / (2 * v.def.brake * 1.5) + 1;
+      if (s > brakeDist) keys.add('KeyW');
+      else if (v.speed > 0.6) keys.add('Space');
+      if (s < 0.4 || (s < 2.5 && v.speed < 0.7)) {
+        a.state = 'dwell'; a.t = METRO_STOP.dwell; a.said = false; v.speed = 0;
+        this.say(v, 'arrive', L.stops[a.stop].name);
+      }
+    } else {
+      a.t -= dt;
+      v.speed = 0;
+      if (!a.said && a.t < METRO_STOP.announce) { a.said = true; this.say(v, 'next', L.stops[1 - a.stop].name); }
+      if (a.t <= 0) {
+        // the driver walks to the other cab: the lead car becomes the far end of the train
+        const f = [Math.sin(v.yaw), Math.cos(v.yaw)];
+        v.pos[0] -= f[0] * (METRO_LEN - 4); v.pos[2] -= f[1] * (METRO_LEN - 4);
+        v.yaw = wrapAngle(v.yaw + Math.PI);
+        v.findRail();
+        a.stop = 1 - a.stop; a.state = 'run';
+        sfx('metro_doors', v.pos, 1, 1);
+      }
+    }
+    v.drive(dt, { keys });
+  },
+
+  say(v, kind, name) {
+    const p = G.player;
+    const aboard = G.vehicle === v;
+    const close = Math.hypot(p.pos[0] - v.pos[0], p.pos[2] - v.pos[2]) < 40;
+    if (!aboard && !close) return;
+    sfx('metro_chime', aboard ? null : v.pos, 1, 1);
+    this.showSign(kind === 'arrive' ? name : 'Next stop: ' + name, kind === 'arrive' ? 'Doors open' : 'Doors closing \u00b7 mind the gap');
+  },
+  showSign(title, sub) {
+    if (!this.sign) {
+      this.sign = document.createElement('div');
+      this.sign.id = 'metroSign';
+      this.sign.innerHTML = '<i>M</i><div><b></b><span></span></div>';
+      $('hud').append(this.sign);
+    }
+    this.sign.querySelector('b').textContent = title;
+    this.sign.querySelector('span').textContent = sub;
+    this.sign.classList.add('show');
+    this.signT = 5;
+  },
+  updateSign(dt) {
+    if (!this.sign || this.signT <= 0) return;
+    this.signT -= dt;
+    if (this.signT <= 0) this.sign.classList.remove('show');
+  },
+};
+
+const Passengers = {
+  seat: null,   // { peer, idx } while riding someone else's vehicle
+  exitT: 0,
+
+  // the remote vehicle a ray hits (for right-clicking to get in)
+  pick(o, d, maxDist) {
+    let best = null, bestT = maxDist;
+    for (const [peer, r] of Net.peers) {
+      const v = r.ride;
+      if (!v || !v.m || !PASSENGER_SEATS[v.kind]) continue;
+      const m = v.m, ro = [o[0] - v.pos[0], o[1] - v.pos[1], o[2] - v.pos[2]];
+      const lo = [m[0] * ro[0] + m[4] * ro[1] + m[8] * ro[2], m[1] * ro[0] + m[5] * ro[1] + m[9] * ro[2], m[2] * ro[0] + m[6] * ro[1] + m[10] * ro[2]];
+      const ld = [m[0] * d[0] + m[4] * d[1] + m[8] * d[2], m[1] * d[0] + m[5] * d[1] + m[9] * d[2], m[2] * d[0] + m[6] * d[1] + m[10] * d[2]];
+      for (const b of v.def.hit) {
+        let t0 = 0, t1 = bestT, ok = true;
+        for (let k = 0; k < 3 && ok; k++) {
+          if (Math.abs(ld[k]) < 1e-9) { if (lo[k] < b[k] || lo[k] > b[k + 3]) ok = false; continue; }
+          let a = (b[k] - lo[k]) / ld[k], c = (b[k + 3] - lo[k]) / ld[k];
+          if (a > c) [a, c] = [c, a];
+          t0 = Math.max(t0, a); t1 = Math.min(t1, c);
+          if (t0 > t1) ok = false;
+        }
+        if (ok && t0 < bestT) { bestT = t0; best = { peer, ride: v, dist: t0 }; }
+      }
+    }
+    return best;
+  },
+
+  join(peer, v) {
+    const seats = PASSENGER_SEATS[v.kind] || [];
+    const taken = new Set();
+    for (const r of Net.peers.values()) if (r.ps && r.ps[0] === peer) taken.add(r.ps[1]);
+    const idx = seats.findIndex((_, i) => !taken.has(i));
+    if (idx < 0) { G.ui.toast('No free seats'); return false; }
+    if (G.vehicle) Vehicles.dismount(true);
+    this.seat = { peer, idx };
+    G.player.flying = false;
+    this.exitT = 0.4;
+    const r = Net.peers.get(peer);
+    G.ui.toast('You ride with ' + (r ? r.name : 'a friend') + ' \u00b7 Shift to get out', 3000);
+    sfx('door_close', null, 0.8, 1.2);
+    Net.sendT = 0;
+    return true;
+  },
+  leave() {
+    if (!this.seat) return;
+    const r = Net.peers.get(this.seat.peer), v = r && r.ride;
+    this.seat = null;
+    const p = G.player;
+    if (v) { const side = v.toWorld([2.2, 0.5, 0]); p.pos = side; }
+    p.vel = [0, 0, 0]; p.fallStart = null;
+    liftOutOfBlocks(p);
+    Net.sendT = 0;
+  },
+  update(dt) {
+    if (!this.seat) return;
+    const r = Net.peers.get(this.seat.peer), v = r && r.ride;
+    if (!Net.on || !v) { this.leave(); G.ui.toast('The driver got out'); return; }
+    const seat = (PASSENGER_SEATS[v.kind] || [])[this.seat.idx];
+    if (!seat) { this.leave(); return; }
+    const p = G.player, at = v.toWorld(seat);
+    p.pos = [at[0], at[1] - 0.75, at[2]];
+    p.vel = [0, 0, 0]; p.onGround = true; p.fallStart = null; p.landed = 0;
+    this.exitT -= dt;
+    const k = G.input && G.input.keys;
+    if (this.exitT <= 0 && k && (k.has('ShiftLeft') || k.has('ShiftRight'))) this.leave();
+  },
+  // where a remote passenger sits (their presence `ps`), or null
+  seatOf(r) {
+    if (!Array.isArray(r.ps) || r.ps.length < 2) return null;
+    const [peer, idx] = r.ps;
+    const v = peer === Net.selfPeer ? (G.vehicle && G.vehicle.ride ? G.vehicle : null) : (Net.peers.get(peer) || {}).ride;
+    const seat = v && (PASSENGER_SEATS[v.kind] || [])[idx];
+    return seat ? { v, seat } : null;
+  },
+  renderSeated(v, seat, cp, skin, tint) {
+    const at = v.toWorld(seat);
+    const mob = { type: 'avatar', pos: [at[0], at[1] - 0.75, at[2]], h: 1.8, bodyYaw: v.yaw, headYaw: v.yaw, headPitch: 0,
+      walkPhase: 0, walkAmt: 0, hurtTime: 0, dead: false, fuse: 0, age: G.time, fire: 0, aiming: 0, sit: true, ride: v.kind, skin, tint };
+    ER.mob(null, mob, cp);
+  },
+};
+
+// ---------------------------------------------------------------- hooks ----
+{
+  // the autopilot drives the line's train, parked or with you aboard
+  const idle0 = Ride.prototype.updateIdle;
+  Ride.prototype.updateIdle = function (dt) { if (this.auto) Metro.drive(this, dt); else idle0.call(this, dt); };
+  const pilot0 = Rides.pilot;
+  Rides.pilot = function (v, dt, input, horn) {
+    if (!v.auto) return pilot0.call(this, v, dt, input, horn);
+    Metro.drive(v, dt);
+    const p = G.player, at = v.toWorld(PASSENGER_SEATS.metro[0]);
+    p.pos = [at[0], at[1] - 0.75, at[2]];
+    p.vel = [0, 0, 0]; p.onGround = true; p.fallStart = null; p.landed = 0;
+    this.updateMotor(v);
+  };
+  const board0 = Rides.board;
+  Rides.board = function (v) {
+    board0.call(this, v);
+    if (v.auto) G.ui.toast('All aboard! The train runs by itself \u00b7 Shift to get off', 3500);
+  };
+  // the line's train is never saved
+  const ser0 = Vehicles.serialize;
+  Vehicles.serialize = function () {
+    const keep = this.list;
+    this.list = keep.filter((v) => !v.auto);
+    try { return ser0.call(this); } finally { this.list = keep; }
+  };
+  // right-clicking another player's vehicle gets you in as a passenger
+  const ray0 = Vehicles.raycast;
+  Vehicles.raycast = function (o, d, maxDist) {
+    const hit = ray0.call(this, o, d, maxDist);
+    if (!Net.on) return hit;
+    const r = Passengers.pick(o, d, hit ? hit.dist : maxDist);
+    return r ? { vehicle: r.ride, dist: r.dist, peer: r.peer } : hit;
+  };
+  const vb0 = Vehicles.board;
+  Vehicles.board = function (v) {
+    if (v && v.remote) {
+      for (const [peer, r] of Net.peers) if (r.ride === v) { Passengers.join(peer, v); return; }
+      return;
+    }
+    return vb0.call(this, v);
+  };
+  // presence: where we sit
+  const pd0 = Net.presenceData;
+  Net.presenceData = function () {
+    const d = pd0.call(this);
+    if (Passengers.seat) d.ps = [Passengers.seat.peer, Passengers.seat.idx];
+    return d;
+  };
+  const op0 = Net.onPresence;
+  Net.onPresence = function (peer, pr) {
+    op0.call(this, peer, pr);
+    const r = this.peers.get(peer);
+    if (r) r.ps = pr && Array.isArray(pr.ps) && typeof pr.ps[0] === 'string' && Number.isInteger(pr.ps[1]) ? pr.ps : null;
+  };
+}
+
+SYNTH.metro_chime = (ctx, o, t) => {
+  [659, 523, 784].forEach((f, i) => Sound.tone(ctx, o, t + i * 0.28, 0.5, { wave: 'sine', f0: f, gain: 0.16 }));
+};
+SYNTH.metro_doors = (ctx, o, t) => {
+  for (let i = 0; i < 4; i++) Sound.tone(ctx, o, t + i * 0.22, 0.12, { wave: 'square', f0: 1400, gain: 0.05, filter: ['lowpass', 3000, 1] });
+  Sound.noise(ctx, o, t + 0.9, 0.5, { type: 'bandpass', freq: 800, q: 0.7, gain: 0.25, attack: 0.05 });
+};
+</script>
+<script>
+'use strict';
 // Player actions: mining with tools, attacking, placing oriented blocks, eating, bows,
 // buckets, hoes, bone meal, shears, dropping items, and the first-person hand animation.
 
@@ -26689,7 +27062,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); Wyrm.update(dt); Progress.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); }
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);
     Sound.setListener(cam.pos, cam.yaw);
