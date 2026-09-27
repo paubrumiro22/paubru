@@ -685,9 +685,9 @@ const Ents = {
   // ---- animals are kept: out of range they wait in `stashed` and come back when their chunk
   // loads again; both lists go into the save ----
   stashed: [],
-  keepable(m) { return !m.dead && !m.def.hostile && !m.vid && !m.remote && !m.def.custom; },
+  keepable(m) { return !m.dead && !m.def.hostile && !m.vid && !m.remote && (!m.def.custom || !!m.def.pet); },
   mobRecord(m) {
-    return { t: m.type, p: m.pos.map((v) => Math.round(v * 100) / 100), y: Math.round(m.bodyYaw * 100) / 100, h: Math.round(m.health), s: m.sheared ? 1 : 0, w: m.woolColor | 0 };
+    return { t: m.type, p: m.pos.map((v) => Math.round(v * 100) / 100), y: Math.round(m.bodyYaw * 100) / 100, h: Math.round(m.health), s: m.sheared ? 1 : 0, w: m.woolColor | 0, x: m.keep || undefined };
   },
   stash(m) {
     if (!this.keepable(m)) return;
@@ -706,6 +706,7 @@ const Ents = {
       m.bodyYaw = m.headYaw = r.y;
       m.health = clamp(r.h, 1, m.def.hp);
       m.sheared = !!r.s; m.woolColor = clamp(r.w | 0, 0, 15);
+      if (r.x && typeof r.x === 'object' && !Array.isArray(r.x)) m.keep = Object.assign({}, r.x);   // pets: tamed, sitting, saddle...
       return false;
     });
   },

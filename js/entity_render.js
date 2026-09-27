@@ -173,6 +173,7 @@ const ER = {
     const [sdx, sdy] = skinOffset(skin);
     for (const p of model) {
       if (p.role === 'wool' && mob.sheared) continue;
+      if (p.show && !mob[p.show]) continue;   // collars, saddles...
       let r = XF.id();
       switch (p.role) {
         case 'head': r = XF.mul(XF.ry(headYaw), XF.rx(-clamp(mob.headPitch, -0.8, 0.8))); break;
@@ -186,6 +187,7 @@ const ER = {
           else r = XF.rx((left ? -sw : sw) * 0.8);
           break;
         }
+        case 'tail': r = XF.mul(XF.ry(Math.sin(mob.age * (mob.tamed ? 11 : 3)) * (mob.tamed ? 0.5 : 0.15)), XF.rx(mob.tailLift || 0)); break;
         case 'wingL': r = XF.rz(-(mob.onGround ? 0 : 0.3 + Math.abs(Math.sin(mob.flap)) * 0.9)); break;
         case 'wingR': r = XF.rz(mob.onGround ? 0 : 0.3 + Math.abs(Math.sin(mob.flap)) * 0.9); break;
         case 'spiderLeg': {
