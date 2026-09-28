@@ -331,6 +331,38 @@
   .place.locked { opacity: 0.55; cursor: default; }
   .place:hover { background: rgba(242, 185, 75, 0.16); border-color: rgba(242, 185, 75, 0.55); }
   #placesPanel .panel { width: min(720px, 100%); }
+  /* Photo mode */
+  #photoUI { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #photoFx, #photoFx > * { position: absolute; inset: 0; }
+  #photoFx .pvig { background: radial-gradient(ellipse at center, transparent 45%, #000 100%); opacity: 0; transition: opacity .3s; }
+  #photoFx .ptint { transition: background .3s; }
+  #photoFx .pgrain { opacity: 0; mix-blend-mode: overlay; }
+  #photoFx .pgrain canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+  #photoFx .pbar { inset: auto 0; height: 0; background: #000; transition: height .45s cubic-bezier(.3, .8, .3, 1); }
+  #photoFx .pbar.t { top: 0; } #photoFx .pbar.b { bottom: 0; }
+  #photoFx.bars .pbar { height: max(0px, calc((100vh - 100vw / 2.39) / 2)); }
+  #photoFx .pgrid { opacity: 0; transition: opacity .25s; background:
+    linear-gradient(90deg, transparent calc(33.33% - 0.5px), rgba(255,255,255,.45) calc(33.33% - 0.5px), rgba(255,255,255,.45) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,.45) calc(66.66% - 0.5px), rgba(255,255,255,.45) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px)),
+    linear-gradient(0deg, transparent calc(33.33% - 0.5px), rgba(255,255,255,.45) calc(33.33% - 0.5px), rgba(255,255,255,.45) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,.45) calc(66.66% - 0.5px), rgba(255,255,255,.45) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px)); }
+  #photoFx.grid .pgrid { opacity: 1; }
+  #photoFlash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+  #photoFlash.go { animation: pflash .5s ease-out; }
+  @keyframes pflash { 0% { opacity: .85; } 100% { opacity: 0; } }
+  #photoBar { position: absolute; left: 0; right: 0; margin: 0 auto; bottom: max(18px, env(safe-area-inset-bottom)); width: min(880px, calc(100vw - 32px)); pointer-events: auto;
+    background: rgba(8, 11, 16, 0.72); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--line-strong); border-radius: 16px; padding: 10px 12px; animation: rise .35s both; }
+  #photoBar.hidden { display: none; }
+  .ph-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; font-size: 12px; color: var(--muted); margin-bottom: 8px; flex-wrap: wrap; }
+  .ph-head b { color: #fff; font-size: 14px; }
+  .ph-head em { font-style: normal; color: var(--accent); }
+  .ph-row { display: flex; gap: 10px; align-items: center; }
+  #photoChips { display: flex; gap: 6px; overflow-x: auto; flex: 1; scrollbar-width: none; }
+  #photoChips button { flex: none; display: flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 99px; font-size: 13px; background: rgba(255, 255, 255, 0.06); }
+  #photoChips button i { font-style: normal; font-size: 10px; width: 16px; height: 16px; display: grid; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, 0.12); color: var(--muted); }
+  #photoChips button.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  #photoChips button.on i { background: rgba(0, 0, 0, 0.18); color: var(--accent-ink); }
+  #photoShoot { flex: none; width: 50px; height: 50px; border-radius: 50%; padding: 0; display: grid; place-items: center; position: relative; background: #fff; color: #111; font-weight: 700; font-size: 11px; border: 3px solid rgba(255,255,255,.35); background-clip: padding-box; }
+  #photoShoot span { position: absolute; inset: 5px; border-radius: 50%; border: 2px solid #111; opacity: .15; }
+  #photoShoot:active { transform: scale(.92); }
   /* Worlds list */
   .title-buttons button.wide { grid-column: 1 / -1; }
   #worldsPanel { background: rgba(4, 7, 12, 0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
@@ -793,6 +825,15 @@
   </div>
 </div>
 
+<div id="photoUI" class="hidden">
+  <div id="photoFx"><div class="ptint"></div><div class="pvig"></div><div class="pgrain"></div><i class="pbar t"></i><i class="pbar b"></i><div class="pgrid"></div></div>
+  <div id="photoFlash"></div>
+  <div id="photoBar">
+    <div class="ph-head"><b>📷 Photo mode</b><span>WASD · Space / Shift move &nbsp;·&nbsp; wheel zoom <em id="photoFov"></em> &nbsp;·&nbsp; ← → sun &nbsp;·&nbsp; G grid &nbsp;·&nbsp; H hide &nbsp;·&nbsp; P exit</span></div>
+    <div class="ph-row"><div id="photoChips"></div><button id="photoShoot" title="C or Enter"><span></span>C</button></div>
+  </div>
+</div>
+
 <div id="worldsPanel" class="overlay hidden">
   <div class="panel">
     <div class="brand"><h1>WOR<span>LDS</span></h1></div>
@@ -1114,6 +1155,7 @@
 <script src="js/lumber.js"></script>
 <script src="js/physics.js"></script>
 <script src="js/furniture.js"></script>
+<script src="js/photo.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/progress.js"></script>
 <script src="js/social.js"></script>

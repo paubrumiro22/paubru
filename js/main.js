@@ -959,7 +959,7 @@ function frame(now) {
     G.time += dt;
     const p = G.player, st = G.stats;
     const paused = !G.playing && !G.screenOpen && !st.dead;
-    const active = G.playing && !G.screenOpen && !st.dead && !G.sleeping;
+    const active = G.playing && !G.screenOpen && !st.dead && !G.sleeping && !Photo.on;
 
     if (!paused) {
       const flying = !!G.vehicle;
@@ -1022,7 +1022,8 @@ function frame(now) {
       if (st.dead) { eye[1] -= 1.1; roll = 0.5; }
       if (G.sleeping) eye[1] -= 1.0;
       cam = { pos: eye, yaw: p.yaw, pitch: p.pitch, roll, fov: G.settings.fov + p.fovBoost - (Act.bow ? Math.min(1, Act.bow.t) * 12 : 0) };
-      if (G.view && !st.dead && !G.sleeping) {
+      if (Photo.on) cam = Photo.camera(cam, dt);
+      else if (G.view && !st.dead && !G.sleeping) {
         // third person: behind you (or facing you), pulled in when a wall is in the way
         const f = [-Math.sin(p.yaw) * Math.cos(p.pitch), Math.sin(p.pitch), -Math.cos(p.yaw) * Math.cos(p.pitch)];
         const s = G.view === 1 ? -1 : 1;
@@ -1041,8 +1042,8 @@ function frame(now) {
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);
     Sound.setListener(cam.pos, cam.yaw);
-    const thirdPerson = G.view && !G.vehicle && !G.onTitle && !st.dead && !G.sleeping;
-    const showHand = !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle && !thirdPerson;
+    const thirdPerson = (Photo.on ? Photo.away() : G.view) && !G.vehicle && !G.onTitle && !st.dead && !G.sleeping;
+    const showHand = !Photo.on && !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle && !thirdPerson;
     let self = null;
     if (thirdPerson) {
       const sp = Math.hypot(p.vel[0], p.vel[2]);
@@ -1073,6 +1074,7 @@ function frame(now) {
       chunks: G.world.chunks.values(), selection: hit && !G.hudHidden ? hit.pos : null, selectionBox: hit ? hit.box : null, entities: ents,
     });
     if (Worlds.wantThumb && G.playing && !G.screenOpen && !G.dead) Worlds.capture(G.canvas);
+    if (Photo.wantShot) Photo.shoot(G.canvas);
     Vehicles.drawHud();
     UI.update(dt);
     Minimap.update(dt);
