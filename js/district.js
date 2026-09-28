@@ -159,6 +159,9 @@ function planDistrict(g, plan) {
   // ---- the metro, last: nothing is ever built over its stairs ----
   const tx = cx + 12, at = (v) => [tx + 0.5, D.P - 1, cz + v + 0.5];
   piece(box(-5, -18, 16, 60), (W) => buildDistrictMetro(W, g, D));
+  // ---- bus stops: shelters on the pavements of the two bus lines (bus.js drives the buses) ----
+  for (const st of BUS_STOPS) if (!st.plaza) piece(box(st.u - 4, st.v - 4, st.u + 4, st.v + 4), (W) => buildBusShelter(W, g, D, st));
+
   // ---- Galeries STUCOM: the shopping arcade under the square, off the Universitat landing ----
   piece(box(-23, -16, -2, 16), (W) => buildMall(W, g, D));
   plan.shops = MALL_SHOPS.map((s) => ({ key: s.key, x0: cx + s.u0, z0: cz + s.v0, x1: cx + s.u1, z1: cz + s.v1, y: D.P }));
@@ -748,4 +751,40 @@ function buildMall(W, g, D) {
   // benches and plants along the arcade
   for (const v of [-13, -4, 4, 12]) { set(-11, P, v, B.PODZOL); set(-11, P + 1, v, B.BUSH); }
   for (const v of [-9, 0, 10]) { set(-12, P, v, shapeId('oak', 'stairs'), 1); set(-10, P, v, shapeId('oak', 'stairs'), 0); }
+}
+
+// ---------------------------------------------------------------- bus stops ----
+// Where the buses stop (u, v: the kerb-side lane point the bus stops at) and where the shelter
+// stands: back row at (su, sv), the road towards rd. Line 1 goes round the square, line 2 round
+// the outer ring road, both with the square on their right.
+const BUS_STOPS = [
+  { line: 1, name: 'STUCOM', u: 0, v: -23, su: 0, sv: -19, rd: [0, -1] },
+  { line: 1, name: 'Banc Central', u: 22, v: 0, su: 18, sv: 0, rd: [1, 0] },
+  { line: 1, name: 'Plaça Universitat', u: 11, v: 22, plaza: true },
+  { line: 1, name: 'Camp de Futbol', u: -23, v: -1, su: -19, sv: -1, rd: [-1, 0] },
+  { line: 2, name: 'Escola · darrere', u: 0, v: -69, su: 0, sv: -65, rd: [0, -1] },
+  { line: 2, name: 'Solars Est', u: 68, v: 0, su: 64, sv: 0, rd: [1, 0] },
+  { line: 2, name: 'Parc de Catalunya', u: 0, v: 68, su: 0, sv: 64, rd: [0, 1] },
+  { line: 2, name: 'Solars Oest', u: -69, v: 0, su: -65, sv: 0, rd: [-1, 0] },
+];
+function buildBusShelter(W, g, D, st) {
+  const { cx, cz, F } = D;
+  const set = (u, v, y, id, f) => W.set(cx + u, y, cz + v, id, f);
+  const al = [st.rd[1] !== 0 ? 1 : 0, st.rd[0] !== 0 ? 1 : 0];            // along the street
+  const face = (d) => (d[0] > 0 ? 0 : d[0] < 0 ? 1 : d[1] > 0 ? 4 : 5);
+  const toGlass = face([-st.rd[0], -st.rd[1]]), toRoad = face(st.rd);
+  for (let k = -2; k <= 2; k++) for (let r = 0; r <= 1; r++) {
+    const u = st.su + al[0] * k + st.rd[0] * r, v = st.sv + al[1] * k + st.rd[1] * r;
+    for (let y = F; y <= F + 3; y++) set(u, v, y, B.AIR);
+    set(u, v, F - 1, B.PANOT);
+    if (r === 0) { const edge = Math.abs(k) === 2; set(u, v, F, edge ? B.IRON_BARS : B.GLASS_PANE); set(u, v, F + 1, edge ? B.IRON_BARS : B.GLASS_PANE); }
+    else if (Math.abs(k) <= 1) set(u, v, F, shapeId('oak', 'stairs'), toGlass);
+    set(u, v, F + 2, B.CONCRETE_SLAB, 8);
+  }
+  // the timetable inside, the pole with the sign at the kerb
+  W.pic(cx + st.su + st.rd[0], F + 1, cz + st.sv + st.rd[1], toRoad, 1, 1, 'bus_line' + st.line);
+  const pu = st.su + al[0] * 3 + st.rd[0], pv = st.sv + al[1] * 3 + st.rd[1];
+  for (let y = F; y <= F + 1; y++) set(pu, pv, y, B.IRON_BARS);
+  set(pu, pv, F + 2, B.CONCRETE + (st.line === 1 ? 14 : 11));
+  W.pic(cx + pu + st.rd[0], F + 2, cz + pv + st.rd[1], toRoad, 1, 1, 'bus');
 }
