@@ -360,7 +360,9 @@ const ER = {
     }
     for (const f of Ents.falling) {
       this.lightAt(f.pos[0], f.pos[1] + 0.5, f.pos[2]);
-      this.blockBox(XF.chain(XF.t(f.pos[0] - cp[0], f.pos[1] - cp[1] + 0.49, f.pos[2] - cp[2]), XF.s(0.98), XF.t(-0.5, -0.5, -0.5)), f.id);
+      // tumbling debris and falling logs spin about their middle (physics.js)
+      const spin = f.spin ? XF.chain(XF.ry(f.yawR || 0), XF.rx(f.spin)) : XF.id();
+      this.blockBox(XF.chain(XF.t(f.pos[0] - cp[0], f.pos[1] - cp[1] + 0.49, f.pos[2] - cp[2]), spin, XF.s(0.98), XF.t(-0.5, -0.5, -0.5)), f.id);
     }
 
     // opaque particles as camera-facing quads

@@ -396,7 +396,7 @@ const MetroBuild = {
       w.editsDirty = true;
       MetroNet.dirty = true;
       if (Metro.train && G.vehicle !== Metro.train) { Metro.train.removed = true; Metro.train = null; }
-      if (j.mine) { G.ui.banner('🚇', j.name + ' station is open'); sfx('metro_chime', null, 1, 1); saveWorld(); }
+      if (j.mine) { G.ui.banner(j.icon || '🚇', j.done || j.name + ' station is open'); sfx('metro_chime', null, 1, 1); saveWorld(); }
     }
   },
 };

@@ -11,7 +11,7 @@ const DEFAULT_SETTINGS = {
   renderDistance: 10, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
   renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
   weather: 'auto', events: true, wildlife: true, skin: 0, minimap: 'normal', autoTuned: false,
-  autoQuality: true, preAuto: null, settingsVer: 2, pvp: true,
+  autoQuality: true, preAuto: null, settingsVer: 2, pvp: true, physics: 'realistic',
 };
 
 const $ = (id) => document.getElementById(id);
@@ -507,6 +507,7 @@ function explodeNow(x, y, z, power, source, rng, remote) {
     }
   }
   const edits = [];
+  let debris = 0;
   for (const [bx, by, bz, id] of destroyed.values()) {
     if (id === B.TNT) {
       edits.push([bx, by, bz, B.AIR]);
@@ -516,6 +517,8 @@ function explodeNow(x, y, z, power, source, rng, remote) {
       Ents.tnts.push(t);
       continue;
     }
+    // some of it flies off as debris (physics.js)
+    if (typeof Physics !== 'undefined' && Physics.debris(bx, by, bz, id, x, y, z, power, remote, debris)) { debris++; edits.push([bx, by, bz, B.AIR]); continue; }
     if (G.mode === 'survival' && !remote && Math.random() < 1 / power) {
       for (const [it, n] of blockDrops(id, 0, Math.random)) Ents.spawnItem({ id: it, count: n }, bx + 0.5, by + 0.5, bz + 0.5);
     }

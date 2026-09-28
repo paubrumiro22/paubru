@@ -255,6 +255,11 @@ class Player {
     else speed = this.sprinting ? 5.8 : 4.3;
     if (input.slow) speed *= 0.35;
     if (!this.flying && typeof hasEffect === 'function' && hasEffect('speed')) speed *= 1.35;
+    // what you stand on: ice slides (little grip, you keep your momentum), mud and soul sand drag
+    const under = this.onGround && !this.flying ? this.world.getBlock(Math.floor(this.pos[0]), Math.floor(this.pos[1] - 0.05), Math.floor(this.pos[2])) : 0;
+    const grip = under === B.ICE ? 1.1 : 16;
+    if (under === B.MUD || under === B.SOUL_SAND) speed *= 0.55;
+    if (under === B.ICE && this.sprinting) speed *= 1.15;
 
     const v = this.vel;
     if (this.flying) {
@@ -277,7 +282,7 @@ class Player {
       const cur = typeof Fluids !== 'undefined' && this.world === G.world ? Fluids.push(Math.floor(this.pos[0]), Math.floor(this.pos[1] + 0.35), Math.floor(this.pos[2])) : null;
       if (cur) { v[0] += cur[0] * 9 * dt; v[2] += cur[2] * 9 * dt; v[1] += cur[1] * 6 * dt; }
     } else {
-      const r = 1 - Math.exp(-dt * (this.onGround ? 16 : 2.4));
+      const r = 1 - Math.exp(-dt * (this.onGround ? grip : 2.4));
       v[0] += (wx * speed - v[0]) * r;
       v[2] += (wz * speed - v[2]) * r;
       v[1] -= GRAVITY * dt;

@@ -75,7 +75,8 @@ const Lumber = {
   fell(x, y, z, mine) {
     const logs = this.treeAbove(x, y, z);
     if (!logs) return false;
-    this.jobs.push({ x, y, z, logs, i: 0, t: 0.12, mine, leaves: null, li: 0, wood: 0 });
+    const from = mine ? G.player.pos.slice() : [x + 0.5 + (hash3(x, y, z, 1) - 0.5), y, z + 0.5 + (hash3(x, y, z, 2) - 0.5)];
+    this.jobs.push({ x, y, z, logs, i: 0, t: 0.12, mine, leaves: null, li: 0, wood: 0, from });
     sfx('timber', [x + 0.5, y + 1.5, z + 0.5], 1, rand(0.9, 1.05));
     if (mine && Net.on) Net.op(['t', x, y, z]);
     return true;
@@ -109,6 +110,7 @@ const Lumber = {
           const id = G.world.getBlock(a, b, c);
           if (!TREE_LOGS.has(id)) continue;
           destroyBlock(a, b, c, { drops: false, silent: n++ > 1 });
+          if (b > j.y && typeof Physics !== 'undefined') Physics.topple(a, b, c, id, j.from, b - j.y);
           if (j.mine) this.give(id === B.CRIMSON_STEM || id === B.WARPED_STEM ? id : id, 1, G.player.pos);
           j.wood++;
         }

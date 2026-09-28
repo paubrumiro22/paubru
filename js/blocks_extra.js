@@ -51,6 +51,8 @@
     'AUTO_DOOR', 'AUTO_DOOR_TOP', 'AUTO_DOOR_OPEN', 'AUTO_DOOR_OPEN_TOP', 'ASPHALT_LINE_X', 'ROAD_WHITE',
     // metro control panel and the track marker that tells the trains where platforms are (metro_panel.js)
     'METRO_PANEL', 'METRO_MARK',
+    // town planning board and the hidden stone that says a district block is built (city.js)
+    'CITY_PANEL', 'CITY_MARK',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here
@@ -309,6 +311,9 @@ defBlock(B.ASPHALT_LINE_X, 'Asphalt with Cross Line', RT_CUBE, { top: 'asphalt_l
 defBlock(B.ROAD_WHITE, 'Road Paint', RT_CUBE, { top: 'road_white', side: 'asphalt', bottom: 'asphalt' }, XR({ hard: 1.5, cat: 'building' }));
 defBlock(B.METRO_PANEL, 'Metro Control Panel', RT_CUBE, { top: 'metro_panel_side', side: 'metro_panel_side', front: 'metro_panel_front' }, { hard: 2, tool: TOOL_PICK, snd: SND.METAL, emit: 6, cat: 'transport' });
 FACING_BLOCKS.add(B.METRO_PANEL);
+defBlock(B.CITY_PANEL, 'Town Planning Board', RT_CUBE, { top: 'metro_panel_side', side: 'metro_panel_side', front: 'city_panel_front' }, { hard: 2, tool: TOOL_PICK, snd: SND.METAL, emit: 6, cat: 'functional' });
+FACING_BLOCKS.add(B.CITY_PANEL);
+defBlock(B.CITY_MARK, 'Survey Stone', RT_CUBE, 'stone', XR({ cat: null }));
 defBlock(B.METRO_MARK, 'Platform Track Marker', RT_CUBE, { top: 'metro_mark', side: 'gravel', bottom: 'gravel' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRAVEL, cat: 'transport' });
 defBlock(B.TURF, 'Artificial Turf', RT_CUBE, { top: 'turf', side: 'turf_side', bottom: 'dirt' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRASS, cat: 'building' });
 defBlock(B.TURF_LINE, 'Artificial Turf with Line', RT_CUBE, { top: 'turf_line', side: 'turf_side', bottom: 'dirt' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRASS, cat: 'building' });

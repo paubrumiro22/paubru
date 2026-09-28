@@ -15,6 +15,7 @@ const SETTINGS_UI = [
   { key: 'fxaa', group: 'effects', label: 'Anti-aliasing', hint: 'Smooths jagged edges (FXAA).', type: 'check' },
   { key: 'weather', group: 'world', label: 'Weather', hint: 'Rain, storms, snow where it is cold, and fog.', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow'], ['fog', 'Fog']] },
   { key: 'events', group: 'world', label: 'World events', hint: 'Meteor showers on clear nights and volcano eruptions.', type: 'check' },
+  { key: 'physics', group: 'world', label: 'Physics', hint: 'Realistic: built blocks need support and collapse without it, blasts throw debris, felled trees topple, ice slides.', type: 'select', options: [['realistic', 'Realistic'], ['classic', 'Classic']] },
   { key: 'pvp', group: 'world', label: 'Player fights (PvP)', hint: 'Online: other players can hit you, and you them. Off, nobody can hurt you.', type: 'check' },
   { key: 'wildlife', group: 'world', label: 'Wildlife', hint: 'Birds, bees, butterflies and fish.', type: 'check' },
   { key: 'volume', group: 'sound', label: 'Effects volume', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => Math.round(v * 100) + '%' },
@@ -1040,7 +1041,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Physics.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
     Music.update(dt);
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);

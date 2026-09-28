@@ -967,7 +967,10 @@ function structuresIn(g, x0, z0, x1, z1) {
 
 // Inside a building, road or square (no trees there).
 function structZone(g, x, z) {
-  for (const p of structuresIn(g, x, z, x, z)) for (const r of p.zones) if (x >= r[0] - 1 && x <= r[2] + 1 && z >= r[1] - 1 && z <= r[3] + 1) return true;
+  for (const p of structuresIn(g, x, z, x, z)) {
+    if (p.inZone) { if (p.inZone(x, z)) return true; continue; }
+    for (const r of p.zones) if (x >= r[0] - 1 && x <= r[2] + 1 && z >= r[1] - 1 && z <= r[3] + 1) return true;
+  }
   return false;
 }
 

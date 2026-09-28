@@ -11,7 +11,17 @@
 // Loaded in the chunk workers too (data-w): only deterministic code.
 
 const DI = 36, DS = 10, DP = DI + DS;      // block ("illa") size, street width, grid pitch
-const DHALF = 74, DBLEND = 18, DOUT = DHALF + DBLEND;
+const DHALF = 74, DBLEND = 20;
+// Around the street grid the ground stays flat, open land for building, out to an irregular edge
+// (DFLAT ± a few waves, never closer than 10 blocks to the grid) and then blends into the
+// countryside. DOUT bounds all of it.
+const DFLAT = 118, DOUT = 166;
+function districtEdge(D, u, v) {
+  const a = Math.atan2(v, u), q = D.ph;
+  const r = DFLAT + 12 * Math.sin(3 * a + q[0]) + 8 * Math.sin(5 * a + q[1]) + 5 * Math.sin(8 * a + q[2]);
+  const grid = DHALF / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a)));
+  return Math.max(r, grid + 10);
+}
 const METRO_DEPTH = 13;                    // platform this far under the street
 
 // Position across a street (st 0..9) or, inside a block, its index k and local coordinate r.
@@ -58,7 +68,10 @@ function planDistrict(g, plan) {
   for (const [k, p] of g.structs) {
     if (p && p !== plan && Math.max(Math.abs(p.x - cx), Math.abs(p.z - cz)) < DOUT + (p.radius || 40) + 6) g.structs.set(k, null);
   }
-  const D = { cx, cz, F, P: F - METRO_DEPTH, furn: [] };
+  const D = { cx, cz, F, P: F - METRO_DEPTH, furn: [], ph: [0, 1, 2].map((k) => hash3(cx, k, cz, 41) * Math.PI * 2) };
+  // trees keep off the flat land and its edge (structZone)
+  plan.inZone = (x, z) => Math.hypot(x - cx, z - cz) <= districtEdge(D, x - cx, z - cz) + DBLEND;
+  plan.district = D;
   const box = (u0, v0, u1, v1) => [cx + u0, cz + v0, cx + u1, cz + v1];
   const piece = (b, build) => plan.pieces.push({ box: b, build });
   const home = (kind, prof, u, y, v, hu, hv, r) => plan.spawns.push({ kind, prof, x: cx + u + 0.5, y, z: cz + v + 0.5, home: [cx + hu + 0.5, cz + hv + 0.5], homeR: r });
@@ -174,9 +187,20 @@ function buildDistrictBase(W, g, D) {
   if (xa > xb || za > zb) return;
   for (let x = xa; x <= xb; x++) for (let z = za; z <= zb; z++) {
     const u = x - cx, v = z - cz, h = g.height(x, z);
-    const e = Math.max(-DHALF - u, u - (DHALF - 1), -DHALF - v, v - (DHALF - 1), 0);
-    if (e > 0) {
-      const t = Math.min(1, e / DBLEND), s = t * t * (3 - 2 * t);
+    const inGrid = u >= -DHALF && u < DHALF && v >= -DHALF && v < DHALF;
+    if (!inGrid) {
+      const r = Math.hypot(u + 0.5, v + 0.5), edge = districtEdge(D, u, v);
+      if (r > edge + DBLEND) continue;
+      if (r <= edge) {
+        // open flat land, a few wild flowers
+        for (let y = Math.min(h + 1, F - 7); y <= F - 2; y++) if (y > 0 && (y > h || !BLOCK_SOLID[W.get(x, y, z)])) W.set(x, y, z, y >= F - 4 ? B.DIRT : B.STONE);
+        W.set(x, F - 1, z, B.GRASS);
+        for (let y = F; y <= Math.max(h, F) + 14 && y < CH; y++) if (W.get(x, y, z) !== B.AIR) W.set(x, y, z, B.AIR);
+        const fl = hash3(x, 11, z, 5);
+        if (fl < 0.025) W.set(x, F, z, [B.DANDELION, B.DAISY, B.CORNFLOWER, B.TALLGRASS][Math.floor(fl * 160)]);
+        continue;
+      }
+      const t = Math.min(1, (r - edge) / DBLEND), s = t * t * (3 - 2 * t);
       const top = Math.round((F - 1) + (h - (F - 1)) * s);
       if (top === h) continue;
       for (let y = Math.min(h + 1, top); y < top; y++) if (y > 0) W.set(x, y, z, top - y > 3 ? B.STONE : B.DIRT);
@@ -191,6 +215,8 @@ function buildDistrictBase(W, g, D) {
     W.set(x, F - 1, z, districtTop(u, v));
     for (let y = F; y <= Math.max(h, F) + 14 && y < CH; y++) if (W.get(x, y, z) !== B.AIR) W.set(x, y, z, B.AIR);
   }
+  // survey stones under the built blocks (the town planning board adds more, city.js)
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) if (W.has(cx + i * DP, cz + j * DP)) W.set(cx + i * DP, F - 6, cz + j * DP, B.CITY_MARK);
   // street trees in grated pits and lamps
   for (const [x, z, kind] of D.furn) {
     if (x < W.x0 - 3 || x > W.x1 + 3 || z < W.z0 - 3 || z > W.z1 + 3) continue;
@@ -240,6 +266,7 @@ function buildPlaza(W, g, D) {
   }
   for (let u = 6; u <= 9; u++) set(u, F + 2, 8, B.CONCRETE_SLAB, 8);
   set(7, F, 8, B.CRATE);
+  set(10, F, 7, B.CITY_PANEL, 4);   // the town planning board (city.js)
   // bus stop at the south edge, facing the street
   for (let u = 9; u <= 13; u++) {
     for (const v of [15, 16, 17]) set(u, F + 2, v, B.CONCRETE_SLAB, 8);
