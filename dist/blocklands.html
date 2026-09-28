@@ -409,6 +409,17 @@
   .ask-t { font: 700 14.5px var(--body); margin-bottom: 10px; } .ask-b { display: flex; gap: 8px; } .ask kbd { font: 700 10px var(--body); padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,.2); margin-left: 4px; }
   .ask-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: linear-gradient(90deg, #3d8bff, #3cf2c0); transform-origin: left; animation: askbar linear forwards; }
   @keyframes askbar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+  .gp-shop .gp-bar { background: linear-gradient(90deg, var(--shop), transparent 70%); }
+  .shop-money { margin-left: auto; align-self: center; font: 800 15px var(--display); color: #ffd34d; }
+  .shop-q { width: 100%; margin-bottom: 10px; }
+  .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; max-height: 46vh; overflow: auto; padding: 2px; }
+  .shop-it { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: #e9eef5; cursor: pointer; font: 600 12px var(--body); text-align: center; }
+  .shop-it:hover:not(:disabled) { background: rgba(255,255,255,.1); border-color: var(--shop, #3d8bff); transform: translateY(-1px); } .shop-it:disabled { opacity: .35; cursor: default; }
+  .shop-it.in { border-color: #3cf2c0; background: rgba(60,242,192,.08); }
+  .shop-ic { width: 40px; height: 40px; background-size: contain; background-repeat: no-repeat; image-rendering: pixelated; filter: drop-shadow(0 3px 4px rgba(0,0,0,.4)); }
+  .shop-pr { color: #ffd34d; font-weight: 800; } .shop-pr s { color: #93a0b4; font-weight: 600; }
+  .shop-n { position: absolute; top: 6px; right: 8px; font: 800 12px var(--body); font-style: normal; background: #3cf2c0; color: #06221a; border-radius: 99px; padding: 1px 7px; }
+  .shop-foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); } .shop-foot span { flex: 1; font-size: 12.5px; color: #b8c3d4; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #dateTag { position: absolute; left: 14px; top: 12px; padding: 6px 12px; border-radius: 99px; background: rgba(11, 16, 24, 0.66); border: 1px solid var(--line); color: #e9eef5; font-size: 12.5px; text-shadow: 0 1px 2px #000; pointer-events: none; }
   #dateTag.hidden { display: none; }
   #paper { display: grid; place-items: center; z-index: 60; background: rgba(8, 10, 16, 0.6); backdrop-filter: blur(3px); overflow: auto; padding: 20px 0; }
@@ -2237,6 +2248,8 @@ function div16(b) { return [b[0] / 16, b[1] / 16, b[2] / 16, b[3] / 16, b[4] / 1
     'WALL_SHELF', 'SHOWER', 'SHOWER_TOP', 'BATHTUB', 'TOILET', 'WASHER', 'WASHER_ON', 'DESKTOP_PC', 'GAME_CONSOLE', 'TV_GAME',
     // lifts: the plate a lift stops at on each floor (lift.js)
     'LIFT_FLOOR',
+    // shops (shops.js): shelving with goods and the till
+    'SHELF_GROCERY', 'SHELF_BREAD', 'SHELF_DRINKS', 'CASH_REGISTER',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here
@@ -3050,6 +3063,38 @@ FT2.lift = defTex('lift_floor');
 SHAPE_FN[SH_LIFT] = () => ({ boxes: [[0, 14.5, 0, 16, 16, 16, FT2.lift], [0.5, 13.5, 0.5, 15.5, 14.5, 15.5, FT.metal]], coll: [[0, 14.5, 0, 16, 16, 16]] });
 defBlock(B.LIFT_FLOOR, 'Lift Floor', RT_SHAPE, 'lift_floor', { hard: 2, tool: TOOL_PICK, snd: SND.METAL, atten: 0, solid: true, cat: 'transport' });
 BLOCK_SHAPE[B.LIFT_FLOOR] = SH_LIFT;
+
+// ---- shop fittings: shelving units stocked with goods (the goods face the front) and a till ----
+const SH_SHOP_SHELF = 58, SH_REGISTER = 59;
+FT2.goods = { [B.SHELF_GROCERY]: defTex('goods_grocery'), [B.SHELF_BREAD]: defTex('goods_bread'), [B.SHELF_DRINKS]: defTex('goods_drinks') };
+FT2.shelfWhite = defTex('shelf_white'); FT2.till = defTex('till_screen'); FT2.tillKeys = defTex('till_keys');
+function shopShelfBoxes(f, id) {
+  const gd = FT2.goods[id] || FT2.goods[B.SHELF_GROCERY], W_ = FT2.shelfWhite;
+  const goods = faces6(gd, gd, gd, gd, gd, W_);
+  const b = [
+    [0, 0, 0, 16, 16, 1.2, W_], [0, 0, 1.2, 1, 16, 14, W_], [15, 0, 1.2, 16, 16, 14, W_],
+    [1, 0, 1.2, 15, 1.2, 14, W_], [1, 5.2, 1.2, 15, 6, 14, W_], [1, 10.6, 1.2, 15, 11.4, 14, W_], [0, 15.4, 0, 16, 16, 14, W_],
+    [1.2, 1.2, 2, 14.8, 5.2, 13, goods], [1.2, 6, 2, 14.8, 10.2, 13, goods], [1.2, 11.4, 2, 14.8, 15.2, 13, goods],
+  ];
+  if (id === B.SHELF_DRINKS) b.push([1, 0.5, 14, 15, 15.5, 14.4, FT2.shelfWhite]);   // glass door frame
+  return furnXf(f, b);
+}
+SHAPE_NBF[SH_SHOP_SHELF] = (f, get, id) => shopShelfBoxes(f, id);
+SHAPE_FN[SH_SHOP_SHELF] = (f) => ({ boxes: shopShelfBoxes(f, B.SHELF_GROCERY), coll: furnXf(f, [[0, 0, 0, 16, 16, 14]]) });
+SHAPE_FN[SH_REGISTER] = (f) => ({
+  boxes: furnXf(f, [
+    [2, 0, 3, 14, 3, 13, faces6(FT.black, FT2.tillKeys, FT.black, FT.black, FT.black)], [2.5, 3, 8.5, 13.5, 3.5, 12.5, FT.metal],
+    [7, 3, 4, 9, 7, 5, FT.black], [3.5, 7, 3.5, 12.5, 12.5, 5, faces6(FT.black, FT.black, FT.black, FT2.till, FT.black)],
+  ]),
+  coll: furnXf(f, [[2, 0, 3, 14, 7, 13]]),
+});
+{
+  const def = (id, name, tex, k, o) => { defBlock(id, name, RT_SHAPE, tex, with_({ hard: 1.5, snd: SND.METAL, tool: TOOL_PICK, atten: 0, solid: true, cat: 'furniture' }, o || {})); BLOCK_SHAPE[id] = k; };
+  def(B.SHELF_GROCERY, 'Grocery Shelves', 'shelf_white', SH_SHOP_SHELF);
+  def(B.SHELF_BREAD, 'Bread Shelves', 'shelf_white', SH_SHOP_SHELF);
+  def(B.SHELF_DRINKS, 'Drinks Fridge', 'shelf_white', SH_SHOP_SHELF, { emit: 5 });
+  def(B.CASH_REGISTER, 'Cash Register', 'furn_black', SH_REGISTER, { hard: 0.8, emit: 3 });
+}
 </script>
 <script>
 'use strict';
@@ -9880,6 +9925,10 @@ function planDistrict(g, plan) {
   // ---- the metro, last: nothing is ever built over its stairs ----
   const tx = cx + 12, at = (v) => [tx + 0.5, D.P - 1, cz + v + 0.5];
   piece(box(-5, -18, 16, 60), (W) => buildDistrictMetro(W, g, D));
+  // ---- Galeries STUCOM: the shopping arcade under the square, off the Universitat landing ----
+  piece(box(-23, -16, -2, 16), (W) => buildMall(W, g, D));
+  plan.shops = MALL_SHOPS.map((s) => ({ key: s.key, x0: cx + s.u0, z0: cz + s.v0, x1: cx + s.u1, z1: cz + s.v1, y: D.P }));
+  for (const s of MALL_SHOPS) plan.spawns.push({ kind: 'villager', prof: 'shopkeeper', x: cx + s.keeper[0] + 0.5, y: D.P, z: cz + s.keeper[1] + 0.5, home: [cx + s.keeper[0] + 0.5, cz + s.keeper[1] + 0.5], homeR: 1.5 });
   plan.metro = {
     x: cx + 7, z: cz, y: D.P, depth: METRO_DEPTH, track: [tx, cz - 14, tx, cz + 56],
     line: { a: at(-14), b: at(56), stops: [{ name: 'Universitat', at: at(-9) }, { name: 'Catalunya', at: at(51) }] },
@@ -10384,6 +10433,87 @@ function schoolUpgrade(W, x0, Z, set, sz, F, floors, roof, out) {
   for (const a of [5, 12]) for (let y = roof + 1; y <= roof + 3; y++) set(a, y, 6, B.DARK_OAK_FENCE);
   for (let a = 5; a <= 12; a++) set(a, roof + 4, 6, B.DARK_OAK_FENCE);
   for (const a of [6, 8, 9, 11]) set(a, roof + 3, 6, B.LANTERN, 8);
+}
+
+// ---------------------------------------------------------------- Galeries STUCOM ----
+// Under the west half of the square, level with the metro landing it opens off: a terrazzo
+// arcade (u -12..-10) with shops either side behind glass fronts and lit signs. West: the
+// SuperBloc supermarket and Mobles Blocklands. East: Forn Can Pau (bakery), the car showroom and a
+// kiosk. The shop logic (shopkeepers, tills, catalogues, the cars on show) is in shops.js.
+const MALL_SHOPS = [
+  { key: 'super', u0: -21, v0: -14, u1: -14, v1: -1, front: -13, door: [-8, -7], keeper: [-15, -4], till: [-15, -3], color: 14 },
+  { key: 'mobles', u0: -21, v0: 1, u1: -14, v1: 14, front: -13, door: [7, 8], keeper: [-15, 12], till: [-15, 13], color: 1 },
+  { key: 'forn', u0: -8, v0: -14, u1: -4, v1: -7, front: -9, door: [-11, -10], keeper: [-5, -12], till: [-6, -12], color: 12 },
+  { key: 'cotxes', u0: -8, v0: -5, u1: -4, v1: 5, front: -9, door: [-1, 0], keeper: [-5, 4], till: [-6, 4], color: 15 },
+  { key: 'quiosc', u0: -8, v0: 11, u1: -4, v1: 14, front: -9, door: [12, 13], keeper: [-5, 13], till: [-6, 13], color: 3 },
+];
+function buildMall(W, g, D) {
+  const { cx, cz, P } = D;
+  const set = (u, y, v, id, f) => W.set(cx + u, y, cz + v, id, f);
+  const U0 = -22, U1 = -3, V0 = -15, V1 = 15, Y0 = P - 1, Y1 = P + 5;
+  if (!rectHits(W, cx + U0 - 1, cz + V0 - 1, cx + U1 + 1, cz + V1 + 1)) return;
+  const shopAt = (u, v) => MALL_SHOPS.find((s) => u >= s.u0 && u <= s.u1 && v >= s.v0 && v <= s.v1);
+  const FLOORS = { super: B.CONCRETE, mobles: B.PLANKS, forn: B.TERRACOTTA_C + 2, cotxes: B.POLISHED_ANDESITE, quiosc: B.CONCRETE + 8 };
+  // shell, floors, ceiling with lights
+  for (let u = U0 - 1; u <= U1; u++) for (let v = V0 - 1; v <= V1 + 1; v++) for (let y = Y0 - 1; y <= Y1 + 1; y++) {
+    const outer = u === U0 - 1 || v === V0 - 1 || v === V1 + 1 || u === U1 || y === Y0 - 1 || y === Y1 + 1;
+    const s = shopAt(u, v);
+    let id = B.AIR;
+    if (outer) id = B.CONCRETE + 7;
+    else if (u === U0 || v === V0 || v === V1) id = y === P + 1 ? B.CONCRETE + 8 : B.CONCRETE;
+    else if (y === Y0) id = s ? FLOORS[s.key] : ((u + v) & 1) ? B.TERRAZZO : B.QUARTZ_BLOCK || B.TERRAZZO;
+    else if (y === Y1) id = (u % 3 === 0 && v % 3 === 0) ? B.GLASS_LAMP : B.CONCRETE;
+    else if (!s && !(u >= -12 && u <= -10) && !(v >= 7 && v <= 9 && u > -10)) id = B.CONCRETE;   // walls between shops
+    set(u, y, v, id);
+  }
+  // shop fronts: glass, a door opening, the fascia with the lit sign
+  for (const s of MALL_SHOPS) {
+    const out = s.front > s.u1 ? 0 : 1;                 // the way the front faces (towards the arcade)
+    for (let v = s.v0; v <= s.v1; v++) for (let y = P; y <= P + 4; y++) {
+      const door = v >= s.door[0] && v <= s.door[1] && y <= P + 1;
+      set(s.front, y, v, door ? B.AIR : y <= P + 2 ? B.GLASS_PANE : B.CONCRETE + s.color);
+    }
+    const len = Math.min(4, s.v1 - s.v0 + 1), mid = Math.floor((s.v0 + s.v1) / 2);
+    const signU = s.front + (out === 0 ? 1 : -1);
+    set(signU, P + 3, mid, B.AIR);
+    // pictures run towards -v when facing +u and towards +v when facing -u
+    const anchor = out === 0 ? mid + Math.floor(len / 2) : mid - Math.floor(len / 2) + (len % 2 ? 0 : 1);
+    W.pic(cx + signU, P + 3, cz + anchor, out, len, 1, 'shop_' + s.key);
+    // the till on a counter, the keeper's stool behind it
+    set(s.till[0], P, s.till[1], B.KITCHEN_COUNTER, out);
+    set(s.till[0], P + 1, s.till[1], B.CASH_REGISTER, out === 0 ? 1 : 0);
+  }
+  // the passage from the metro landing, with a sign
+  for (let v = 7; v <= 9; v++) for (let y = P; y <= P + 2; y++) { if (y <= P + 1) set(-2, y, v, B.AIR); set(U1, y, v, B.AIR); }
+  for (let v = 7; v <= 9; v++) set(-2, P - 1, v, B.TERRAZZO);
+  W.pic(cx - 1, P + 3, cz + 10 - 1, 5, 3, 1, 'shop_galeries');
+  // ---- SuperBloc ----
+  for (let v = -13; v <= -3; v++) for (const y of [P, P + 1]) set(-21, y, v, B.SHELF_GROCERY, 1);
+  for (let v = -12; v <= -6; v++) for (const y of [P, P + 1]) { set(-18, y, v, B.SHELF_GROCERY, 0); set(-17, y, v, v & 1 ? B.SHELF_BREAD : B.SHELF_GROCERY, 1); }
+  for (let u = -20; u <= -15; u++) for (const y of [P, P + 1]) set(u, y, -14, B.SHELF_DRINKS, 5);
+  for (let u = -16; u <= -15; u++) set(u, P, -3, B.KITCHEN_COUNTER, 4);
+  set(-16, P + 1, -3, B.AIR);
+  // ---- Mobles Blocklands: a showroom of rooms ----
+  const M = (u, v, id, f) => set(u, P, v, id, f);
+  M(-21, 3, B.SOFA_RED, 1); M(-21, 4, B.SOFA_RED, 1); M(-21, 5, B.SOFA_RED, 1); M(-19, 4, B.COFFEE_TABLE, 1);
+  for (let u = -20; u <= -18; u++) for (let v = 3; v <= 5; v++) if (!(u === -19 && v === 4)) M(u, v, B.RUG_RED, 0);
+  M(-21, 7, B.TV_ON, 1); M(-21, 9, B.FLOOR_LAMP, 0);
+  M(-21, 11, B.DOUBLE_BED_HEAD, 1); M(-21, 12, B.DOUBLE_BED_HEAD, 1 | 8); M(-20, 11, B.DOUBLE_BED, 1); M(-20, 12, B.DOUBLE_BED, 1 | 8);
+  M(-17, 11, B.TABLE, 0); M(-17, 12, B.TABLE, 0); M(-16, 11, B.CHAIR, 0); M(-16, 12, B.CHAIR, 0); M(-18, 11, B.CHAIR, 1); M(-18, 12, B.CHAIR, 1);
+  M(-17, 2, B.BATHTUB, 4); M(-16, 2, B.TOILET, 4); M(-15, 2, B.WASHER, 4);
+  set(-21, P + 2, 4, B.PAINTING_SEA, 1); set(-21, P + 2, 12, B.PAINTING_FLOWERS, 1); set(-17, P + 4, 11, B.CEILING_LAMP, 0); set(-19, P + 4, 4, B.CEILING_LAMP, 0);
+  // ---- Forn Can Pau ----
+  for (let v = -13; v <= -8; v++) for (const y of [P, P + 1]) set(-4, y, v, B.SHELF_BREAD, 0);
+  set(-6, P, -13, B.KITCHEN_COUNTER, 1); set(-6, P, -11, B.KITCHEN_COUNTER, 1); set(-6, P, -10, B.KITCHEN_COUNTER, 1);
+  set(-4, P + 3, -14, B.LANTERN, 8);
+  // ---- the car showroom: the cars on show are placed by shops.js; a turntable floor and posters ----
+  for (let u = -8; u <= -4; u++) for (let v = -5; v <= 3; v++) if (Math.hypot(u + 6, v + 1) < 2.6) set(u, P - 1, v, B.CONCRETE + 15);
+  set(-6, P, 4, B.KITCHEN_COUNTER, 1); set(-4, P, 5, B.FLOOR_LAMP, 0);
+  // ---- kiosk: papers and drinks ----
+  for (let v = 11; v <= 14; v++) set(-4, P, v, v & 1 ? B.SHELF_DRINKS : B.SHELF_GROCERY, 0);
+  // benches and plants along the arcade
+  for (const v of [-13, -4, 4, 12]) { set(-11, P, v, B.PODZOL); set(-11, P + 1, v, B.BUSH); }
+  for (const v of [-9, 0, 10]) { set(-12, P, v, shapeId('oak', 'stairs'), 1); set(-10, P, v, shapeId('oak', 'stairs'), 0); }
 }
 </script>
 <script data-w>
@@ -15406,6 +15536,26 @@ SKINS.push({
     });
     P.fill('arm', (x, y, w, h) => (y >= h - 2 ? sk : y === h - 3 ? shirt : suit));
     P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x141414) : suit));
+  },
+});
+// shopkeepers in the Galeries STUCOM (shops.js): a striped shirt under a green apron, a cap
+SKINS.push({
+  key: 'v_shopkeeper', name: 'Shopkeeper', icon: '', hidden: true, villager: 'shopkeeper',
+  extras: [{ part: 'head', box: [-4.3, 31.6, -4.3, 4.3, 33.2, 4.3], color: 0x2f7d4a }, { part: 'head', box: [-4.3, 31.6, 4.3, 4.3, 32.2, 7], color: 0x2f7d4a }],
+  paint(P) {
+    const sk = rgb(0xd8a888), hr = rgb(0x5a3a22), apron = rgb(0x2f7d4a), stripe = rgb(0xf0f0ea), shirt = rgb(0xc84040);
+    P.fill('head', (x, y, w, h, f) => {
+      if (f === 'top') return hr;
+      if (f === 'front') { if (y < 1) return hr; if (y === 3 && (x === 2 || x === 5)) return rgb(0x2a2a30); if (y === 5 && x >= 3 && x <= 4) return rgb(0xa05050); return sk; }
+      return y < 3 ? hr : sk;
+    });
+    P.fill('body', (x, y, w, h, f) => {
+      if (f === 'front' && x >= 1 && x <= 6 && y >= 2) return y === 6 && (x === 3 || x === 4) ? rgb(0x1f5a34) : apron;
+      if (f === 'back' && y === 6) return apron;
+      return y % 2 ? stripe : shirt;
+    });
+    P.fill('arm', (x, y, w, h) => (y >= h - 3 ? sk : y % 2 ? stripe : shirt));
+    P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x1a1a1a) : rgb(0x2c3444)));
   },
 });
 // STUCOM teachers (asked for by the user, who studies there, with their photos as reference):
@@ -23630,7 +23780,7 @@ function villagerTrades(m) {
 }
 
 const VILLAGER_NAMES = ['Aldo', 'Berta', 'Ciro', 'Dalia', 'Elio', 'Fina', 'Gael', 'Hana', 'Iker', 'Julia', 'Kai', 'Lola', 'Mateo', 'Nuria', 'Oto', 'Paz', 'Quim', 'Rosa', 'Sa\u00fal', 'Teo', 'Uma', 'Vera', 'Xoan', 'Yago', 'Zoe'];
-const PROF_NAMES = { banker: 'Banker', student: 'Student', teacher: 'Teacher', farmer: 'Farmer', fisher: 'Fisher', smith: 'Blacksmith', librarian: 'Librarian', cleric: 'Cleric', mason: 'Mason', shepherd: 'Shepherd' };
+const PROF_NAMES = { shopkeeper: 'Shopkeeper', banker: 'Banker', student: 'Student', teacher: 'Teacher', farmer: 'Farmer', fisher: 'Fisher', smith: 'Blacksmith', librarian: 'Librarian', cleric: 'Cleric', mason: 'Mason', shepherd: 'Shepherd' };
 
 // ---- population ----
 const Villages = {
@@ -33829,6 +33979,303 @@ const People = {
       return run.call(this, text);
     };
   }
+}
+</script>
+<script>
+'use strict';
+// Shops in the Galeries STUCOM (built by district.js under the square, off the Universitat metro
+// landing): the SuperBloc supermarket, Forn Can Pau, Mobles Blocklands, the car showroom and the
+// kiosk. Right-click a shopkeeper or a till to open the shop: a catalogue with prices in coins,
+// a basket, and a "Sell" tab where the supermarket and the bakery buy your crops and food.
+// Bakery goods are new foods (croissant, ensa\u00efmada, coca, cookie...). During Sant Joan the coca is
+// half price, at Christmas everything in the bakery is 20% off. The cars on show are real cars
+// that turn slowly on their turntable: right-click one to buy it. Prices on the computer (PC app)
+// too: "Botiga online" delivers to your inventory.
+
+Object.assign(I, { CROISSANT: 435, ENSAIMADA: 436, COCA: 437, COOKIE: 438, PA_TOMAQUET: 439, JUICE: 440, CHOCOLATE: 441, SANDWICH: 442 });
+{
+  const F = 'food';
+  defItem(I.CROISSANT, 'Croissant', { sprite: 'i_croissant', food: [4, 5], cat: F });
+  defItem(I.ENSAIMADA, 'Ensa\u00efmada', { sprite: 'i_ensaimada', food: [5, 6], cat: F });
+  defItem(I.COCA, 'Coca de Sant Joan', { sprite: 'i_coca', food: [7, 9], cat: F });
+  defItem(I.COOKIE, 'Cookie', { sprite: 'i_cookie', food: [2, 1], cat: F });
+  defItem(I.PA_TOMAQUET, 'Pa amb Tom\u00e0quet', { sprite: 'i_pa_tomaquet', food: [6, 8], cat: F });
+  defItem(I.JUICE, 'Orange Juice', { sprite: 'i_juice', food: [3, 5], cat: F });
+  defItem(I.CHOCOLATE, 'Chocolate Bar', { sprite: 'i_chocolate', food: [3, 2], cat: F });
+  defItem(I.SANDWICH, 'Entrep\u00e0', { sprite: 'i_sandwich', food: [8, 10], cat: F });
+}
+
+const SHOPS = {
+  super: { name: 'SuperBloc', icon: '\ud83d\uded2', tag: 'Supermercat', color: '#d6202b',
+    sell: [[I.BREAD, 3], [I.APPLE, 2], [I.PA_TOMAQUET, 5], [I.SANDWICH, 7], [I.STEAK, 7], [I.COOKED_CHICKEN, 6], [I.COOKED_PORK, 6], [I.COOKED_FISH, 5],
+      [I.MELON_SLICE, 1], [I.JUICE, 3], [I.CHOCOLATE, 2], [I.SEEDS, 1], [I.WHEAT, 2], [B.TORCH, 1], [I.PAPER, 1], [I.BUCKET, 8], [I.STEW, 5]],
+    buy: [[I.WHEAT, 1], [I.APPLE, 1], [B.PUMPKIN, 3], [B.MELON, 3], [I.RAW_BEEF, 2], [I.RAW_PORK, 2], [I.RAW_CHICKEN, 2], [I.RAW_FISH, 2], [B.SUGAR_CANE, 1], [I.MELON_SLICE, 0.5], [I.EGG, 1]] },
+  forn: { name: 'Forn Can Pau', icon: '\ud83e\udd50', tag: 'Forn de pa', color: '#b5652a',
+    sell: [[I.BREAD, 3], [I.CROISSANT, 3], [I.ENSAIMADA, 4], [I.COCA, 10], [I.COOKIE, 1], [I.PA_TOMAQUET, 5], [I.SANDWICH, 7], [I.CHOCOLATE, 2]],
+    buy: [[I.WHEAT, 1.5], [B.SUGAR_CANE, 1], [I.EGG, 1]] },
+  mobles: { name: 'Mobles Blocklands', icon: '\ud83d\udecb\ufe0f', tag: 'Mobles', color: '#e0782a', sell: [], buy: [] },
+  cotxes: { name: 'Motor STUCOM', icon: '\ud83d\ude97', tag: 'Concessionari', color: '#1e2432',
+    sell: [[I.BIKE, 60], [I.CAR, 400], [I.BOAT, 180], [I.BUS, 900], [I.HELI, 1600], [I.CART, 90]], buy: [] },
+  quiosc: { name: 'Quiosc de la Pla\u00e7a', icon: '\ud83d\udcf0', tag: 'Quiosc', color: '#2a6ce0',
+    sell: [[I.JUICE, 3], [I.CHOCOLATE, 2], [I.COOKIE, 1], [I.PAPER, 1], [I.METRO_CARD, 20], [I.PICTURE, 4], [I.SIGN, 3]], buy: [] },
+};
+// the furniture shop sells every piece of furniture
+{
+  const P = { [B.DOUBLE_BED]: 60, [B.FRIDGE]: 55, [B.TV]: 50, [B.STOVE]: 40, [B.DESKTOP_PC]: 90, [B.GAME_CONSOLE]: 70, [B.SHOWER]: 45, [B.BATHTUB]: 45, [B.WASHER]: 50,
+    [B.TOILET]: 25, [B.KITCHEN_SINK]: 30, [B.KITCHEN_COUNTER]: 20, [B.COFFEE_TABLE]: 18, [B.TABLE]: 16, [B.CHAIR]: 8, [B.FLOOR_LAMP]: 14, [B.CEILING_LAMP]: 14, [B.WALL_SHELF]: 12, [B.LIFT_FLOOR]: 30 };
+  const list = [];
+  for (let i = 0; i < 5; i++) list.push([B.SOFA_GRAY + i, 35]);
+  for (const [id, pr] of Object.entries(P)) list.push([Number(id), pr]);
+  for (const id of [B.RUG_RED, B.RUG_BLUE, B.RUG_BEIGE]) list.push([id, 6]);
+  for (const id of [B.PAINTING_SEA, B.PAINTING_CITY, B.PAINTING_FLOWERS, B.PAINTING_ABSTRACT]) list.push([id, 22]);
+  SHOPS.mobles.sell = list;
+}
+
+const Shops = {
+  plan() {
+    const w = G.world;
+    try { const s = w && w.gen && w.gen.structs && typeof stucomVillage === 'function' ? stucomVillage(w.gen) : null; return s && s.shops ? s : null; } catch (e) { return null; }
+  },
+  at(x, y, z) {
+    const pl = this.plan();
+    if (!pl) return null;
+    return pl.shops.find((s) => x >= s.x0 - 1 && x <= s.x1 + 2 && z >= s.z0 - 1 && z <= s.z1 + 1 && Math.abs(y - s.y) < 4) || null;
+  },
+  price(key, id, p) {
+    let k = 1;
+    const fe = typeof Calendar !== 'undefined' ? Calendar.festa() : null;
+    if (fe && fe.k === 'santjoan' && id === I.COCA) k = 0.5;
+    if (fe && fe.k === 'nadal' && key === 'forn') k = 0.8;
+    return Math.max(1, Math.round(p * k));
+  },
+  pay(n) {
+    if (G.mode === 'creative') return true;
+    if ((G.money | 0) < n) return false;
+    G.money = (G.money | 0) - n;
+    if (typeof Bank !== 'undefined' && Bank.refresh) Bank.refresh();
+    return true;
+  },
+  earn(n) { if (G.mode === 'creative') return; G.money = (G.money | 0) + n; if (typeof Bank !== 'undefined' && Bank.refresh) Bank.refresh(); },
+
+  open(key, delivery) {
+    const S = SHOPS[key];
+    if (!S) return;
+    const p = GPanel.open({ title: S.name, sub: S.tag + (delivery ? ' \u00b7 online, delivered to you' : ''), icon: S.icon, cls: 'gp-shop', width: 640 });
+    p.wrap.querySelector('.gp').style.setProperty('--shop', S.color);
+    let tab = 'buy', q = '';
+    const basket = new Map();
+    const count = (id) => G.inv.slots.reduce((a, s) => a + (s && s.id === id ? s.count : 0), 0);
+    const draw = () => {
+      const e = GPanel.esc;
+      const total = [...basket].reduce((a, [id, n]) => a + n * this.price(key, id, S.sell.find((x) => x[0] === id)[1]), 0);
+      const money = G.mode === 'creative' ? '\u221e' : (G.money | 0);
+      const tabs = `<div class="gp-tabs"><button data-tab="buy" class="${tab === 'buy' ? 'on' : ''}">\ud83d\udecd\ufe0f Buy</button>${S.buy.length ? `<button data-tab="sell" class="${tab === 'sell' ? 'on' : ''}">\ud83d\udcb0 Sell</button>` : ''}
+        <span class="shop-money">\ud83e\ude99 ${money}</span></div>`;
+      let body = '';
+      if (tab === 'buy') {
+        const list = S.sell.filter(([id]) => ITEM_DEF[id] && (!q || ITEM_DEF[id].name.toLowerCase().includes(q)));
+        body = (S.sell.length > 12 ? `<input class="shop-q" placeholder="Search\u2026" value="${e(q)}">` : '') + `<div class="shop-grid">${list.map(([id, pr]) => {
+          const now = this.price(key, id, pr), n = basket.get(id) || 0;
+          return `<button class="shop-it${n ? ' in' : ''}" data-add="${id}"><i class="shop-ic" style="background-image:url(${iconURL(id)})"></i><b>${e(ITEM_DEF[id].name)}</b>
+            <span class="shop-pr">${now < pr ? `<s>${pr}</s> ` : ''}\ud83e\ude99 ${now}</span>${n ? `<i class="shop-n">${n}</i>` : ''}</button>`;
+        }).join('')}</div>
+        <div class="shop-foot"><span>${basket.size ? [...basket].map(([id, n]) => n + '\u00d7 ' + e(ITEM_DEF[id].name)).join(', ') : 'Click things to put them in the basket'}</span>
+          ${basket.size ? '<button class="gp-btn" data-clear>Empty</button>' : ''}<button class="gp-btn ok" data-pay ${basket.size ? '' : 'disabled'}>Pay \ud83e\ude99 ${total}</button></div>`;
+      } else {
+        body = `<div class="shop-grid">${S.buy.filter(([id]) => ITEM_DEF[id]).map(([id, pr]) => {
+          const have = count(id);
+          return `<button class="shop-it" data-sell="${id}" ${have ? '' : 'disabled'}><i class="shop-ic" style="background-image:url(${iconURL(id)})"></i><b>${e(ITEM_DEF[id].name)}</b>
+            <span class="shop-pr">+\ud83e\ude99 ${pr} each</span><span class="gp-dim">You have ${have}</span></button>`;
+        }).join('')}</div><p class="gp-dim" style="margin:10px 0 0">Click to sell one \u00b7 Shift-click to sell all</p>`;
+      }
+      p.body.innerHTML = tabs + body;
+      p.body.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; draw(); }));
+      const qi = p.body.querySelector('.shop-q');
+      if (qi) { qi.addEventListener('input', () => { q = qi.value.toLowerCase(); const pos = qi.selectionStart; draw(); const n = p.body.querySelector('.shop-q'); n.focus(); n.setSelectionRange(pos, pos); }); }
+      p.body.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', (ev) => {
+        const id = Number(b.dataset.add);
+        basket.set(id, (basket.get(id) || 0) + (ev.shiftKey ? 8 : 1));
+        sfx('click', null, 0.5, 1.5);
+        draw();
+      }));
+      const clr = p.body.querySelector('[data-clear]');
+      if (clr) clr.addEventListener('click', () => { basket.clear(); draw(); });
+      const pay = p.body.querySelector('[data-pay]');
+      if (pay) pay.addEventListener('click', () => {
+        if (!this.pay(total)) { G.ui.toast('\ud83e\ude99 Not enough coins: you need ' + total); sfx('gate_no', null, 0.6, 1); return; }
+        for (const [id, n] of basket) {
+          let left = n;
+          while (left > 0) {
+            const k = Math.min(left, maxStack(id));
+            const rest = G.inv.add(mkStack(id, k));
+            if (rest > 0) Ents.spawnItem(mkStack(id, rest), G.player.pos[0], G.player.pos[1] + 1, G.player.pos[2]);
+            left -= k;
+          }
+        }
+        G.ui.invDirty();
+        sfx('shop_till', null, 0.7, 1);
+        G.ui.toast(S.icon + ' Thank you! ' + [...basket].map(([id, n]) => n + '\u00d7 ' + ITEM_DEF[id].name).join(', '), 3000);
+        basket.clear();
+        draw();
+      });
+      p.body.querySelectorAll('[data-sell]').forEach((b) => b.addEventListener('click', (ev) => {
+        const id = Number(b.dataset.sell), pr = S.buy.find((x) => x[0] === id)[1];
+        const n = ev.shiftKey ? count(id) : Math.min(1, count(id));
+        if (!n) return;
+        let left = n;
+        for (let i = 0; i < G.inv.slots.length && left > 0; i++) {
+          const s = G.inv.slots[i];
+          if (!s || s.id !== id) continue;
+          const k = Math.min(left, s.count);
+          s.count -= k; left -= k;
+          if (s.count <= 0) G.inv.slots[i] = null;
+        }
+        const got = Math.floor(n * pr + 1e-6);
+        this.earn(got);
+        G.ui.invDirty();
+        sfx('shop_till', null, 0.6, 1.2);
+        G.ui.toast('\ud83d\udcb0 Sold ' + n + '\u00d7 ' + ITEM_DEF[id].name + ' for ' + got + ' coins');
+        draw();
+      }));
+    };
+    draw();
+  },
+
+  // ---- the cars on show: real cars on turntables while you are near, never saved ----
+  cars: [],
+  update(dt) {
+    const pl = this.plan();
+    const p = G.player.pos;
+    const shop = pl && pl.shops.find((s) => s.key === 'cotxes');
+    const near = shop && Math.abs(p[0] - (shop.x0 + shop.x1) / 2) < 48 && Math.abs(p[2] - (shop.z0 + shop.z1) / 2) < 48 && Math.abs(p[1] - shop.y) < 20;
+    if (!near) { if (this.cars.length) { for (const v of this.cars) v.removed = true; this.cars = []; } return; }
+    if (!this.cars.length && typeof Rides !== 'undefined') {
+      const cx = (shop.x0 + shop.x1) / 2 + 0.5;
+      [[-2.2, 'car', 0], [3.2, 'car', 1]].forEach(([dz, kind, paint], i) => {
+        const v = Rides.spawn(kind, cx - 0.5, shop.y, shop.z0 + 5 + dz, i ? Math.PI / 2 : 0.4, paint);
+        v.display = true; v.onGround = true;
+        this.cars.push(v);
+      });
+    }
+    this.cars[0].yaw += dt * 0.25;
+    for (const v of this.cars) { v.vel && (v.vel[0] = v.vel[2] = 0); v.speed = 0; }
+  },
+};
+
+SYNTH.shop_till = (ctx, o, t) => {
+  Sound.tone(ctx, o, t, 0.08, { wave: 'square', f0: 1800, gain: 0.04, filter: ['lowpass', 3000, 1] });
+  Sound.tone(ctx, o, t + 0.12, 0.5, { wave: 'sine', f0: 2093, gain: 0.08 });
+  Sound.tone(ctx, o, t + 0.12, 0.6, { wave: 'sine', f0: 2637, gain: 0.05 });
+  Sound.noise(ctx, o, t + 0.2, 0.25, { type: 'bandpass', freq: 5000, q: 2, gain: 0.08 });
+};
+
+// ---------------------------------------------------------------- hooks ----
+{
+  const use = Act.useItem;
+  Act.useItem = function (initial) {
+    const t = this.target;
+    if (initial && t && t.mob && t.mob.type === 'villager' && t.mob.prof === 'shopkeeper' && !t.mob.dead) {
+      const s = Shops.at(Math.floor(t.mob.pos[0]), Math.floor(t.mob.pos[1]), Math.floor(t.mob.pos[2]));
+      Shops.open(s ? s.key : 'super'); this.swingHand(); return true;
+    }
+    const b = t && t.block;
+    if (initial && b && b.id === B.CASH_REGISTER && !G.player.sneaking) {
+      const s = Shops.at(b.pos[0], b.pos[1], b.pos[2]);
+      if (s) { Shops.open(s.key); this.swingHand(); return true; }
+    }
+    return use.call(this, initial);
+  };
+  // the cars on show open the showroom instead of driving off
+  const board = Vehicles.board;
+  Vehicles.board = function (v) { if (v && v.display) { Shops.open('cotxes'); return; } return board.call(this, v); };
+  const hit = Vehicles.hit;
+  Vehicles.hit = function (v) { if (v && v.display) return; return hit.call(this, v); };
+  const ser = Vehicles.serialize;
+  Vehicles.serialize = function () {
+    const keep = this.list;
+    this.list = keep.filter((v) => !v.display);
+    try { return ser.call(this); } finally { this.list = keep; }
+  };
+  const fu = Furniture.update;
+  Furniture.update = function (dt) { fu.call(this, dt); Shops.update(dt || 0.016); };
+  PC.add({ key: 'shop', icon: '\ud83d\uded2', name: 'Botiga online', run() {
+    const q = GPanel.open({ title: 'Botiga online', sub: 'Delivered to your inventory', icon: '\ud83d\uded2', width: 420 });
+    q.body.innerHTML = `<div class="pp-grid">${Object.entries(SHOPS).filter(([k]) => k !== 'cotxes').map(([k, s]) => `<button class="gp-btn" data-s="${k}">${s.icon} ${GPanel.esc(s.name)}</button>`).join('')}</div>`;
+    q.body.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => Shops.open(b.dataset.s, true)));
+  } });
+}
+
+// ---------------------------------------------------------------- signs ----
+{
+  const sign = (key, draw) => { PIC_BUILTIN['shop_' + key] = { w: 4, h: 1, draw }; };
+  const plate = (bg, fg, title, sub, icon) => (g, W, H) => {
+    const grd = g.createLinearGradient(0, 0, 0, H);
+    grd.addColorStop(0, bg[0]); grd.addColorStop(1, bg[1]);
+    g.fillStyle = grd; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(0, 0, W, H * 0.08);
+    g.textBaseline = 'middle';
+    g.font = `${H * 0.62}px serif`; g.textAlign = 'center'; g.fillText(icon, H * 0.62, H * 0.53);
+    g.fillStyle = fg; g.textAlign = 'left';
+    g.font = `900 ${H * 0.46}px Arial, sans-serif`; g.fillText(title, H * 1.2, H * 0.42);
+    g.globalAlpha = 0.8; g.font = `700 ${H * 0.2}px Arial, sans-serif`; g.fillText(sub, H * 1.22, H * 0.78); g.globalAlpha = 1;
+  };
+  sign('super', plate(['#e3262f', '#a8141c'], '#fff', 'SuperBloc', 'SUPERMERCAT \u00b7 obert cada dia', '\ud83d\uded2'));
+  sign('forn', plate(['#f3e2c4', '#d9b98a'], '#6a3a14', 'Forn Can Pau', 'PA \u00b7 PASTISSERIA \u00b7 DES DE 1924', '\ud83e\udd50'));
+  sign('mobles', plate(['#ff9a3c', '#d9651a'], '#fff', 'Mobles', 'BLOCKLANDS \u00b7 la teva casa', '\ud83d\udecb\ufe0f'));
+  sign('cotxes', plate(['#2a3244', '#10141c'], '#e8edf5', 'Motor STUCOM', 'CONCESSIONARI OFICIAL', '\ud83d\ude97'));
+  sign('quiosc', plate(['#2f7df0', '#1a55b8'], '#fff', 'Quiosc', 'PREMSA \u00b7 BEGUDES \u00b7 TARGETES', '\ud83d\udcf0'));
+  PIC_BUILTIN.shop_galeries = { w: 3, h: 1, draw: plate(['#141a26', '#0a0e16'], '#ffd34d', 'Galeries', '\u2190 BOTIGUES \u00b7 SHOPS', '\ud83d\udecd\ufe0f') };
+}
+
+// ---------------------------------------------------------------- textures and sprites ----
+{
+  gen('shelf_white', (d, rng) => fillTile(d, (x, y) => put(d, x, y, [232, 234, 236], (x === 0 || x === TM ? 0.85 : 1) * (0.96 + rng() * 0.04))), { smooth: 0.6, bump: 0.1 });
+  const goods = (pal, shape) => (d, rng) => {
+    // rows of products: packets and tins in bright colours, a price strip under each row
+    const cols = [];
+    for (let i = 0; i < 8; i++) cols.push(pal[Math.floor(rng() * pal.length)]);
+    fillTile(d, (x, y) => {
+      const slot = Math.floor(x / 4), c = cols[slot];
+      const inX = x % 4, top = shape === 'bottle' ? (inX === 0 || inX === 3 ? 6 : 2) : shape === 'loaf' ? 4 + ((x * 7) % 3) : 3;
+      let col = [40, 40, 44], f = 0.6;
+      if (y >= top && inX !== 3) { col = c; f = (inX === 0 ? 0.85 : 1) * (y === top ? 1.15 : 1); if (shape !== 'loaf' && y > 12 && y < 18) { col = [245, 245, 240]; f = 1; } }
+      if (y >= 29) { col = [250, 214, 60]; f = 1; }
+      put(d, x, y, col, f * (0.95 + rng() * 0.07));
+    });
+  };
+  gen('goods_grocery', goods([[220, 40, 40], [40, 120, 220], [250, 200, 40], [60, 170, 80], [240, 130, 40], [150, 60, 180], [240, 240, 240]], 'box'), { smooth: 0.3, bump: 0.3 });
+  gen('goods_bread', goods([[206, 146, 64], [180, 118, 50], [226, 176, 96], [150, 96, 40]], 'loaf'), { smooth: 0.1, bump: 0.6 });
+  gen('goods_drinks', (d, rng, ctx) => {
+    const cols = [[230, 60, 40], [250, 170, 40], [60, 160, 230], [240, 240, 250], [80, 190, 90], [40, 40, 50]];
+    fillTile(d, (x, y, k) => {
+      const inX = x % 4, c = cols[Math.floor(x / 4) % cols.length];
+      let col = [210, 232, 245], f = 1;
+      if (inX !== 3 && y >= (inX === 0 ? 8 : 4)) { col = c; f = inX === 0 ? 0.85 : 1.05; }
+      if (y === 0 || y === TM) { col = [200, 204, 210]; }
+      put(d, x, y, col, f * (0.95 + rng() * 0.05));
+      ctx.emit[k] = 0.25;
+    });
+  }, { smooth: 0.9, bump: 0.1 });
+  gen('till_screen', (d, rng, ctx) => fillTile(d, (x, y, k) => {
+    let c = [20, 60, 40];
+    if (y >= 8 && y <= 12 && x >= 4 && x <= 27 && (x + y) % 3) c = [90, 250, 150];
+    if (y >= 18 && y <= 22 && x >= 16 && x <= 27) c = [250, 230, 90];
+    put(d, x, y, c, 0.95 + rng() * 0.05);
+    ctx.emit[k] = 0.8;
+  }), { smooth: 0.9, bump: 0 });
+  gen('till_keys', (d, rng) => fillTile(d, (x, y) => put(d, x, y, x % 4 && y % 4 ? [200, 204, 210] : [40, 40, 44], 0.95 + rng() * 0.05)), { smooth: 0.5, bump: 0.5 });
+
+  sprite('i_croissant', (d) => {
+    sprPoly(d, [[4, 20], [9, 12], [16, 9], [23, 12], [28, 20], [23, 18], [16, 16], [9, 18]], [214, 148, 60]);
+    for (const x of [10, 16, 22]) sprSeg(d, x - 1, 12, x + 1, 17, 1.1, [240, 190, 110]);
+  });
+  sprite('i_ensaimada', (d) => { sprDisc(d, 16, 17, 11, [232, 190, 120]); sprDisc(d, 16, 17, 7, [220, 170, 100]); sprDisc(d, 16, 17, 3, [232, 190, 120]); for (let i = 0; i < 14; i++) sprDisc(d, 8 + (i * 37) % 17, 10 + (i * 53) % 14, 0.9, [255, 255, 255]); });
+  sprite('i_coca', (d) => { sprRect(d, 3, 11, 29, 23, [226, 170, 90]); for (const [x, c] of [[7, [220, 40, 40]], [12, [60, 170, 70]], [17, [250, 200, 40]], [22, [220, 40, 40]], [26, [240, 130, 40]]]) sprDisc(d, x, 15 + (x % 3), 1.8, c); for (let i = 0; i < 10; i++) sprDisc(d, 5 + i * 2.4, 20, 0.8, [250, 240, 200]); });
+  sprite('i_cookie', (d) => { sprDisc(d, 16, 16, 10, [196, 140, 70]); for (const [x, y] of [[12, 12], [19, 14], [14, 20], [21, 20], [16, 9]]) sprDisc(d, x, y, 1.5, [70, 40, 20]); });
+  sprite('i_pa_tomaquet', (d) => { sprRect(d, 4, 10, 28, 24, [214, 160, 80]); sprRect(d, 6, 12, 26, 22, [200, 70, 50]); sprRect(d, 9, 14, 13, 16, [240, 120, 90]); sprRect(d, 18, 17, 22, 19, [240, 120, 90]); sprSeg(d, 6, 12, 26, 12, 1, [240, 220, 120]); });
+  sprite('i_juice', (d) => { sprRect(d, 10, 8, 22, 28, [250, 150, 30]); sprRect(d, 10, 8, 22, 11, [250, 250, 250]); sprRect(d, 13, 4, 19, 8, [60, 170, 70]); sprDisc(d, 16, 19, 4, [255, 200, 60]); });
+  sprite('i_chocolate', (d) => { sprRect(d, 6, 7, 26, 25, [92, 52, 30]); for (let x = 6; x < 26; x += 5) sprSeg(d, x, 7, x, 25, 0.5, [70, 38, 20]); for (let y = 7; y < 25; y += 6) sprSeg(d, 6, y, 26, y, 0.5, [70, 38, 20]); sprRect(d, 6, 17, 26, 25, [200, 40, 50]); });
+  sprite('i_sandwich', (d) => { sprEllipse(d, 16, 17, 13, 6, 0, [214, 160, 80]); sprSeg(d, 5, 17, 27, 17, 1.5, [200, 70, 60]); sprSeg(d, 5, 15, 27, 15, 1, [110, 180, 70]); sprEllipse(d, 16, 13, 12, 3.5, 0, [230, 180, 100]); });
 }
 </script>
 <script>

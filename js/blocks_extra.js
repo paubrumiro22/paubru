@@ -67,6 +67,8 @@
     'WALL_SHELF', 'SHOWER', 'SHOWER_TOP', 'BATHTUB', 'TOILET', 'WASHER', 'WASHER_ON', 'DESKTOP_PC', 'GAME_CONSOLE', 'TV_GAME',
     // lifts: the plate a lift stops at on each floor (lift.js)
     'LIFT_FLOOR',
+    // shops (shops.js): shelving with goods and the till
+    'SHELF_GROCERY', 'SHELF_BREAD', 'SHELF_DRINKS', 'CASH_REGISTER',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here

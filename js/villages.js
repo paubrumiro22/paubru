@@ -73,7 +73,7 @@ function villagerTrades(m) {
 }
 
 const VILLAGER_NAMES = ['Aldo', 'Berta', 'Ciro', 'Dalia', 'Elio', 'Fina', 'Gael', 'Hana', 'Iker', 'Julia', 'Kai', 'Lola', 'Mateo', 'Nuria', 'Oto', 'Paz', 'Quim', 'Rosa', 'Saúl', 'Teo', 'Uma', 'Vera', 'Xoan', 'Yago', 'Zoe'];
-const PROF_NAMES = { banker: 'Banker', student: 'Student', teacher: 'Teacher', farmer: 'Farmer', fisher: 'Fisher', smith: 'Blacksmith', librarian: 'Librarian', cleric: 'Cleric', mason: 'Mason', shepherd: 'Shepherd' };
+const PROF_NAMES = { shopkeeper: 'Shopkeeper', banker: 'Banker', student: 'Student', teacher: 'Teacher', farmer: 'Farmer', fisher: 'Fisher', smith: 'Blacksmith', librarian: 'Librarian', cleric: 'Cleric', mason: 'Mason', shepherd: 'Shepherd' };
 
 // ---- population ----
 const Villages = {

@@ -154,6 +154,10 @@ function planDistrict(g, plan) {
   // ---- the metro, last: nothing is ever built over its stairs ----
   const tx = cx + 12, at = (v) => [tx + 0.5, D.P - 1, cz + v + 0.5];
   piece(box(-5, -18, 16, 60), (W) => buildDistrictMetro(W, g, D));
+  // ---- Galeries STUCOM: the shopping arcade under the square, off the Universitat landing ----
+  piece(box(-23, -16, -2, 16), (W) => buildMall(W, g, D));
+  plan.shops = MALL_SHOPS.map((s) => ({ key: s.key, x0: cx + s.u0, z0: cz + s.v0, x1: cx + s.u1, z1: cz + s.v1, y: D.P }));
+  for (const s of MALL_SHOPS) plan.spawns.push({ kind: 'villager', prof: 'shopkeeper', x: cx + s.keeper[0] + 0.5, y: D.P, z: cz + s.keeper[1] + 0.5, home: [cx + s.keeper[0] + 0.5, cz + s.keeper[1] + 0.5], homeR: 1.5 });
   plan.metro = {
     x: cx + 7, z: cz, y: D.P, depth: METRO_DEPTH, track: [tx, cz - 14, tx, cz + 56],
     line: { a: at(-14), b: at(56), stops: [{ name: 'Universitat', at: at(-9) }, { name: 'Catalunya', at: at(51) }] },
@@ -658,4 +662,85 @@ function schoolUpgrade(W, x0, Z, set, sz, F, floors, roof, out) {
   for (const a of [5, 12]) for (let y = roof + 1; y <= roof + 3; y++) set(a, y, 6, B.DARK_OAK_FENCE);
   for (let a = 5; a <= 12; a++) set(a, roof + 4, 6, B.DARK_OAK_FENCE);
   for (const a of [6, 8, 9, 11]) set(a, roof + 3, 6, B.LANTERN, 8);
+}
+
+// ---------------------------------------------------------------- Galeries STUCOM ----
+// Under the west half of the square, level with the metro landing it opens off: a terrazzo
+// arcade (u -12..-10) with shops either side behind glass fronts and lit signs. West: the
+// SuperBloc supermarket and Mobles Blocklands. East: Forn Can Pau (bakery), the car showroom and a
+// kiosk. The shop logic (shopkeepers, tills, catalogues, the cars on show) is in shops.js.
+const MALL_SHOPS = [
+  { key: 'super', u0: -21, v0: -14, u1: -14, v1: -1, front: -13, door: [-8, -7], keeper: [-15, -4], till: [-15, -3], color: 14 },
+  { key: 'mobles', u0: -21, v0: 1, u1: -14, v1: 14, front: -13, door: [7, 8], keeper: [-15, 12], till: [-15, 13], color: 1 },
+  { key: 'forn', u0: -8, v0: -14, u1: -4, v1: -7, front: -9, door: [-11, -10], keeper: [-5, -12], till: [-6, -12], color: 12 },
+  { key: 'cotxes', u0: -8, v0: -5, u1: -4, v1: 5, front: -9, door: [-1, 0], keeper: [-5, 4], till: [-6, 4], color: 15 },
+  { key: 'quiosc', u0: -8, v0: 11, u1: -4, v1: 14, front: -9, door: [12, 13], keeper: [-5, 13], till: [-6, 13], color: 3 },
+];
+function buildMall(W, g, D) {
+  const { cx, cz, P } = D;
+  const set = (u, y, v, id, f) => W.set(cx + u, y, cz + v, id, f);
+  const U0 = -22, U1 = -3, V0 = -15, V1 = 15, Y0 = P - 1, Y1 = P + 5;
+  if (!rectHits(W, cx + U0 - 1, cz + V0 - 1, cx + U1 + 1, cz + V1 + 1)) return;
+  const shopAt = (u, v) => MALL_SHOPS.find((s) => u >= s.u0 && u <= s.u1 && v >= s.v0 && v <= s.v1);
+  const FLOORS = { super: B.CONCRETE, mobles: B.PLANKS, forn: B.TERRACOTTA_C + 2, cotxes: B.POLISHED_ANDESITE, quiosc: B.CONCRETE + 8 };
+  // shell, floors, ceiling with lights
+  for (let u = U0 - 1; u <= U1; u++) for (let v = V0 - 1; v <= V1 + 1; v++) for (let y = Y0 - 1; y <= Y1 + 1; y++) {
+    const outer = u === U0 - 1 || v === V0 - 1 || v === V1 + 1 || u === U1 || y === Y0 - 1 || y === Y1 + 1;
+    const s = shopAt(u, v);
+    let id = B.AIR;
+    if (outer) id = B.CONCRETE + 7;
+    else if (u === U0 || v === V0 || v === V1) id = y === P + 1 ? B.CONCRETE + 8 : B.CONCRETE;
+    else if (y === Y0) id = s ? FLOORS[s.key] : ((u + v) & 1) ? B.TERRAZZO : B.QUARTZ_BLOCK || B.TERRAZZO;
+    else if (y === Y1) id = (u % 3 === 0 && v % 3 === 0) ? B.GLASS_LAMP : B.CONCRETE;
+    else if (!s && !(u >= -12 && u <= -10) && !(v >= 7 && v <= 9 && u > -10)) id = B.CONCRETE;   // walls between shops
+    set(u, y, v, id);
+  }
+  // shop fronts: glass, a door opening, the fascia with the lit sign
+  for (const s of MALL_SHOPS) {
+    const out = s.front > s.u1 ? 0 : 1;                 // the way the front faces (towards the arcade)
+    for (let v = s.v0; v <= s.v1; v++) for (let y = P; y <= P + 4; y++) {
+      const door = v >= s.door[0] && v <= s.door[1] && y <= P + 1;
+      set(s.front, y, v, door ? B.AIR : y <= P + 2 ? B.GLASS_PANE : B.CONCRETE + s.color);
+    }
+    const len = Math.min(4, s.v1 - s.v0 + 1), mid = Math.floor((s.v0 + s.v1) / 2);
+    const signU = s.front + (out === 0 ? 1 : -1);
+    set(signU, P + 3, mid, B.AIR);
+    // pictures run towards -v when facing +u and towards +v when facing -u
+    const anchor = out === 0 ? mid + Math.floor(len / 2) : mid - Math.floor(len / 2) + (len % 2 ? 0 : 1);
+    W.pic(cx + signU, P + 3, cz + anchor, out, len, 1, 'shop_' + s.key);
+    // the till on a counter, the keeper's stool behind it
+    set(s.till[0], P, s.till[1], B.KITCHEN_COUNTER, out);
+    set(s.till[0], P + 1, s.till[1], B.CASH_REGISTER, out === 0 ? 1 : 0);
+  }
+  // the passage from the metro landing, with a sign
+  for (let v = 7; v <= 9; v++) for (let y = P; y <= P + 2; y++) { if (y <= P + 1) set(-2, y, v, B.AIR); set(U1, y, v, B.AIR); }
+  for (let v = 7; v <= 9; v++) set(-2, P - 1, v, B.TERRAZZO);
+  W.pic(cx - 1, P + 3, cz + 10 - 1, 5, 3, 1, 'shop_galeries');
+  // ---- SuperBloc ----
+  for (let v = -13; v <= -3; v++) for (const y of [P, P + 1]) set(-21, y, v, B.SHELF_GROCERY, 1);
+  for (let v = -12; v <= -6; v++) for (const y of [P, P + 1]) { set(-18, y, v, B.SHELF_GROCERY, 0); set(-17, y, v, v & 1 ? B.SHELF_BREAD : B.SHELF_GROCERY, 1); }
+  for (let u = -20; u <= -15; u++) for (const y of [P, P + 1]) set(u, y, -14, B.SHELF_DRINKS, 5);
+  for (let u = -16; u <= -15; u++) set(u, P, -3, B.KITCHEN_COUNTER, 4);
+  set(-16, P + 1, -3, B.AIR);
+  // ---- Mobles Blocklands: a showroom of rooms ----
+  const M = (u, v, id, f) => set(u, P, v, id, f);
+  M(-21, 3, B.SOFA_RED, 1); M(-21, 4, B.SOFA_RED, 1); M(-21, 5, B.SOFA_RED, 1); M(-19, 4, B.COFFEE_TABLE, 1);
+  for (let u = -20; u <= -18; u++) for (let v = 3; v <= 5; v++) if (!(u === -19 && v === 4)) M(u, v, B.RUG_RED, 0);
+  M(-21, 7, B.TV_ON, 1); M(-21, 9, B.FLOOR_LAMP, 0);
+  M(-21, 11, B.DOUBLE_BED_HEAD, 1); M(-21, 12, B.DOUBLE_BED_HEAD, 1 | 8); M(-20, 11, B.DOUBLE_BED, 1); M(-20, 12, B.DOUBLE_BED, 1 | 8);
+  M(-17, 11, B.TABLE, 0); M(-17, 12, B.TABLE, 0); M(-16, 11, B.CHAIR, 0); M(-16, 12, B.CHAIR, 0); M(-18, 11, B.CHAIR, 1); M(-18, 12, B.CHAIR, 1);
+  M(-17, 2, B.BATHTUB, 4); M(-16, 2, B.TOILET, 4); M(-15, 2, B.WASHER, 4);
+  set(-21, P + 2, 4, B.PAINTING_SEA, 1); set(-21, P + 2, 12, B.PAINTING_FLOWERS, 1); set(-17, P + 4, 11, B.CEILING_LAMP, 0); set(-19, P + 4, 4, B.CEILING_LAMP, 0);
+  // ---- Forn Can Pau ----
+  for (let v = -13; v <= -8; v++) for (const y of [P, P + 1]) set(-4, y, v, B.SHELF_BREAD, 0);
+  set(-6, P, -13, B.KITCHEN_COUNTER, 1); set(-6, P, -11, B.KITCHEN_COUNTER, 1); set(-6, P, -10, B.KITCHEN_COUNTER, 1);
+  set(-4, P + 3, -14, B.LANTERN, 8);
+  // ---- the car showroom: the cars on show are placed by shops.js; a turntable floor and posters ----
+  for (let u = -8; u <= -4; u++) for (let v = -5; v <= 3; v++) if (Math.hypot(u + 6, v + 1) < 2.6) set(u, P - 1, v, B.CONCRETE + 15);
+  set(-6, P, 4, B.KITCHEN_COUNTER, 1); set(-4, P, 5, B.FLOOR_LAMP, 0);
+  // ---- kiosk: papers and drinks ----
+  for (let v = 11; v <= 14; v++) set(-4, P, v, v & 1 ? B.SHELF_DRINKS : B.SHELF_GROCERY, 0);
+  // benches and plants along the arcade
+  for (const v of [-13, -4, 4, 12]) { set(-11, P, v, B.PODZOL); set(-11, P + 1, v, B.BUSH); }
+  for (const v of [-9, 0, 10]) { set(-12, P, v, shapeId('oak', 'stairs'), 1); set(-10, P, v, shapeId('oak', 'stairs'), 0); }
 }

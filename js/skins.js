@@ -527,6 +527,26 @@ SKINS.push({
     P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x141414) : suit));
   },
 });
+// shopkeepers in the Galeries STUCOM (shops.js): a striped shirt under a green apron, a cap
+SKINS.push({
+  key: 'v_shopkeeper', name: 'Shopkeeper', icon: '', hidden: true, villager: 'shopkeeper',
+  extras: [{ part: 'head', box: [-4.3, 31.6, -4.3, 4.3, 33.2, 4.3], color: 0x2f7d4a }, { part: 'head', box: [-4.3, 31.6, 4.3, 4.3, 32.2, 7], color: 0x2f7d4a }],
+  paint(P) {
+    const sk = rgb(0xd8a888), hr = rgb(0x5a3a22), apron = rgb(0x2f7d4a), stripe = rgb(0xf0f0ea), shirt = rgb(0xc84040);
+    P.fill('head', (x, y, w, h, f) => {
+      if (f === 'top') return hr;
+      if (f === 'front') { if (y < 1) return hr; if (y === 3 && (x === 2 || x === 5)) return rgb(0x2a2a30); if (y === 5 && x >= 3 && x <= 4) return rgb(0xa05050); return sk; }
+      return y < 3 ? hr : sk;
+    });
+    P.fill('body', (x, y, w, h, f) => {
+      if (f === 'front' && x >= 1 && x <= 6 && y >= 2) return y === 6 && (x === 3 || x === 4) ? rgb(0x1f5a34) : apron;
+      if (f === 'back' && y === 6) return apron;
+      return y % 2 ? stripe : shirt;
+    });
+    P.fill('arm', (x, y, w, h) => (y >= h - 3 ? sk : y % 2 ? stripe : shirt));
+    P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x1a1a1a) : rgb(0x2c3444)));
+  },
+});
 // STUCOM teachers (asked for by the user, who studies there, with their photos as reference):
 // Noelia González, Joan Zarzuela (the head of the school) and Pedro Porcuna (computing). Pixel
 // portraits that keep what makes each recognisable: hair, glasses, beard, clothes.

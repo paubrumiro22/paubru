@@ -374,3 +374,35 @@ FT2.lift = defTex('lift_floor');
 SHAPE_FN[SH_LIFT] = () => ({ boxes: [[0, 14.5, 0, 16, 16, 16, FT2.lift], [0.5, 13.5, 0.5, 15.5, 14.5, 15.5, FT.metal]], coll: [[0, 14.5, 0, 16, 16, 16]] });
 defBlock(B.LIFT_FLOOR, 'Lift Floor', RT_SHAPE, 'lift_floor', { hard: 2, tool: TOOL_PICK, snd: SND.METAL, atten: 0, solid: true, cat: 'transport' });
 BLOCK_SHAPE[B.LIFT_FLOOR] = SH_LIFT;
+
+// ---- shop fittings: shelving units stocked with goods (the goods face the front) and a till ----
+const SH_SHOP_SHELF = 58, SH_REGISTER = 59;
+FT2.goods = { [B.SHELF_GROCERY]: defTex('goods_grocery'), [B.SHELF_BREAD]: defTex('goods_bread'), [B.SHELF_DRINKS]: defTex('goods_drinks') };
+FT2.shelfWhite = defTex('shelf_white'); FT2.till = defTex('till_screen'); FT2.tillKeys = defTex('till_keys');
+function shopShelfBoxes(f, id) {
+  const gd = FT2.goods[id] || FT2.goods[B.SHELF_GROCERY], W_ = FT2.shelfWhite;
+  const goods = faces6(gd, gd, gd, gd, gd, W_);
+  const b = [
+    [0, 0, 0, 16, 16, 1.2, W_], [0, 0, 1.2, 1, 16, 14, W_], [15, 0, 1.2, 16, 16, 14, W_],
+    [1, 0, 1.2, 15, 1.2, 14, W_], [1, 5.2, 1.2, 15, 6, 14, W_], [1, 10.6, 1.2, 15, 11.4, 14, W_], [0, 15.4, 0, 16, 16, 14, W_],
+    [1.2, 1.2, 2, 14.8, 5.2, 13, goods], [1.2, 6, 2, 14.8, 10.2, 13, goods], [1.2, 11.4, 2, 14.8, 15.2, 13, goods],
+  ];
+  if (id === B.SHELF_DRINKS) b.push([1, 0.5, 14, 15, 15.5, 14.4, FT2.shelfWhite]);   // glass door frame
+  return furnXf(f, b);
+}
+SHAPE_NBF[SH_SHOP_SHELF] = (f, get, id) => shopShelfBoxes(f, id);
+SHAPE_FN[SH_SHOP_SHELF] = (f) => ({ boxes: shopShelfBoxes(f, B.SHELF_GROCERY), coll: furnXf(f, [[0, 0, 0, 16, 16, 14]]) });
+SHAPE_FN[SH_REGISTER] = (f) => ({
+  boxes: furnXf(f, [
+    [2, 0, 3, 14, 3, 13, faces6(FT.black, FT2.tillKeys, FT.black, FT.black, FT.black)], [2.5, 3, 8.5, 13.5, 3.5, 12.5, FT.metal],
+    [7, 3, 4, 9, 7, 5, FT.black], [3.5, 7, 3.5, 12.5, 12.5, 5, faces6(FT.black, FT.black, FT.black, FT2.till, FT.black)],
+  ]),
+  coll: furnXf(f, [[2, 0, 3, 14, 7, 13]]),
+});
+{
+  const def = (id, name, tex, k, o) => { defBlock(id, name, RT_SHAPE, tex, with_({ hard: 1.5, snd: SND.METAL, tool: TOOL_PICK, atten: 0, solid: true, cat: 'furniture' }, o || {})); BLOCK_SHAPE[id] = k; };
+  def(B.SHELF_GROCERY, 'Grocery Shelves', 'shelf_white', SH_SHOP_SHELF);
+  def(B.SHELF_BREAD, 'Bread Shelves', 'shelf_white', SH_SHOP_SHELF);
+  def(B.SHELF_DRINKS, 'Drinks Fridge', 'shelf_white', SH_SHOP_SHELF, { emit: 5 });
+  def(B.CASH_REGISTER, 'Cash Register', 'furn_black', SH_REGISTER, { hard: 0.8, emit: 3 });
+}
