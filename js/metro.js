@@ -1,12 +1,13 @@
 'use strict';
 // The STUCOM metro line runs by itself, and players can ride in other players' vehicles.
 //
-// Line: campus.js builds Universitat (under the campus) and Catalunya at the end of a tunnel;
-// plan.metro.line holds the track and the two stops. While you are near it a train (a metro ride
-// with `auto`) shuttles between them: it pulls into the platform, opens for a few seconds with
-// the chime and the next station on the sign, then leaves the other way (the driver changes cab:
-// the train keeps its place on the track and the lead car becomes the other end). Right-click it
-// to get on as a passenger; Shift gets off. It is local to each player and never saved.
+// Line: campus.js / district.js build Universitat and Catalunya; the control panel (metro_panel.js)
+// adds stations further on. MetroNet follows the rails to find the whole line and its platforms.
+// While you are near it a train (a metro ride with `auto`) runs from station to station: it pulls
+// into each platform, opens for a few seconds with the chime and the next station on the sign,
+// and at the end of the line the driver changes cab (the train keeps its place on the track and
+// the lead car becomes the other end). Right-click it to get on as a passenger; Shift gets off.
+// It is local to each player and never saved.
 //
 // Passengers: right-click another player's car, bus, boat, helicopter or metro to sit in one of
 // its free seats. Your position then follows their vehicle, and your presence says where you sit
@@ -25,80 +26,80 @@ const PASSENGER_SEATS = {
 };
 
 const Metro = {
-  line: null, lineKey: null, train: null, sign: null, signT: 0,
+  train: null, sign: null, signT: 0,
 
-  lineOf() {
-    const w = G.world;
-    if (!w || !w.gen || !w.gen.structs) return null;
-    const key = w.seed + ':' + w.genVer;
-    if (this.lineKey !== key) {
-      this.lineKey = key;
-      const st = typeof stucomVillage === 'function' ? stucomVillage(w.gen) : null;
-      if (st && !st.metro) structuresIn(w.gen, st.x, st.z, st.x, st.z);   // pieces are planned lazily
-      this.line = st && st.metro && st.metro.line ? st.metro.line : null;
-      if (this.line) {
-        const L = this.line;
-        const A = L.stops[0].at, Bp = L.stops[1].at, l = Math.hypot(Bp[0] - A[0], Bp[2] - A[2]) || 1;
-        L.u = [(Bp[0] - A[0]) / l, 0, (Bp[2] - A[2]) / l];
-      }
-      this.train = null;
-    }
-    return this.line;
-  },
+  // the line as traced along its rails (metro_panel.js): path, index of each cell, stations
+  net() { return typeof MetroNet !== 'undefined' ? MetroNet.get() : null; },
 
   update(dt) {
-    const L = this.lineOf();
+    const N = this.net();
     this.updateSign(dt);
     Passengers.update(dt);
-    if (!L) return;
+    if (!N || N.stations.length < 2) return;
     const p = G.player, w = G.world;
-    const A = L.stops[0].at, Bp = L.stops[1].at;
-    const mid = [(A[0] + Bp[0]) / 2, (A[2] + Bp[2]) / 2];
-    const near = Math.hypot(p.pos[0] - mid[0], p.pos[2] - mid[1]) < 110 && Math.abs(p.pos[1] - A[1]) < 50;
     const t = this.train;
     if (t && (t.removed || !Vehicles.list.includes(t))) this.train = null;
-    if (!near) {
+    if (!MetroNet.near(p.pos)) {
       if (this.train && G.vehicle !== this.train) { this.train.removed = true; this.train = null; }
       return;
     }
-    if (!this.train && w.isLoaded(Math.floor(A[0]), Math.floor(A[2])) && IS_RAIL(w.getBlock(Math.floor(A[0]), Math.floor(A[1]), Math.floor(A[2])))) {
-      // start at Universitat, pulled in from the tunnel (so its lead car faces the city end)
-      const yaw = Math.atan2(-L.u[0], -L.u[2]);
-      const v = Rides.spawn('metro', A[0], A[1] + 2 / 16, A[2], yaw, 0);
-      if (v.findRail()) {
-        v.auto = { stop: 0, state: 'dwell', t: METRO_STOP.dwell, said: false };
-        this.train = v;
-      } else v.removed = true;
-    }
+    if (this.train) return;
+    // a train waits at the station nearest to you, about to leave along the line
+    let best = null, bd = Infinity;
+    N.stations.forEach((st, i) => {
+      const c = N.path[st.hp];
+      const d = Math.hypot(c[0] + 0.5 - p.pos[0], c[2] + 0.5 - p.pos[2]);
+      if (d < bd) { bd = d; best = i; }
+    });
+    const dir = best === N.stations.length - 1 ? -1 : 1, st = N.stations[best];
+    const h = dir > 0 ? st.hp : st.hm, c = N.path[h], nx = N.path[clamp(h + dir, 0, N.path.length - 1)];
+    if (!w.isLoaded(c[0], c[2]) || !IS_RAIL(w.getBlock(c[0], c[1], c[2]))) return;
+    const yaw = Math.atan2(nx[0] - c[0], nx[2] - c[2]);
+    const v = Rides.spawn('metro', c[0] + 0.5, c[1] + 2 / 16, c[2] + 0.5, yaw, 0);
+    if (v.findRail()) {
+      v.auto = { dir, target: best, state: 'dwell', t: METRO_STOP.dwell, said: false };
+      this.train = v;
+    } else v.removed = true;
   },
 
-  // One step of the autopilot: accelerate, brake into the platform, wait, change cab.
+  // One step of the autopilot: accelerate, brake into the next platform, wait, go on; at the end
+  // of the line the driver changes cab and the train comes back.
   drive(v, dt) {
-    const L = this.line, a = v.auto;
-    if (!L || !v.rail) { v.drive(dt, null); return; }
+    const N = this.net(), a = v.auto;
+    if (!N || !v.rail || !N.stations[a.target]) { v.drive(dt, null); return; }
     const keys = new Set();
+    const r = v.rail, cur = N.idx.get(posKey(r.x, r.y, r.z));
+    if (cur === undefined) { v.drive(dt, { keys }); return; }
+    const T = N.stations[a.target];
     if (a.state === 'run') {
-      const to = L.stops[a.stop].at;
-      const f = [Math.sin(v.yaw), Math.cos(v.yaw)];
-      const s = (to[0] - v.pos[0]) * f[0] + (to[2] - v.pos[2]) * f[1];
+      const goal = a.dir > 0 ? T.hp : T.hm;
+      const s = (goal - cur) * a.dir - (r.t - 0.5);
       const brakeDist = v.speed * v.speed / (2 * v.def.brake * 1.5) + 1;
       if (s > brakeDist) keys.add('KeyW');
       else if (v.speed > 0.6) keys.add('Space');
       if (s < 0.4 || (s < 2.5 && v.speed < 0.7)) {
         a.state = 'dwell'; a.t = METRO_STOP.dwell; a.said = false; v.speed = 0;
-        this.say(v, 'arrive', L.stops[a.stop].name);
+        this.say(v, 'arrive', T.name);
       }
     } else {
       a.t -= dt;
       v.speed = 0;
-      if (!a.said && a.t < METRO_STOP.announce) { a.said = true; this.say(v, 'next', L.stops[1 - a.stop].name); }
+      const end = !N.stations[a.target + a.dir];
+      const next = N.stations[a.target + (end ? -a.dir : a.dir)];
+      if (!a.said && a.t < METRO_STOP.announce && next) { a.said = true; this.say(v, 'next', next.name); }
       if (a.t <= 0) {
-        // the driver walks to the other cab: the lead car becomes the far end of the train
-        const f = [Math.sin(v.yaw), Math.cos(v.yaw)];
-        v.pos[0] -= f[0] * (METRO_LEN - 4); v.pos[2] -= f[1] * (METRO_LEN - 4);
-        v.yaw = wrapAngle(v.yaw + Math.PI);
-        v.findRail();
-        a.stop = 1 - a.stop; a.state = 'run';
+        if (end) {
+          // the driver walks to the other cab: the lead car becomes the far end of the train
+          const nh = clamp(cur - a.dir * Math.round(METRO_LEN - 4), 0, N.path.length - 1);
+          const c = N.path[nh], o = N.path[clamp(nh - a.dir, 0, N.path.length - 1)];
+          v.pos = [c[0] + 0.5, c[1] + 2 / 16, c[2] + 0.5];
+          v.yaw = Math.atan2(o[0] - c[0], o[2] - c[2]);
+          v.findRail();
+          a.dir = -a.dir;
+        }
+        a.target += a.dir;
+        if (!N.stations[a.target]) a.target = clamp(a.target, 0, N.stations.length - 1);
+        a.state = 'run';
         sfx('metro_doors', v.pos, 1, 1);
       }
     }
@@ -181,8 +182,9 @@ const Passengers = {
     const r = Net.peers.get(this.seat.peer), v = r && r.ride;
     this.seat = null;
     const p = G.player;
-    if (v) { const side = v.toWorld([2.2, 0.5, 0]); p.pos = side; }
     p.vel = [0, 0, 0]; p.fallStart = null;
+    if (v && standNear(p, [v.toWorld([2.2, 0.5, 0]), v.toWorld([-2.2, 0.5, 0])], v.kind === 'metro' ? 1 : 0)) { Net.sendT = 0; return; }
+    if (v) p.pos = v.toWorld([2.2, 0.5, 0]);
     liftOutOfBlocks(p);
     Net.sendT = 0;
   },

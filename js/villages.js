@@ -126,6 +126,8 @@ const Villages = {
           m.home = s.home || [plan.x, plan.z];
           m.homeR = s.homeR || (plan.type === 'castle' ? 12 : plan.type === 'port' ? 26 : Math.max(18, plan.radius * 0.8));
           m.name = VILLAGER_NAMES[Math.abs(m.seed) % VILLAGER_NAMES.length];
+          // the real STUCOM teachers (skins.js)
+          if (s.person && PERSON_SKIN[s.person] !== undefined) { m.skin = PERSON_SKIN[s.person]; m.name = SKINS[m.skin].name; m.hi = s.hi || null; }
         } else { m.home = [s.x, s.z]; m.homeR = 2.5; }
         mobs.push(m);
       });

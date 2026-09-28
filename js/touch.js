@@ -28,6 +28,7 @@ const Touch = {
         <button data-k="inv">🎒</button>
         <button data-k="fly">🕊</button>
         <button data-k="view">👁</button>
+        <button data-k="emote">👋</button>
       </div>
       <button class="tmenu" data-k="menu">☰</button>
       <button class="texit" data-k="exit">Exit</button>`;
@@ -147,6 +148,7 @@ const Touch = {
         if (G.vehicle) vehicleKey('KeyV');
         else { G.view = ((G.view || 0) + 1) % 3; UI.toast(['First person', 'Third person', 'Front view'][G.view]); }
         break;
+      case 'emote': if (down && this.playing() && !G.vehicle) { if (Social.menu) Social.closeMenu(); else Social.openWheel(); } break;
       case 'menu': if (down) { releaseAllInput(); G.playing = false; showMenu(); } break;
       case 'exit': if (down && G.vehicle) Vehicles.dismount(false); break;
       default: break;

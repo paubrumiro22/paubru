@@ -11,7 +11,7 @@ const DEFAULT_SETTINGS = {
   renderDistance: 10, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
   renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
   weather: 'auto', events: true, wildlife: true, skin: 0, minimap: 'normal', autoTuned: false,
-  autoQuality: true, preAuto: null, settingsVer: 2,
+  autoQuality: true, preAuto: null, settingsVer: 2, pvp: true,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -686,7 +686,11 @@ function updateRegion(dt) {
   } else G.regionOwn = own;
 }
 
+// On a survival server nobody can switch to creative (the server keeps its mode).
+function serverLocksMode() { return !!(typeof Net !== 'undefined' && Net.on && Net.server && Net.server.mode !== 'creative'); }
+
 function setGameMode(mode) {
+  if (mode === 'creative' && serverLocksMode()) mode = 'survival';
   G.mode = mode === 'creative' ? 'creative' : 'survival';
   G.player.creative = G.mode === 'creative';
   if (G.mode === 'survival') G.player.flying = false;

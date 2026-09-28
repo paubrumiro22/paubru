@@ -15,6 +15,7 @@ const SETTINGS_UI = [
   { key: 'fxaa', group: 'effects', label: 'Anti-aliasing', hint: 'Smooths jagged edges (FXAA).', type: 'check' },
   { key: 'weather', group: 'world', label: 'Weather', hint: 'Rain, storms, snow where it is cold, and fog.', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow'], ['fog', 'Fog']] },
   { key: 'events', group: 'world', label: 'World events', hint: 'Meteor showers on clear nights and volcano eruptions.', type: 'check' },
+  { key: 'pvp', group: 'world', label: 'Player fights (PvP)', hint: 'Online: other players can hit you, and you them. Off, nobody can hurt you.', type: 'check' },
   { key: 'wildlife', group: 'world', label: 'Wildlife', hint: 'Birds, bees, butterflies and fish.', type: 'check' },
   { key: 'volume', group: 'sound', label: 'Effects volume', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => Math.round(v * 100) + '%' },
   { key: 'music', group: 'sound', label: 'Music volume', hint: 'Soft music written live for each place: days, nights, fights, the Nether, the End, the stadium.', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => (v ? Math.round(v * 100) + '%' : 'Off') },
@@ -216,7 +217,12 @@ function setSetting(key, value) {
 }
 
 function refreshGameUI() {
-  document.querySelectorAll('#modeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.mode === G.mode));
+  document.querySelectorAll('#modeSeg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.mode === G.mode);
+    const locked = b.dataset.mode === 'creative' && serverLocksMode();
+    b.classList.toggle('locked', locked);
+    b.title = locked ? 'Survival server: creative mode is locked' : '';
+  });
   $('difficultySel').value = String(G.difficulty);
   $('keepInvCheck').checked = G.rules.keepInventory;
   $('mobsCheck').checked = G.rules.mobSpawning;
@@ -650,6 +656,7 @@ function bindInput() {
   });
   $('cycleCheck').addEventListener('change', (e) => setSetting('dayCycle', e.target.checked));
   document.querySelectorAll('#modeSeg button').forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.mode === 'creative' && serverLocksMode()) { UI.toast('🔒 This is a survival server: creative mode is off here'); sfx('click', null, 0.8, 0.7); return; }
     setGameMode(b.dataset.mode);
     refreshGameUI();
     UI.toast(G.mode === 'creative' ? 'Creative mode' : 'Survival mode');
@@ -1033,7 +1040,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
     Music.update(dt);
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);
@@ -1046,7 +1053,8 @@ function frame(now) {
       G.selfWalk = (G.selfWalk || 0) + sp * dt * 1.6;
       self = { type: 'avatar', pos: p.pos, h: 1.8, bodyYaw: p.yaw + Math.PI, headYaw: p.yaw + Math.PI, headPitch: -p.pitch, walkPhase: G.selfWalk,
         walkAmt: Math.min(1, sp / 4.3), hurtTime: st.hurtTime || 0, dead: false, fuse: 0, age: G.time, fire: 0, aiming: 0,
-        skin: G.settings.skin, tint: NET_COLORS[Net.color].map((c) => c / 255 * 1.1) };
+        skin: G.settings.skin, tint: NET_COLORS[Net.color].map((c) => c / 255 * 1.1), emote: Social.emote };
+      if (Social.emote && Social.emote.face !== undefined) self.bodyYaw = Social.emote.face;
     }
     // colour of the water around the camera, for the underwater haze
     if (!G.onTitle && p.eyeInWater && (G.frameCount & 7) === 0) {

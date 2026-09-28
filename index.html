@@ -354,6 +354,60 @@
 
   /* Online */
   #nametags { position: absolute; inset: 0; overflow: hidden; }
+  #metroPanel { display: grid; place-items: center; z-index: 60; background: rgba(8, 10, 16, 0.55); backdrop-filter: blur(3px); }
+  #metroPanel.hidden { display: none; }
+  #metroPanel .mp-card { width: min(760px, calc(100vw - 32px)); border-radius: 20px; overflow: hidden; background: #f4f5f7; color: #16213a; box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5); font-family: var(--body); animation: pmIn2 0.22s ease-out; }
+  @keyframes pmIn2 { from { opacity: 0; transform: translateY(12px) scale(0.98); } }
+  #metroPanel .mp-head { display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: #16213a; color: #fff; }
+  #metroPanel .mp-head i { font-style: normal; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; background: #d6202b; font: 900 28px Arial, sans-serif; }
+  #metroPanel .mp-head b { display: block; font-size: 18px; } #metroPanel .mp-head span { font-size: 12.5px; opacity: 0.7; }
+  #metroPanel .mp-x { margin-left: auto; width: 36px; height: 36px; border-radius: 10px; border: 0; background: rgba(255, 255, 255, 0.1); color: #fff; font-size: 16px; cursor: pointer; }
+  #metroPanel .mp-line { position: relative; height: 150px; margin: 18px 28px 0; }
+  #metroPanel .mp-track { position: absolute; left: 4%; right: 4%; top: 70px; height: 8px; border-radius: 4px; background: #d6202b; }
+  #metroPanel .mp-st { position: absolute; top: 62px; transform: translateX(-50%); }
+  #metroPanel .mp-st em { display: block; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 5px solid #d6202b; box-sizing: border-box; }
+  #metroPanel .mp-st span { position: absolute; left: 10px; bottom: 30px; transform-origin: 0 100%; transform: rotate(-35deg); white-space: nowrap; font: 700 13px var(--body); }
+  #metroPanel .mp-st.here em { background: #d6202b; box-shadow: 0 0 0 6px rgba(214, 32, 43, 0.2); }
+  #metroPanel .mp-st small { position: absolute; top: 30px; left: 50%; transform: translateX(-50%); white-space: nowrap; font: 700 10.5px var(--body); color: #d6202b; text-transform: uppercase; letter-spacing: 0.05em; }
+  #metroPanel .mp-train { position: absolute; top: 86px; transform: translateX(-50%); font-size: 20px; transition: left 0.5s; }
+  #metroPanel .mp-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 8px 20px 4px; }
+  #metroPanel .mp-stats div { background: #fff; border-radius: 12px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
+  #metroPanel .mp-stats b { display: block; font-size: 16px; } #metroPanel .mp-stats span { font-size: 12px; color: #6a7082; }
+  #metroPanel .mp-works { margin: 10px 20px 0; padding: 10px 12px; border-radius: 10px; background: #fff4d6; color: #7a5a00; font-weight: 700; font-size: 13px; }
+  #metroPanel .mp-actions { display: flex; align-items: center; gap: 14px; padding: 16px 20px 20px; }
+  #metroPanel .mp-actions button { flex: none; padding: 12px 18px; border-radius: 12px; border: 0; background: #d6202b; color: #fff; font: 800 14px var(--body); cursor: pointer; box-shadow: 0 6px 18px rgba(214, 32, 43, 0.35); }
+  #metroPanel .mp-actions span { font-size: 12.5px; color: #4a5064; line-height: 1.4; }
+  @media (max-width: 560px) { #metroPanel .mp-stats { grid-template-columns: repeat(2, 1fr); } #metroPanel .mp-actions { flex-direction: column; align-items: stretch; } }
+  .wm-info.metro { background: rgba(214, 32, 43, 0.14); border-left: 3px solid #d6202b; padding: 8px 10px; border-radius: 8px; margin-bottom: 8px; }
+  #modeSeg button.locked { opacity: 0.45; cursor: not-allowed; }
+  #modeSeg button.locked::after { content: ' 🔒'; }
+  .ntag[data-say]::before { content: attr(data-say); position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); width: max-content; max-width: 230px; white-space: normal; text-align: center;
+    padding: 6px 11px; border-radius: 12px; background: rgba(255, 255, 255, 0.94); color: #1b1d24; font: 500 13px/1.3 var(--body); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); animation: sayIn 0.25s ease-out; }
+  .ntag[data-hp]::after { content: ' ❤ ' attr(data-hp); color: #ff7b7b; font-weight: 700; }
+  @keyframes sayIn { from { opacity: 0; transform: translate(-50%, 6px) scale(0.9); } }
+  #socialMenu { position: absolute; left: 50%; top: 50%; z-index: 30; pointer-events: auto; color: #fff; font: 600 13px var(--body); }
+  #socialMenu.wheel { width: 0; height: 0; }
+  #socialMenu .sm-head { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 104px; height: 104px; border-radius: 50%; display: grid; place-items: center;
+    background: radial-gradient(circle, rgba(20, 24, 34, 0.92), rgba(20, 24, 34, 0.7)); border: 1px solid rgba(255, 255, 255, 0.18); font: 800 14px var(--head, var(--body)); letter-spacing: 0.04em; text-transform: uppercase; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45); }
+  #socialMenu .sm-opt { position: absolute; left: 0; top: 0; width: 92px; height: 78px; margin: -39px 0 0 -46px; border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.16); cursor: pointer;
+    background: rgba(18, 22, 32, 0.82); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; backdrop-filter: blur(6px);
+    transform: rotate(var(--a)) translate(128px) rotate(calc(-1 * var(--a))); animation: smIn 0.22s cubic-bezier(.2, .9, .3, 1.2) both; transition: background 0.15s, border-color 0.15s; }
+  #socialMenu .sm-opt:hover { background: rgba(214, 32, 43, 0.9); border-color: rgba(255, 255, 255, 0.5); }
+  #socialMenu .sm-opt i { font-style: normal; font-size: 26px; line-height: 1; }
+  #socialMenu .sm-opt span { font-size: 11.5px; opacity: 0.92; }
+  #socialMenu .sm-opt kbd { position: absolute; top: 5px; right: 7px; font: 700 10px var(--body); opacity: 0.55; }
+  #socialMenu .sm-foot { position: absolute; left: 50%; top: 190px; transform: translateX(-50%); white-space: nowrap; opacity: 0.7; font-size: 12px; text-shadow: 0 1px 3px #000; }
+  @keyframes smIn { from { opacity: 0; transform: rotate(var(--a)) translate(60px) rotate(calc(-1 * var(--a))) scale(0.6); } }
+  #socialMenu.pmenu { transform: translate(24px, -50%); width: 230px; padding: 10px; border-radius: 16px; background: rgba(18, 22, 32, 0.9); border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 14px 44px rgba(0, 0, 0, 0.5); backdrop-filter: blur(8px); animation: pmIn 0.18s ease-out; }
+  #socialMenu.pmenu .sm-head { position: static; transform: none; width: auto; height: auto; border-radius: 0; background: none; border: 0; box-shadow: none; padding: 4px 6px 10px; text-align: left; place-items: start; font-size: 15px; text-transform: none; }
+  #socialMenu.pmenu .sm-opt { position: relative; margin: 0 0 4px; width: 100%; height: 40px; flex-direction: row; justify-content: flex-start; gap: 10px; padding: 0 12px; border-radius: 10px; transform: none; animation: none; }
+  #socialMenu.pmenu .sm-opt i { font-size: 20px; }
+  #socialMenu.pmenu .sm-opt span { font-size: 13.5px; }
+  #socialMenu.pmenu .sm-opt kbd { top: 13px; }
+  #socialMenu.pmenu .sm-foot { position: static; transform: none; padding: 6px 6px 0; }
+  @keyframes pmIn { from { opacity: 0; transform: translate(10px, -50%); } }
+  #playerHint { position: absolute; left: 50%; top: calc(50% + 26px); transform: translateX(-50%); padding: 4px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.5); color: #fff; font: 600 12px var(--body); opacity: 0; transition: opacity 0.15s; pointer-events: none; white-space: nowrap; }
+  #playerHint.show { opacity: 1; }
   .ntag { position: absolute; left: 0; top: 0; padding: 2px 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.5); color: #fff; font: 600 13px var(--body); white-space: nowrap; border-bottom: 2px solid var(--c, #fff); }
   #chatLog { position: absolute; left: 12px; bottom: 120px; width: min(420px, 60vw); display: flex; flex-direction: column; gap: 3px; font-size: 14px; }
   .cline { background: rgba(0, 0, 0, 0.45); padding: 3px 9px; border-radius: 6px; text-shadow: 0 1px 2px #000; transition: opacity 1s; }
@@ -996,8 +1050,11 @@
 <script src="js/metro.js"></script>
 <script src="js/interact.js"></script>
 <script src="js/autodoor.js"></script>
+<script src="js/lumber.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/progress.js"></script>
+<script src="js/social.js"></script>
+<script src="js/metro_panel.js"></script>
 <script src="js/football.js"></script>
 <script src="js/pets.js"></script>
 <script src="js/music.js"></script>

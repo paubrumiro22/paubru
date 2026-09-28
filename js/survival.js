@@ -5,7 +5,7 @@
 const DEATH_TEXT = {
   fall: 'fell from a high place', lava: 'tried to swim in lava', fire: 'burned to death', drown: 'drowned',
   starve: 'starved to death', cactus: 'was pricked to death', void: 'fell out of the world', explosion: 'blew up',
-  arrow: 'was shot by a Skeleton', mob: 'was slain by', generic: 'died',
+  arrow: 'was shot by a Skeleton', mob: 'was slain by', player: 'was knocked out by', generic: 'died',
 };
 
 class Stats {
@@ -138,7 +138,7 @@ class Stats {
       this.lastHurt = amount;
       amount = extra;
     } else { this.lastHurt = amount; this.invuln = 0.5; }
-    if (src.type === 'mob' || src.type === 'arrow' || src.type === 'explosion' || src.type === 'cactus') {
+    if (src.type === 'mob' || src.type === 'arrow' || src.type === 'explosion' || src.type === 'cactus' || src.type === 'player') {
       const pts = G.inv.armorPoints();
       if (pts > 0) { amount *= 1 - Math.min(0.8, pts * 0.04); G.inv.damageArmor(amount); G.ui && G.ui.invDirty(); }
     }
@@ -174,6 +174,7 @@ class Stats {
     const who = src.mob ? (src.mob.def ? src.mob.def.name : 'something') : '';
     let msg = DEATH_TEXT[src.type] || DEATH_TEXT.generic;
     if (src.type === 'mob') msg += ' ' + (who || 'a monster');
+    if (src.type === 'player') msg += ' ' + (src.name || 'another player');
     if (src.type === 'explosion' && src.mob && src.mob.def) msg = 'was blown up by a ' + src.mob.def.name;
     this.deathMsg = 'You ' + msg.replace(/^was /, 'were ');
     if (!G.rules.keepInventory) {

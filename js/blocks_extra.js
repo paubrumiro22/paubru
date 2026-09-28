@@ -49,6 +49,8 @@
     'PISTON_HEAD', 'STICKY_HEAD', 'TIMER', 'TIMER_ON', 'SIGNAL_BLOCK',
     // automatic sliding doors (mech_blocks.js, autodoor.js) and street paint (the STUCOM district)
     'AUTO_DOOR', 'AUTO_DOOR_TOP', 'AUTO_DOOR_OPEN', 'AUTO_DOOR_OPEN_TOP', 'ASPHALT_LINE_X', 'ROAD_WHITE',
+    // metro control panel and the track marker that tells the trains where platforms are (metro_panel.js)
+    'METRO_PANEL', 'METRO_MARK',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here
@@ -305,6 +307,9 @@ defBlock(B.ASPHALT, 'Asphalt', RT_CUBE, 'asphalt', XR({ hard: 1.5, cat: 'buildin
 defBlock(B.ASPHALT_LINE, 'Asphalt with Road Line', RT_CUBE, { top: 'asphalt_line', side: 'asphalt', bottom: 'asphalt' }, XR({ hard: 1.5, cat: 'building' }));
 defBlock(B.ASPHALT_LINE_X, 'Asphalt with Cross Line', RT_CUBE, { top: 'asphalt_line_x', side: 'asphalt', bottom: 'asphalt' }, XR({ hard: 1.5, cat: 'building' }));
 defBlock(B.ROAD_WHITE, 'Road Paint', RT_CUBE, { top: 'road_white', side: 'asphalt', bottom: 'asphalt' }, XR({ hard: 1.5, cat: 'building' }));
+defBlock(B.METRO_PANEL, 'Metro Control Panel', RT_CUBE, { top: 'metro_panel_side', side: 'metro_panel_side', front: 'metro_panel_front' }, { hard: 2, tool: TOOL_PICK, snd: SND.METAL, emit: 6, cat: 'transport' });
+FACING_BLOCKS.add(B.METRO_PANEL);
+defBlock(B.METRO_MARK, 'Platform Track Marker', RT_CUBE, { top: 'metro_mark', side: 'gravel', bottom: 'gravel' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRAVEL, cat: 'transport' });
 defBlock(B.TURF, 'Artificial Turf', RT_CUBE, { top: 'turf', side: 'turf_side', bottom: 'dirt' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRASS, cat: 'building' });
 defBlock(B.TURF_LINE, 'Artificial Turf with Line', RT_CUBE, { top: 'turf_line', side: 'turf_side', bottom: 'dirt' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRASS, cat: 'building' });
 // fire: crossed flame sprites that sway, burn what is flammable around them and die out (fire.js)

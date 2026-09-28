@@ -88,10 +88,12 @@ function planDistrict(g, plan) {
   const sx0 = cx - 8, szf = cz - 32;
   piece(box(-18, -64, 17, -29), (W) => buildSchoolBlock(W, g, D));
   piece([sx0 - 2, szf - 13, sx0 + 18, szf + 3], (W) => buildSchool(W, g, sx0, szf, -1, F, VSTYLE.temperate, true));
-  home('villager', 'teacher', 0, F, -37, 0, -37, 5);
+  // the teachers: the head of the school in the lobby, Noelia in a classroom, Pedro in the computer room
+  const teacher = (person, hi, u, y, v, r) => plan.spawns.push({ kind: 'villager', prof: 'teacher', person, hi, x: cx + u + 0.5, y, z: cz + v + 0.5, home: [cx + u + 0.5, cz + v + 0.5], homeR: r });
+  teacher('joan', 'Benvinguts a STUCOM! Sóc en Joan Zarzuela, el director.', 0, F, -37, 5);
   home('villager', 'student', 5, F, -38, 4, -38, 5);
   home('villager', 'student', -4, F + 7, -37, -3, -37, 5);
-  home('villager', 'teacher', 2, F + 11, -43, 2, -42, 4);
+  teacher('noelia', 'Hola! Sóc la Noelia. Seieu, que comencem la classe.', 2, F + 11, -43, 4);
   home('villager', 'student', -3, F, -55, 0, -55, 9);
 
   // ---- west: the football pitch (its front towards the square) ----
@@ -124,7 +126,8 @@ function planDistrict(g, plan) {
     piece([an.x0 - 2, an.z0 - 2, an.x1 + 2, an.z1 + 2], (W) => buildAnnex(W, g, L, F, true));
     piece([cx + 2, cz + 45, cx + 16, cz + 59], (W) => buildGarden(W, g, cx + 3, cz + 46, F));
     const at = (a, d, y, r) => home('villager', y > F ? (a > 7 ? 'teacher' : 'student') : 'student', L.X(a, d) - cx, y, L.Z(a, d) - cz, L.X(a, d) - cx, L.Z(a, d) - cz, r);
-    at(6, 4, F, 4); at(7, 6, F, 4); at(5, 6, F + 6, 2); at(10, 3, F + 6, 2);
+    at(6, 4, F, 4); at(7, 6, F, 4); at(5, 6, F + 6, 2);
+    teacher('pedro', 'Sóc en Pedro Porcuna, d\'informàtica. Heu provat d\'apagar i tornar a encendre?', L.X(10, 3) - cx, F + 6, L.Z(10, 3) - cz, 2);
     home('villager', 'student', 9, F, 49, 9, 50, 6);
     home('villager', 'student', -12, F, 50, -10, 48, 9);
   }
@@ -378,6 +381,10 @@ function buildDistrictMetro(W, g, D) {
   };
   hall(-16, 12, B.BLUE_TILES, 12);
   hall(31, 58, B.CONCRETE + 14, 31);
+  // the trains know a platform by the marker under its track (metro_panel.js)
+  for (const [m0, m1] of [[-14, 11], [31, 56]]) for (let v = m0; v <= m1; v++) set(12, P - 2, v, B.METRO_MARK);
+  set(3, P + 1, -7, B.METRO_PANEL, 0);
+  set(3, P + 1, 42, B.METRO_PANEL, 0);
   // tunnel between them: walls, a vault, lamps, the track
   for (let v = 13; v <= 30; v++) for (let u = 10; u <= 14; u++) for (let y = P - 3; y <= P + 4; y++) {
     const wall = u === 10 || u === 14, roof = y === P + 4 || (y === P + 3 && (u === 11 || u === 13));

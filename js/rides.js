@@ -203,6 +203,27 @@ for (const k of RIDE_KEYS) {
   d.model = out;
 }
 
+// Puts the player on free ground near one of the points (closest first, a few blocks around and
+// up to two up or one down). Returns false when there is nowhere to stand.
+function standNear(p, pts, up = 0) {
+  let best = null, bd = Infinity;
+  for (const q of pts) {
+    for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) for (const dy of [0, 1, -1, 2]) {
+      const x = Math.floor(q[0]) + dx + 0.5, z = Math.floor(q[2]) + dz + 0.5, y = Math.floor(q[1]) + dy;
+      const d = Math.hypot(dx, dz) + Math.abs(dy - up) * 0.7;
+      if (d >= bd) continue;
+      for (const yy of [y, y + 0.5]) {
+        if (p.collides(x, yy, z) || !p.collides(x, yy - 0.2, z)) continue;
+        best = [x, yy, z]; bd = d; break;
+      }
+    }
+    if (best) break;
+  }
+  if (!best) return false;
+  p.pos = best;
+  return true;
+}
+
 // Top of whatever a vehicle would rest on below (x, yTop, z): { y, water } or null within `depth`.
 function rideGround(x, yTop, z, depth = 6, rails) {
   const w = G.world, bx = Math.floor(x), bz = Math.floor(z);
@@ -567,9 +588,13 @@ const Rides = {
     // step out on the driver's side (or on top of a boat on open water)
     const side = v.toWorld([v.def.w / 2 + 0.7, 0.2, v.def.seat[2]]);
     p.pos = [side[0], Math.max(side[1], v.pos[1]) + 0.2, side[2]];
-    if (v.kind === 'heli' && !v.onGround) { p.pos = v.toWorld([0, -0.6, 0]); p.vel = [v.vel[0] * 0.5, v.vel[1], v.vel[2] * 0.5]; p.parachute = true; G.ui.toast('Jumped out! Parachute deployed'); }
-    else p.vel = [0, 0, 0];
-    liftOutOfBlocks(p);
+    if (v.kind === 'heli' && !v.onGround) { p.pos = v.toWorld([0, -0.6, 0]); p.vel = [v.vel[0] * 0.5, v.vel[1], v.vel[2] * 0.5]; p.parachute = true; G.ui.toast('Jumped out! Parachute deployed'); liftOutOfBlocks(p); }
+    else {
+      p.vel = [0, 0, 0];
+      // step out on whichever side has room (a platform, not up through the roof of a tunnel)
+      const other = v.toWorld([-(v.def.w / 2 + 0.7), 0.2, v.def.seat[2]]);
+      if (!standNear(p, [p.pos, [other[0], p.pos[1], other[2]]], v.def.type === 'rail' ? 1 : 0)) liftOutOfBlocks(p);
+    }
     void forced;
   },
 

@@ -163,6 +163,7 @@ const Net = {
     if (ok && server) ok.gen = GEN_LATEST;
     newWorld(server ? serverSeed(server.code) : ONLINE_SEED, ok, { mode: server ? server.mode : G.mode, type: 'default', gen: server ? GEN_LATEST : 1 });
     if (ok) this.loadTimes(ok.net);
+    if (serverLocksMode() && G.mode === 'creative') setGameMode('survival');   // an old copy saved in creative
     prepareArea(G.player.pos[0], G.player.pos[2], 2);
     liftOutOfBlocks(G.player);
     // background tabs pause animation frames: keep announcing from a timer
@@ -235,7 +236,8 @@ const Net = {
       this.p2pSelf = mod.selfId;
       const uidOf = (tid) => this.uidOf.get(tid) || tid;
       const pres = room.makeAction('pres'), sync = room.makeAction('sync'), need = room.makeAction('need');
-      const mobs = room.makeAction('mobs'), mhit = room.makeAction('mhit'), pic = room.makeAction('pic');
+      const mobs = room.makeAction('mobs'), mhit = room.makeAction('mhit'), pic = room.makeAction('pic'), soc = room.makeAction('soc');
+      soc.onMessage = (d, ctx) => Social.receive(d, uidOf(ctx.peerId));
       pic.onMessage = (d) => this.onPicture(d);
       mobs.onMessage = (d, ctx) => this.onMobs(d, uidOf(ctx.peerId));
       mhit.onMessage = (d, ctx) => this.onMobHit(d, uidOf(ctx.peerId));
@@ -260,7 +262,7 @@ const Net = {
         // still there over the relay? then they stay (silent players time out anyway)
         if (!Relay.joined || !this.heard.has(u)) { this.dropPeer(u); this.refreshUI(); }
       };
-      this.p2p = { room, pres, sync, need, mobs, mhit, pic };
+      this.p2p = { room, pres, sync, need, mobs, mhit, pic, soc };
       this.statusText = 'Online';
       this.sendPresence(true);
     } catch (e) {
@@ -299,6 +301,7 @@ const Net = {
       } else if (m.t === 'bye') this.dropPeer(m.peer);
       else if (m.t === 'sync') this.onSync(m.data);
       else if (m.t === 'need' && m.data && m.data.to === this.selfPeer) this.serve(m.peer);
+      else if (m.t === 'soc' && m.data && m.data.to === this.selfPeer) Social.receive(m.data, m.peer);
     };
     window.addEventListener('pagehide', () => { if (this.bc) this.bc.postMessage({ t: 'bye', peer: this.selfPeer }); });
   },
@@ -445,6 +448,16 @@ const Net = {
     if (this.p2p && this.direct(host)) this.p2p.mhit.send(d, { target: this.tidOf.get(host) }).catch(() => {});
     else if (this.server) Relay.send('mhit', Object.assign(d, { id: this.selfPeer, to: host }));
   },
+  // a message for one player (social.js): straight to them, else over the relay
+  sendSoc(to, d) {
+    if (!this.on || !to) return;
+    d.to = to;
+    if (this.server) {
+      if (this.p2p && this.direct(to)) this.p2p.soc.send(d, { target: this.tidOf.get(to) }).catch(() => {});
+      else Relay.send('soc', Object.assign({ id: this.selfPeer }, d));
+    } else if (this.bc) this.bc.postMessage({ t: 'soc', peer: this.selfPeer, data: d });
+    else if (this.room) this.room.emit('soc', d).catch(() => {});
+  },
   // heard straight from this player lately (WebRTC works between us)
   direct(uid) { return this.tidOf.has(uid) && performance.now() - (this.p2pAt.get(uid) || -1e9) < 3000; },
 
@@ -462,6 +475,7 @@ const Net = {
     Relay.on('mobs', (d) => { if (this.on && validUid(d.id) && !this.direct(d.id)) this.onMobs(d, d.id); });
     Relay.on('mhit', (d) => { if (this.on && validUid(d.id) && d.to === this.selfPeer) this.onMobHit(d, d.id); });
     Relay.on('pic', (d) => { if (this.on) this.onPicture(d); });
+    Relay.on('soc', (d) => { if (this.on && validUid(d.id) && d.to === this.selfPeer) Social.receive(d, d.id); });
     if (/^Offline/.test(this.statusText)) this.statusText = 'Online';
     this.relayAt = 0;
     this.sendPresence(true);
@@ -746,6 +760,10 @@ const Net = {
       const m = r.mob;
       m.pos = r.pos;
       m.bodyYaw = r.yaw + Math.PI;
+      // a gesture with someone turns the body towards them
+      m.emote = r.emote || null;
+      const pt = r.emote && r.emote.partner && (r.emote.partner === this.selfPeer ? { pos: G.player.pos } : this.peers.get(r.emote.partner));
+      if (pt) m.bodyYaw = Math.atan2(-(pt.pos[0] - r.pos[0]), -(pt.pos[2] - r.pos[2])) + Math.PI;
       m.headYaw = m.bodyYaw;
       m.headPitch = -r.pitch;
       m.tint = NET_COLORS[r.color].map((c) => c / 255 * 1.1);

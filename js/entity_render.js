@@ -162,7 +162,11 @@ const ER = {
     const roll = mob.dead ? Math.min(1, mob.deathTime / 0.5) * Math.PI / 2 : 0;
     let scale = 1 / 16;
     if (mob.fuse > 0) scale *= 1 + Math.min(1, mob.fuse / 1.5) * 0.12 + Math.sin(mob.fuse * 30) * 0.015;
-    const base = XF.chain(XF.t(mob.pos[0] - cp[0], mob.pos[1] - cp[1], mob.pos[2] - cp[2]), XF.ry(mob.bodyYaw), XF.rz(roll), XF.s(scale));
+    // gestures (social.js): a pose per part, a bob / turn / lean of the whole body
+    const em = mob.emote && typeof EMOTES !== 'undefined' ? EMOTES[mob.emote.k] : null;
+    const et = em ? mob.emote.t : 0;
+    const eb = em && em.body ? em.body(et) : null;
+    const base = XF.chain(XF.t(mob.pos[0] - cp[0], mob.pos[1] - cp[1] + (eb ? eb.dy || 0 : 0), mob.pos[2] - cp[2]), XF.ry(mob.bodyYaw + (eb ? eb.yaw || 0 : 0)), XF.rz(roll), XF.s(scale));
     const sw = Math.sin(mob.walkPhase) * mob.walkAmt;
     let headYaw = mob.headYaw - mob.bodyYaw;
     while (headYaw > Math.PI) headYaw -= Math.PI * 2;
@@ -175,7 +179,9 @@ const ER = {
       if (p.role === 'wool' && mob.sheared) continue;
       if (p.show && !mob[p.show]) continue;   // collars, saddles...
       let r = XF.id();
-      switch (p.role) {
+      const er = em && em.pose ? em.pose(p.role, et, sw) : null;
+      if (er) r = er;
+      else switch (p.role) {
         case 'head': r = XF.mul(XF.ry(headYaw), XF.rx(-clamp(mob.headPitch, -0.8, 0.8))); break;
         case 'legA': r = mob.sit ? XF.mul(XF.rx(-1.45), XF.rz(0.08)) : XF.rx(sw * 0.9); break;
         case 'legB': r = mob.sit ? XF.mul(XF.rx(-1.45), XF.rz(-0.08)) : XF.rx(-sw * 0.9); break;
@@ -204,6 +210,7 @@ const ER = {
       if (p.role === 'spiderLeg') m = XF.mul(XF.t(p.pivot[0], p.pivot[1], p.pivot[2]), r);
       else if (p.pivot) m = XF.chain(XF.t(p.pivot[0], p.pivot[1], p.pivot[2]), r, XF.t(-p.pivot[0], -p.pivot[1], -p.pivot[2]));
       else m = r;
+      if (eb && eb.tilt && (p.id === 'body' || p.id === 'head' || p.id === 'armL' || p.id === 'armR')) m = XF.chain(XF.t(0, 12, 0), XF.rx(eb.tilt), XF.t(0, -12, 0), m);
       if (p.parent && partM[p.parent]) m = XF.mul(partM[p.parent], m);
       partM[p.id] = m;
       const faces = p.faces;

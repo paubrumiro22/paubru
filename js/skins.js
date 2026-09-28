@@ -527,6 +527,129 @@ SKINS.push({
     P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x141414) : suit));
   },
 });
+// STUCOM teachers (asked for by the user, who studies there, with their photos as reference):
+// Noelia González, Joan Zarzuela (the head of the school) and Pedro Porcuna (computing). Pixel
+// portraits that keep what makes each recognisable: hair, glasses, beard, clothes.
+SKINS.push(
+  {
+    key: 't_noelia', name: 'Noelia González', icon: '', hidden: true, person: 'noelia',
+    extras: [
+      { part: 'head', box: [-4.4, 17.5, -4.5, 4.4, 26, -3.2], color: 0x4a3222 },         // long hair down her back
+      { part: 'head', box: [-4.45, 20.5, -3.2, -3.7, 25, 1.2], color: 0x4a3222 },        // and over the shoulders
+      { part: 'head', box: [3.7, 20.5, -3.2, 4.45, 25, 1.2], color: 0x4a3222 },
+      { part: 'body', box: [-0.9, 16.4, 2.02, 0.9, 18.2, 2.3], color: 0xf2f2f2 },          // badge on the lanyard
+    ],
+    paint(P) {
+      const sk = rgb(0xf0c8ae), hr = rgb(0x4a3222), hl = rgb(0x5e412c), jk = rgb(0x26262b), top = rgb(0x3c3c44), red = rgb(0xd6202b);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'top') return (x === 3 || x === 4) && y < 5 ? shadec(sk, 0.9) : (x + y) % 3 ? hr : hl;   // centre parting
+        if (f === 'front') {
+          if (y === 0) return hr;
+          if (y === 1) return x <= 1 || x >= 6 ? hr : x === 2 || x === 5 ? hl : sk;
+          if (x === 0 || x === 7) return y % 2 ? hl : hr;                                    // hair framing the face
+          if (y === 2 && (x === 2 || x === 5)) return rgb(0x6a4a36);                        // brows
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x3a261c);                        // eyes
+          if (y === 3 && (x === 1 || x === 6)) return rgb(0xfafafa);
+          if (y === 4 && (x === 1 || x === 6)) return rgb(0xf0b0a4);                        // cheeks
+          if (y === 5 && (x === 2 || x === 5)) return rgb(0xc2706a);                        // smile
+          if (y === 6 && x >= 3 && x <= 4) return rgb(0xc2706a);
+          return sk;
+        }
+        if (f === 'back') return (x + y) % 4 ? hr : hl;
+        return y < 7 || x < 3 ? ((x + y) % 3 ? hr : hl) : sk;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front') {
+          if ((x === 2 && y < 5) || (x === 5 && y < 5) || ((x === 3 || x === 4) && y === 5)) return red;   // lanyard
+          if (x >= 2 && x <= 5) return top;
+        }
+        return y === h - 1 ? shadec(jk, 0.8) : jk;
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 2 ? sk : y === h - 3 ? shadec(jk, 0.75) : jk));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x18181a) : (x + y * 3) % 7 === 0 ? rgb(0x39425a) : rgb(0x2e3548)));
+    },
+  },
+  {
+    key: 't_joan', name: 'Joan Zarzuela', icon: '', hidden: true, person: 'joan',
+    extras: [
+      // rectangular dark-framed glasses
+      { part: 'head', box: [-3.7, 29, 4.02, 3.7, 29.35, 4.35], color: 0x16161a },
+      { part: 'head', box: [-3.5, 27.75, 4.02, -0.75, 28.05, 4.35], color: 0x16161a },
+      { part: 'head', box: [0.75, 27.75, 4.02, 3.5, 28.05, 4.35], color: 0x16161a },
+      { part: 'head', box: [-3.7, 27.75, 4.02, -3.35, 29.35, 4.35], color: 0x16161a },
+      { part: 'head', box: [3.35, 27.75, 4.02, 3.7, 29.35, 4.35], color: 0x16161a },
+      { part: 'head', box: [-0.95, 27.75, 4.02, -0.6, 29.35, 4.35], color: 0x16161a },
+      { part: 'head', box: [0.6, 27.75, 4.02, 0.95, 29.35, 4.35], color: 0x16161a },
+      { part: 'head', box: [-4.35, 28.9, -1.2, -4.02, 29.25, 4.3], color: 0x16161a },
+      { part: 'head', box: [4.02, 28.9, -1.2, 4.35, 29.25, 4.3], color: 0x16161a },
+      { part: 'body', box: [-2.2, 23.2, 1.6, 2.2, 24.4, 2.4], color: 0x243252 },           // polo collar
+    ],
+    paint(P) {
+      const sk = rgb(0xc9926a), g1 = rgb(0x8c8c8a), g2 = rgb(0x5e5e5c), g3 = rgb(0xb0b0ac), polo = rgb(0x1e2a44);
+      const grey = (x, y) => [g1, g2, g3, g1][(x * 3 + y * 5) % 4];                    // salt and pepper
+      const stub = (x, y) => ((x * 7 + y * 3) % 4 === 0 ? shadec(sk, 0.72) : shadec(sk, 0.9));
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'top') return grey(x, y);
+        if (f === 'front') {
+          if (y === 0) return x === 0 || x === 7 ? grey(x, y) : x < 3 || x > 4 ? shadec(sk, 0.96) : grey(x, y);   // receding
+          if (y === 1) return x === 0 || x === 7 ? grey(x, y) : sk;
+          if (y === 2 && (x === 1 || x === 2 || x === 5 || x === 6)) return rgb(0x4a4644);  // brows
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x2a2220);                       // eyes behind the glasses
+          if (y === 3 && (x === 1 || x === 6)) return rgb(0xe8e8e4);
+          if (y === 4 && (x === 3 || x === 4)) return shadec(sk, 0.86);                    // nose
+          if (y === 6 && x >= 2 && x <= 5) return rgb(0x8a5a48);                           // straight mouth
+          if (y >= 5) return stub(x, y);
+          return sk;
+        }
+        if (f === 'back') return y < 5 ? grey(x, y) : sk;
+        return y < 3 || (y < 5 && x > 4) ? grey(x, y) : y >= 5 && x > 4 ? stub(x, y) : sk;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front' && (x === 3 || x === 4) && y >= 1 && y <= 3) return y === 2 ? rgb(0xd8d8dc) : shadec(polo, 0.8);   // placket
+        return y === h - 1 ? shadec(polo, 0.8) : polo;
+      });
+      P.fill('arm', (x, y, w, h) => (y < 4 ? polo : y === 4 ? shadec(polo, 0.8) : sk));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x3a2a20) : rgb(0x3a3c42)));
+    },
+  },
+  {
+    key: 't_pedro', name: 'Pedro Porcuna', icon: '', hidden: true, person: 'pedro',
+    extras: [
+      { part: 'armL', box: [-8.3, 14.2, -2.3, -3.7, 15.5, 2.3], color: 0x16161a },         // smartwatch
+      { part: 'armL', box: [-8.35, 14.4, -0.8, -8.25, 15.3, 0.8], color: 0x3a6aa8, glow: true },
+    ],
+    paint(P) {
+      const sk = rgb(0xdaa888), bald = rgb(0xd2a080), bd = rgb(0x3e332c), bg = rgb(0x8a827c), shirt = rgb(0xece8de);
+      const beard = (x, y) => ((x * 5 + y * 3) % 5 === 0 ? bg : bd);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'top') return (x * 3 + y) % 7 === 0 ? shadec(bald, 0.9) : bald;       // shaved head
+        if (f === 'front') {
+          if (y === 2 && (x === 1 || x === 2 || x === 5 || x === 6)) return rgb(0x2a2220);  // thick brows
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x2a1e18);
+          if (y === 3 && (x === 1 || x === 6)) return rgb(0xf0f0ec);
+          if (y === 4 && (x === 3 || x === 4)) return shadec(sk, 0.84);                    // nose
+          if (y === 5 && x >= 2 && x <= 5) return beard(x, y);                             // moustache
+          if (y === 6 && (x === 4 || x === 5)) return rgb(0x9a6252);                       // a half smile
+          if (y >= 5 && (x <= 1 || x >= 6)) return beard(x, y);
+          if (y === 7) return beard(x, y);
+          if (y === 6) return beard(x, y);
+          return y < 2 ? bald : sk;
+        }
+        if (f === 'back') return bald;
+        return y >= 5 && x > 3 ? beard(x, y) : y >= 3 && y <= 4 && x > 5 ? bd : bald;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front' && (x === 3 || x === 4) && y <= 3) return y === 1 || y === 3 ? rgb(0xb8b2a6) : shadec(shirt, 0.9);   // henley buttons
+        if (f === 'front' && y === 0 && x >= 2 && x <= 5) return sk;
+        return y === h - 1 ? shadec(shirt, 0.88) : shirt;
+      });
+      P.fill('arm', (x, y, w, h) => (y < 4 ? shirt : y === 4 ? shadec(shirt, 0.85) : sk));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x2a2a2c) : (x + y * 3) % 7 === 0 ? rgb(0x46587e) : rgb(0x3a4a6e)));
+    },
+  },
+);
+const PERSON_SKIN = {};
+SKINS.forEach((sk, i) => { if (sk.person) PERSON_SKIN[sk.person] = i; });
 const STUDENT_SKINS = [];
 SKINS.forEach((sk, i) => { if (sk.student) STUDENT_SKINS.push(i); });
 const VILLAGER_SKIN = {};
