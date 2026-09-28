@@ -628,7 +628,7 @@ function respawn() {
   let sp = G.worldSpawn;
   if (G.spawnPoint) {
     const [x, y, z] = G.spawnPoint.map(Math.floor);
-    if (!G.world.isLoaded(x, z) || G.world.getBlock(x, y - 1, z) === B.BED) sp = G.spawnPoint;
+    if (!G.world.isLoaded(x, z) || (G.world.getBlock(x, y - 1, z) === B.BED || (typeof isBedBlock === 'function' && isBedBlock(G.world.getBlock(x, y - 1, z))))) sp = G.spawnPoint;
     else { G.spawnPoint = null; G.ui.toast('Your bed was missing or obstructed'); }
   }
   G.stats.reset();

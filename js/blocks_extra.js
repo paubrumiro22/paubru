@@ -55,6 +55,9 @@
     'CITY_PANEL', 'CITY_MARK',
     // lights that come on by themselves at dusk (the shader gates their glow, NIGHT_LAYERS)
     'STREET_LAMP', 'WINDOW_LIT',
+    // furniture (furniture_blocks.js, furniture.js); the sofas must stay in a row
+    'SOFA_GRAY', 'SOFA_RED', 'SOFA_BLUE', 'SOFA_GREEN', 'SOFA_CREAM', 'CHAIR', 'TABLE', 'COFFEE_TABLE', 'DOUBLE_BED', 'DOUBLE_BED_HEAD',
+    'KITCHEN_COUNTER', 'KITCHEN_SINK', 'STOVE', 'STOVE_ON', 'FRIDGE', 'FRIDGE_TOP', 'TV', 'TV_ON', 'FLOOR_LAMP',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here

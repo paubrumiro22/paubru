@@ -350,7 +350,7 @@ const Net = {
     const d = {
       w: 'bl1', n: this.name, c: this.color,
       p: [r1(p.pos[0]), r1(p.pos[1]), r1(p.pos[2])], r: [r2(p.yaw), r2(p.pitch)],
-      a: (p.sneaking ? 1 : 0) | (Act.hand.swinging ? 2 : 0) | (p.parachute ? 4 : 0),
+      a: (p.sneaking ? 1 : 0) | (Act.hand.swinging ? 2 : 0) | (p.parachute ? 4 : 0) | (p.seat ? 8 : 0),
       h: Act.heldId(), s: this.seq, q: this.ops, k: G.settings.skin | 0,
     };
     if (this.server) {
@@ -770,6 +770,7 @@ const Net = {
       m.tint = NET_COLORS[r.color].map((c) => c / 255 * 1.1);
       m.skin = r.skin || 0;
       m.sneak = !!(r.flags & 1);
+      m.sit = !!(r.flags & 8);
       ER.mob(null, m, cp);
       if (r.flags & 4) ER.parachute(r.pos, cp);
     }

@@ -1995,6 +1995,9 @@ function div16(b) { return [b[0] / 16, b[1] / 16, b[2] / 16, b[3] / 16, b[4] / 1
     'CITY_PANEL', 'CITY_MARK',
     // lights that come on by themselves at dusk (the shader gates their glow, NIGHT_LAYERS)
     'STREET_LAMP', 'WINDOW_LIT',
+    // furniture (furniture_blocks.js, furniture.js); the sofas must stay in a row
+    'SOFA_GRAY', 'SOFA_RED', 'SOFA_BLUE', 'SOFA_GREEN', 'SOFA_CREAM', 'CHAIR', 'TABLE', 'COFFEE_TABLE', 'DOUBLE_BED', 'DOUBLE_BED_HEAD',
+    'KITCHEN_COUNTER', 'KITCHEN_SINK', 'STOVE', 'STOVE_ON', 'FRIDGE', 'FRIDGE_TOP', 'TV', 'TV_ON', 'FLOOR_LAMP',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here
@@ -2429,6 +2432,205 @@ SHAPE_NB[SH_WIRE] = wireBoxes;
   for (const id of [B.LEVER, B.LEVER_ON, B.BUTTON, B.BUTTON_ON, B.WOOD_BUTTON, B.WOOD_BUTTON_ON, B.PLATE, B.PLATE_ON, B.WOOD_PLATE, B.WOOD_PLATE_ON,
     B.WIRE, B.WIRE_ON, B.SIGNAL_LAMP, B.SIGNAL_LAMP_ON, B.PISTON, B.PISTON_ON, B.STICKY_PISTON, B.STICKY_PISTON_ON, B.TIMER, B.TIMER_ON, B.SIGNAL_BLOCK,
     B.TNT, B.DOOR, B.DOOR_OPEN, B.TRAPDOOR, B.TRAPDOOR_OPEN]) MECH_JOIN[id] = 1;
+}
+</script>
+<script data-w>
+'use strict';
+// Furniture: sofas that join into long couches, chairs, tables, a coffee table, a double bed
+// (2 x 2 blocks), kitchen cabinets, a sink, a stove, a two-block fridge, a flat TV and a floor
+// lamp. Only their looks and hit boxes live here (shared with the workers); sitting, sleeping,
+// storage and switching on are in furniture.js.
+//
+// Canonical frame as the other shapes: the back is at -Z, the front (where you sit, the TV
+// screen, the cabinet doors) at +Z; facing 0 1 4 5 = where the back is (the side away from the
+// player who placed it). Bit 8 mirrors the piece left-right (the right half of the bed).
+// A box may carry a 7th value: one texture layer, or 6 layers in canonical face order
+// (+X -X +Y -Y +Z -Z) that furnXf turns into world order.
+
+const SH_SOFA = 28, SH_CHAIR = 29, SH_TABLE = 30, SH_COFFEE = 31, SH_DBED_HEAD = 32, SH_DBED_FOOT = 33;
+const SH_COUNTER = 34, SH_SINK = 35, SH_STOVE = 36, SH_FRIDGE = 37, SH_FRIDGE_TOP = 38, SH_TV = 39, SH_LAMP = 40;
+const SHAPE_NBF = {};   // (facing, get, id) -> boxes: shapes that depend on facing and neighbours
+
+const FT = {
+  oak: defTex('furn_oak'), dark: defTex('furn_dark'), metal: defTex('furn_metal'), black: defTex('furn_black'),
+  sheet: defTex('bed_sheet'), blanket: defTex('bed_blanket'), pillow: defTex('bed_pillow'),
+  cab: defTex('cabinet_front'), cabSide: defTex('cabinet_side'), worktop: defTex('worktop'),
+  stoveFront: defTex('stove_front'), stoveTop: defTex('stove_top'), stoveTopOn: defTex('stove_top_on'),
+  fridgeLo: defTex('fridge_front_lo'), fridgeHi: defTex('fridge_front_hi'), fridgeSide: defTex('fridge_side'),
+  tvOff: defTex('tv_screen'), tvOn: defTex('tv_screen_on'), shade: defTex('lamp_shade'),
+};
+const SOFA_COLORS = [['Gray', 'sofa_gray'], ['Red', 'sofa_red'], ['Blue', 'sofa_blue'], ['Green', 'sofa_green'], ['Cream', 'sofa_cream']];
+const SOFA_TEX = SOFA_COLORS.map(([, t]) => [defTex(t), defTex(t + '_cushion')]);
+
+// canonical face order -> world face index for facing f
+const CANON_N = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+function dirOf(n) { return n[0] > 0 ? 0 : n[0] < 0 ? 1 : n[1] > 0 ? 2 : n[1] < 0 ? 3 : n[2] > 0 ? 4 : 5; }
+function furnXf(f, list) {
+  const r = f & 7, mir = f & 8, rr = r === 0 || r === 1 || r === 4 ? r : 5;
+  return list.map((b) => {
+    const m = mir ? [16 - b[3], b[1], b[2], 16 - b[0], b[4], b[5]] : b.slice(0, 6);
+    const q = xfBox(rr, m);
+    if (b.length > 6) {
+      if (Array.isArray(b[6])) {
+        const src = mir ? [b[6][1], b[6][0], b[6][2], b[6][3], b[6][4], b[6][5]] : b[6];
+        const out = new Array(6);
+        for (let d = 0; d < 6; d++) { const n = CANON_N[d]; out[dirOf(shapeXfN(rr, n[0], n[1], n[2]))] = src[d]; }
+        q.push(out);
+      } else q.push(b[6]);
+    }
+    return q;
+  });
+}
+// the world offset of the canonical +X neighbour
+function furnSide(f) { const n = shapeXfN((f & 7) === 0 || (f & 7) === 1 || (f & 7) === 4 ? f & 7 : 5, 1, 0, 0); return n; }
+// six faces: sides, top, bottom, front, back
+const faces6 = (side, top, bottom, front, back) => [side, side, top, bottom, front, back];
+
+// ---- sofa: arms only at the ends of a row of sofas of the same colour ----
+function sofaBoxes(f, get, id, icon) {
+  const s = furnSide(f);
+  const joinR = !icon && get && get(s[0], 0, s[2]) === id, joinL = !icon && get && get(-s[0], 0, -s[2]) === id;
+  const [fab, cush] = SOFA_TEX[(id - B.SOFA_GRAY) % SOFA_TEX.length] || SOFA_TEX[0];
+  const x0 = joinL ? 0 : 2.5, x1 = joinR ? 16 : 13.5;
+  const b = [
+    [joinL ? 0 : 1, 0, 2, joinL ? 1 : 3, 1.5, 4, FT.dark], [joinR ? 15 : 13, 0, 2, joinR ? 16 : 15, 1.5, 4, FT.dark],
+    [joinL ? 0 : 1, 0, 13, joinL ? 1 : 3, 1.5, 15, FT.dark], [joinR ? 15 : 13, 0, 13, joinR ? 16 : 15, 1.5, 15, FT.dark],
+    [0, 1.5, 1, 16, 4.5, 15.5, fab],                                  // frame
+    [x0 + 0.25, 4.5, 4.5, x1 - 0.25, 8, 15.8, cush],                   // seat cushion
+    [0, 4.5, 1, 16, 14.5, 4.5, fab],                                  // back
+    [0.2, 14.5, 1.4, 15.8, 15.5, 4.1, fab],                           // rounded top of the back
+    [x0 + 0.4, 8, 4.5, x1 - 0.4, 13.5, 6.8, cush],                     // back cushion
+  ];
+  if (!joinL) b.push([0, 4.5, 1, 2.5, 11, 15.5, fab], [0.25, 11, 1.4, 2.25, 11.8, 15.3, fab]);
+  if (!joinR) b.push([13.5, 4.5, 1, 16, 11, 15.5, fab], [13.75, 11, 1.4, 15.75, 11.8, 15.3, fab]);
+  return furnXf(f, b);
+}
+SHAPE_NBF[SH_SOFA] = sofaBoxes;
+SHAPE_FN[SH_SOFA] = (f) => ({ boxes: sofaBoxes(f, null, B.SOFA_GRAY, true), coll: furnXf(f, [[0, 0, 1, 16, 8, 16], [0, 8, 1, 16, 15, 4.5]]) });
+
+// ---- chair ----
+SHAPE_FN[SH_CHAIR] = (f) => ({
+  boxes: furnXf(f, [
+    [2, 0, 2, 3.8, 7.5, 3.8, FT.oak], [12.2, 0, 2, 14, 7.5, 3.8, FT.oak], [2, 0, 12.2, 3.8, 7.5, 14, FT.oak], [12.2, 0, 12.2, 14, 7.5, 14, FT.oak],
+    [1.5, 7.5, 1.5, 14.5, 9, 14.5, FT.oak],
+    [2, 9, 1.8, 3.8, 16, 3.6, FT.oak], [12.2, 9, 1.8, 14, 16, 3.6, FT.oak],
+    [3.8, 11, 2.2, 12.2, 12.4, 3.2, FT.oak], [3.8, 14, 2.2, 12.2, 15.6, 3.2, FT.oak],
+  ]),
+  coll: furnXf(f, [[1.5, 0, 1.5, 14.5, 9, 14.5], [1.5, 9, 1.5, 14.5, 16, 3.8]]),
+});
+
+// ---- table: legs only on the outer corners of a group of tables ----
+function tableBoxes(f, get, id) {
+  const has = (dx, dz) => get && get(dx, 0, dz) === id;
+  const b = [[0, 14, 0, 16, 16, 16, FT.oak]];
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    if (has(sx, 0) || has(0, sz)) continue;
+    const x = sx < 0 ? 1 : 13, z = sz < 0 ? 1 : 13;
+    b.push([x, 0, z, x + 2, 14, z + 2, FT.oak]);
+    // apron under the edge the leg stands on
+  }
+  if (!has(0, -1)) b.push([1, 12.5, 1, 15, 14, 2, FT.oak]);
+  if (!has(0, 1)) b.push([1, 12.5, 14, 15, 14, 15, FT.oak]);
+  if (!has(-1, 0)) b.push([1, 12.5, 1, 2, 14, 15, FT.oak]);
+  if (!has(1, 0)) b.push([14, 12.5, 1, 15, 14, 15, FT.oak]);
+  return b;
+}
+SHAPE_NBF[SH_TABLE] = (f, get, id) => tableBoxes(f, get, id);
+SHAPE_FN[SH_TABLE] = () => ({ boxes: tableBoxes(0, null, 0), coll: [[0, 14, 0, 16, 16, 16], [6, 0, 6, 10, 14, 10]] });
+
+SHAPE_FN[SH_COFFEE] = (f) => ({
+  boxes: furnXf(f, [
+    [1, 6, 2, 15, 7.5, 14, FT.dark], [2, 2, 3, 14, 3, 13, FT.dark],
+    [1.5, 0, 2.5, 3, 6, 4, FT.metal], [13, 0, 2.5, 14.5, 6, 4, FT.metal], [1.5, 0, 12, 3, 6, 13.5, FT.metal], [13, 0, 12, 14.5, 6, 13.5, FT.metal],
+  ]),
+  coll: furnXf(f, [[1, 0, 2, 15, 7.5, 14]]),
+});
+
+// ---- double bed: head and foot halves, the right half mirrored (bit 8); head at -Z ----
+SHAPE_FN[SH_DBED_HEAD] = (f) => ({
+  boxes: furnXf(f, [
+    [0, 0, 0, 16, 16, 2, faces6(FT.dark, FT.dark, FT.dark, FT.oak, FT.dark)],   // headboard
+    [0, 0, 2, 2, 2, 4, FT.dark],
+    [0, 2, 2, 16, 5, 16, FT.oak],                                               // frame
+    [1, 5, 2, 16, 9.5, 16, FT.sheet],                                           // mattress
+    [3, 9.5, 3, 14.5, 12, 8, FT.pillow],                                        // pillow
+    [0.6, 9.5, 9, 16, 10.6, 16, FT.blanket], [0.4, 6, 9, 1, 10.6, 16, FT.blanket],
+  ]),
+  coll: furnXf(f, [[0, 0, 0, 16, 16, 2], [0, 0, 2, 16, 10.5, 16]]),
+});
+SHAPE_FN[SH_DBED_FOOT] = (f) => ({
+  boxes: furnXf(f, [
+    [0, 0, 14, 16, 8, 16, faces6(FT.dark, FT.dark, FT.dark, FT.dark, FT.oak)],  // footboard
+    [0, 0, 12, 2, 2, 14, FT.dark],
+    [0, 2, 0, 16, 5, 14, FT.oak],
+    [1, 5, 0, 16, 9.5, 14, FT.sheet],
+    [0.6, 9.5, 0, 16, 10.6, 14.2, FT.blanket], [0.4, 6, 0, 1, 10.6, 14.2, FT.blanket], [0.6, 6, 13.6, 16, 10.6, 14.2, FT.blanket],
+  ]),
+  coll: furnXf(f, [[0, 0, 0, 16, 10.5, 14], [0, 0, 14, 16, 8, 16]]),
+});
+
+// ---- kitchen ----
+const CAB = (front) => faces6(FT.cabSide, FT.cabSide, FT.cabSide, front, FT.cabSide);
+SHAPE_FN[SH_COUNTER] = (f) => ({
+  boxes: furnXf(f, [[0, 0, 1.5, 16, 1.2, 14, FT.black], [0, 1.2, 0.5, 16, 14.5, 15, CAB(FT.cab)], [0, 14.5, 0, 16, 16, 16, FT.worktop]]),
+  coll: [[0, 0, 0, 16, 16, 16]],
+});
+SHAPE_FN[SH_SINK] = (f) => {
+  const inner = (d) => faces6(d === 'x' ? FT.metal : FT.worktop, d === 'X' ? FT.metal : FT.worktop, FT.worktop, FT.worktop, d === 'z' ? FT.metal : FT.worktop, d === 'Z' ? FT.metal : FT.worktop);
+  return {
+    boxes: furnXf(f, [
+      [0, 0, 1.5, 16, 1.2, 14, FT.black], [0, 1.2, 0.5, 16, 10, 15, CAB(FT.cab)],
+      [0, 10, 0, 3, 16, 16, inner('x')], [13, 10, 0, 16, 16, 16, inner('X')],
+      [3, 10, 0, 13, 16, 3.5, inner('z')], [3, 10, 12.5, 13, 16, 16, inner('Z')],
+      [3, 10, 3.5, 13, 11, 12.5, FT.metal],                                   // basin
+      [7.2, 16, 1.5, 8.8, 20, 3, FT.metal], [7.2, 18.6, 3, 8.8, 20, 7, FT.metal], // tap
+    ]),
+    coll: [[0, 0, 0, 16, 16, 16]],
+  };
+};
+for (const [k, top] of [[SH_STOVE, FT.stoveTop]]) {
+  SHAPE_FN[k] = (f) => ({ boxes: furnXf(f, [[0, 0, 0.5, 16, 15.5, 15.5, faces6(FT.cabSide, FT.cabSide, FT.cabSide, FT.stoveFront, FT.cabSide)], [0, 15.5, 0, 16, 16, 16, top]]), coll: [[0, 0, 0, 16, 16, 16]] });
+}
+const SH_STOVE_ON = 41;
+SHAPE_FN[SH_STOVE_ON] = (f) => ({ boxes: furnXf(f, [[0, 0, 0.5, 16, 15.5, 15.5, faces6(FT.cabSide, FT.cabSide, FT.cabSide, FT.stoveFront, FT.cabSide)], [0, 15.5, 0, 16, 16, 16, FT.stoveTopOn]]), coll: [[0, 0, 0, 16, 16, 16]] });
+SHAPE_FN[SH_FRIDGE] = (f) => ({ boxes: furnXf(f, [[0.5, 0, 1, 15.5, 16, 15.5, faces6(FT.fridgeSide, FT.fridgeSide, FT.fridgeSide, FT.fridgeLo, FT.fridgeSide)]]), coll: [[0.5, 0, 1, 15.5, 16, 15.5]] });
+SHAPE_FN[SH_FRIDGE_TOP] = (f) => ({ boxes: furnXf(f, [[0.5, 0, 1, 15.5, 15, 15.5, faces6(FT.fridgeSide, FT.fridgeSide, FT.fridgeSide, FT.fridgeHi, FT.fridgeSide)]]), coll: [[0.5, 0, 1, 15.5, 15, 15.5]] });
+
+// ---- TV and lamp ----
+const tvShape = (screen) => (f) => ({
+  boxes: furnXf(f, [
+    [0.3, 4, 7, 15.7, 13.6, 8.4, faces6(FT.black, FT.black, FT.black, screen, FT.black)],
+    [6.5, 5, 8.4, 9.5, 11, 9.4, FT.black], [7.2, 1, 7.4, 8.8, 4, 8.6, FT.black], [3.5, 0, 5, 12.5, 1, 10.5, FT.black],
+  ]),
+  coll: furnXf(f, [[0.3, 0, 5, 15.7, 13.6, 10.5]]),
+});
+const SH_TV_ON = 42;
+SHAPE_FN[SH_TV] = tvShape(FT.tvOff);
+SHAPE_FN[SH_TV_ON] = tvShape(FT.tvOn);
+SHAPE_FN[SH_LAMP] = () => ({
+  boxes: [[5, 0, 5, 11, 1, 11, FT.metal], [7.4, 1, 7.4, 8.6, 11.5, 8.6, FT.metal], [4, 11.5, 4, 12, 16, 12, FT.shade]],
+  coll: [[4, 0, 4, 12, 16, 12]],
+});
+
+{
+  const F = { hard: 1, snd: SND.WOOD, tool: TOOL_AXE, atten: 0, solid: true, cat: 'furniture' };
+  const def = (id, name, tex, k, o) => { defBlock(id, name, RT_SHAPE, tex, with_(F, o || {})); BLOCK_SHAPE[id] = k; };
+  SOFA_COLORS.forEach(([n, t], i) => def(B.SOFA_GRAY + i, n + ' Sofa', t, SH_SOFA, { snd: SND.WOOL, hard: 0.8 }));
+  def(B.CHAIR, 'Wooden Chair', 'furn_oak', SH_CHAIR);
+  def(B.TABLE, 'Wooden Table', 'furn_oak', SH_TABLE);
+  def(B.COFFEE_TABLE, 'Coffee Table', 'furn_dark', SH_COFFEE);
+  def(B.DOUBLE_BED, 'Double Bed', 'bed_blanket', SH_DBED_FOOT, { snd: SND.WOOL, hard: 0.4 });
+  def(B.DOUBLE_BED_HEAD, 'Double Bed', 'bed_blanket', SH_DBED_HEAD, { snd: SND.WOOL, hard: 0.4, cat: null });
+  const K = { tool: TOOL_PICK, snd: SND.STONE, hard: 1.5 };
+  def(B.KITCHEN_COUNTER, 'Kitchen Cabinet', 'cabinet_side', SH_COUNTER, K);
+  def(B.KITCHEN_SINK, 'Kitchen Sink', 'cabinet_side', SH_SINK, K);
+  def(B.STOVE, 'Stove', 'cabinet_side', SH_STOVE, K);
+  def(B.STOVE_ON, 'Stove', 'cabinet_side', SH_STOVE_ON, with_(K, { emit: 7, cat: null }));
+  def(B.FRIDGE, 'Fridge', 'fridge_side', SH_FRIDGE, { tool: TOOL_PICK, snd: SND.METAL, hard: 2 });
+  def(B.FRIDGE_TOP, 'Fridge', 'fridge_side', SH_FRIDGE_TOP, { tool: TOOL_PICK, snd: SND.METAL, hard: 2, cat: null });
+  def(B.TV, 'Television', 'furn_black', SH_TV, { tool: TOOL_PICK, snd: SND.METAL, hard: 0.8 });
+  def(B.TV_ON, 'Television', 'furn_black', SH_TV_ON, { tool: TOOL_PICK, snd: SND.METAL, hard: 0.8, emit: 8, cat: null });
+  def(B.FLOOR_LAMP, 'Floor Lamp', 'furn_metal', SH_LAMP, { tool: TOOL_PICK, snd: SND.METAL, hard: 0.5, emit: 14 });
 }
 </script>
 <script>
@@ -4302,7 +4504,7 @@ function shapeIconFaces(bid) {
     const [x0, y0, z0, x1, y1, z1] = b.slice(0, 6).map((v) => v / 16);
     for (let d = 0; d < 6; d++) {
       const p = FACE_CORNERS[d].map((c) => [c[0] ? x1 : x0, c[1] ? y1 : y0, c[2] ? z1 : z0]);
-      faces.push({ p, n: DIRS[d], uv: p.map((q) => [faceU(d, q[0], q[1], q[2]), faceV(d, q[0], q[1], q[2])]), layer: b.length > 6 ? b[6] : tex(d) });
+      faces.push({ p, n: DIRS[d], uv: p.map((q) => [faceU(d, q[0], q[1], q[2]), faceV(d, q[0], q[1], q[2])]), layer: b.length > 6 ? (Array.isArray(b[6]) ? b[6][d] : b[6]) : tex(d) });
     }
   };
   if (BLOCK_RT[bid] === RT_CONNECT) {
@@ -4310,6 +4512,7 @@ function shapeIconFaces(bid) {
     return faces;
   }
   const k = BLOCK_SHAPE[bid];
+  if (typeof SHAPE_NBF !== 'undefined' && SHAPE_NBF[k]) { for (const b of SHAPE_NBF[k](5, null, bid, true)) addBox(b); return faces; }
   if (k === SH_PILLAR) { for (const b of pillarBoxes(false, false)) addBox(b); return faces; }
   if (SHAPE_NB[k]) { for (const b of SHAPE_NB[k](() => 0, bid, true)) addBox(b); return faces; }
   const g = shapeGeom(k, k === SH_OUTER || k === SH_INNER ? 0 : 5);
@@ -10929,7 +11132,8 @@ function emitArch(world, p, x, y, z, id, rt, flags, wx, wz) {
   if (rt === RT_SHAPE) {
     const k = BLOCK_SHAPE[id];
     let boxes;
-    if (k === SH_PILLAR) boxes = pillarBoxes(pb[p - RSS] === id, pb[p + RSS] === id);
+    if (typeof SHAPE_NBF !== 'undefined' && SHAPE_NBF[k]) boxes = SHAPE_NBF[k](world.getFacing(wx, y, wz), (dx, dy, dz) => pb[p + dx + dz * RS + dy * RSS], id);
+    else if (k === SH_PILLAR) boxes = pillarBoxes(pb[p - RSS] === id, pb[p + RSS] === id);
     else if (SHAPE_NB[k]) boxes = SHAPE_NB[k]((dx, dy, dz) => pb[p + dx + dz * RS + dy * RSS], id);
     else if (k === SH_SEAT) {
       const f = world.getFacing(wx, y, wz), noBottom = (d) => (d === 3 ? -1 : tex(d));
@@ -10940,7 +11144,8 @@ function emitArch(world, p, x, y, z, id, rt, flags, wx, wz) {
       for (const poly of g.polys) emitPoly(meshOpaque, p, x, y, z, poly, poly.slant ? tex(poly.n[1] > 0 ? 2 : 3) : tex(poly.n[0] > 0 ? 0 : poly.n[0] < 0 ? 1 : poly.n[1] > 0 ? 2 : poly.n[1] < 0 ? 3 : poly.n[2] > 0 ? 4 : 5), flags);
       boxes = g.boxes;
     }
-    for (const b of boxes) emitBox(b.length > 6 && SHAPE_CUTOUT.has(b[6]) ? meshCutout : meshOpaque, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], b.length > 6 ? () => b[6] : tex, flags, WHITE_TINT, null, true);
+    // a box's 7th value: one layer for all faces, or six (world face order)
+    for (const b of boxes) emitBox(b.length > 6 && SHAPE_CUTOUT.has(b[6]) ? meshCutout : meshOpaque, p, x, y, z, b[0], b[1], b[2], b[3], b[4], b[5], b.length > 6 ? (Array.isArray(b[6]) ? (d) => b[6][d] : () => b[6]) : tex, flags, WHITE_TINT, null, true);
     return;
   }
   if (rt === RT_CONNECT) {
@@ -20883,7 +21088,7 @@ function respawn() {
   let sp = G.worldSpawn;
   if (G.spawnPoint) {
     const [x, y, z] = G.spawnPoint.map(Math.floor);
-    if (!G.world.isLoaded(x, z) || G.world.getBlock(x, y - 1, z) === B.BED) sp = G.spawnPoint;
+    if (!G.world.isLoaded(x, z) || (G.world.getBlock(x, y - 1, z) === B.BED || (typeof isBedBlock === 'function' && isBedBlock(G.world.getBlock(x, y - 1, z))))) sp = G.spawnPoint;
     else { G.spawnPoint = null; G.ui.toast('Your bed was missing or obstructed'); }
   }
   G.stats.reset();
@@ -21423,7 +21628,7 @@ const Net = {
     const d = {
       w: 'bl1', n: this.name, c: this.color,
       p: [r1(p.pos[0]), r1(p.pos[1]), r1(p.pos[2])], r: [r2(p.yaw), r2(p.pitch)],
-      a: (p.sneaking ? 1 : 0) | (Act.hand.swinging ? 2 : 0) | (p.parachute ? 4 : 0),
+      a: (p.sneaking ? 1 : 0) | (Act.hand.swinging ? 2 : 0) | (p.parachute ? 4 : 0) | (p.seat ? 8 : 0),
       h: Act.heldId(), s: this.seq, q: this.ops, k: G.settings.skin | 0,
     };
     if (this.server) {
@@ -21843,6 +22048,7 @@ const Net = {
       m.tint = NET_COLORS[r.color].map((c) => c / 255 * 1.1);
       m.skin = r.skin || 0;
       m.sneak = !!(r.flags & 1);
+      m.sit = !!(r.flags & 8);
       ER.mob(null, m, cp);
       if (r.flags & 4) ER.parachute(r.pos, cp);
     }
@@ -26889,6 +27095,306 @@ FallingBlock.prototype.update = function (dt) {
 </script>
 <script>
 'use strict';
+// Furniture in play (the blocks are in furniture_blocks.js): sit on sofas and chairs (Shift or
+// Space to get up), sleep in the double bed, keep things in kitchen cabinets, the sink and the
+// fridge, switch the stove and the TV on and off. The double bed (2 x 2) and the fridge (2 tall)
+// are placed and broken as one piece. Textures, recipes and the creative tab are here too.
+
+const SEATS = new Map();   // block id -> seat height in 1/16
+for (let i = 0; i < SOFA_COLORS.length; i++) SEATS.set(B.SOFA_GRAY + i, 8);
+SEATS.set(B.CHAIR, 9);
+const STORAGE = new Set([B.KITCHEN_COUNTER, B.KITCHEN_SINK, B.FRIDGE, B.FRIDGE_TOP]);
+const TOGGLE = new Map([[B.STOVE, B.STOVE_ON], [B.STOVE_ON, B.STOVE], [B.TV, B.TV_ON], [B.TV_ON, B.TV]]);
+const DBED = (id) => id === B.DOUBLE_BED || id === B.DOUBLE_BED_HEAD;
+const FXF = (f) => ((f & 7) === 0 || (f & 7) === 1 || (f & 7) === 4 ? f & 7 : 5);
+
+const Furniture = {
+  // world direction a piece faces (where someone sitting on it looks)
+  front(f) { return shapeXfN(FXF(f), 0, 0, 1); },
+
+  // the four blocks of a double bed from any of them: [x, y, z, id, facing]
+  bedParts(x, y, z) {
+    const w = G.world, id = w.getBlock(x, y, z), f = w.getFacing(x, y, z);
+    const side = furnSide(f), mir = f & 8, fr = this.front(f);
+    // step to the left foot block
+    let fx = x, fz = z;
+    if (id === B.DOUBLE_BED_HEAD) { fx += fr[0]; fz += fr[2]; }
+    if (mir) { fx -= side[0]; fz -= side[2]; }
+    const base = f & 7, back = [-fr[0], -fr[2]];
+    return [
+      [fx, y, fz, B.DOUBLE_BED, base], [fx + side[0], y, fz + side[2], B.DOUBLE_BED, base | 8],
+      [fx + back[0], y, fz + back[1], B.DOUBLE_BED_HEAD, base], [fx + back[0] + side[0], y, fz + back[1] + side[2], B.DOUBLE_BED_HEAD, base | 8],
+    ];
+  },
+
+  // ---- sitting ----
+  sit(x, y, z, id) {
+    const p = G.player;
+    if (p.seat || G.vehicle) return false;
+    const f = G.world.getFacing(x, y, z), fr = this.front(f);
+    const h = SEATS.get(id) / 16;
+    p.seat = { x, y, z, id, pos: [x + 0.5 + fr[0] * 0.08, y + h - 0.74, z + 0.5 + fr[2] * 0.08], yaw: Math.atan2(fr[0], fr[2]) };
+    p.yaw = Math.atan2(-fr[0], -fr[2]);
+    p.vel = [0, 0, 0];
+    p.flying = false;
+    sfx('place_6', [x + 0.5, y + 0.5, z + 0.5], 0.6, 0.8);
+    G.ui.toast('Shift or Space to get up', 1600);
+    return true;
+  },
+  stand(p) {
+    const s = p.seat;
+    p.seat = null;
+    const w = G.world, f = w.getFacing(s.x, s.y, s.z), fr = this.front(f);
+    // step off to the front if there is room, else stand on top
+    const fx = s.x + fr[0], fz = s.z + fr[2];
+    const free = (x, y, z) => !BLOCK_SOLID[w.getBlock(x, y, z)] && !BLOCK_SOLID[w.getBlock(x, y + 1, z)];
+    if (free(fx, s.y, fz)) p.pos = [fx + 0.5, s.y, fz + 0.5];
+    else p.pos = [s.x + 0.5, s.y + 1, s.z + 0.5];
+    p.fallStart = null;
+    p.vel = [0, 0, 0];
+  },
+
+  use(x, y, z, id) {
+    if (SEATS.has(id)) return this.sit(x, y, z, id);
+    if (DBED(id)) { trySleep(x, y, z); return true; }
+    if (STORAGE.has(id)) {
+      const by = id === B.FRIDGE_TOP ? y - 1 : y;
+      if (id === B.FRIDGE || id === B.FRIDGE_TOP) sfx('adoor_close', [x + 0.5, y + 0.5, z + 0.5], 0.5, 1.6);
+      G.ui.openChest(x, by, z);
+      return true;
+    }
+    if (TOGGLE.has(id)) {
+      const nid = TOGGLE.get(id);
+      editBlock(x, y, z, nid, G.world.getFacing(x, y, z));
+      sfx(nid === B.TV_ON ? 'metro_chime' : 'click', [x + 0.5, y + 0.5, z + 0.5], 0.4, nid === B.TV_ON || nid === B.STOVE_ON ? 1.3 : 0.9);
+      return true;
+    }
+    return false;
+  },
+
+  // ---- placing the pieces that take more than one block ----
+  place(hit, placeId) {
+    const w = G.world;
+    let [x, y, z] = hit.pos;
+    const n = hit.normal;
+    if (!BLOCK_REPLACE[hit.id]) { x += n[0]; y += n[1]; z += n[2]; }
+    const lk = G.player.lookDir();
+    const f = Math.abs(lk[0]) > Math.abs(lk[2]) ? (lk[0] > 0 ? 0 : 1) : (lk[2] > 0 ? 4 : 5);
+    let list;
+    if (placeId === B.FRIDGE) list = [[x, y, z, B.FRIDGE, f], [x, y + 1, z, B.FRIDGE_TOP, f]];
+    else {
+      // the bed goes away from you and to your right
+      const fr = this.front(f), side = furnSide(f), back = [-fr[0], -fr[2]];
+      list = [[x, y, z, B.DOUBLE_BED, f], [x + side[0], y, z + side[2], B.DOUBLE_BED, f | 8],
+        [x + back[0], y, z + back[1], B.DOUBLE_BED_HEAD, f], [x + back[0] + side[0], y, z + back[1] + side[2], B.DOUBLE_BED_HEAD, f | 8]];
+    }
+    for (const [a, b, c] of list) {
+      if (b < 0 || b >= CH || !BLOCK_REPLACE[w.getBlock(a, b, c)] || Act.entityBlocks(a, b, c, 1)) { G.ui.toast(placeId === B.FRIDGE ? 'The fridge needs two free blocks' : 'The bed needs 2 \u00d7 2 free blocks'); return false; }
+      if (b === y && !BLOCK_SOLID[w.getBlock(a, b - 1, c)]) { G.ui.toast('It has to stand on the floor'); return false; }
+    }
+    editBlocks(list);
+    sfx('place_' + BLOCK_SOUND[placeId], [x + 0.5, y + 0.5, z + 0.5], 1, 0.9);
+    Act.consume(); Act.swingHand();
+    return true;
+  },
+
+  // when one piece of a bed or fridge goes, the rest goes with it (no extra drops)
+  broken(x, y, z, id) {
+    const w = G.world;
+    const out = [];
+    if (id === B.FRIDGE && w.getBlock(x, y + 1, z) === B.FRIDGE_TOP) out.push([x, y + 1, z, B.AIR]);
+    if (id === B.FRIDGE_TOP && w.getBlock(x, y - 1, z) === B.FRIDGE) out.push([x, y - 1, z, B.AIR]);
+    if (out.length) editBlocks(out);
+  },
+
+  update() {
+    const p = G.player;
+    if (p.seat && G.world.getBlock(p.seat.x, p.seat.y, p.seat.z) !== p.seat.id) this.stand(p);
+  },
+};
+
+// ---------------------------------------------------------------- hooks ----
+{
+  const upd = Player.prototype.update;
+  Player.prototype.update = function (dt, input) {
+    const s = this.seat;
+    if (!s) return upd.call(this, dt, input);
+    const k = input.keys;
+    if (k.has('ShiftLeft') || k.has('ShiftRight') || k.has('Space')) { Furniture.stand(this); return; }
+    this.pos[0] = s.pos[0]; this.pos[1] = s.pos[1]; this.pos[2] = s.pos[2];
+    this.vel[0] = this.vel[1] = this.vel[2] = 0;
+    this.onGround = true; this.sneaking = false; this.sprinting = false; this.fallStart = null;
+  };
+
+  const use = Act.useItem;
+  Act.useItem = function (initial) {
+    const t = this.target, b = t && t.block;
+    if (initial && b && !G.player.sneaking && Furniture.use(b.pos[0], b.pos[1], b.pos[2], b.id)) { this.swingHand(); return true; }
+    return use.call(this, initial);
+  };
+
+  const place = Act.placeBlock;
+  Act.placeBlock = function (hit) {
+    const held = G.inv.held, d = held && ITEM_DEF[held.id];
+    const id = d && (d.block || d.places);
+    if (id === B.DOUBLE_BED || id === B.FRIDGE) return Furniture.place(hit, id);
+    return place.call(this, hit);
+  };
+
+  const destroy = destroyBlock;
+  // eslint-disable-next-line no-global-assign
+  destroyBlock = function (x, y, z, opts) {
+    const id = G.world.getBlock(x, y, z);
+    const parts = DBED(id) ? Furniture.bedParts(x, y, z) : null;
+    const r = destroy.call(this, x, y, z, opts);
+    if (r) {
+      if (parts) {
+        const w = G.world, out = [];
+        for (const [a, b, c, pid] of parts) if ((a !== x || c !== z) && w.getBlock(a, b, c) === pid) out.push([a, b, c, B.AIR]);
+        if (out.length) editBlocks(out);
+      } else Furniture.broken(x, y, z, id);
+    }
+    return r;
+  };
+
+  const drops = blockDrops;
+  // eslint-disable-next-line no-global-assign
+  blockDrops = function (id, toolItem, rnd) {
+    if (id === B.DOUBLE_BED || id === B.DOUBLE_BED_HEAD) return [[B.DOUBLE_BED, 1]];
+    if (id === B.FRIDGE || id === B.FRIDGE_TOP) return [[B.FRIDGE, 1]];
+    if (id === B.STOVE_ON) return [[B.STOVE, 1]];
+    if (id === B.TV_ON) return [[B.TV, 1]];
+    if (BLOCK_SHAPE[id] && id >= B.SOFA_GRAY && id <= B.FLOOR_LAMP) return [[id, 1]];
+    return drops(id, toolItem, rnd);
+  };
+
+  // cabinets, the sink and the fridge keep what is in them like chests
+  const cleanup = cleanupBlockEntity;
+  // eslint-disable-next-line no-global-assign
+  cleanupBlockEntity = function (x, y, z, old, id) {
+    const be = G.world.blockEntities.get(posKey(x, y, z));
+    if (be && be.type === 'chest' && (id === B.KITCHEN_COUNTER || id === B.KITCHEN_SINK || id === B.FRIDGE)) return;
+    return cleanup.call(this, x, y, z, old, id);
+  };
+
+  const tab = CREATIVE_TABS.findIndex((t) => t.key === 'functional');
+  CREATIVE_TABS.splice(tab + 1, 0, { key: 'furniture', name: 'Furniture' });
+  for (const id of [B.DOUBLE_BED, B.FRIDGE, B.TV, B.STOVE]) if (ITEM_DEF[id]) ITEM_DEF[id].stack = 1;
+}
+
+// ---------------------------------------------------------------- recipes ----
+{
+  const PL = B.PLANKS, WL = (c) => B.WOOL + c;
+  [7, 14, 11, 13, 0].forEach((c, i) => shaped(B.SOFA_GRAY + i, 1, ['W  ', 'WWW', 'P P'], { W: WL(c), P: PL }));
+  shaped(B.CHAIR, 2, ['P  ', 'PPP', 'S S'], { P: PL, S: I.STICK });
+  shaped(B.TABLE, 1, ['PPP', 'S S', 'S S'], { P: PL, S: I.STICK });
+  shaped(B.COFFEE_TABLE, 1, ['PPP', 'I I'], { P: B.DARK_OAK_PLANKS || PL, I: I.IRON_INGOT });
+  shaped(B.DOUBLE_BED, 1, ['WWW', 'WWW', 'PPP'], { W: WL(0), P: PL });
+  shaped(B.KITCHEN_COUNTER, 1, ['SSS', 'PCP', 'PPP'], { S: B.SMOOTH_STONE || B.STONE, P: PL, C: B.CHEST });
+  shaped(B.KITCHEN_SINK, 1, ['I B', 'SSS', 'PPP'], { I: I.IRON_INGOT, B: I.BUCKET, S: B.SMOOTH_STONE || B.STONE, P: PL });
+  shaped(B.STOVE, 1, ['III', 'IFI', 'III'], { I: I.IRON_INGOT, F: B.FURNACE });
+  shaped(B.FRIDGE, 1, ['III', 'ICI', 'III'], { I: I.IRON_INGOT, C: B.CHEST });
+  shaped(B.TV, 1, ['GGG', 'GRG', ' I '], { G: B.GLASS_PANE || B.GLASS, R: I.REDSTONE || B.WIRE, I: I.IRON_INGOT });
+  shaped(B.FLOOR_LAMP, 1, ['WTW', ' I ', ' I '], { W: WL(0), T: B.TORCH, I: I.IRON_INGOT });
+}
+
+// ---------------------------------------------------------------- textures ----
+{
+  // woven fabric: fine crossing threads, lighter on raised weft
+  const fabric = (base, cushion) => (d, rng) => fillTile(d, (x, y) => {
+    const weave = ((x + (y >> 1)) & 1) ? 1.04 : 0.96;
+    const seam = cushion && (x === 0 || y === 0 || x === TM || y === TM) ? 0.82 : cushion && (x === 1 || y === 1) ? 1.06 : 1;
+    put(d, x, y, base, weave * seam * (0.94 + rng() * 0.07));
+  });
+  const SOFA_RGB = [[118, 122, 128], [168, 44, 48], [52, 84, 150], [70, 120, 84], [214, 200, 176]];
+  SOFA_COLORS.forEach(([, t], i) => {
+    gen(t, fabric(SOFA_RGB[i], false), { smooth: 0.1, bump: 0.5 });
+    gen(t + '_cushion', fabric(SOFA_RGB[i].map((v) => Math.min(255, v * 1.08)), true), { smooth: 0.12, bump: 0.6 });
+  });
+  const wood = (base, grainK) => (d, rng) => {
+    const g = [];
+    for (let y = 0; y < TS; y++) g.push(0.9 + rng() * 0.12);
+    fillTile(d, (x, y) => put(d, x, y, base, g[y] * (1 + Math.sin((x + g[y] * 20) * 0.6) * grainK) * (0.97 + rng() * 0.04)));
+  };
+  gen('furn_oak', wood([176, 132, 86], 0.05), { smooth: 0.45, bump: 0.4 });
+  gen('furn_dark', wood([92, 62, 40], 0.06), { smooth: 0.5, bump: 0.4 });
+  gen('furn_metal', (d, rng) => fillTile(d, (x, y) => put(d, x, y, [186, 190, 196], (0.93 + rng() * 0.05) * (y % 6 === 0 ? 1.06 : 1))), { smooth: 0.8, bump: 0.2 });
+  gen('furn_black', (d, rng) => fillTile(d, (x, y) => put(d, x, y, [30, 31, 35], 0.92 + rng() * 0.08)), { smooth: 0.7, bump: 0.1 });
+  gen('bed_sheet', (d, rng) => fillTile(d, (x, y) => put(d, x, y, [236, 236, 230], 0.95 + rng() * 0.05)), { smooth: 0.1, bump: 0.3 });
+  gen('bed_pillow', (d, rng) => fillTile(d, (x, y) => put(d, x, y, [246, 244, 238], (x === 0 || y === 0 || x === TM || y === TM ? 0.86 : 1) * (0.96 + rng() * 0.04))), { smooth: 0.1, bump: 0.4 });
+  gen('bed_blanket', (d, rng) => fillTile(d, (x, y) => {
+    const stripe = (y % 16) < 2 ? [226, 214, 180] : [44, 66, 118];
+    put(d, x, y, stripe, (((x + y) & 3) ? 1 : 0.9) * (0.94 + rng() * 0.06));
+  }), { smooth: 0.1, bump: 0.6 });
+  // white lacquered cabinet door with a thin steel handle
+  gen('cabinet_front', (d, rng) => fillTile(d, (x, y) => {
+    let c = [236, 236, 232], f = 0.97 + rng() * 0.03;
+    if (x === 0 || x === TM || y === 0 || y === TM) f *= 0.72;
+    else if (x === 15 || x === 16) f *= 0.8;                         // two doors
+    if ((x === 12 || x === 19) && y >= 4 && y <= 12) { c = [170, 176, 184]; f = 1.05; }
+    put(d, x, y, c, f);
+  }), { smooth: 0.6, bump: 0.3 });
+  gen('cabinet_side', (d, rng) => fillTile(d, (x, y) => put(d, x, y, [230, 230, 226], (x === 0 || x === TM ? 0.85 : 1) * (0.97 + rng() * 0.03))), { smooth: 0.55, bump: 0.2 });
+  gen('worktop', (d, rng) => fillTile(d, (x, y) => {
+    const fleck = rng() < 0.08;
+    put(d, x, y, fleck ? [210, 206, 196] : [66, 64, 62], 0.92 + rng() * 0.1);
+  }), { smooth: 0.85, bump: 0.2 });
+  gen('stove_front', (d, rng, ctx) => fillTile(d, (x, y) => {
+    let c = [44, 46, 50], f = 0.95 + rng() * 0.05;
+    if (y <= 5) { c = [210, 212, 214]; if (y >= 2 && y <= 3 && x % 6 === 3) { c = [40, 40, 44]; } }    // knobs
+    else if (y === 8 && x >= 4 && x <= 27) { c = [200, 204, 210]; f = 1.1; }                              // handle
+    else if (y >= 11 && y <= 27 && x >= 4 && x <= 27) { c = [20, 20, 24]; f = (x + y) % 9 === 0 ? 1.8 : 0.9; } // oven window
+    put(d, x, y, c, f);
+  }), { smooth: 0.8, bump: 0.2 });
+  const hob = (on) => (d, rng, ctx) => fillTile(d, (x, y, k) => {
+    let c = [18, 18, 22], f = 0.9 + rng() * 0.08;
+    for (const [cx, cy, r] of [[9, 9, 6], [23, 9, 5], [9, 23, 5], [23, 23, 6]]) {
+      const q = Math.hypot(x - cx + 0.5, y - cy + 0.5);
+      if (q <= r && q >= r - 1.4) { c = on ? [255, 90, 40] : [80, 80, 86]; f = 1; if (on) ctx.emit[k] = 1; }
+      else if (on && q < r - 1.4 && q > r - 3) { c = [150, 40, 20]; ctx.emit[k] = 0.5; }
+    }
+    put(d, x, y, c, f);
+  });
+  gen('stove_top', hob(false), { smooth: 0.9, bump: 0.1 });
+  gen('stove_top_on', hob(true), { smooth: 0.9, bump: 0.1 });
+  const fridge = (hi) => (d, rng) => fillTile(d, (x, y) => {
+    let c = [226, 230, 234], f = 0.97 + rng() * 0.03;
+    if (x === 0 || x === TM) f *= 0.8;
+    if ((hi ? y === TM : y === 0)) f *= 0.7;                            // gap between the doors
+    if (x >= 26 && x <= 27 && (hi ? y >= 18 && y <= 29 : y >= 2 && y <= 13)) { c = [150, 156, 164]; f = 1.05; }
+    put(d, x, y, c, f);
+  });
+  gen('fridge_front_lo', fridge(false), { smooth: 0.75, bump: 0.2 });
+  gen('fridge_front_hi', fridge(true), { smooth: 0.75, bump: 0.2 });
+  gen('fridge_side', (d, rng) => fillTile(d, (x, y) => put(d, x, y, [220, 224, 228], 0.96 + rng() * 0.03)), { smooth: 0.7, bump: 0.1 });
+  gen('tv_screen', (d, rng) => fillTile(d, (x, y) => {
+    const edge = x === 0 || x === TM || y === 0 || y === TM;
+    put(d, x, y, edge ? [36, 36, 40] : [14, 16, 20], edge ? 1 : 0.9 + (x - y > 10 && x - y < 14 ? 0.5 : 0) + rng() * 0.05);
+  }), { smooth: 0.95, bump: 0 });
+  // switched on: a sunny landscape with a football match score bug
+  gen('tv_screen_on', (d, rng, ctx) => fillTile(d, (x, y, k) => {
+    let c;
+    if (x === 0 || x === TM || y === 0 || y === TM) { put(d, x, y, [36, 36, 40]); return; }
+    if (y < 12) c = [96 + y * 6, 160 + y * 4, 236];
+    else if (y < 15) c = [60, 130, 70];
+    else c = ((x >> 2) & 1) ? [70, 150, 60] : [62, 138, 54];
+    if (y >= 20 && y <= 21) c = [236, 240, 236];                         // pitch line
+    if (Math.hypot(x - 20, y - 23) < 1.4) c = [250, 250, 250];            // the ball
+    if (y >= 2 && y <= 5 && x >= 2 && x <= 12) c = x <= 6 ? [200, 30, 40] : [30, 40, 60];
+    put(d, x, y, c, 0.96 + rng() * 0.04);
+    ctx.emit[k] = 0.85;
+  }), { smooth: 0.95, bump: 0 });
+  gen('lamp_shade', (d, rng, ctx) => fillTile(d, (x, y, k) => {
+    put(d, x, y, [250, 226, 176], (y % 5 === 0 ? 0.94 : 1) * (0.96 + rng() * 0.04));
+    ctx.emit[k] = 0.75;
+  }), { smooth: 0.1, bump: 0.3 });
+}
+
+// respawning on a double bed (game.js asks)
+function isBedBlock(id) { return DBED(id); }
+</script>
+<script>
+'use strict';
 // HUD (hotbar, hearts, hunger, armour, air, overlays) and every container screen: survival
 // inventory with 2x2 crafting and a recipe book, crafting table, furnace, chest and the
 // creative item palette. Slot clicks follow the familiar pick-up / split / drag rules.
@@ -31594,7 +32100,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Physics.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Physics.update(dt); Furniture.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
     Music.update(dt);
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);
@@ -31610,6 +32116,7 @@ function frame(now) {
         skin: G.settings.skin, tint: NET_COLORS[Net.color].map((c) => c / 255 * 1.1), emote: Social.emote,
         animKey: 'self', onGround: !!p.onGround, sneak: p.sneaking };
       if (Social.emote && Social.emote.face !== undefined) self.bodyYaw = Social.emote.face;
+      if (p.seat) { self.sit = true; self.bodyYaw = p.seat.yaw; }
     }
     // colour of the water around the camera, for the underwater haze
     if (!G.onTitle && p.eyeInWater && (G.frameCount & 7) === 0) {
