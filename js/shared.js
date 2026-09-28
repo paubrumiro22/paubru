@@ -35,6 +35,7 @@ const SharedState = {
   apply(k, v) {
     if (k.startsWith('be:')) this.applyBE(Number(k.slice(3)), v);
     else if (k.startsWith('claim:')) Claims.apply(k.slice(6), v);
+    else if (k === 'metro' && typeof MetroPerm !== 'undefined') MetroPerm.apply(v);
     else if (k === 'mobs' && this.loading && !Net.peers.size && v && Array.isArray(v.list)) SharedAnimals.adopt(v.list);
   },
 
@@ -124,6 +125,7 @@ const SharedState = {
   },
   greet() {
     let n = 0;
+    if (G.world.metro && G.world.metro.admins && G.world.metro.admins.length) Net.sendState({ k: 'metro', v: { admins: G.world.metro.admins, an: G.world.metro.an }, t: this.times.get('metro') || 1 });
     for (const c of Claims.map.values()) { Net.sendState({ k: 'claim:' + c.id, v: c, t: this.times.get('claim:' + c.id) || c.t || 1 }); n++; }
     for (const [pk, be] of G.world.blockEntities) {
       if (!SHARE_BE.has(be.type) || n++ > 150) continue;

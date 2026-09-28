@@ -888,6 +888,8 @@ class World {
       const num = (v) => Number.isFinite(v);
       this.metro = {
         lines: Array.isArray(M.lines) ? M.lines.filter((l) => l && Number.isInteger(l.n) && Array.isArray(l.c) && l.c.length === 3 && l.c.every(num)).slice(0, 12) : [],
+        admins: Array.isArray(M.admins) ? M.admins.filter((o) => typeof o === 'string').slice(0, 32) : [],
+        an: M.an && typeof M.an === 'object' ? M.an : {},
         names: Array.isArray(M.names) ? M.names.filter((q) => q && num(q.x) && num(q.z) && typeof q.name === 'string').map((q) => ({ x: q.x, z: q.z, name: q.name.slice(0, 28) })).slice(0, 400) : [],
       };
     }

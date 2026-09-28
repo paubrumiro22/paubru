@@ -496,11 +496,9 @@ const MetroBuild = {
     pl.index = N ? N.stations.length : 0;
     pl.stripe = lineInfo(pl.line).stripe;
     if (mine) {
-      if (G.mode === 'survival') {
-        if ((G.money | 0) < pl.cost) { G.ui.toast('🚇 The works cost ' + pl.cost + ' coins (you have ' + (G.money | 0) + ')', 4000); return false; }
-        G.money -= pl.cost;
-        if (typeof Bank !== 'undefined' && Bank.refresh) Bank.refresh();
-      }
+      // the works are free; on a server only the metro builders may start them
+      if (!MetroPerm.can()) { G.ui.toast('🚇 Only ' + MetroPerm.names() + ' can build the metro here: ask them for permission', 4000); return false; }
+      MetroPerm.claimFirst();
       if (Net.on) Net.op(['M', Math.round(x), Math.round(z), pl.line, name, opt.newLine ? 1 : 0]);
     }
     // remember the line and the name (every player records the same)
@@ -609,15 +607,16 @@ const MetroPanel = {
         ${all.length ? `<div class="mp-tabs">${tabs}</div>` : ''}
         ${body}
         ${job ? `<div class="mp-works">🚧 Building ${escapeHtml(job.name)}… ${Math.round(job.i / job.total * 100)}%</div>` : ''}
-        <div class="mp-name"><label>Name of the next station</label><input id="mpName" type="text" maxlength="28" placeholder="Leave empty for a local name, e.g. “Can ${escapeHtml((Net.name || 'Pau').split(' ')[0])}”"></div>
+        <div class="mp-name"><label>Name of the next station</label><input id="mpStName" type="text" maxlength="28" placeholder="Leave empty for a local name, e.g. “Can ${escapeHtml((Net.name || 'Pau').split(' ')[0])}”"></div>
         <div class="mp-actions">
           ${N ? `<button class="primary" data-a="add">➕ New station on L${N.n}…</button>` : ''}
           <button data-a="line">✨ Start a new line…</button>
           <button data-a="map">🗺 Network map</button>
         </div>
-        <p class="mp-note">Pick the spot on the map — right by your house if you like: the line grows from its nearest end with a tunnel, a platform with fare gates and a stair up to the street. A new line starts with its first station there; stations of different lines close together become interchanges.${G.mode === 'survival' ? ' The works are paid from your coins.' : ''}</p>
+        ${MetroPerm.html()}
+        <p class="mp-note">Pick the spot on the map — right by your house if you like: the line grows from its nearest end with a tunnel, a platform with fare gates and a stair up to the street. A new line starts with its first station there; stations of different lines close together become interchanges.${Net.server ? (MetroPerm.can() ? ' The works are free.' : ' Only ' + escapeHtml(MetroPerm.names()) + ' can build here.') : ' The works are free.'}</p>
       </div>`;
-    const nm = el.querySelector('#mpName');
+    const nm = el.querySelector("#mpStName");
     nm.value = this.name;
     nm.addEventListener('input', () => { this.name = nm.value; });
     nm.addEventListener('keydown', (e) => e.stopPropagation());
@@ -626,6 +625,7 @@ const MetroPanel = {
     if (add) add.addEventListener('click', () => this.pick({ line: N.n }));
     el.querySelector('[data-a="line"]').addEventListener('click', () => this.pick({ newLine: true }));
     el.querySelector('[data-a="map"]').addEventListener('click', () => MetroMap.show());
+    MetroPerm.bind(el, () => this.render());
     for (const b of el.querySelectorAll('.mp-tab')) b.addEventListener('click', () => { this.line = Number(b.dataset.l); this.render(); });
   },
 
@@ -644,6 +644,29 @@ const MetroPanel = {
 };
 
 function escapeHtml(t) { return String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
+
+// ---------------------------------------------------------------- who may build ----
+// On a server the first player who builds a station becomes a metro builder and can let others
+// build too (shared as 'metro' in shared.js). In your own world you always can.
+const MetroPerm = {
+  rec() { const R = metroRec(); if (!Array.isArray(R.admins)) R.admins = []; if (!R.an || typeof R.an !== 'object') R.an = {}; return R; },
+  can() { if (!Net.on || !Net.server) return true; const R = this.rec(); return !R.admins.length || R.admins.includes(Net.owner); },
+  names() { const R = this.rec(); return R.admins.map((o) => R.an[o] || 'someone').join(', ') || 'nobody'; },
+  share() { const R = this.rec(); if (typeof SharedState !== 'undefined') SharedState.put('metro', { admins: R.admins, an: R.an }); },
+  claimFirst() { const R = this.rec(); if (Net.server && !R.admins.length) { R.admins.push(Net.owner); R.an[Net.owner] = Net.name; this.share(); } },
+  apply(v) { if (!v || !Array.isArray(v.admins)) return; const R = this.rec(); R.admins = v.admins.filter((o) => typeof o === 'string').slice(0, 32); R.an = v.an && typeof v.an === 'object' ? v.an : {}; if (MetroPanel.open) MetroPanel.render(); },
+  html() {
+    if (!Net.server) return '';
+    const R = this.rec(), me = R.admins.includes(Net.owner);
+    const chips = R.admins.map((o) => `<span class="mp-chip">${escapeHtml(R.an[o] || 'Player')}${me && o !== Net.owner ? `<button data-rm="${o}">✕</button>` : ''}</span>`).join('') || '<span class="mp-chip">Anyone (the first to build becomes the owner)</span>';
+    const add = me ? [...Net.peers.values()].filter((r) => r.owner && !R.admins.includes(r.owner)).map((r) => `<button class="mp-addb" data-add="${r.owner}" data-n="${escapeHtml(r.name)}">＋ ${escapeHtml(r.name)}</button>`).join('') : '';
+    return `<div class="mp-perm"><label>Metro builders</label>${chips}${add}</div>`;
+  },
+  bind(el, rerender) {
+    for (const b of el.querySelectorAll('[data-add]')) b.addEventListener('click', () => { const R = this.rec(); R.admins.push(b.dataset.add); R.an[b.dataset.add] = b.dataset.n; this.share(); rerender(); G.ui.toast('🚇 ' + b.dataset.n + ' can build the metro now'); });
+    for (const b of el.querySelectorAll('[data-rm]')) b.addEventListener('click', () => { const R = this.rec(); R.admins = R.admins.filter((o) => o !== b.dataset.rm); this.share(); rerender(); });
+  },
+};
 
 // ---------------------------------------------------------------- the network map ----
 // A diagram of every line with its stations and interchanges, in their real positions.
@@ -761,7 +784,7 @@ const MetroStrip = {
     info.innerHTML = '🚇 <b></b><br>';
     info.querySelector('b').textContent = (mode.newLine ? 'New line L' + pl.line + ': ' : 'New station on L' + pl.line + ': ') + name;
     info.append(document.createTextNode((mode.newLine ? 'First station' : pl.bend ? 'Tunnel with a bend' : 'Straight tunnel') + ' · ' + pl.cells + ' m · ' + pl.steps + ' steps up to the street' +
-      (pl.transfer.length ? ' · interchange with ' + pl.transfer.map((n) => 'L' + n).join(', ') : '') + (G.mode === 'survival' ? ' · ' + pl.cost + ' coins' : '')));
+      (pl.transfer.length ? ' · interchange with ' + pl.transfer.map((n) => 'L' + n).join(', ') : '')));
     // the name can still be changed here, right before building
     const nm = document.createElement('input');
     nm.type = 'text'; nm.maxLength = 28; nm.className = 'wm-name'; nm.value = name; nm.placeholder = 'Station name';
