@@ -162,6 +162,10 @@ function planDistrict(g, plan) {
   // ---- bus stops: shelters on the pavements of the two bus lines (bus.js drives the buses) ----
   for (const st of BUS_STOPS) if (!st.plaza) piece(box(st.u - 4, st.v - 4, st.u + 4, st.v + 4), (W) => buildBusShelter(W, g, D, st));
 
+  // ---- Aeroport STUCOM, east of the ring road: terminal, apron, runway, control tower (airport.js) ----
+  piece(box(74, -74, 142, 74), (W) => buildAirport(W, g, D));
+  plan.airport = { u0: 74, u1: 128, v0: -60, v1: 60, term: [88, -14, 100, 14], runU: 120, parkU: 110 };
+
   // ---- Galeries STUCOM: the shopping arcade under the square, off the Universitat landing ----
   piece(box(-23, -16, -2, 16), (W) => buildMall(W, g, D));
   plan.shops = MALL_SHOPS.map((s) => ({ key: s.key, x0: cx + s.u0, z0: cz + s.v0, x1: cx + s.u1, z1: cz + s.v1, y: D.P }));
@@ -787,4 +791,109 @@ function buildBusShelter(W, g, D, st) {
   for (let y = F; y <= F + 1; y++) set(pu, pv, y, B.IRON_BARS);
   set(pu, pv, F + 2, B.CONCRETE + (st.line === 1 ? 14 : 11));
   W.pic(cx + pu + st.rd[0], F + 2, cz + pv + st.rd[1], toRoad, 1, 1, 'bus');
+}
+
+// ---------------------------------------------------------------- the airport ----
+// East of the district, on levelled ground: an access road from the ring road, a car park, the
+// terminal (glass on both long sides, check-in desks with tills, departure boards, gate seating),
+// the apron, a 7-wide runway along z with markings and edge lights, a control tower with a lift
+// and a windsock. The planes and the flights are in airport.js.
+function buildAirport(W, g, D) {
+  const { cx, cz, F } = D;
+  const set = (u, y, v, id, f) => W.set(cx + u, y, cz + v, id, f);
+  const U0 = 74, U1 = 128, V0 = -60, V1 = 60;
+  if (!rectHits(W, cx + U0, cz + V0 - 14, cx + U1 + 14, cz + V1 + 14)) return;
+  // the embankment round it: slopes back to the natural ground over 14 blocks
+  for (let u = U0; u <= U1 + 14; u++) for (let v = V0 - 14; v <= V1 + 14; v++) {
+    if (u <= U1 && v >= V0 && v <= V1) continue;
+    const x = cx + u, z = cz + v;
+    if (!W.has(x, z)) continue;
+    const du = Math.max(0, u - U1), dv = Math.max(0, V0 - v, v - V1), d = Math.hypot(du, dv);
+    if (d > 14 || (u < 90 && dv > 0 && u < U0 + 2)) continue;
+    const h = g.height(x, z), k = smoothstep(0, 14, d), top = Math.round(F - 1 + (h - (F - 1)) * k);
+    for (let y = Math.min(h, top) - 3; y <= top; y++) if (y > 0 && (y > h || !BLOCK_SOLID[W.get(x, y, z)])) W.set(x, y, z, y === top ? B.GRASS : B.DIRT);
+    if (top < h) for (let y = top + 1; y <= h + 12 && y < CH; y++) W.set(x, y, z, B.AIR);
+    else W.set(x, top, z, B.GRASS);
+  }
+  // level ground
+  for (let u = U0; u <= U1; u++) for (let v = V0; v <= V1; v++) {
+    const x = cx + u, z = cz + v;
+    if (!W.has(x, z)) continue;
+    const h = g.height(x, z);
+    for (let y = Math.min(h, F - 8); y <= F - 2; y++) if (y > 0 && (y > h || !BLOCK_SOLID[W.get(x, y, z)])) W.set(x, y, z, y >= F - 4 ? B.DIRT : B.STONE);
+    for (let y = F; y <= Math.max(h, F) + 30 && y < CH; y++) W.set(x, y, z, B.AIR);
+    let top = B.GRASS;
+    if (u <= 87 && Math.abs(v) <= 2) top = Math.abs(v) === 2 ? B.ROAD_WHITE : B.ASPHALT;                       // access road
+    if (u >= 82 && u <= 87 && v >= 4 && v <= 16) top = (v % 3 === 0) ? B.ROAD_WHITE : B.ASPHALT;              // car park
+    if (u >= 101 && u <= 116 && Math.abs(v) <= 26) top = B.CONCRETE + 8;                                     // apron
+    if (u >= 101 && u <= 116 && Math.abs(v) <= 26 && (u === 110 && v % 2 === 0)) top = B.CONCRETE + 4;       // lead-in line
+    if (u >= 117 && u <= 123) {                                                                               // runway
+      top = B.ASPHALT;
+      if (u === 117 || u === 123) top = B.ROAD_WHITE;
+      else if (u === 120 && ((v + 60) % 8) < 4) top = B.ROAD_WHITE;
+      if (Math.abs(v) >= 52 && u !== 120 && u % 2 === 0) top = B.ROAD_WHITE;                                // threshold bars
+    }
+    if ((u === 116 || u === 124) && v % 6 === 0 && Math.abs(v) <= 58) top = B.GLASS_LAMP;                     // edge lights
+    if (u >= 101 && u <= 116 && v > 26 && v <= 50 && u >= 112) top = B.ASPHALT;                               // taxiway to the runway end
+    W.set(x, F - 1, z, top);
+  }
+  // ---- terminal: u 88..100, v -14..14, F..F+7 ----
+  for (let u = 88; u <= 100; u++) for (let v = -14; v <= 14; v++) {
+    const edge = u === 88 || u === 100 || Math.abs(v) === 14;
+    set(u, F - 1, v, edge ? B.CONCRETE + 7 : ((u + v) & 1 ? B.TERRAZZO : B.QUARTZ_BLOCK));
+    for (let y = F; y <= F + 7; y++) {
+      let id = B.AIR;
+      if (edge) {
+        const glassSide = u === 88 || u === 100;
+        id = glassSide ? (y === F + 7 || v % 4 === 0 ? B.CONCRETE : B.GLASS_PANE) : B.CONCRETE;
+      }
+      set(u, y, v, id);
+    }
+    set(u, F + 8, v, (u % 3 === 0 && v % 3 === 0 && !edge) ? B.GLASS_LAMP : B.CONCRETE);
+  }
+  // roof overhang on both sides
+  for (let v = -16; v <= 16; v++) { for (const u of [86, 87, 101, 102]) set(u, F + 8, v, B.CONCRETE_SLAB, 8); }
+  // entrance (landside) and the gate (airside): automatic doors
+  for (const u of [88, 100]) { for (let v = -2; v <= 2; v++) for (let y = F; y <= F + 1; y++) set(u, y, v, B.AIR); }
+  placeADoors(W, [-1, 0, 1].map((v) => [cx + 88, cz + v]), F, 1);
+  placeADoors(W, [-1, 0, 1].map((v) => [cx + 100, cz + v]), F, 0);
+  for (const u of [88, 100]) for (const v of [-2, 2]) { set(u, F, v, B.CONCRETE); set(u, F + 1, v, B.CONCRETE); }
+  // check-in: counters with tills along u = 92, the queue ropes, the boards
+  for (let v = -11; v <= -4; v++) { set(92, F, v, B.KITCHEN_COUNTER, 1); if (v % 2 === 0) set(92, F + 1, v, B.CASH_REGISTER, 0); }
+  for (let v = -11; v <= -4; v++) set(93, F, v, B.AIR);
+  for (let v = 4; v <= 11; v++) set(92, F, v, B.KITCHEN_COUNTER, 1);
+  set(92, F + 1, 6, B.CASH_REGISTER, 0); set(92, F + 1, 9, B.CASH_REGISTER, 0);
+  W.pic(cx + 89, F + 4, cz + 3, 0, 4, 2, 'airport_board');
+  W.pic(cx + 99, F + 4, cz - 3, 1, 4, 2, 'airport_board');
+  // gate seating by the airside glass
+  for (const v of [-11, -10, -9, -7, -6, -5, 5, 6, 7, 9, 10, 11]) for (const u of [96, 98]) set(u, F, v, B.SEAT_BLUE, u === 96 ? 0 : 1);
+  for (const [u, v] of [[90, -13], [90, 13], [99, -13], [99, 13]]) { set(u, F, v, B.PODZOL); set(u, F + 1, v, B.BUSH); }
+  for (const [u, v] of [[94, -2], [94, 2]]) { set(u, F, v, B.VENDING_MACHINE, 1); }
+  // the name over the entrance
+  W.pic(cx + 87, F + 5, cz - 3, 1, 6, 2, 'airport_sign');
+  // ---- control tower: u 90..92, v 18..20, cab on top, a lift inside ----
+  const TT = F + 16;
+  for (let u = 89; u <= 93; u++) for (let v = 17; v <= 21; v++) {
+    const inner = u >= 90 && u <= 92 && v >= 18 && v <= 20;
+    const core = u === 91 && v === 19;
+    for (let y = F - 1; y <= TT + 4; y++) {
+      let id = B.AIR;
+      if (y < TT) {
+        if (!inner) continue;
+        const wall = u === 90 || u === 92 || v === 18 || v === 20;
+        id = core ? (y === F - 1 || y === TT - 1 ? B.LIFT_FLOOR : B.AIR) : wall ? ((y - F) % 5 === 2 ? B.GLASS_PANE : B.CONCRETE) : B.AIR;
+        if (u === 90 && v === 19 && (y === F || y === F + 1)) id = B.AIR;   // door
+      } else if (y === TT) id = core ? B.LIFT_FLOOR : B.CONCRETE + 8;
+      else if (y <= TT + 3) id = (u === 89 || u === 93 || v === 17 || v === 21) ? B.GLASS_PANE : B.AIR;
+      else id = B.CONCRETE + 7;
+      set(u, y, v, id);
+    }
+  }
+  for (let y = F; y < TT; y++) set(91, y, 19, B.AIR);
+  set(91, F - 1, 19, B.LIFT_FLOOR); set(91, TT, 19, B.LIFT_FLOOR);
+  set(90, TT + 1, 18, B.DESKTOP_PC, 1); set(92, TT + 1, 20, B.DESKTOP_PC, 0); set(90, TT + 1, 20, B.CHAIR, 0);
+  for (let u = 89; u <= 93; u++) for (let v = 17; v <= 21; v++) set(u, TT + 5, v, (u + v) % 2 ? B.CONCRETE + 14 : B.CONCRETE);
+  // windsock
+  for (let y = F; y <= F + 4; y++) set(126, y, -34, B.IRON_BARS);
+  set(126, F + 4, -35, B.WOOL + 1); set(126, F + 4, -36, B.WOOL); set(126, F + 4, -37, B.WOOL + 1);
 }
