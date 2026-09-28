@@ -23,6 +23,7 @@ const NET_OPS = 80;               // ops kept in presence (edits, explosions, mi
 const NET_COLORS = [[230, 72, 60], [60, 140, 240], [70, 200, 90], [240, 190, 40], [190, 90, 230], [40, 200, 200], [250, 130, 40], [240, 110, 170]];
 
 let trysteroLoad = null;
+const validUid = (u) => typeof u === 'string' && /^u[a-z0-9]{4,16}$/.test(u);
 function loadTrystero() {
   if (!trysteroLoad) trysteroLoad = import(TRYSTERO_URL).catch((e) => { trysteroLoad = null; throw e; });
   return trysteroLoad;
@@ -58,6 +59,11 @@ const Net = {
   servers: [],                 // servers this browser knows
   p2p: null, p2pToken: 0,
   times: new Map(),            // posKey -> time (s) of the latest edit of that block
+  // servers: players are known by an id of their own (uid), whichever way their messages come;
+  // tidOf/uidOf map it to and from the WebRTC (Trystero) peer id, p2pAt is when they were last
+  // heard directly, heard[uid] what came over the relay (relay.js)
+  uid: 'u' + Math.random().toString(36).slice(2, 12), p2pSelf: null,
+  tidOf: new Map(), uidOf: new Map(), p2pAt: new Map(), heard: new Map(), relayFast: false, relayAt: 0,
 
   async init() {
     const saved = storageGet(NET_KEY) || {};
@@ -149,6 +155,8 @@ const Net = {
     this.on = true;
     G.online = true;
     this.ops = []; this.seq = 0; this.peers.clear(); this.syncBuf.clear(); this.times.clear();
+    this.tidOf.clear(); this.uidOf.clear(); this.p2pAt.clear(); this.heard.clear(); this.relayFast = false;
+    if (server) this.selfPeer = this.uid;
     const save = storageGet(this.saveKey());
     const ok = save && save.v === 2 ? save : null;
     // everyone on a server must generate the same terrain: servers always use the latest generator
@@ -159,7 +167,7 @@ const Net = {
     liftOutOfBlocks(G.player);
     // background tabs pause animation frames: keep announcing from a timer
     clearInterval(this.hb);
-    this.hb = setInterval(() => { if (this.on) this.sendPresence(this.kind === 'local' || !!this.server); }, 1000);
+    this.hb = setInterval(() => { if (!this.on) return; if (this.server) this.checkRelay(); this.sendPresence(this.kind === 'local' || !!this.server); }, 1000);
     document.body.classList.add('online');
     if (server) {
       server.last = nowSec();
@@ -167,6 +175,7 @@ const Net = {
       try { history.replaceState(null, '', '#s=' + server.code); } catch (e) { /* ignore */ }
       this.statusText = 'Connecting…';
       this.startP2P(server);
+      Relay.open(server.code);
       Cloud.open(server);
       G.ui.toast('Server “' + server.name + '” · code ' + server.code);
     } else {
@@ -192,6 +201,7 @@ const Net = {
     if (this.room && !this.server) this.room.presence({ w: null, p: null, v: null, q: null }).catch(() => {});
     if (this.bc) { this.bc.postMessage({ t: 'bye', peer: this.selfPeer }); this.bc.close(); this.bc = null; }
     Cloud.close();
+    Relay.close();
     this.p2pToken++;
     if (this.p2p) { const r = this.p2p.room; this.p2p = null; r.leave().catch(() => {}); }
     for (const r of this.peers.values()) if (r.tag) r.tag.remove();
@@ -216,31 +226,40 @@ const Net = {
       mod = await loadTrystero();
     } catch (e) {
       console.warn('Blocklands: could not load the networking library', e);
-      if (token === this.p2pToken) { this.statusText = 'Offline: could not reach the network (you can keep playing, it saves here)'; this.refreshUI(); }
+      if (token === this.p2pToken && !Relay.joined) { this.statusText = 'Offline: could not reach the network (you can keep playing, it saves here)'; this.refreshUI(); }
       return;
     }
     if (!this.on || this.server !== server || token !== this.p2pToken) return;
     try {
       const room = mod.joinRoom({ appId: NET_APP_ID, password: 'bl:' + server.code }, 'srv-' + server.code);
-      this.selfPeer = mod.selfId;
+      this.p2pSelf = mod.selfId;
+      const uidOf = (tid) => this.uidOf.get(tid) || tid;
       const pres = room.makeAction('pres'), sync = room.makeAction('sync'), need = room.makeAction('need');
       const mobs = room.makeAction('mobs'), mhit = room.makeAction('mhit'), pic = room.makeAction('pic');
       pic.onMessage = (d) => this.onPicture(d);
-      mobs.onMessage = (d, ctx) => this.onMobs(d, ctx.peerId);
-      mhit.onMessage = (d, ctx) => this.onMobHit(d, ctx.peerId);
+      mobs.onMessage = (d, ctx) => this.onMobs(d, uidOf(ctx.peerId));
+      mhit.onMessage = (d, ctx) => this.onMobHit(d, uidOf(ctx.peerId));
       pres.onMessage = (d, ctx) => {
-        const isNew = !this.peers.has(ctx.peerId);
-        this.onPresence(ctx.peerId, d);
-        if (isNew && this.peers.has(ctx.peerId)) this.refreshUI();
+        const u = d && validUid(d.id) ? d.id : ctx.peerId;
+        this.tidOf.set(u, ctx.peerId); this.uidOf.set(ctx.peerId, u);
+        this.p2pAt.set(u, performance.now());
+        const isNew = !this.peers.has(u);
+        this.onPresence(u, d);
+        if (isNew && this.peers.has(u)) this.refreshUI();
       };
-      sync.onMessage = (d, ctx) => this.onSync(d, ctx.peerId);
+      sync.onMessage = (d, ctx) => this.onSync(d, uidOf(ctx.peerId));
       need.onMessage = (d, ctx) => this.serve(ctx.peerId);
       room.onPeerJoin = (id) => {
         this.sendPresence(true, id);
         // both sides send their whole history: each keeps the newest version of every block
         setTimeout(() => { this.serve(id); for (const p of G.world.pictures.values()) this.picture(p, false, id); }, 300);
       };
-      room.onPeerLeave = (id) => { this.dropPeer(id); this.refreshUI(); };
+      room.onPeerLeave = (id) => {
+        const u = uidOf(id);
+        this.p2pAt.delete(u);
+        // still there over the relay? then they stay (silent players time out anyway)
+        if (!Relay.joined || !this.heard.has(u)) { this.dropPeer(u); this.refreshUI(); }
+      };
       this.p2p = { room, pres, sync, need, mobs, mhit, pic };
       this.statusText = 'Online';
       this.sendPresence(true);
@@ -287,7 +306,7 @@ const Net = {
   emit(topic, data, to) {
     if (this.server) {
       const a = this.p2p && this.p2p[topic];
-      return a ? a.send(data, to ? { target: to } : undefined).catch(() => {}) : Promise.resolve();
+      return a ? a.send(data, to ? { target: this.tidOf.get(to) || to } : undefined).catch(() => {}) : Promise.resolve();
     }
     if (this.kind === 'room') return this.room.emit(topic, data).catch(() => {});
     if (this.bc) this.bc.postMessage({ t: topic, peer: this.selfPeer, data });
@@ -330,6 +349,12 @@ const Net = {
       a: (p.sneaking ? 1 : 0) | (Act.hand.swinging ? 2 : 0) | (p.parachute ? 4 : 0),
       h: Act.heldId(), s: this.seq, q: this.ops, k: G.settings.skin | 0,
     };
+    if (this.server) {
+      d.id = this.selfPeer;
+      // who this player hears directly: the others know from it whether the relay is needed
+      const now = performance.now();
+      d.hp = [...this.p2pAt].filter(([, t]) => now - t < 4000).map(([u]) => u).slice(0, 24);
+    }
     if (v && v.ride) { d.v = null; d.rd = [RIDE_KEYS.indexOf(v.kind), r1(v.pos[0]), r1(v.pos[1]), r1(v.pos[2]), r3(v.yaw), r3(v.pitch), r3(v.roll), v.paint | 0, Math.round(v.speed * 10), Math.round((v.rpm || 0) * 100)]; }
     else if (v) d.v = [r1(v.pos[0]), r1(v.pos[1]), r1(v.pos[2]), r3(v.yaw), r3(v.pitch), r3(v.roll), Math.round(v.throttle * 100), v.burner ? 1 : 0, Math.round(v.gear * 100), (v.missiles[0] ? 1 : 0) | (v.missiles[1] ? 2 : 0), G.mouse.left ? 1 : 0, Math.round(v.speed)];
     else d.v = null;
@@ -343,7 +368,13 @@ const Net = {
     while (s.length > 3800 && d.q.length > 4) { d.q = d.q.slice(Math.ceil(d.q.length / 4)); s = JSON.stringify(d); }
     if (!force && s === this.lastSent) return;
     this.lastSent = s;
-    if (this.server) { if (this.p2p) this.p2p.pres.send(d, to ? { target: to } : undefined).catch(() => {}); }
+    if (this.server) {
+      if (this.p2p) this.p2p.pres.send(d, to ? { target: to } : undefined).catch(() => {});
+      // over the relay: a beacon every few seconds, or up to 6 times a second while somebody
+      // can only be reached that way
+      const now = performance.now();
+      if (!to && Relay.joined && now - this.relayAt >= (this.relayFast ? 160 : 4000)) { this.relayAt = now; Relay.send('pres', d); }
+    }
     else if (this.kind === 'room') this.room.presence(d).catch(() => {});
     else if (this.bc) this.bc.postMessage({ t: 'presence', peer: this.selfPeer, data: d });
   },
@@ -363,8 +394,9 @@ const Net = {
   // host: tell everyone where the villagers near any player are (5 times a second)
   sendMobs(dt) {
     this.mobT = (this.mobT || 0) - dt;
-    if (this.mobT > 0 || !this.server || !this.p2p || !this.peers.size || !this.isHost()) return;
+    if (this.mobT > 0 || !this.server || !this.peers.size || !this.isHost()) return;
     this.mobT = 0.2;
+    this.mobRelayT = (this.mobRelayT || 0) - 0.2;
     const near = [G.player.pos, ...[...this.peers.values()].map((r) => r.pos)];
     const list = [];
     for (const m of Ents.mobs) {
@@ -373,7 +405,9 @@ const Net = {
       list.push([m.vid, r1(m.pos[0]), r1(m.pos[1]), r1(m.pos[2]), r2(m.bodyYaw), m.dead ? 1 : 0]);
       if (list.length >= 120) break;
     }
-    if (list.length) this.p2p.mobs.send({ m: list }).catch(() => {});
+    if (!list.length) return;
+    if (this.p2p) this.p2p.mobs.send({ m: list }).catch(() => {});
+    if (this.relayFast && this.mobRelayT <= 0) { this.mobRelayT = 0.4; Relay.send('mobs', { id: this.selfPeer, m: list }); }
   },
 
   onMobs(d, from) {
@@ -393,8 +427,10 @@ const Net = {
 
   // pictures: sent whole when hung or taken down, and to anyone who joins
   picture(p, removed, to) {
-    if (!this.on || !this.p2p) return;
-    this.p2p.pic.send(removed ? { del: p.id } : { p }, to ? { target: to } : undefined).catch(() => {});
+    if (!this.on) return;
+    const d = removed ? { del: p.id } : { p };
+    if (this.p2p) this.p2p.pic.send(d, to ? { target: to } : undefined).catch(() => {});
+    if (!to && this.server && this.relayFast) Relay.send('pic', d);
   },
   onPicture(d) {
     if (!d || !G.world) return;
@@ -404,9 +440,47 @@ const Net = {
 
   // a player hit a villager that the host runs
   mobHit(m, amount, src) {
-    if (!this.p2p) return;
     const host = this.hostPeer();
-    this.p2p.mhit.send({ v: m.vid, a: Math.min(40, amount), f: src.from ? src.from.map(r1) : null, k: src.knock || 1 }, { target: host }).catch(() => {});
+    const d = { v: m.vid, a: Math.min(40, amount), f: src.from ? src.from.map(r1) : null, k: src.knock || 1 };
+    if (this.p2p && this.direct(host)) this.p2p.mhit.send(d, { target: this.tidOf.get(host) }).catch(() => {});
+    else if (this.server) Relay.send('mhit', Object.assign(d, { id: this.selfPeer, to: host }));
+  },
+  // heard straight from this player lately (WebRTC works between us)
+  direct(uid) { return this.tidOf.has(uid) && performance.now() - (this.p2pAt.get(uid) || -1e9) < 3000; },
+
+  // ---- the relay (relay.js) ----
+  relayUp() {
+    Relay.on('pres', (d) => {
+      if (!this.on || !this.server || !validUid(d.id) || d.id === this.selfPeer) return;
+      const u = d.id;
+      this.heard.set(u, { t: performance.now(), hp: Array.isArray(d.hp) ? d.hp : [] });
+      if (this.direct(u)) { const r = this.peers.get(u); if (r) r.seen = performance.now(); return; }   // the direct copy is fresher
+      const isNew = !this.peers.has(u);
+      this.onPresence(u, d);
+      if (isNew && this.peers.has(u)) this.refreshUI();
+    });
+    Relay.on('mobs', (d) => { if (this.on && validUid(d.id) && !this.direct(d.id)) this.onMobs(d, d.id); });
+    Relay.on('mhit', (d) => { if (this.on && validUid(d.id) && d.to === this.selfPeer) this.onMobHit(d, d.id); });
+    Relay.on('pic', (d) => { if (this.on) this.onPicture(d); });
+    if (/^Offline/.test(this.statusText)) this.statusText = 'Online';
+    this.relayAt = 0;
+    this.sendPresence(true);
+    this.refreshUI();
+  },
+  // Full-rate relay while any player known over it does not hear us directly, or we do not hear them.
+  checkRelay() {
+    const now = performance.now();
+    let fast = false;
+    for (const [u, h] of this.heard) {
+      if (now - h.t > 12000) { this.heard.delete(u); continue; }
+      if (!this.direct(u) || !h.hp.includes(this.selfPeer)) fast = true;
+    }
+    if (fast !== this.relayFast) {
+      this.relayFast = fast;
+      if (fast) { this.relayAt = 0; this.sendPresence(true); }
+      this.statusText = fast ? 'Online · via relay' : 'Online';
+      this.refreshUI();
+    }
   },
   onMobHit(d, from) {
     if (!d || typeof d.v !== 'string' || !this.isHost() || !this.peers.has(from)) return;
@@ -425,7 +499,7 @@ const Net = {
     if (this.kind === 'local' || this.server) {
       // tabs and P2P have no presence service: re-announce and forget silent players
       this.beat = (this.beat || 0) - dt;
-      if (this.beat <= 0) { this.beat = 1; this.sendPresence(true); }
+      if (this.beat <= 0) { this.beat = 1; if (this.server) this.checkRelay(); this.sendPresence(true); }
       const now = performance.now(), limit = this.server ? 9000 : 4000;
       for (const [k, r] of this.peers) if (now - r.seen > limit) { this.dropPeer(k); this.refreshUI(); }
     }
@@ -609,7 +683,7 @@ const Net = {
   },
 
   onSync(d, from) {
-    if (!d || d.to !== this.selfPeer || !Array.isArray(d.e)) return;
+    if (!d || (d.to !== this.selfPeer && (!this.p2pSelf || d.to !== this.p2pSelf)) || !Array.isArray(d.e)) return;
     const k = d.k === 6 ? 6 : 5;
     const was = this.capture;
     this.capture = false;
