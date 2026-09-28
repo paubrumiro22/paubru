@@ -214,7 +214,7 @@ const Worlds = {
   },
 };
 
-function timeAgo(t) {
+function agoText(t) {
   const s = (Date.now() - t) / 1000;
   if (s < 60) return 'just now';
   if (s < 3600) return Math.round(s / 60) + ' min ago';
@@ -254,7 +254,7 @@ const WorldsPanel = {
       info.className = 'winfo';
       const name = document.createElement('b'); name.textContent = w.name || 'World';
       const meta = document.createElement('small');
-      meta.textContent = (w.type === 'flat' ? 'Flat' : 'Seed ' + w.seed) + ' · ' + timeAgo(w.played || w.created || Date.now());
+      meta.textContent = (w.type === 'flat' ? 'Flat' : 'Seed ' + w.seed) + ' · ' + agoText(w.played || w.created || Date.now());
       const size = Worlds.size(w.id);
       if (size) meta.textContent += ' · ' + size;
       info.append(name, meta);

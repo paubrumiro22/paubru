@@ -50,3 +50,26 @@ create policy bl_blocks_update  on public.bl_blocks  for update to anon using (t
 grant select, insert on public.bl_servers to anon;
 grant select, insert, update on public.bl_blocks to anon;
 grant usage, select on sequence public.bl_rev to anon;
+
+-- Shared state of a server besides blocks (shared.js): chest / furnace / brewing contents
+-- ('be:<pos>'), plots and who may build in them ('claim:<id>'), the animals ('mobs').
+-- Newest wins, like blocks.
+create table if not exists public.bl_state (
+  server text   not null references public.bl_servers (code) on delete cascade,
+  k      text   not null check (length(k) <= 64),
+  v      jsonb,
+  t      bigint not null,
+  rev    bigint not null default nextval('public.bl_rev'),
+  primary key (server, k)
+);
+create index if not exists bl_state_rev on public.bl_state (server, rev);
+drop trigger if exists bl_state_touch on public.bl_state;
+create trigger bl_state_touch before update on public.bl_state for each row execute function public.bl_touch();
+alter table public.bl_state enable row level security;
+drop policy if exists bl_state_read   on public.bl_state;
+drop policy if exists bl_state_insert on public.bl_state;
+drop policy if exists bl_state_update on public.bl_state;
+create policy bl_state_read   on public.bl_state for select to anon using (true);
+create policy bl_state_insert on public.bl_state for insert to anon with check (octet_length(v::text) < 200000);
+create policy bl_state_update on public.bl_state for update to anon using (true) with check (octet_length(v::text) < 200000);
+grant select, insert, update on public.bl_state to anon;

@@ -68,6 +68,9 @@ const Net = {
   async init() {
     const saved = storageGet(NET_KEY) || {};
     this.name = typeof saved.name === 'string' && saved.name.trim() ? saved.name.slice(0, 16) : 'Player' + Math.floor(100 + Math.random() * 900);
+    // who owns plots (shared.js): the same on this device across sessions
+    this.owner = typeof saved.owner === 'string' && /^o[a-z0-9]{8,14}$/.test(saved.owner) ? saved.owner : 'o' + Math.random().toString(36).slice(2, 12);
+    if (saved.owner !== this.owner) this.saveProfile();
     this.color = Number.isInteger(saved.color) ? clamp(saved.color, 0, NET_COLORS.length - 1) : Math.floor(Math.random() * NET_COLORS.length);
     this.loadServers();
     Cloud.check();
@@ -87,7 +90,7 @@ const Net = {
     this.refreshUI();
   },
 
-  saveProfile() { storageSet(NET_KEY, { name: this.name, color: this.color }); },
+  saveProfile() { storageSet(NET_KEY, { name: this.name, color: this.color, owner: this.owner }); },
 
   // ------------------------------------------------------------ servers ----
   loadServers() {
@@ -237,7 +240,8 @@ const Net = {
       this.p2pSelf = mod.selfId;
       const uidOf = (tid) => this.uidOf.get(tid) || tid;
       const pres = room.makeAction('pres'), sync = room.makeAction('sync'), need = room.makeAction('need');
-      const mobs = room.makeAction('mobs'), mhit = room.makeAction('mhit'), pic = room.makeAction('pic'), soc = room.makeAction('soc');
+      const mobs = room.makeAction('mobs'), mhit = room.makeAction('mhit'), pic = room.makeAction('pic'), soc = room.makeAction('soc'), st = room.makeAction('st');
+      st.onMessage = (d) => { if (typeof SharedState !== 'undefined') SharedState.receive(d); };
       soc.onMessage = (d, ctx) => Social.receive(d, uidOf(ctx.peerId));
       pic.onMessage = (d) => this.onPicture(d);
       mobs.onMessage = (d, ctx) => this.onMobs(d, uidOf(ctx.peerId));
@@ -263,7 +267,7 @@ const Net = {
         // still there over the relay? then they stay (silent players time out anyway)
         if (!Relay.joined || !this.heard.has(u)) { this.dropPeer(u); this.refreshUI(); }
       };
-      this.p2p = { room, pres, sync, need, mobs, mhit, pic, soc };
+      this.p2p = { room, pres, sync, need, mobs, mhit, pic, soc, st };
       this.statusText = 'Online';
       this.sendPresence(true);
     } catch (e) {
@@ -355,6 +359,7 @@ const Net = {
     };
     if (this.server) {
       d.id = this.selfPeer;
+      d.ow = this.owner;
       // who this player hears directly: the others know from it whether the relay is needed
       const now = performance.now();
       d.hp = [...this.p2pAt].filter(([, t]) => now - t < 4000).map(([u]) => u).slice(0, 24);
@@ -409,6 +414,7 @@ const Net = {
       list.push([m.vid, r1(m.pos[0]), r1(m.pos[1]), r1(m.pos[2]), r2(m.bodyYaw), m.dead ? 1 : 0]);
       if (list.length >= 120) break;
     }
+    if (typeof SharedAnimals !== 'undefined') SharedAnimals.collect(list, near);
     if (!list.length) return;
     if (this.p2p) this.p2p.mobs.send({ m: list }).catch(() => {});
     if (this.relayFast && this.mobRelayT <= 0) { this.mobRelayT = 0.4; Relay.send('mobs', { id: this.selfPeer, m: list }); }
@@ -417,6 +423,7 @@ const Net = {
   onMobs(d, from) {
     if (!d || !Array.isArray(d.m) || from !== this.hostPeer() || this.isHost()) return;
     const now = performance.now();
+    if (typeof SharedAnimals !== 'undefined') SharedAnimals.heard(d.m);
     for (const e of d.m) {
       if (!Array.isArray(e) || typeof e[0] !== 'string') continue;
       const m = Villages.byVid.get(e[0]);
@@ -445,7 +452,7 @@ const Net = {
   // a player hit a villager that the host runs
   mobHit(m, amount, src) {
     const host = this.hostPeer();
-    const d = { v: m.vid, a: Math.min(40, amount), f: src.from ? src.from.map(r1) : null, k: src.knock || 1 };
+    const d = { v: m.vid || m.aid, a: Math.min(40, amount), f: src.from ? src.from.map(r1) : null, k: src.knock || 1 };
     if (this.p2p && this.direct(host)) this.p2p.mhit.send(d, { target: this.tidOf.get(host) }).catch(() => {});
     else if (this.server) Relay.send('mhit', Object.assign(d, { id: this.selfPeer, to: host }));
   },
@@ -458,6 +465,12 @@ const Net = {
       else Relay.send('soc', Object.assign({ id: this.selfPeer }, d));
     } else if (this.bc) this.bc.postMessage({ t: 'soc', peer: this.selfPeer, data: d });
     else if (this.room) this.room.emit('soc', d).catch(() => {});
+  },
+  // shared state (shared.js): chests, furnaces, plots... to every player, P2P and over the relay
+  sendState(d, to) {
+    if (!this.on || !this.server) return;
+    if (this.p2p) this.p2p.st.send(d, to ? { target: this.tidOf.get(to) } : undefined).catch(() => {});
+    if (!to || !this.direct(to)) Relay.send('st', d);
   },
   // heard straight from this player lately (WebRTC works between us)
   direct(uid) { return this.tidOf.has(uid) && performance.now() - (this.p2pAt.get(uid) || -1e9) < 3000; },
@@ -476,6 +489,7 @@ const Net = {
     Relay.on('mobs', (d) => { if (this.on && validUid(d.id) && !this.direct(d.id)) this.onMobs(d, d.id); });
     Relay.on('mhit', (d) => { if (this.on && validUid(d.id) && d.to === this.selfPeer) this.onMobHit(d, d.id); });
     Relay.on('pic', (d) => { if (this.on) this.onPicture(d); });
+    Relay.on('st', (d) => { if (this.on && typeof SharedState !== 'undefined') SharedState.receive(d); });
     Relay.on('soc', (d) => { if (this.on && validUid(d.id) && d.to === this.selfPeer) Social.receive(d, d.id); });
     if (/^Offline/.test(this.statusText)) this.statusText = 'Online';
     this.relayAt = 0;
@@ -499,7 +513,7 @@ const Net = {
   },
   onMobHit(d, from) {
     if (!d || typeof d.v !== 'string' || !this.isHost() || !this.peers.has(from)) return;
-    const m = Villages.byVid.get(d.v);
+    const m = Villages.byVid.get(d.v) || (typeof SharedAnimals !== 'undefined' ? SharedAnimals.byAid.get(d.v) : null);
     const a = Number(d.a);
     if (!m || m.dead || !Number.isFinite(a) || a <= 0) return;
     const f = Array.isArray(d.f) && d.f.length === 3 && d.f.every(Number.isFinite) ? d.f : null;
@@ -576,6 +590,7 @@ const Net = {
     r.flags = pr.a | 0;
     r.held = isItem(pr.h) ? pr.h : 0;
     r.skin = Number.isInteger(pr.k) ? clamp(pr.k, 0, SKINS.length - 1) : 0;
+    if (typeof pr.ow === 'string' && /^o[a-z0-9]{8,14}$/.test(pr.ow)) r.owner = pr.ow;
     // aircraft
     const v = Array.isArray(pr.v) && pr.v.length >= 12 && pr.v.every((n) => Number.isFinite(Number(n))) ? pr.v.map(Number) : null;
     if (v) {

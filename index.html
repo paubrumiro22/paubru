@@ -331,6 +331,32 @@
   .place.locked { opacity: 0.55; cursor: default; }
   .place:hover { background: rgba(242, 185, 75, 0.16); border-color: rgba(242, 185, 75, 0.55); }
   #placesPanel .panel { width: min(720px, 100%); }
+  /* Plots */
+  #plotTag { position: absolute; left: 50%; bottom: 118px; transform: translate(-50%, 8px); display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 14px; border-radius: 12px;
+    background: rgba(14, 30, 20, 0.72); border: 1px solid rgba(120, 230, 150, 0.4); color: #dfffe6; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; text-shadow: 0 1px 2px #000; }
+  #plotTag.show { opacity: 1; transform: translate(-50%, 0); }
+  #plotTag.lock { background: rgba(40, 14, 12, 0.72); border-color: rgba(255, 130, 110, 0.45); color: #ffe2dc; }
+  #plotTag b { font-size: 13px; } #plotTag span { font-size: 11px; opacity: .8; }
+  #claimPanel { display: grid; place-items: center; z-index: 60; background: rgba(8, 10, 16, 0.55); backdrop-filter: blur(3px); }
+  #claimPanel.hidden { display: none; }
+  #claimPanel .cp-card { width: min(480px, calc(100vw - 32px)); border-radius: 18px; overflow: hidden; background: #f4f5f7; color: #1c2430; box-shadow: 0 24px 70px rgba(0,0,0,.5); animation: pmIn2 .22s ease-out; font-family: var(--body); }
+  #claimPanel .cp-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: linear-gradient(120deg, #1f5a35, #2f7d4a); color: #fff; }
+  #claimPanel .cp-head i { font-style: normal; font-size: 26px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: rgba(255,255,255,.14); }
+  #claimPanel .cp-head b { display: block; font-size: 17px; } #claimPanel .cp-head span { font-size: 12px; opacity: .8; }
+  #claimPanel .cp-x { margin-left: auto; width: 34px; height: 34px; border-radius: 10px; border: 0; background: rgba(255,255,255,.14); color: #fff; cursor: pointer; }
+  #claimPanel .cp-body { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+  #claimPanel .cp-row { display: flex; align-items: center; gap: 6px; }
+  #claimPanel .cp-row label { font: 700 12.5px var(--body); color: #4a5064; margin-right: 6px; }
+  #claimPanel .cp-row button { padding: 7px 12px; border-radius: 10px; border: 1.5px solid #d4d8e0; background: #fff; color: #1c2430; font: 700 13px var(--body); cursor: pointer; }
+  #claimPanel .cp-row button.on { background: #2f7d4a; border-color: #2f7d4a; color: #fff; }
+  #claimPanel .cp-toggle { display: flex; align-items: center; gap: 8px; font: 600 13.5px var(--body); cursor: pointer; }
+  #claimPanel h4 { margin: 6px 0 0; font: 800 12px var(--body); text-transform: uppercase; letter-spacing: .06em; color: #6a7082; }
+  #claimPanel .cp-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  #claimPanel .cp-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px 5px 12px; border-radius: 99px; background: #e2f3e7; color: #1f5a35; font: 700 13px var(--body); }
+  #claimPanel .cp-chip button { width: 22px; height: 22px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgba(31,90,53,.14); color: #1f5a35; font-size: 11px; line-height: 1; cursor: pointer; }
+  #claimPanel .cp-add { padding: 6px 12px; border-radius: 99px; border: 1.5px dashed #2f7d4a; background: #fff; color: #2f7d4a; font: 700 13px var(--body); cursor: pointer; }
+  #claimPanel .cp-none, #claimPanel .cp-note { color: #6a7082; font-size: 13px; margin: 0; line-height: 1.45; }
+  #claimPanel .cp-release { align-self: flex-start; margin-top: 6px; padding: 8px 14px; border-radius: 10px; border: 0; background: #fbe3df; color: #a2321f; font: 700 13px var(--body); cursor: pointer; }
   /* Photo mode */
   #photoUI { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
   #photoFx, #photoFx > * { position: absolute; inset: 0; }
@@ -782,6 +808,7 @@
 <div id="sleepOverlay" class="fx"></div>
 
 <div id="hud" class="hidden">
+  <div id="plotTag"></div>
   <div id="crosshair"></div>
   <div id="blockname"></div>
   <div id="bottombar">
@@ -1207,6 +1234,7 @@
 <script src="js/social.js"></script>
 <script src="js/metro_panel.js"></script>
 <script src="js/city.js"></script>
+<script src="js/shared.js"></script>
 <script src="js/football.js"></script>
 <script src="js/pets.js"></script>
 <script src="js/music.js"></script>

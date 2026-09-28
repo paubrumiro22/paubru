@@ -215,3 +215,4 @@ SHAPE_FN[SH_TURNSTILE] = (f) => ({
   defBlock(B.TICKET_MACHINE, 'Metro Ticket Machine', RT_CUBE, { top: 'metro_panel_side', side: 'metro_panel_side', front: 'ticket_front' }, { hard: 2, tool: TOOL_PICK, snd: SND.METAL, emit: 7, cat: 'transport' });
   FACING_BLOCKS.add(B.TICKET_MACHINE);
 }
+defBlock(B.PLOT_STONE, 'Plot Stone', RT_CUBE, { top: 'plot_stone_top', bottom: 'plot_stone_side', side: 'plot_stone_side' }, { hard: 3, tool: TOOL_PICK, snd: SND.STONE, cat: 'functional' });
