@@ -301,6 +301,15 @@ const MetroPlan = {
     return false;
   },
 
+  pack(pl) { return [pl.E[0], pl.E[1], pl.E[2], pl.e[0], pl.e[1], pl.d[0], pl.d[1], pl.m[0], pl.m[1], pl.P, pl.c0, pl.F, pl.steps, pl.bend || 0, pl.newLine || 0]; },
+  unpack(a, x, z, n) {
+    if (!Array.isArray(a) || a.length !== 15 || !a.every(Number.isFinite)) return { reason: 'bad plan' };
+    const u = (v) => Math.sign(v);
+    const pl = { E: [a[0], a[1], a[2]], e: [u(a[3]), u(a[4])], d: [u(a[5]), u(a[6])], m: [u(a[7]), u(a[8])], P: a[9], c0: a[10], F: a[11], steps: clamp(a[12] | 0, 1, 60), bend: clamp(a[13] | 0, 0, 1700), newLine: a[14] | 0 };
+    if (pl.P < 2 || pl.F >= CH || Math.abs(pl.c0) > 1800) return { reason: 'bad plan' };
+    return this.finish(pl, x, z, pl.newLine || n);
+  },
+
   finish(pl, x, z, n) {
     pl.x = Math.round(x); pl.z = Math.round(z); pl.line = n;
     const O = pl.bend ? [pl.E[0] + pl.e[0] * pl.bend, pl.E[2] + pl.e[1] * pl.bend] : [pl.E[0], pl.E[2]];
@@ -486,7 +495,8 @@ const MetroBuild = {
 
   // Start building a station (mine: this player pays and shares it). opt: { line, name, newLine }
   start(x, z, mine, opt = {}) {
-    const pl = opt.newLine ? MetroPlan.newLine(x, z) : MetroPlan.make(x, z, opt.line || 1);
+    // another player's works come with their exact plan, so everybody builds the same blocks
+    const pl = opt.plan ? MetroPlan.unpack(opt.plan, x, z, opt.line || 1) : opt.newLine ? MetroPlan.newLine(x, z) : MetroPlan.make(x, z, opt.line || 1);
     if (pl.reason) { if (mine) G.ui.toast('🚇 ' + pl.reason, 4000); return false; }
     if (opt.newLine && opt.newLine !== pl.newLine) { pl.newLine = opt.newLine; pl.line = opt.newLine; }
     const name = (typeof opt.name === 'string' && opt.name.trim().slice(0, 28)) || pl.name;
@@ -499,12 +509,12 @@ const MetroBuild = {
       // the works are free; on a server only the metro builders may start them
       if (!MetroPerm.can()) { G.ui.toast('🚇 Only ' + MetroPerm.names() + ' can build the metro here: ask them for permission', 4000); return false; }
       MetroPerm.claimFirst();
-      if (Net.on) Net.op(['M', Math.round(x), Math.round(z), pl.line, name, opt.newLine ? 1 : 0]);
+      if (Net.on) Net.op(['M', Math.round(x), Math.round(z), pl.line, name, opt.newLine ? 1 : 0, MetroPlan.pack(pl)]);
     }
     // remember the line and the name (every player records the same)
     const R = metroRec();
     R.names = R.names.filter((q) => Math.abs(q.x - pl.center[0]) >= 26 || Math.abs(q.z - pl.center[1]) >= 26);
-    R.names.push({ x: pl.center[0], z: pl.center[1], name });
+    R.names.push({ x: pl.center[0], z: pl.center[1], name, plan: MetroPlan.pack(pl), line: pl.line, sx: Math.round(x), sz: Math.round(z) });
     if (pl.newLine && !R.lines.some((l) => l.n === pl.newLine)) R.lines.push({ n: pl.newLine, c: [pl.center[0], pl.P - 1, pl.center[1]] });
     const { list, pics } = this.blocks(pl, E, e);
     // from the line outwards, so the works advance through the tunnel
@@ -515,6 +525,19 @@ const MetroBuild = {
       sfx('piston', G.player.pos, 1, 0.7);
     }
     MetroNet.dirty = true;
+    return true;
+  },
+
+  // rebuild a station exactly as it was planned (stairs, platform, gates), e.g. after damage
+  repair(q, mine) {
+    const pl = MetroPlan.unpack(q.plan, q.sx, q.sz, q.line || 1);
+    if (pl.reason) return false;
+    pl.name = q.name; pl.stripe = lineInfo(pl.line).stripe;
+    const { list, pics } = this.blocks(pl, pl.E, pl.e);
+    // only the station and its stair (the tunnel is fine)
+    const near = list.filter((b) => Math.hypot(b[0] - pl.center[0], b[2] - pl.center[1]) < 40);
+    this.jobs.push({ list: near, pics, i: 0, mine, name: q.name, total: near.length, line: pl.line, done: q.name + ' repaired', icon: '🔧' });
+    if (mine && Net.on) Net.op(['MR', q.sx, q.sz]);
     return true;
   },
 
@@ -574,6 +597,11 @@ const MetroPanel = {
     requestLock();
   },
 
+  // the station you are at, if it was built with a saved plan
+  repairable() {
+    const p = G.player.pos;
+    return metroRec().names.find((q) => q.plan && Math.hypot(q.x - p[0], q.z - p[2]) < 40) || null;
+  },
   pill(n) { const L = lineInfo(n); return `<i class="mp-l" style="background:${L.color}">L${n}</i>`; },
 
   render() {
@@ -612,6 +640,7 @@ const MetroPanel = {
           ${N ? `<button class="primary" data-a="add">➕ New station on L${N.n}…</button>` : ''}
           <button data-a="line">✨ Start a new line…</button>
           <button data-a="map">🗺 Network map</button>
+          ${this.repairable() ? `<button data-a="fix">🔧 Repair ${escapeHtml(this.repairable().name)}</button>` : ''}
         </div>
         ${MetroPerm.html()}
         <p class="mp-note">Pick the spot on the map — right by your house if you like: the line grows from its nearest end with a tunnel, a platform with fare gates and a stair up to the street. A new line starts with its first station there; stations of different lines close together become interchanges.${Net.server ? (MetroPerm.can() ? ' The works are free.' : ' Only ' + escapeHtml(MetroPerm.names()) + ' can build here.') : ' The works are free.'}</p>
@@ -625,6 +654,8 @@ const MetroPanel = {
     if (add) add.addEventListener('click', () => this.pick({ line: N.n }));
     el.querySelector('[data-a="line"]').addEventListener('click', () => this.pick({ newLine: true }));
     el.querySelector('[data-a="map"]').addEventListener('click', () => MetroMap.show());
+    const fix = el.querySelector('[data-a="fix"]');
+    if (fix) fix.addEventListener('click', () => { if (!MetroPerm.can()) { G.ui.toast('🚇 Ask ' + MetroPerm.names() + ' to repair it'); return; } if (MetroBuild.repair(this.repairable(), true)) { G.ui.toast('🔧 Repairing…'); this.close(); } });
     MetroPerm.bind(el, () => this.render());
     for (const b of el.querySelectorAll('.mp-tab')) b.addEventListener('click', () => { this.line = Number(b.dataset.l); this.render(); });
   },
@@ -833,9 +864,10 @@ const MetroStrip = {
   // other players' works
   const ap = Net.applyOp;
   Net.applyOp = function (r, o) {
+    if (o[1] === 'MR') { const q = metroRec().names.find((e) => e.sx === Number(o[2]) && e.sz === Number(o[3]) && e.plan); if (q) MetroBuild.repair(q, false); return; }
     if (o[1] === 'M') {
       const x = Number(o[2]), z = Number(o[3]);
-      if (Number.isFinite(x) && Number.isFinite(z)) MetroBuild.start(x, z, false, { line: Number(o[4]) || 1, name: typeof o[5] === 'string' ? o[5] : '', newLine: o[6] ? Number(o[4]) : 0 });
+      if (Number.isFinite(x) && Number.isFinite(z)) MetroBuild.start(x, z, false, { line: Number(o[4]) || 1, name: typeof o[5] === 'string' ? o[5] : '', newLine: o[6] ? Number(o[4]) : 0, plan: o[7] });
       return;
     }
     return ap.call(this, r, o);
