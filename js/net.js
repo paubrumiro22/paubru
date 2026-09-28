@@ -769,6 +769,7 @@ const Net = {
       m.headPitch = -r.pitch;
       m.tint = NET_COLORS[r.color].map((c) => c / 255 * 1.1);
       m.skin = r.skin || 0;
+      m.sneak = !!(r.flags & 1);
       ER.mob(null, m, cp);
       if (r.flags & 4) ER.parachute(r.pos, cp);
     }

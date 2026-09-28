@@ -1049,7 +1049,8 @@ function frame(now) {
       G.selfWalk = (G.selfWalk || 0) + sp * dt * 1.6;
       self = { type: 'avatar', pos: p.pos, h: 1.8, bodyYaw: p.yaw + Math.PI, headYaw: p.yaw + Math.PI, headPitch: -p.pitch, walkPhase: G.selfWalk,
         walkAmt: Math.min(1, sp / 4.3), hurtTime: st.hurtTime || 0, dead: false, fuse: 0, age: G.time, fire: 0, aiming: 0,
-        skin: G.settings.skin, tint: NET_COLORS[Net.color].map((c) => c / 255 * 1.1), emote: Social.emote };
+        skin: G.settings.skin, tint: NET_COLORS[Net.color].map((c) => c / 255 * 1.1), emote: Social.emote,
+        animKey: 'self', onGround: !!p.onGround, sneak: p.sneaking };
       if (Social.emote && Social.emote.face !== undefined) self.bodyYaw = Social.emote.face;
     }
     // colour of the water around the camera, for the underwater haze

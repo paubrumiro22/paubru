@@ -16995,9 +16995,13 @@ const ER = {
     const em = mob.emote && typeof EMOTES !== 'undefined' ? EMOTES[mob.emote.k] : null;
     const et = em ? mob.emote.t : 0;
     const eb = em && em.body ? em.body(et) : null;
-    const base = XF.chain(XF.t(mob.pos[0] - cp[0], mob.pos[1] - cp[1] + (eb ? eb.dy || 0 : 0), mob.pos[2] - cp[2]), XF.ry(mob.bodyYaw + (eb ? eb.yaw || 0 : 0)), XF.rz(roll), XF.s(scale));
+    // people (players, villagers) get a fuller walk: see humanAnim
+    const A = model === MOB_MODELS.avatar && !mob.dead && !mob.ride ? this.humanAnim(mob, !!em) : null;
+    const bodyYaw = A ? A.body : mob.bodyYaw;
+    const base = XF.chain(XF.t(mob.pos[0] - cp[0], (A ? A.y : mob.pos[1]) - cp[1] + (eb ? eb.dy || 0 : 0) + (A ? A.dy : 0), mob.pos[2] - cp[2]),
+      XF.ry(bodyYaw + (eb ? eb.yaw || 0 : 0)), XF.rz(roll + (A ? A.roll : 0)), XF.s(scale));
     const sw = Math.sin(mob.walkPhase) * mob.walkAmt;
-    let headYaw = mob.headYaw - mob.bodyYaw;
+    let headYaw = mob.headYaw - bodyYaw;
     while (headYaw > Math.PI) headYaw -= Math.PI * 2;
     while (headYaw < -Math.PI) headYaw += Math.PI * 2;
     headYaw = clamp(headYaw, -1.1, 1.1);
@@ -17012,14 +17016,19 @@ const ER = {
       if (er) r = er;
       else switch (p.role) {
         case 'head': r = XF.mul(XF.ry(headYaw), XF.rx(-clamp(mob.headPitch, -0.8, 0.8))); break;
-        case 'legA': r = mob.sit ? XF.mul(XF.rx(-1.45), XF.rz(0.08)) : XF.rx(sw * 0.9); break;
-        case 'legB': r = mob.sit ? XF.mul(XF.rx(-1.45), XF.rz(-0.08)) : XF.rx(-sw * 0.9); break;
+        case 'legA': r = mob.sit ? XF.mul(XF.rx(-1.45), XF.rz(0.08)) : A ? XF.mul(XF.rx(sw * A.legK + A.legA), XF.rz(0.03 + A.air * 0.06)) : XF.rx(sw * 0.9); break;
+        case 'legB': r = mob.sit ? XF.mul(XF.rx(-1.45), XF.rz(-0.08)) : A ? XF.mul(XF.rx(-sw * A.legK + A.legB), XF.rz(-0.03 - A.air * 0.06)) : XF.rx(-sw * 0.9); break;
         case 'armL': case 'armR': {
           const left = p.role === 'armL';
           if (mob.type === 'zombie') r = XF.mul(XF.rx(-Math.PI / 2 + Math.sin(mob.age * 2 + (left ? 0 : 1)) * 0.06), XF.rz(left ? -0.05 : 0.05));
           else if (mob.aiming > 0) r = XF.mul(XF.rx(-Math.PI / 2 - 0.1), XF.ry(left ? 0.45 : -0.1));
           else if (mob.ride) r = XF.mul(XF.rx(mob.ride === 'bike' ? -1.05 : -0.8), XF.rz(left ? -0.12 : 0.12));   // hands on the wheel / handlebar
-          else r = XF.rx((left ? -sw : sw) * 0.8);
+          else if (A) {
+            // swing (wider when running), hands a little out from the body, breathing when still,
+            // arms up and out in the air
+            const out = 0.05 + A.breath + A.air * 0.45 + A.run * 0.06;
+            r = XF.mul(XF.rx((left ? -sw : sw) * A.armK - A.air * 0.35 - A.run * 0.25 - A.sneak * 0.35), XF.rz(left ? -out : out));
+          } else r = XF.rx((left ? -sw : sw) * 0.8);
           break;
         }
         case 'tail': r = XF.mul(XF.ry(Math.sin(mob.age * (mob.tamed ? 11 : 3)) * (mob.tamed ? 0.5 : 0.15)), XF.rx(mob.tailLift || 0)); break;
@@ -17040,6 +17049,10 @@ const ER = {
       else if (p.pivot) m = XF.chain(XF.t(p.pivot[0], p.pivot[1], p.pivot[2]), r, XF.t(-p.pivot[0], -p.pivot[1], -p.pivot[2]));
       else m = r;
       if (eb && eb.tilt && (p.id === 'body' || p.id === 'head' || p.id === 'armL' || p.id === 'armR')) m = XF.chain(XF.t(0, 12, 0), XF.rx(eb.tilt), XF.t(0, -12, 0), m);
+      // the torso leans forward from the hips (running, sneaking) and twists against the stride
+      else if (A && (p.id === 'body' || p.id === 'head' || p.id === 'armL' || p.id === 'armR')) {
+        m = XF.chain(XF.t(0, 12, 0), XF.rx(A.lean), XF.ry(p.id === 'head' ? 0 : A.twist), XF.t(0, -12, 0), m);
+      }
       if (p.parent && partM[p.parent]) m = XF.mul(partM[p.parent], m);
       partM[p.id] = m;
       const faces = p.faces;
@@ -17063,6 +17076,65 @@ const ER = {
       }
     }
     this.ov = 0;
+  },
+
+  // Walk cycle details for people, kept per person between frames (anim map; the local player's
+  // third-person body is rebuilt every frame, so it carries animKey = 'self'):
+  // - the body turns after the head: at once when walking, only past ~50 degrees when standing
+  // - steps up stairs and slabs glide instead of snapping (smoothed height)
+  // - a bob down on every stride, a forward lean that grows when running, the hips twisting
+  //   against the swinging arms, a lean into turns
+  // - arms out and legs apart in the air, a crouch when sneaking, slow breathing when still
+  anim: new Map(),
+  humanAnim(mob, emote) {
+    const key = mob.animKey || mob;
+    const now = G.time;
+    let st = this.anim.get(key);
+    if (!st) { st = { t: now, x: mob.pos[0], y: mob.pos[1], z: mob.pos[2], ry: mob.pos[1], body: mob.bodyYaw, speed: 0, turn: 0, air: 0, vy: 0, sneak: 0, run: 0 }; this.anim.set(key, st); }
+    const dt = clamp(now - st.t, 0, 0.1);
+    st.t = now;
+    if (this.anim.size > 300) for (const [k, v] of this.anim) if (now - v.t > 5) this.anim.delete(k);
+    const out = st.out || (st.out = {});
+    if (dt > 0) {
+      const k = 1 - Math.exp(-dt * 10);
+      const sp = Math.hypot(mob.pos[0] - st.x, mob.pos[2] - st.z) / dt;
+      st.speed += (Math.min(sp, 12) - st.speed) * k;
+      st.vy += ((mob.pos[1] - st.y) / dt - st.vy) * k;
+      // the body follows where the person looks
+      const target = mob.bodyYaw;
+      const diff = wrapAngle(target - st.body);
+      const moving = st.speed > 0.6 || emote;
+      let turn = 0;
+      if (moving) turn = diff * Math.min(1, dt * 12);
+      else if (Math.abs(diff) > 0.9) turn = (diff - Math.sign(diff) * 0.9) + Math.sign(diff) * Math.min(Math.abs(diff) - 0.9 + 0.2, dt * 4);
+      st.body += turn;
+      st.turn += (turn / dt - st.turn) * k;
+      // stepping up a block glides; big jumps (teleports) snap
+      const dy = mob.pos[1] - st.ry;
+      if (Math.abs(dy) > 1.6) st.ry = mob.pos[1];
+      else st.ry += dy * Math.min(1, dt * (dy > 0 ? 14 : 22));
+      const ground = mob.onGround !== undefined ? mob.onGround : Math.abs(st.vy) < 1.2;
+      st.air += ((ground ? 0 : 1) - st.air) * Math.min(1, dt * 8);
+      st.sneak += ((mob.sneak ? 1 : 0) - st.sneak) * Math.min(1, dt * 12);
+      st.run += (clamp((st.speed - 4.6) / 1.2, 0, 1) - st.run) * k;
+    }
+    st.x = mob.pos[0]; st.y = mob.pos[1]; st.z = mob.pos[2];
+    const w = mob.walkAmt, ph = mob.walkPhase;
+    out.body = emote ? mob.bodyYaw : st.body;
+    out.y = st.ry;
+    out.dy = (-Math.abs(Math.sin(ph)) * 0.055 + 0.02) * w * (1 - st.air) - st.sneak * 0.14;
+    out.lean = 0.05 * w + 0.22 * st.run + 0.42 * st.sneak;
+    out.twist = -Math.sin(ph) * 0.13 * w;
+    out.roll = clamp(-st.turn * 0.045, -0.28, 0.28) * w * (0.4 + st.run);
+    out.legK = 0.85 + 0.3 * st.run;
+    out.armK = 0.75 + 0.55 * st.run;
+    out.air = st.air;
+    out.run = st.run;
+    out.sneak = st.sneak;
+    out.legA = st.air * 0.45 - st.sneak * 0.35;
+    out.legB = -st.air * 0.3 - st.sneak * 0.35;
+    out.breath = (1 - w) * (0.02 + Math.sin(now * 1.7 + (mob.age || 0) * 0.1) * 0.025);
+    return out;
   },
 
   // hats, capes, antennae... of a skin, on the part they belong to
@@ -21770,6 +21842,7 @@ const Net = {
       m.headPitch = -r.pitch;
       m.tint = NET_COLORS[r.color].map((c) => c / 255 * 1.1);
       m.skin = r.skin || 0;
+      m.sneak = !!(r.flags & 1);
       ER.mob(null, m, cp);
       if (r.flags & 4) ER.parachute(r.pos, cp);
     }
@@ -31534,7 +31607,8 @@ function frame(now) {
       G.selfWalk = (G.selfWalk || 0) + sp * dt * 1.6;
       self = { type: 'avatar', pos: p.pos, h: 1.8, bodyYaw: p.yaw + Math.PI, headYaw: p.yaw + Math.PI, headPitch: -p.pitch, walkPhase: G.selfWalk,
         walkAmt: Math.min(1, sp / 4.3), hurtTime: st.hurtTime || 0, dead: false, fuse: 0, age: G.time, fire: 0, aiming: 0,
-        skin: G.settings.skin, tint: NET_COLORS[Net.color].map((c) => c / 255 * 1.1), emote: Social.emote };
+        skin: G.settings.skin, tint: NET_COLORS[Net.color].map((c) => c / 255 * 1.1), emote: Social.emote,
+        animKey: 'self', onGround: !!p.onGround, sneak: p.sneaking };
       if (Social.emote && Social.emote.face !== undefined) self.bodyYaw = Social.emote.face;
     }
     // colour of the water around the camera, for the underwater haze
