@@ -872,7 +872,7 @@ class World {
     for (const [k, e] of this.blockEntities) be.push([k, e]);
     const flow = [];
     for (const [k, l] of this.flow) flow.push(k, l);
-    return { facing, be, flow, pics: typeof serializePictures === 'function' ? serializePictures(this) : [] };
+    return { facing, be, flow, pics: typeof serializePictures === 'function' ? serializePictures(this) : [], metro: this.metro || undefined };
   }
 
   loadExtras(obj) {
@@ -880,7 +880,17 @@ class World {
     this.flow.clear();
     this.blockEntities.clear();
     this.pictures.clear();
+    this.metro = null;
     if (!obj || typeof obj !== 'object') return;
+    // metro lines built by players and the names given to stations (metro_panel.js)
+    const M = obj.metro;
+    if (M && typeof M === 'object') {
+      const num = (v) => Number.isFinite(v);
+      this.metro = {
+        lines: Array.isArray(M.lines) ? M.lines.filter((l) => l && Number.isInteger(l.n) && Array.isArray(l.c) && l.c.length === 3 && l.c.every(num)).slice(0, 12) : [],
+        names: Array.isArray(M.names) ? M.names.filter((q) => q && num(q.x) && num(q.z) && typeof q.name === 'string').map((q) => ({ x: q.x, z: q.z, name: q.name.slice(0, 28) })).slice(0, 400) : [],
+      };
+    }
     if (Array.isArray(obj.pics) && typeof validPicture === 'function') for (const p of obj.pics) if (validPicture(p)) this.pictures.set(p.id, p);
     if (Array.isArray(obj.facing)) for (let i = 0; i + 1 < obj.facing.length; i += 2) {
       const k = Number(obj.facing[i]), f = obj.facing[i + 1] | 0;

@@ -58,6 +58,8 @@
     // furniture (furniture_blocks.js, furniture.js); the sofas must stay in a row
     'SOFA_GRAY', 'SOFA_RED', 'SOFA_BLUE', 'SOFA_GREEN', 'SOFA_CREAM', 'CHAIR', 'TABLE', 'COFFEE_TABLE', 'DOUBLE_BED', 'DOUBLE_BED_HEAD',
     'KITCHEN_COUNTER', 'KITCHEN_SINK', 'STOVE', 'STOVE_ON', 'FRIDGE', 'FRIDGE_TOP', 'TV', 'TV_ON', 'FLOOR_LAMP',
+    // metro fare gates and the machine that sells the cards (metro_panel.js)
+    'TURNSTILE', 'TICKET_MACHINE',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here

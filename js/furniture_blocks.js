@@ -195,3 +195,23 @@ SHAPE_FN[SH_LAMP] = () => ({
   def(B.TV_ON, 'Television', 'furn_black', SH_TV_ON, { tool: TOOL_PICK, snd: SND.METAL, hard: 0.8, emit: 8, cat: null });
   def(B.FLOOR_LAMP, 'Floor Lamp', 'furn_metal', SH_LAMP, { tool: TOOL_PICK, snd: SND.METAL, hard: 0.5, emit: 14 });
 }
+
+// ---- metro fare gate: a steel cabinet with the card reader on its left, an arm across the
+// passage (people walk along Z; the paid side is the back, -Z). Only the cabinet collides: the
+// gate itself is kept shut by metro_panel.js unless you touch a card.
+const SH_TURNSTILE = 43;
+const TT = { reader: defTex('turnstile_reader') };
+SHAPE_FN[SH_TURNSTILE] = (f) => ({
+  boxes: furnXf(f, [
+    [0, 0, 2, 3.5, 14, 14, FT.metal], [0.3, 14, 2.5, 3.2, 15, 13.5, faces6(FT.black, FT.black, TT.reader, FT.black, FT.black, FT.black)],
+    [3.5, 11, 7.2, 5, 12.5, 8.8, FT.black], [5, 11.4, 7.5, 15.5, 12.2, 8.5, FT.metal],
+    [5, 8.4, 7.5, 5.8, 11.4, 8.5, FT.metal],
+  ]),
+  coll: furnXf(f, [[0, 0, 2, 3.5, 15, 14]]),
+});
+{
+  defBlock(B.TURNSTILE, 'Metro Fare Gate', RT_SHAPE, 'furn_metal', { hard: 2, tool: TOOL_PICK, snd: SND.METAL, atten: 0, solid: false, emit: 3, cat: 'transport' });
+  BLOCK_SHAPE[B.TURNSTILE] = SH_TURNSTILE;
+  defBlock(B.TICKET_MACHINE, 'Metro Ticket Machine', RT_CUBE, { top: 'metro_panel_side', side: 'metro_panel_side', front: 'ticket_front' }, { hard: 2, tool: TOOL_PICK, snd: SND.METAL, emit: 7, cat: 'transport' });
+  FACING_BLOCKS.add(B.TICKET_MACHINE);
+}

@@ -29,16 +29,21 @@ const Metro = {
   train: null, sign: null, signT: 0,
 
   // the line as traced along its rails (metro_panel.js): path, index of each cell, stations
-  net() { return typeof MetroNet !== 'undefined' ? MetroNet.get() : null; },
+  net() { return typeof MetroNet !== 'undefined' ? MetroNet.current(G.player.pos) : null; },
 
   update(dt) {
     const N = this.net();
     this.updateSign(dt);
     Passengers.update(dt);
-    if (!N || N.stations.length < 2) return;
+    if (typeof MetroStrip !== 'undefined') MetroStrip.update();
     const p = G.player, w = G.world;
     const t = this.train;
     if (t && (t.removed || !Vehicles.list.includes(t))) this.train = null;
+    // one train, on the line you are near
+    if (!N || N.stations.length < 2 || (this.train && this.train.auto && this.train.auto.line !== N.n)) {
+      if (this.train && G.vehicle !== this.train) { this.train.removed = true; this.train = null; }
+      return;
+    }
     if (!MetroNet.near(p.pos)) {
       if (this.train && G.vehicle !== this.train) { this.train.removed = true; this.train = null; }
       return;
@@ -57,7 +62,7 @@ const Metro = {
     const yaw = Math.atan2(nx[0] - c[0], nx[2] - c[2]);
     const v = Rides.spawn('metro', c[0] + 0.5, c[1] + 2 / 16, c[2] + 0.5, yaw, 0);
     if (v.findRail()) {
-      v.auto = { dir, target: best, state: 'dwell', t: METRO_STOP.dwell, said: false };
+      v.auto = { dir, target: best, state: 'dwell', t: METRO_STOP.dwell, said: false, line: N.n };
       this.train = v;
     } else v.removed = true;
   },
@@ -65,7 +70,7 @@ const Metro = {
   // One step of the autopilot: accelerate, brake into the next platform, wait, go on; at the end
   // of the line the driver changes cab and the train comes back.
   drive(v, dt) {
-    const N = this.net(), a = v.auto;
+    const a = v.auto, N = typeof MetroNet !== 'undefined' ? MetroNet.get(a.line || 1) : null;
     if (!N || !v.rail || !N.stations[a.target]) { v.drive(dt, null); return; }
     const keys = new Set();
     const r = v.rail, cur = N.idx.get(posKey(r.x, r.y, r.z));
