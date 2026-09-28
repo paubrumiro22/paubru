@@ -461,6 +461,8 @@ function buildDistrictMetro(W, g, D) {
         set(u, y, v, id);
       }
     }
+    // fare gates into the hall (a metro card opens them, metro_panel.js)
+    for (let j = 1; j <= 3; j++) set(2, P, vTop + dir * (n - 1 + j), B.TURNSTILE, 0);
     const vEnd = vTop + dir * (n + 3);
     for (let u = -2; u <= 3; u++) for (let y = P - 1; y <= P + 4; y++) set(u, y, vEnd, y === P + 1 ? stripe : B.CONCRETE);
     S.pic(-1, P + 1, vEnd - dir, dir > 0 ? 5 : 4, 3, 1, 'metro_map');
@@ -481,6 +483,9 @@ function buildDistrictMetro(W, g, D) {
     for (const u of [-2, 2]) for (let y = F; y <= F + 2; y++) { set(u, y, vIn, B.BLACKSTONE_WALL); if (y > F) set(u, y, vTop + dir * 3, B.BLACKSTONE_WALL); }
     for (let u = -1; u <= 1; u++) for (let y = F; y <= F + 2; y++) set(u, y, vIn, B.AIR);
     S.pic(-1, F + 3, vIn - dir, dir > 0 ? 5 : 4, 3, 1, stripe === B.BLUE_TILES ? 'metro_name' : 'metro_name2');
+    // the machine that sells metro cards, at the entrance
+    set(3, F, vIn, B.TICKET_MACHINE, dir > 0 ? 5 : 4);
+    set(3, F - 1, vIn, B.POLISHED_ANDESITE);
     // the pole with the M beside the entrance
     for (let y = F; y <= F + 3; y++) set(-4, y, vIn, B.BLACKSTONE_WALL);
     set(-4, F + 4, vIn, B.CONCRETE + 14);

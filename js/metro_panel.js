@@ -471,7 +471,7 @@ const MetroBuild = {
     // fare gates between the stair landing and the platform (a metro card opens them), and the
     // ticket machine that sells the cards
     for (let j = 7; j <= 9; j++) S(-10, P, j, B.TURNSTILE, fromWall);
-    S(-13, P, 9, B.TICKET_MACHINE, back);
+
     // the street: a paved square round the opening, railings, the glass canopy and the M
     for (let a = -17; a <= -7; a++) for (let s = sTop - 3; s <= sTop + 7; s++) {
       const hole = a >= -13 && a <= -11 && s >= sTop && s <= sTop + 4;
@@ -490,6 +490,8 @@ const MetroBuild = {
     S(-16, F + 4, vIn, B.CONCRETE + 14);
     pic(-13, F + 3, vIn - 1, back, 3, 1, sign, false);
     pic(-16, F + 4, vIn - 1, back, 1, 1, 'metro', false);
+    // the machine that sells metro cards, by the entrance
+    S(-8, F, vIn, B.TICKET_MACHINE, back);
     return { list: [...out.values()], pics };
   },
 
@@ -942,11 +944,52 @@ const Fare = {
     G.ui.toast('🎫 Metro card · 10 trips' + (G.mode === 'survival' ? ' · −' + METRO_CARD_PRICE + ' coins' : ''), 2500);
   },
 };
+// Stations built from the panel before fare gates existed get them (and a card machine on the
+// landing) the first time you come near: the Metro Control Panel on the platform wall tells
+// how the station lies. Every player works out the same, so nothing is sent.
+const FareRetro = {
+  done: new Set(), t: 0,
+  update(dt) {
+    this.t -= dt;
+    if (this.t > 0) return;
+    this.t = 2;
+    const p = G.player.pos, w = G.world;
+    for (const N of MetroNet.all()) for (const st of N.stations) {
+      const c = st.c, key = c.join(',');
+      if (this.done.has(key) || Math.hypot(c[0] - p[0], c[2] - p[2]) > 48 || !w.isLoaded(c[0], c[2])) continue;
+      this.done.add(key);
+      this.fit(N, st);
+    }
+  },
+  fit(N, st) {
+    const w = G.world, P = st.c[1] + 1, i = N.path.indexOf(st.c);
+    const a0 = N.path[Math.max(0, i - 1)], a1 = N.path[Math.min(N.path.length - 1, i + 1)];
+    const d = [Math.sign(a1[0] - a0[0]), Math.sign(a1[2] - a0[2])];
+    if (Math.abs(d[0]) + Math.abs(d[1]) !== 1) return;
+    for (const dd of [d, [-d[0], -d[1]]]) for (const m of [[-dd[1], dd[0]], [dd[1], -dd[0]]]) {
+      // find the panel: X(-9, -4) at P + 1 for some centre near the middle of the platform
+      for (let o = -3; o <= 3; o++) {
+        const O = [st.c[0] + dd[0] * o, st.c[2] + dd[1] * o];
+        const X = (a, s) => O[0] + dd[0] * s + m[0] * a, Z = (a, s) => O[1] + dd[1] * s + m[1] * a;
+        if (w.getBlock(X(-9, -4), P + 1, Z(-9, -4)) !== B.METRO_PANEL) continue;
+        if (w.getBlock(X(-12, 8), P - 1, Z(-12, 8)) !== B.TERRAZZO) continue;
+        const list = [];
+        for (let j = 7; j <= 9; j++) if (w.getBlock(X(-10, j), P, Z(-10, j)) === B.AIR) list.push([X(-10, j), P, Z(-10, j), B.TURNSTILE, mface(m[0], m[1])]);
+        if (list.length === 3 && w.getBlock(X(-13, 9), P, Z(-13, 9)) === B.AIR) list.push([X(-13, 9), P, Z(-13, 9), B.TICKET_MACHINE, mface(-dd[0], -dd[1])]);
+        if (list.length < 3) return;
+        const was = Net.capture;
+        Net.capture = false;
+        try { editBlocks(list); } finally { Net.capture = was; }
+        return;
+      }
+    }
+  },
+};
 SYNTH.gate_ok = (ctx, o, t, p) => { Sound.tone(ctx, o, t, 0.09, { wave: 'sine', f0: 1320 * p, f1: 1320 * p, gain: 0.12 }); Sound.tone(ctx, o, t + 0.1, 0.12, { wave: 'sine', f0: 1760 * p, f1: 1760 * p, gain: 0.12 }); };
 SYNTH.gate_no = (ctx, o, t, p) => { Sound.tone(ctx, o, t, 0.3, { wave: 'square', f0: 220 * p, f1: 200 * p, gain: 0.06 }); };
 {
   const mu = Metro.update;
-  Metro.update = function (dt) { mu.call(this, dt); Fare.update(dt); };
+  Metro.update = function (dt) { mu.call(this, dt); Fare.update(dt); FareRetro.update(dt); };
   const use = Act.useItem;
   Act.useItem = function (initial) {
     const t = this.target;
