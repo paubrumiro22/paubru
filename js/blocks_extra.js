@@ -53,6 +53,8 @@
     'METRO_PANEL', 'METRO_MARK',
     // town planning board and the hidden stone that says a district block is built (city.js)
     'CITY_PANEL', 'CITY_MARK',
+    // lights that come on by themselves at dusk (the shader gates their glow, NIGHT_LAYERS)
+    'STREET_LAMP', 'WINDOW_LIT',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here
@@ -314,6 +316,11 @@ FACING_BLOCKS.add(B.METRO_PANEL);
 defBlock(B.CITY_PANEL, 'Town Planning Board', RT_CUBE, { top: 'metro_panel_side', side: 'metro_panel_side', front: 'city_panel_front' }, { hard: 2, tool: TOOL_PICK, snd: SND.METAL, emit: 6, cat: 'functional' });
 FACING_BLOCKS.add(B.CITY_PANEL);
 defBlock(B.CITY_MARK, 'Survey Stone', RT_CUBE, 'stone', XR({ cat: null }));
+// the two night-only textures are registered next to each other so the terrain shader can tell
+// them by their layer range (uNightL)
+const NIGHT_LAYERS = [defTex('street_lamp'), defTex('window_lit')];
+defBlock(B.STREET_LAMP, 'Street Lamp', RT_CUBE, { top: 'street_lamp_top', bottom: 'street_lamp', side: 'street_lamp' }, { emit: 15, hard: 0.5, snd: SND.GLASS, cat: 'functional' });
+defConnect(B.WINDOW_LIT, 'Lit Window', CN_PANE, 'window_lit', { hard: 0.3, snd: SND.GLASS, emit: 6, cat: 'building' });
 defBlock(B.METRO_MARK, 'Platform Track Marker', RT_CUBE, { top: 'metro_mark', side: 'gravel', bottom: 'gravel' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRAVEL, cat: 'transport' });
 defBlock(B.TURF, 'Artificial Turf', RT_CUBE, { top: 'turf', side: 'turf_side', bottom: 'dirt' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRASS, cat: 'building' });
 defBlock(B.TURF_LINE, 'Artificial Turf with Line', RT_CUBE, { top: 'turf_line', side: 'turf_side', bottom: 'dirt' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRASS, cat: 'building' });

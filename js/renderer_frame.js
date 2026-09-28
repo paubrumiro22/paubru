@@ -136,6 +136,9 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uUnderwater', '1f', underwater ? 1 : 0);
     this.setU(prog, 'uSkyScale', '1f', A.skyScale);
     this.setU(prog, 'uNight', '1f', A.night);
+    // street lamps and lit windows: on from dusk, and on dark stormy days
+    this.setU(prog, 'uLampsOn', '1f', Math.max(A.night, clamp(((A.weather || 0) - 0.55) * 2.5, 0, 1)) * (A.dim ? 0 : 1));
+    this.setU(prog, 'uNightL', '2f', NIGHT_LAYERS[0], NIGHT_LAYERS[1]);
     this.setU(prog, 'uShadowOn', '1f', this.shadowsActive ? 1 : 0);
     this.setU(prog, 'uShadowSize', '1f', this.shadowSize);
     this.setU(prog, 'uShadowTexel', '1f', this.shadowTexel || 0.05);

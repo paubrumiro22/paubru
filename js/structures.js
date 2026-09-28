@@ -910,11 +910,13 @@ function buildSchool(W, g, x0, zf, sz, F, st, modern) {
   W.pic(sz > 0 ? x0 + 10 : x0 + 6, F + 3, Z(-1), out, 5, 3, 'stucom');
   void n;
   // ground-floor shop windows either side of the entrance
-  for (const a0 of [1, 13]) for (let a = a0; a < a0 + 3; a++) for (let y = F + 1; y <= F + 3; y++) set(a, y, 0, B.GLASS_PANE);
+  // modern (generator 4): some rooms have the light on after dark (WINDOW_LIT), a whole bay at a time
+  const win = (a0, fl) => (modern && hash3(x0 + a0, fl, zf, 29) < 0.7 ? B.WINDOW_LIT : B.GLASS_PANE);
+  for (const a0 of [1, 13]) for (let a = a0; a < a0 + 3; a++) for (let y = F + 1; y <= F + 3; y++) set(a, y, 0, win(a0, F));
   // ---- upper floors: tall windows with iron balconies ----
   const bays = [[2, 3], [6, 7], [9, 10], [13, 14]];
   for (const fl of floors.slice(1)) for (const [b0, b1] of bays) {
-    for (let a = b0; a <= b1; a++) for (let y = fl + 1; y <= fl + 3; y++) set(a, y, 0, B.GLASS_PANE);
+    for (let a = b0; a <= b1; a++) for (let y = fl + 1; y <= fl + 3; y++) set(a, y, 0, win(b0, fl));
     set(b0 - 1, fl + 2, 0, B.SPRUCE_PLANKS); set(b1 + 1, fl + 2, 0, B.SPRUCE_PLANKS);   // shutters
     for (let a = b0 - 1; a <= b1 + 1; a++) { set(a, fl, -1, B.SANDSTONE_SLAB, 8); set(a, fl + 1, -1, B.IRON_BARS); }
   }

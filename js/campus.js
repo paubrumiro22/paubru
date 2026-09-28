@@ -43,7 +43,7 @@ function lwriter(W, L) {
 function campusLamp(W, x, y, z) {
   if (!W.has(x, z)) return;
   for (let k = 0; k < 4; k++) W.set(x, y + k, z, B.BLACKSTONE_WALL);
-  W.set(x, y + 4, z, B.GLASS_LAMP);
+  W.set(x, y + 4, z, B.STREET_LAMP);
 }
 function campusTree(W, x, y, z, kind, h = 4) {
   const log = kind === 'cherry' ? B.CHERRY_LOG : kind === 'birch' ? B.BIRCH_LOG : B.LOG;
@@ -262,7 +262,7 @@ function buildBank(W, g, L, F, others, modern) {
       if (edge) {
         id = y === TOP ? B.QUARTZ_BLOCK : (a === 0 || a === Wd - 1) && (d === 4 || d === D - 1) ? B.QUARTZ_PILLAR : B.QUARTZ_BRICKS;
         const along = d === 4 || d === D - 1 ? a : d;
-        if (y >= FL + 1 && y <= FL + 4 && along % 3 === 1 && along > 1 && along < (d === 4 || d === D - 1 ? Wd - 2 : D - 2)) id = B.GLASS_PANE;
+        if (y >= FL + 1 && y <= FL + 4 && along % 3 === 1 && along > 1 && along < (d === 4 || d === D - 1 ? Wd - 2 : D - 2)) id = modern && hash3(along, d, bx[0], 31) < 0.6 ? B.WINDOW_LIT : B.GLASS_PANE;
       } else if (y === TOP) id = B.QUARTZ_BLOCK;
       S.set(a, y, d, id);
     }
@@ -370,7 +370,7 @@ function buildAnnex(W, g, L, F, modern) {
         if (!corner) {
           const band = y === F1 || y === F + 3 || y === F + 4;
           if (d === 0 && !band && y !== F) id = B.GLASS_PANE;                    // glass front
-          else if (d !== 0 && !band && (y === F + 1 || y === F + 2 || y === F1 + 1 || y === F1 + 2 || y === F1 + 3) && (a + d) % 3 !== 0) id = B.GLASS_PANE;
+          else if (d !== 0 && !band && (y === F + 1 || y === F + 2 || y === F1 + 1 || y === F1 + 2 || y === F1 + 3) && (a + d) % 3 !== 0) id = modern && hash3(a + d * 7, y > F1 ? 1 : 0, bx[0], 37) < 0.65 ? B.WINDOW_LIT : B.GLASS_PANE;
           if (d === 0 && y === F) id = B.CONCRETE + 7;
         }
       } else if (y === F1) id = B.PARQUET;

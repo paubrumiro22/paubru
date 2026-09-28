@@ -1951,6 +1951,8 @@ function div16(b) { return [b[0] / 16, b[1] / 16, b[2] / 16, b[3] / 16, b[4] / 1
     'METRO_PANEL', 'METRO_MARK',
     // town planning board and the hidden stone that says a district block is built (city.js)
     'CITY_PANEL', 'CITY_MARK',
+    // lights that come on by themselves at dusk (the shader gates their glow, NIGHT_LAYERS)
+    'STREET_LAMP', 'WINDOW_LIT',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here
@@ -2212,6 +2214,11 @@ FACING_BLOCKS.add(B.METRO_PANEL);
 defBlock(B.CITY_PANEL, 'Town Planning Board', RT_CUBE, { top: 'metro_panel_side', side: 'metro_panel_side', front: 'city_panel_front' }, { hard: 2, tool: TOOL_PICK, snd: SND.METAL, emit: 6, cat: 'functional' });
 FACING_BLOCKS.add(B.CITY_PANEL);
 defBlock(B.CITY_MARK, 'Survey Stone', RT_CUBE, 'stone', XR({ cat: null }));
+// the two night-only textures are registered next to each other so the terrain shader can tell
+// them by their layer range (uNightL)
+const NIGHT_LAYERS = [defTex('street_lamp'), defTex('window_lit')];
+defBlock(B.STREET_LAMP, 'Street Lamp', RT_CUBE, { top: 'street_lamp_top', bottom: 'street_lamp', side: 'street_lamp' }, { emit: 15, hard: 0.5, snd: SND.GLASS, cat: 'functional' });
+defConnect(B.WINDOW_LIT, 'Lit Window', CN_PANE, 'window_lit', { hard: 0.3, snd: SND.GLASS, emit: 6, cat: 'building' });
 defBlock(B.METRO_MARK, 'Platform Track Marker', RT_CUBE, { top: 'metro_mark', side: 'gravel', bottom: 'gravel' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRAVEL, cat: 'transport' });
 defBlock(B.TURF, 'Artificial Turf', RT_CUBE, { top: 'turf', side: 'turf_side', bottom: 'dirt' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRASS, cat: 'building' });
 defBlock(B.TURF_LINE, 'Artificial Turf with Line', RT_CUBE, { top: 'turf_line', side: 'turf_side', bottom: 'dirt' }, { hard: 0.6, tool: TOOL_SHOVEL, snd: SND.GRASS, cat: 'building' });
@@ -5441,6 +5448,29 @@ gen('road_white', (d, rng, ctx) => {
   const f = fbm(rng, 4, 2);
   fillTile(d, (x, y, k) => { if (f[k] + rng() * 0.25 > 0.32) put(d, x, y, [234, 234, 226], 0.86 + rng() * 0.12); });
 }, { smooth: 0.25, bump: 1.2 });
+// street lamp: frosted glass in a dark frame; its glow (emission) only shows when the lamps are on
+gen('street_lamp', (d, rng, ctx) => fillTile(d, (x, y, k) => {
+  const frame = x < 3 || x > 28 || y < 3 || y > 28 || x === 15 || x === 16;
+  if (frame) { put(d, x, y, [38, 40, 44], (x === 0 || y === 0 ? 1.25 : 1) * (0.9 + rng() * 0.1)); ctx.emit[k] = 0; return; }
+  const c = Math.hypot(x - 15.5, y - 17) / 16;
+  put(d, x, y, [226, 224, 214], (1.02 - c * 0.18) * (0.95 + rng() * 0.05));
+  ctx.emit[k] = 0.95 - c * 0.35;
+}), { smooth: 0.8, bump: 0.2 });
+gen('street_lamp_top', (d, rng) => fillTile(d, (x, y) => put(d, x, y, [44, 46, 52], (x < 2 || y < 2 || x > 29 || y > 29 ? 1.25 : 1) * (0.88 + rng() * 0.1))), { smooth: 0.6, bump: 0.5 });
+// a window with a room behind: dark glass by day, warm light at night (not see-through)
+gen('window_lit', (d, rng, ctx) => {
+  const blind = 6 + Math.floor(rng() * 8);
+  fillTile(d, (x, y, k) => {
+    const frame = x < 2 || x > 29 || y < 2 || y > 29 || x === 15 || x === 16 || y === 15;
+    if (frame) { put(d, x, y, [214, 214, 206], 0.92 + rng() * 0.08); ctx.emit[k] = 0; return; }
+    const refl = (x + 31 - y) % 23 < 3 ? 1.35 : 1;
+    put(d, x, y, [58, 74, 92], refl * (0.9 + rng() * 0.12));
+    // a blind pulled part way down, the light is softer behind it
+    ctx.emit[k] = y < blind ? 0.45 : 0.9 - rng() * 0.08;
+  });
+}, { smooth: 0.95, bump: 0 });
+shaped(B.STREET_LAMP, 2, ['IGI', 'GLG', ' W '], { I: I.IRON_INGOT, G: B.GLASS, L: B.GLOWSTONE, W: B.COBBLE_WALL });
+shaped(B.WINDOW_LIT, 8, ['GGG', 'GTG', 'GGG'], { G: B.GLASS_PANE, T: B.TORCH });
 gen('turf', (d, rng) => {
   fillTile(d, (x, y) => {
     const stripe = Math.floor(x / 16) & 1;
@@ -8271,11 +8301,13 @@ function buildSchool(W, g, x0, zf, sz, F, st, modern) {
   W.pic(sz > 0 ? x0 + 10 : x0 + 6, F + 3, Z(-1), out, 5, 3, 'stucom');
   void n;
   // ground-floor shop windows either side of the entrance
-  for (const a0 of [1, 13]) for (let a = a0; a < a0 + 3; a++) for (let y = F + 1; y <= F + 3; y++) set(a, y, 0, B.GLASS_PANE);
+  // modern (generator 4): some rooms have the light on after dark (WINDOW_LIT), a whole bay at a time
+  const win = (a0, fl) => (modern && hash3(x0 + a0, fl, zf, 29) < 0.7 ? B.WINDOW_LIT : B.GLASS_PANE);
+  for (const a0 of [1, 13]) for (let a = a0; a < a0 + 3; a++) for (let y = F + 1; y <= F + 3; y++) set(a, y, 0, win(a0, F));
   // ---- upper floors: tall windows with iron balconies ----
   const bays = [[2, 3], [6, 7], [9, 10], [13, 14]];
   for (const fl of floors.slice(1)) for (const [b0, b1] of bays) {
-    for (let a = b0; a <= b1; a++) for (let y = fl + 1; y <= fl + 3; y++) set(a, y, 0, B.GLASS_PANE);
+    for (let a = b0; a <= b1; a++) for (let y = fl + 1; y <= fl + 3; y++) set(a, y, 0, win(b0, fl));
     set(b0 - 1, fl + 2, 0, B.SPRUCE_PLANKS); set(b1 + 1, fl + 2, 0, B.SPRUCE_PLANKS);   // shutters
     for (let a = b0 - 1; a <= b1 + 1; a++) { set(a, fl, -1, B.SANDSTONE_SLAB, 8); set(a, fl + 1, -1, B.IRON_BARS); }
   }
@@ -8393,7 +8425,7 @@ function lwriter(W, L) {
 function campusLamp(W, x, y, z) {
   if (!W.has(x, z)) return;
   for (let k = 0; k < 4; k++) W.set(x, y + k, z, B.BLACKSTONE_WALL);
-  W.set(x, y + 4, z, B.GLASS_LAMP);
+  W.set(x, y + 4, z, B.STREET_LAMP);
 }
 function campusTree(W, x, y, z, kind, h = 4) {
   const log = kind === 'cherry' ? B.CHERRY_LOG : kind === 'birch' ? B.BIRCH_LOG : B.LOG;
@@ -8612,7 +8644,7 @@ function buildBank(W, g, L, F, others, modern) {
       if (edge) {
         id = y === TOP ? B.QUARTZ_BLOCK : (a === 0 || a === Wd - 1) && (d === 4 || d === D - 1) ? B.QUARTZ_PILLAR : B.QUARTZ_BRICKS;
         const along = d === 4 || d === D - 1 ? a : d;
-        if (y >= FL + 1 && y <= FL + 4 && along % 3 === 1 && along > 1 && along < (d === 4 || d === D - 1 ? Wd - 2 : D - 2)) id = B.GLASS_PANE;
+        if (y >= FL + 1 && y <= FL + 4 && along % 3 === 1 && along > 1 && along < (d === 4 || d === D - 1 ? Wd - 2 : D - 2)) id = modern && hash3(along, d, bx[0], 31) < 0.6 ? B.WINDOW_LIT : B.GLASS_PANE;
       } else if (y === TOP) id = B.QUARTZ_BLOCK;
       S.set(a, y, d, id);
     }
@@ -8720,7 +8752,7 @@ function buildAnnex(W, g, L, F, modern) {
         if (!corner) {
           const band = y === F1 || y === F + 3 || y === F + 4;
           if (d === 0 && !band && y !== F) id = B.GLASS_PANE;                    // glass front
-          else if (d !== 0 && !band && (y === F + 1 || y === F + 2 || y === F1 + 1 || y === F1 + 2 || y === F1 + 3) && (a + d) % 3 !== 0) id = B.GLASS_PANE;
+          else if (d !== 0 && !band && (y === F + 1 || y === F + 2 || y === F1 + 1 || y === F1 + 2 || y === F1 + 3) && (a + d) % 3 !== 0) id = modern && hash3(a + d * 7, y > F1 ? 1 : 0, bx[0], 37) < 0.65 ? B.WINDOW_LIT : B.GLASS_PANE;
           if (d === 0 && y === F) id = B.CONCRETE + 7;
         }
       } else if (y === F1) id = B.PARQUET;
@@ -11626,6 +11658,8 @@ uniform sampler2DArray uNormalMap;
 uniform sampler2DArray uEmitMap;
 uniform sampler2D uNoise;
 uniform int uCutout;
+uniform vec2 uNightL;    // layers that only glow when the lamps are on (street lamps, lit windows)
+uniform float uLampsOn;
 in vec3 vRel;
 in vec3 vUV;
 in vec3 vTint;
@@ -11745,7 +11779,8 @@ void main() {
   }
   if ((vFlags & 4) != 0) {
     float e = texture(uEmitMap, vUV).r;
-    col = mix(col, albedo * 3.0 * flicker + col * 0.25, e);
+    if (vUV.z > uNightL.x - 0.5 && vUV.z < uNightL.y + 0.5) col = mix(col, vec3(1.0, 0.78, 0.46) * 2.4 + col * 0.15, e * uLampsOn);
+    else col = mix(col, albedo * 3.0 * flicker + col * 0.25, e);
   }
 
   col = applyFog(col, vRel);
@@ -13061,6 +13096,9 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uUnderwater', '1f', underwater ? 1 : 0);
     this.setU(prog, 'uSkyScale', '1f', A.skyScale);
     this.setU(prog, 'uNight', '1f', A.night);
+    // street lamps and lit windows: on from dusk, and on dark stormy days
+    this.setU(prog, 'uLampsOn', '1f', Math.max(A.night, clamp(((A.weather || 0) - 0.55) * 2.5, 0, 1)) * (A.dim ? 0 : 1));
+    this.setU(prog, 'uNightL', '2f', NIGHT_LAYERS[0], NIGHT_LAYERS[1]);
     this.setU(prog, 'uShadowOn', '1f', this.shadowsActive ? 1 : 0);
     this.setU(prog, 'uShadowSize', '1f', this.shadowSize);
     this.setU(prog, 'uShadowTexel', '1f', this.shadowTexel || 0.05);
@@ -26007,7 +26045,16 @@ SYNTH.timber = (ctx, o, t, p) => {
 // - Felled trees topple away from you instead of just vanishing.
 // - Ice is slippery and mud slows you down (player.js).
 
-const PHYS_SPAN = 7, PHYS_BUDGET = 700;
+const PHYS_SPAN = 12, PHYS_BUDGET = 900;
+// how far a block of each kind can reach from its support: stone and metal far, wood a bit less,
+// loose stuff (earth, sand, snow) hardly at all
+function physSpan(id) {
+  const hard = BLOCK_HARD[id], tool = BLOCK_TOOL[id];
+  if (hard < 0.8) return 4;
+  if (tool === TOOL_AXE) return 10;
+  if (tool === TOOL_PICK && hard >= 1.2) return 12;
+  return 7;
+}
 const PHYS_FRAGILE = new Set([B.GLASS, B.GLASS_PANE, B.GLASS_LAMP, B.SEA_LANTERN, B.LANTERN, B.GLOWSTONE, B.TORCH, B.WALL_TORCH, B.ICE,
   B.LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.PALM_LEAVES, B.CHERRY_LEAVES, B.DARK_OAK_LEAVES, B.ACACIA_LEAVES, B.PAPER_LANTERN, B.AUTO_DOOR]);
 
@@ -26089,7 +26136,7 @@ const Physics = {
         if (dy > 0) dq.splice(h + 1, 0, [a, b, c, nc]); else dq.push([a, b, c, nc]);
       }
     }
-    const loose = list.filter(([x, y, z]) => !cost.has(posKey(x, y, z)));
+    const loose = list.filter(([x, y, z]) => { const k = posKey(x, y, z); return !cost.has(k) || cost.get(k) > physSpan(w.getBlock(x, y, z)); });
     if (!loose.length) return;
     loose.sort((p, q) => p[1] - q[1]);
     const snd = BLOCK_SOUND[w.getBlock(loose[0][0], loose[0][1], loose[0][2])];
@@ -26104,7 +26151,7 @@ const Physics = {
     sfx('break_' + snd, [x0 + 0.5, y0 + 0.5, z0 + 0.5], 1, 0.6);
     sfx('land', [x0 + 0.5, y0, z0 + 0.5], 1, 0.5);
     G.shake = Math.max(G.shake || 0, Math.min(0.6, loose.length * 0.02));
-    if (loose.length > 3) G.ui.toast('\ud83d\udca5 Without enough support, part of the building came down', 2500);
+    if (loose.length > 6) G.ui.toast('\ud83d\udca5 Part of the building had nothing holding it up and came down', 2500);
   },
 
   // explosions: a share of the blown-out blocks flies off as debris (taken = no item drop)

@@ -175,6 +175,8 @@ uniform sampler2DArray uNormalMap;
 uniform sampler2DArray uEmitMap;
 uniform sampler2D uNoise;
 uniform int uCutout;
+uniform vec2 uNightL;    // layers that only glow when the lamps are on (street lamps, lit windows)
+uniform float uLampsOn;
 in vec3 vRel;
 in vec3 vUV;
 in vec3 vTint;
@@ -294,7 +296,8 @@ void main() {
   }
   if ((vFlags & 4) != 0) {
     float e = texture(uEmitMap, vUV).r;
-    col = mix(col, albedo * 3.0 * flicker + col * 0.25, e);
+    if (vUV.z > uNightL.x - 0.5 && vUV.z < uNightL.y + 0.5) col = mix(col, vec3(1.0, 0.78, 0.46) * 2.4 + col * 0.15, e * uLampsOn);
+    else col = mix(col, albedo * 3.0 * flicker + col * 0.25, e);
   }
 
   col = applyFog(col, vRel);

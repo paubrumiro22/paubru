@@ -777,6 +777,29 @@ gen('road_white', (d, rng, ctx) => {
   const f = fbm(rng, 4, 2);
   fillTile(d, (x, y, k) => { if (f[k] + rng() * 0.25 > 0.32) put(d, x, y, [234, 234, 226], 0.86 + rng() * 0.12); });
 }, { smooth: 0.25, bump: 1.2 });
+// street lamp: frosted glass in a dark frame; its glow (emission) only shows when the lamps are on
+gen('street_lamp', (d, rng, ctx) => fillTile(d, (x, y, k) => {
+  const frame = x < 3 || x > 28 || y < 3 || y > 28 || x === 15 || x === 16;
+  if (frame) { put(d, x, y, [38, 40, 44], (x === 0 || y === 0 ? 1.25 : 1) * (0.9 + rng() * 0.1)); ctx.emit[k] = 0; return; }
+  const c = Math.hypot(x - 15.5, y - 17) / 16;
+  put(d, x, y, [226, 224, 214], (1.02 - c * 0.18) * (0.95 + rng() * 0.05));
+  ctx.emit[k] = 0.95 - c * 0.35;
+}), { smooth: 0.8, bump: 0.2 });
+gen('street_lamp_top', (d, rng) => fillTile(d, (x, y) => put(d, x, y, [44, 46, 52], (x < 2 || y < 2 || x > 29 || y > 29 ? 1.25 : 1) * (0.88 + rng() * 0.1))), { smooth: 0.6, bump: 0.5 });
+// a window with a room behind: dark glass by day, warm light at night (not see-through)
+gen('window_lit', (d, rng, ctx) => {
+  const blind = 6 + Math.floor(rng() * 8);
+  fillTile(d, (x, y, k) => {
+    const frame = x < 2 || x > 29 || y < 2 || y > 29 || x === 15 || x === 16 || y === 15;
+    if (frame) { put(d, x, y, [214, 214, 206], 0.92 + rng() * 0.08); ctx.emit[k] = 0; return; }
+    const refl = (x + 31 - y) % 23 < 3 ? 1.35 : 1;
+    put(d, x, y, [58, 74, 92], refl * (0.9 + rng() * 0.12));
+    // a blind pulled part way down, the light is softer behind it
+    ctx.emit[k] = y < blind ? 0.45 : 0.9 - rng() * 0.08;
+  });
+}, { smooth: 0.95, bump: 0 });
+shaped(B.STREET_LAMP, 2, ['IGI', 'GLG', ' W '], { I: I.IRON_INGOT, G: B.GLASS, L: B.GLOWSTONE, W: B.COBBLE_WALL });
+shaped(B.WINDOW_LIT, 8, ['GGG', 'GTG', 'GGG'], { G: B.GLASS_PANE, T: B.TORCH });
 gen('turf', (d, rng) => {
   fillTile(d, (x, y) => {
     const stripe = Math.floor(x / 16) & 1;

@@ -11,7 +11,16 @@
 // - Felled trees topple away from you instead of just vanishing.
 // - Ice is slippery and mud slows you down (player.js).
 
-const PHYS_SPAN = 7, PHYS_BUDGET = 700;
+const PHYS_SPAN = 12, PHYS_BUDGET = 900;
+// how far a block of each kind can reach from its support: stone and metal far, wood a bit less,
+// loose stuff (earth, sand, snow) hardly at all
+function physSpan(id) {
+  const hard = BLOCK_HARD[id], tool = BLOCK_TOOL[id];
+  if (hard < 0.8) return 4;
+  if (tool === TOOL_AXE) return 10;
+  if (tool === TOOL_PICK && hard >= 1.2) return 12;
+  return 7;
+}
 const PHYS_FRAGILE = new Set([B.GLASS, B.GLASS_PANE, B.GLASS_LAMP, B.SEA_LANTERN, B.LANTERN, B.GLOWSTONE, B.TORCH, B.WALL_TORCH, B.ICE,
   B.LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.PALM_LEAVES, B.CHERRY_LEAVES, B.DARK_OAK_LEAVES, B.ACACIA_LEAVES, B.PAPER_LANTERN, B.AUTO_DOOR]);
 
@@ -93,7 +102,7 @@ const Physics = {
         if (dy > 0) dq.splice(h + 1, 0, [a, b, c, nc]); else dq.push([a, b, c, nc]);
       }
     }
-    const loose = list.filter(([x, y, z]) => !cost.has(posKey(x, y, z)));
+    const loose = list.filter(([x, y, z]) => { const k = posKey(x, y, z); return !cost.has(k) || cost.get(k) > physSpan(w.getBlock(x, y, z)); });
     if (!loose.length) return;
     loose.sort((p, q) => p[1] - q[1]);
     const snd = BLOCK_SOUND[w.getBlock(loose[0][0], loose[0][1], loose[0][2])];
@@ -108,7 +117,7 @@ const Physics = {
     sfx('break_' + snd, [x0 + 0.5, y0 + 0.5, z0 + 0.5], 1, 0.6);
     sfx('land', [x0 + 0.5, y0, z0 + 0.5], 1, 0.5);
     G.shake = Math.max(G.shake || 0, Math.min(0.6, loose.length * 0.02));
-    if (loose.length > 3) G.ui.toast('💥 Without enough support, part of the building came down', 2500);
+    if (loose.length > 6) G.ui.toast('💥 Part of the building had nothing holding it up and came down', 2500);
   },
 
   // explosions: a share of the blown-out blocks flies off as debris (taken = no item drop)
