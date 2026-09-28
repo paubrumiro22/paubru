@@ -386,6 +386,15 @@
   .arc-msg.hide { display: none; }
   .arc-pad { display: none; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; } .arc-pad button { padding: 12px; border-radius: 10px; border: 1px solid rgba(60, 242, 192, .4); background: rgba(60, 242, 192, .08); color: #3cf2c0; font-size: 18px; }
   @media (pointer: coarse) { .arc-pad { display: grid; } }
+  .lift-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .lift-b { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line-strong); background: rgba(255, 255, 255, 0.05); color: #fff; cursor: pointer; font: 600 14px var(--body); text-align: left; }
+  .lift-b b { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font: 800 17px var(--display); background: #1b2433; border: 2px solid #5b6b82; box-shadow: inset 0 0 8px rgba(0,0,0,.6); }
+  .lift-b:hover b { border-color: #ffd34d; color: #ffd34d; box-shadow: 0 0 12px rgba(255, 211, 77, .5); }
+  .lift-b.cur { opacity: .5; cursor: default; } .lift-b.cur b { border-color: #3cf2c0; color: #3cf2c0; }
+  #liftTag { position: fixed; right: 18px; top: 50%; transform: translate(20px, -50%); opacity: 0; transition: .3s; z-index: 30; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 12px 16px; border-radius: 14px; background: #06090f; border: 1px solid #2a3446; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  #liftTag.show { opacity: 1; transform: translate(0, -50%); }
+  #liftTag i { font-style: normal; color: #ff9d2e; font-size: 16px; } #liftTag b { font: 800 34px/1 'Courier New', monospace; color: #ff9d2e; text-shadow: 0 0 12px rgba(255, 157, 46, .7); } #liftTag span { color: #93a0b4; font-size: 11px; }
   #dateTag { position: absolute; left: 14px; top: 12px; padding: 6px 12px; border-radius: 99px; background: rgba(11, 16, 24, 0.66); border: 1px solid var(--line); color: #e9eef5; font-size: 12.5px; text-shadow: 0 1px 2px #000; pointer-events: none; }
   #dateTag.hidden { display: none; }
   #paper { display: grid; place-items: center; z-index: 60; background: rgba(8, 10, 16, 0.6); backdrop-filter: blur(3px); overflow: auto; padding: 20px 0; }
@@ -2212,6 +2221,8 @@ function div16(b) { return [b[0] / 16, b[1] / 16, b[2] / 16, b[3] / 16, b[4] / 1
     // more furniture (furniture_blocks.js): lights, rugs, pictures, bathroom, laundry, computer and games
     'CEILING_LAMP', 'RUG_RED', 'RUG_BLUE', 'RUG_BEIGE', 'PAINTING_SEA', 'PAINTING_CITY', 'PAINTING_FLOWERS', 'PAINTING_ABSTRACT',
     'WALL_SHELF', 'SHOWER', 'SHOWER_TOP', 'BATHTUB', 'TOILET', 'WASHER', 'WASHER_ON', 'DESKTOP_PC', 'GAME_CONSOLE', 'TV_GAME',
+    // lifts: the plate a lift stops at on each floor (lift.js)
+    'LIFT_FLOOR',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here
@@ -3018,6 +3029,13 @@ SHAPE_FN[SH_TV_GAME] = tvShape(FT2.tvGame);
   def(B.GAME_CONSOLE, 'Games Console', 'furn_black', SH_CONSOLE, with_(M, { hard: 0.5 }));
   def(B.TV_GAME, 'Television', 'furn_black', SH_TV_GAME, with_(M, { hard: 0.8, emit: 8, cat: null }));
 }
+
+// ---- lift floor: a steel plate flush with the floor; a column of them is a lift (lift.js) ----
+const SH_LIFT = 57;
+FT2.lift = defTex('lift_floor');
+SHAPE_FN[SH_LIFT] = () => ({ boxes: [[0, 14.5, 0, 16, 16, 16, FT2.lift], [0.5, 13.5, 0.5, 15.5, 14.5, 15.5, FT.metal]], coll: [[0, 14.5, 0, 16, 16, 16]] });
+defBlock(B.LIFT_FLOOR, 'Lift Floor', RT_SHAPE, 'lift_floor', { hard: 2, tool: TOOL_PICK, snd: SND.METAL, atten: 0, solid: true, cat: 'transport' });
+BLOCK_SHAPE[B.LIFT_FLOOR] = SH_LIFT;
 </script>
 <script>
 'use strict';
@@ -8955,7 +8973,7 @@ function buildSchool(W, g, x0, zf, sz, F, st, modern) {
     for (let a = b0 - 1; a <= b1 + 1; a++) { set(a, fl, -1, B.SANDSTONE_SLAB, 8); set(a, fl + 1, -1, B.IRON_BARS); }
   }
   // ---- inside ----
-  if (modern) { schoolStairs(W, x0, Z, sz, F, floors, roof); schoolFurnish(W, x0, Z, set, F, floors, out); return; }
+  if (modern) { schoolStairs(W, x0, Z, sz, F, floors, roof); schoolFurnish(W, x0, Z, set, F, floors, out); schoolUpgrade(W, x0, Z, set, sz, F, floors, roof, out); return; }
   // lobby: reception desk, benches, the school's sign picture, lamps
   for (let a = 2; a <= 5; a++) set(a, F, 5, B.SPRUCE_PLANKS);
   set(2, F + 1, 5, B.LANTERN, 0);
@@ -10262,6 +10280,96 @@ function schoolFurnish(W, x0, Z, set, F, floors, out) {
     }
     for (const a of [9, 13]) set(a, fl + 3, 6, B.LANTERN, 8);
   }
+}
+
+// ---------------------------------------------------------------- the school, finished ----
+// The entrance closed round properly (the vestibule had open sides into the lobby), a steel and
+// stone canopy over the doors, the lobby and classrooms furnished with real furniture (sofas, a
+// TV, reception with a computer, tables, chairs, a computer room, pendant lamps), a panoramic
+// glass lift in the right-hand back corner that serves every floor and the roof (lift.js runs it),
+// and a roof garden caf\u00e9 on the terrace.
+function schoolUpgrade(W, x0, Z, set, sz, F, floors, roof, out) {
+  const inw = out === 4 ? 5 : 4;
+  // +a in the world is +x: facing 0 has its back towards +a, 1 towards -a
+  const toA = 0, fromA = 1;
+  // ---- entrance ----
+  for (const a of [5, 11]) {
+    for (let d = 1; d <= 2; d++) for (let y = F; y <= F + 3; y++) set(a, y, d, B.SANDSTONE);
+    set(a, F + 5, 0, B.SANDSTONE);
+    for (let y = F; y <= F + 4; y++) set(a, y, -1, shapeId('marble', 'pillar'), 0);   // columns either side
+  }
+  for (let a = 6; a <= 10; a++) set(a, F - 1, 0, B.SMOOTH_STONE);                       // threshold
+  // canopy: stone slab on steel posts, lit from beneath
+  for (let a = 3; a <= 13; a++) for (let d = -4; d <= -2; d++) set(a, F + 3, d, B.SANDSTONE_SLAB);
+  for (let a = 4; a <= 12; a++) set(a, F + 3, -1, B.SANDSTONE_SLAB);
+  for (const a of [3, 13]) for (let y = F; y <= F + 2; y++) set(a, y, -4, B.IRON_BARS);
+  for (const a of [5, 8, 11]) set(a, F + 2, -3, B.CEILING_LAMP, 0);
+  // doormat
+  for (let a = 7; a <= 9; a++) set(a, F - 1, -1, B.SMOOTH_STONE), set(a, F, 1, B.RUG_RED, 0);
+
+  // ---- lobby ----
+  set(12, F, 5, B.CHAIR, inw);                                                           // receptionist
+  set(12, F + 1, 4, B.DESKTOP_PC, out);
+  set(13, F + 1, 4, B.AIR);
+  for (let a = 11; a <= 14; a++) set(a, F, 9, B.AIR);
+  for (let d = 6; d <= 8; d++) set(11, F, d, B.SOFA_BLUE, fromA);                         // waiting area facing the TV
+  for (let d = 6; d <= 8; d++) for (let a = 12; a <= 14; a++) set(a, F, d, B.RUG_BEIGE, 0);
+  set(13, F, 7, B.COFFEE_TABLE, fromA);
+  set(15, F, 7, B.KITCHEN_COUNTER, toA); set(15, F + 1, 7, B.TV_ON, toA);
+  set(15, F + 2, 4, B.PAINTING_CITY, toA); set(15, F + 2, 9, B.PAINTING_SEA, toA);
+  set(9, F, 10, B.VENDING_MACHINE, out); set(10, F, 10, B.VENDING_MACHINE, out);
+  set(15, F, 11, B.AIR); set(15, F + 1, 11, B.AIR);
+  for (const [a, d] of [[8, 6], [12, 6], [12, 9]]) set(a, F + 5, d, B.CEILING_LAMP, 0);
+
+  // ---- classrooms ----
+  floors.slice(1).forEach((fl, i) => {
+    const lab = i === 2;                                        // the third floor is the computer room
+    for (let d = 3; d <= 8; d++) for (const a of [8, 9, 11, 12, 14, 15]) set(a, fl + 1, d, B.AIR);
+    for (const d of [3, 5, 7]) for (const a of [8, 9, 11, 12, 14, 15]) {
+      set(a, fl + 1, d + 1, B.TABLE, 0);
+      set(a, fl + 1, d, B.CHAIR, out);
+      if (lab) set(a, fl + 2, d + 1, B.DESKTOP_PC, inw);
+    }
+    set(15, fl + 2, 12, B.PLASTER); set(6, fl + 2, 12, B.CORKBOARD, out);
+    set(11, fl + 1, 10, B.TABLE, 0); set(12, fl + 1, 10, B.TABLE, 0);                       // teacher's desk
+    set(11, fl + 2, 10, B.DESKTOP_PC, out); set(12, fl + 1, 11, B.CHAIR, inw);
+    for (const a of [9, 13]) set(a, fl + 3, 6, B.CEILING_LAMP, 0);
+    set(7, fl + 3, 9, B.CEILING_LAMP, 0);
+    set(7, fl + 2, 1, i % 2 ? B.PAINTING_FLOWERS : B.PAINTING_ABSTRACT, out === 4 ? 5 : 4);
+  });
+
+  // ---- the glass lift: shaft at a = 15, d = 10..11, doors on the a = 14 side ----
+  const stops = [F, ...floors.slice(1).map((f) => f + 1), roof + 1];
+  const top = roof + 3;
+  for (let y = F; y <= top; y++) for (const d of [10, 11]) {
+    const plate = y === F - 1 || floors.includes(y) && y > F || y === roof;
+    set(15, y, d, plate ? B.LIFT_FLOOR : B.AIR);
+    set(16, y, d, B.GLASS_PANE);                                                          // the outside wall is glass
+    const stop = stops.find((s) => y === s || y === s + 1);
+    const slab = floors.includes(y) && y > F || y === roof;
+    set(14, y, d, stop !== undefined ? B.AIR : slab ? B.SMOOTH_STONE : B.GLASS_PANE);
+  }
+  for (let y = F; y <= top; y++) {
+    const slab = floors.includes(y) && y > F || y === roof;
+    for (const a of [14, 15, 16]) { set(a, y, 9, slab ? B.SMOOTH_STONE : B.GLASS_PANE); set(a, y, 12, slab || y < roof ? (a === 15 && !slab ? B.GLASS_PANE : B.PLASTER) : B.GLASS_PANE); }
+  }
+  for (const d of [10, 11]) set(15, F - 1, d, B.LIFT_FLOOR);
+  for (const s of stops) placeADoors(W, [10, 11].map((d) => [x0 + 14, Z(d)]), s, fromA);
+  // the lift's roof, with a light over the cabin
+  for (let a = 14; a <= 16; a++) for (let d = 9; d <= 12; d++) set(a, top + 1, d, a === 15 && (d === 10 || d === 11) ? B.GLOWSTONE : B.SMOOTH_STONE);
+
+  // ---- roof garden caf\u00e9 ----
+  for (let a = 5; a <= 12; a++) for (let d = 2; d <= 10; d++) set(a, roof, d, B.DECK);
+  for (const [a, d] of [[5, 2], [12, 2], [5, 10], [12, 10]]) { set(a, roof, d, B.PODZOL); set(a, roof + 1, d, B.BUSH); }
+  for (let a = 6; a <= 11; a++) { set(a, roof, 1, B.PODZOL); set(a, roof + 1, 1, (a & 1) ? B.TULIP : B.BUSH); }
+  for (const [a, d] of [[7, 5], [10, 5], [7, 8], [10, 8]]) {
+    set(a, roof + 1, d, B.TABLE, 0);
+    set(a - 1, roof + 1, d, B.CHAIR, toA); set(a + 1, roof + 1, d, B.CHAIR, fromA);
+  }
+  // a pergola beam with lanterns hanging from it
+  for (const a of [5, 12]) for (let y = roof + 1; y <= roof + 3; y++) set(a, y, 6, B.DARK_OAK_FENCE);
+  for (let a = 5; a <= 12; a++) set(a, roof + 4, 6, B.DARK_OAK_FENCE);
+  for (const a of [6, 8, 9, 11]) set(a, roof + 3, 6, B.LANTERN, 8);
 }
 </script>
 <script data-w>
@@ -33081,6 +33189,134 @@ SYNTH.washer = (ctx, o, t) => {
     if (x === 13 || x === 14 || x === 22 || y === 14 || y === 15 || (y === 20 && x > 14) || (y === 8 && x > 14)) c = [20, 20, 22];
     put(d, x, y, c, 0.96 + rng() * 0.05);
   }), { smooth: 0.4, bump: 0.5 });
+}
+</script>
+<script>
+'use strict';
+// Lifts: a column of Lift Floor plates (one per floor, anywhere in the same x/z) is a lift. Step
+// onto a plate and the floor buttons come up; pick one and the cabin carries you there smoothly,
+// with the floor shown on the way and a chime on arrival. STUCOM has a glass one (district.js),
+// and players can build their own: stack plates in a shaft and put doors in front.
+
+const LIFT_REACH = 64;
+
+const Lift = {
+  ride: null,        // { x, z, y0, y1, t, dur, stops, idx }
+  asked: null,       // the plate we already offered the buttons for
+  panel: null,
+
+  // the stops of the lift whose shaft is x, z: the y you stand at on each plate, bottom up
+  stops(x, z, y) {
+    const w = G.world, out = [];
+    for (let yy = Math.max(0, y - LIFT_REACH); yy < Math.min(CH, y + LIFT_REACH); yy++) if (w.getBlock(x, yy, z) === B.LIFT_FLOOR) out.push(yy + 1);
+    return out;
+  },
+  label(i, stops) {
+    if (i === 0) return 'Planta baixa';
+    const w = G.world, s = stops[i];
+    let open = true;
+    for (let y = s + 3; y < Math.min(CH, s + 24); y++) if (BLOCK_SOLID[w.getBlock(this.px, y, this.pz)] && w.getBlock(this.px, y, this.pz) !== B.GLOWSTONE) { open = false; break; }
+    return i === stops.length - 1 && (open || stops.length > 2 && s - stops[i - 1] > 6) ? 'Terrat' : 'Planta ' + i;
+  },
+  short(i, stops) { const l = this.label(i, stops); return l === 'Planta baixa' ? '0' : l === 'Terrat' ? 'T' : String(i); },
+
+  update(dt) {
+    const p = G.player;
+    if (this.ride) return;
+    if (G.screenOpen || G.vehicle || p.seat || p.flying) return;
+    const x = Math.floor(p.pos[0]), z = Math.floor(p.pos[2]), y = Math.floor(p.pos[1] - 0.2);
+    const on = p.onGround && G.world.getBlock(x, y, z) === B.LIFT_FLOOR;
+    const key = on ? x + ',' + y + ',' + z : null;
+    if (!on) { this.asked = null; return; }
+    if (this.asked === key) return;
+    this.asked = key;
+    const stops = this.stops(x, z, y + 1);
+    if (stops.length < 2) return;
+    this.px = x; this.pz = z;
+    this.offer(x, z, stops, stops.indexOf(y + 1));
+  },
+
+  offer(x, z, stops, cur) {
+    const p = GPanel.open({ title: 'Ascensor', sub: 'Tria la planta', icon: '\ud83d\uded7', cls: 'gp-lift', width: 300 });
+    this.panel = p;
+    p.onClose = () => { this.panel = null; };
+    const btns = stops.map((s, i) => `<button class="lift-b${i === cur ? ' cur' : ''}" data-i="${i}"><b>${this.short(i, stops)}</b><span>${GPanel.esc(this.label(i, stops))}</span></button>`).reverse().join('');
+    p.body.innerHTML = `<div class="lift-grid">${btns}</div><p class="gp-dim" style="text-align:center;margin:10px 0 0">Keys 0\u2013${stops.length - 1} \u00b7 Esc to stay</p>`;
+    const go = (i) => { if (i === cur || i < 0 || i >= stops.length) return; p.close(); this.go(x, z, stops, cur, i); };
+    p.body.querySelectorAll('.lift-b').forEach((b) => b.addEventListener('click', () => go(Number(b.dataset.i))));
+    p.onKey = (e) => {
+      const m = /^(?:Digit|Numpad)(\d)$/.exec(e.code);
+      if (m) { go(Number(m[1])); return true; }
+      if (e.code === 'KeyT') { go(stops.length - 1); return true; }
+      return false;
+    };
+  },
+
+  go(x, z, stops, from, to) {
+    const y0 = stops[from], y1 = stops[to];
+    // 1.2 s to get going and stop, then about 3 floors a second
+    this.ride = { x, z, y0, y1, t: 0, dur: 1.2 + Math.abs(y1 - y0) / 9, stops, to };
+    this.asked = x + ',' + (y1 - 1) + ',' + z;
+    sfx('lift_start', null, 0.5, 1);
+    this.showTag(true);
+  },
+
+  // runs instead of the player's own movement while riding
+  step(p, dt) {
+    const r = this.ride;
+    r.t += dt;
+    const k = Math.min(1, r.t / r.dur), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    const y = r.y0 + (r.y1 - r.y0) * e;
+    p.pos[0] += (r.x + 0.5 - p.pos[0]) * Math.min(1, dt * 6);
+    p.pos[2] += (r.z + 0.5 - p.pos[2]) * Math.min(1, dt * 6);
+    p.pos[1] = y;
+    p.vel[0] = p.vel[1] = p.vel[2] = 0;
+    p.onGround = true; p.fallStart = null; p.sneaking = false; p.sprinting = false;
+    // the floor we are passing
+    let near = 0;
+    for (let i = 0; i < r.stops.length; i++) if (Math.abs(r.stops[i] - y) < Math.abs(r.stops[near] - y)) near = i;
+    const tag = $('liftTag');
+    if (tag) tag.innerHTML = `<i>${r.y1 > r.y0 ? '\u25b2' : '\u25bc'}</i><b>${this.short(near, r.stops)}</b><span>${GPanel.esc(this.label(r.to, r.stops))}</span>`;
+    if (k >= 1) {
+      p.pos[1] = r.y1;
+      this.ride = null;
+      sfx('lift_ding', null, 0.6, 1);
+      G.ui.toast('\ud83d\uded7 ' + this.label(r.to, r.stops), 1400);
+      setTimeout(() => this.showTag(false), 900);
+      Net.teleported();
+    }
+  },
+
+  showTag(on) {
+    let el = $('liftTag');
+    if (!el) { el = document.createElement('div'); el.id = 'liftTag'; document.body.append(el); }
+    el.classList.toggle('show', on);
+  },
+};
+
+SYNTH.lift_start = (ctx, o, t) => { Sound.tone(ctx, o, t, 1.4, { wave: 'sine', f0: 70, f1: 110, gain: 0.08, attack: 0.3 }); };
+SYNTH.lift_ding = (ctx, o, t) => {
+  Sound.tone(ctx, o, t, 0.9, { wave: 'sine', f0: 1318, gain: 0.12 });
+  Sound.tone(ctx, o, t + 0.02, 0.9, { wave: 'sine', f0: 2636, gain: 0.03 });
+};
+
+// ---------------------------------------------------------------- hooks ----
+{
+  const upd = Player.prototype.update;
+  Player.prototype.update = function (dt, input) {
+    if (Lift.ride && this === G.player) { Lift.step(this, dt); return; }
+    return upd.call(this, dt, input);
+  };
+  const fu = Furniture.update;
+  Furniture.update = function (dt) { fu.call(this, dt); Lift.update(dt || 0.016); };
+  shaped(B.LIFT_FLOOR, 2, ['III', 'IRI', 'III'], { I: I.IRON_INGOT, R: I.REDSTONE || B.WIRE });
+  gen('lift_floor', (d, rng) => fillTile(d, (x, y) => {
+    // steel chequer plate with a yellow edge line
+    const edge = x < 2 || y < 2 || x > TM - 2 || y > TM - 2;
+    const stripe = edge && ((x + y) >> 2) % 2 === 0;
+    const bump = ((x % 6 === 2 && y % 6 === 1) || (x % 6 === 4 && y % 6 === 4)) ? 1.18 : 1;
+    put(d, x, y, edge ? (stripe ? [236, 196, 40] : [40, 40, 44]) : [150, 156, 164], bump * (0.93 + rng() * 0.06));
+  }), { smooth: 0.7, bump: 0.5 });
 }
 </script>
 <script>

@@ -367,3 +367,10 @@ SHAPE_FN[SH_TV_GAME] = tvShape(FT2.tvGame);
   def(B.GAME_CONSOLE, 'Games Console', 'furn_black', SH_CONSOLE, with_(M, { hard: 0.5 }));
   def(B.TV_GAME, 'Television', 'furn_black', SH_TV_GAME, with_(M, { hard: 0.8, emit: 8, cat: null }));
 }
+
+// ---- lift floor: a steel plate flush with the floor; a column of them is a lift (lift.js) ----
+const SH_LIFT = 57;
+FT2.lift = defTex('lift_floor');
+SHAPE_FN[SH_LIFT] = () => ({ boxes: [[0, 14.5, 0, 16, 16, 16, FT2.lift], [0.5, 13.5, 0.5, 15.5, 14.5, 15.5, FT.metal]], coll: [[0, 14.5, 0, 16, 16, 16]] });
+defBlock(B.LIFT_FLOOR, 'Lift Floor', RT_SHAPE, 'lift_floor', { hard: 2, tool: TOOL_PICK, snd: SND.METAL, atten: 0, solid: true, cat: 'transport' });
+BLOCK_SHAPE[B.LIFT_FLOOR] = SH_LIFT;

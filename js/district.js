@@ -569,3 +569,93 @@ function schoolFurnish(W, x0, Z, set, F, floors, out) {
     for (const a of [9, 13]) set(a, fl + 3, 6, B.LANTERN, 8);
   }
 }
+
+// ---------------------------------------------------------------- the school, finished ----
+// The entrance closed round properly (the vestibule had open sides into the lobby), a steel and
+// stone canopy over the doors, the lobby and classrooms furnished with real furniture (sofas, a
+// TV, reception with a computer, tables, chairs, a computer room, pendant lamps), a panoramic
+// glass lift in the right-hand back corner that serves every floor and the roof (lift.js runs it),
+// and a roof garden café on the terrace.
+function schoolUpgrade(W, x0, Z, set, sz, F, floors, roof, out) {
+  const inw = out === 4 ? 5 : 4;
+  // +a in the world is +x: facing 0 has its back towards +a, 1 towards -a
+  const toA = 0, fromA = 1;
+  // ---- entrance ----
+  for (const a of [5, 11]) {
+    for (let d = 1; d <= 2; d++) for (let y = F; y <= F + 3; y++) set(a, y, d, B.SANDSTONE);
+    set(a, F + 5, 0, B.SANDSTONE);
+    for (let y = F; y <= F + 4; y++) set(a, y, -1, shapeId('marble', 'pillar'), 0);   // columns either side
+  }
+  for (let a = 6; a <= 10; a++) set(a, F - 1, 0, B.SMOOTH_STONE);                       // threshold
+  // canopy: stone slab on steel posts, lit from beneath
+  for (let a = 3; a <= 13; a++) for (let d = -4; d <= -2; d++) set(a, F + 3, d, B.SANDSTONE_SLAB);
+  for (let a = 4; a <= 12; a++) set(a, F + 3, -1, B.SANDSTONE_SLAB);
+  for (const a of [3, 13]) for (let y = F; y <= F + 2; y++) set(a, y, -4, B.IRON_BARS);
+  for (const a of [5, 8, 11]) set(a, F + 2, -3, B.CEILING_LAMP, 0);
+  // doormat
+  for (let a = 7; a <= 9; a++) set(a, F - 1, -1, B.SMOOTH_STONE), set(a, F, 1, B.RUG_RED, 0);
+
+  // ---- lobby ----
+  set(12, F, 5, B.CHAIR, inw);                                                           // receptionist
+  set(12, F + 1, 4, B.DESKTOP_PC, out);
+  set(13, F + 1, 4, B.AIR);
+  for (let a = 11; a <= 14; a++) set(a, F, 9, B.AIR);
+  for (let d = 6; d <= 8; d++) set(11, F, d, B.SOFA_BLUE, fromA);                         // waiting area facing the TV
+  for (let d = 6; d <= 8; d++) for (let a = 12; a <= 14; a++) set(a, F, d, B.RUG_BEIGE, 0);
+  set(13, F, 7, B.COFFEE_TABLE, fromA);
+  set(15, F, 7, B.KITCHEN_COUNTER, toA); set(15, F + 1, 7, B.TV_ON, toA);
+  set(15, F + 2, 4, B.PAINTING_CITY, toA); set(15, F + 2, 9, B.PAINTING_SEA, toA);
+  set(9, F, 10, B.VENDING_MACHINE, out); set(10, F, 10, B.VENDING_MACHINE, out);
+  set(15, F, 11, B.AIR); set(15, F + 1, 11, B.AIR);
+  for (const [a, d] of [[8, 6], [12, 6], [12, 9]]) set(a, F + 5, d, B.CEILING_LAMP, 0);
+
+  // ---- classrooms ----
+  floors.slice(1).forEach((fl, i) => {
+    const lab = i === 2;                                        // the third floor is the computer room
+    for (let d = 3; d <= 8; d++) for (const a of [8, 9, 11, 12, 14, 15]) set(a, fl + 1, d, B.AIR);
+    for (const d of [3, 5, 7]) for (const a of [8, 9, 11, 12, 14, 15]) {
+      set(a, fl + 1, d + 1, B.TABLE, 0);
+      set(a, fl + 1, d, B.CHAIR, out);
+      if (lab) set(a, fl + 2, d + 1, B.DESKTOP_PC, inw);
+    }
+    set(15, fl + 2, 12, B.PLASTER); set(6, fl + 2, 12, B.CORKBOARD, out);
+    set(11, fl + 1, 10, B.TABLE, 0); set(12, fl + 1, 10, B.TABLE, 0);                       // teacher's desk
+    set(11, fl + 2, 10, B.DESKTOP_PC, out); set(12, fl + 1, 11, B.CHAIR, inw);
+    for (const a of [9, 13]) set(a, fl + 3, 6, B.CEILING_LAMP, 0);
+    set(7, fl + 3, 9, B.CEILING_LAMP, 0);
+    set(7, fl + 2, 1, i % 2 ? B.PAINTING_FLOWERS : B.PAINTING_ABSTRACT, out === 4 ? 5 : 4);
+  });
+
+  // ---- the glass lift: shaft at a = 15, d = 10..11, doors on the a = 14 side ----
+  const stops = [F, ...floors.slice(1).map((f) => f + 1), roof + 1];
+  const top = roof + 3;
+  for (let y = F; y <= top; y++) for (const d of [10, 11]) {
+    const plate = y === F - 1 || floors.includes(y) && y > F || y === roof;
+    set(15, y, d, plate ? B.LIFT_FLOOR : B.AIR);
+    set(16, y, d, B.GLASS_PANE);                                                          // the outside wall is glass
+    const stop = stops.find((s) => y === s || y === s + 1);
+    const slab = floors.includes(y) && y > F || y === roof;
+    set(14, y, d, stop !== undefined ? B.AIR : slab ? B.SMOOTH_STONE : B.GLASS_PANE);
+  }
+  for (let y = F; y <= top; y++) {
+    const slab = floors.includes(y) && y > F || y === roof;
+    for (const a of [14, 15, 16]) { set(a, y, 9, slab ? B.SMOOTH_STONE : B.GLASS_PANE); set(a, y, 12, slab || y < roof ? (a === 15 && !slab ? B.GLASS_PANE : B.PLASTER) : B.GLASS_PANE); }
+  }
+  for (const d of [10, 11]) set(15, F - 1, d, B.LIFT_FLOOR);
+  for (const s of stops) placeADoors(W, [10, 11].map((d) => [x0 + 14, Z(d)]), s, fromA);
+  // the lift's roof, with a light over the cabin
+  for (let a = 14; a <= 16; a++) for (let d = 9; d <= 12; d++) set(a, top + 1, d, a === 15 && (d === 10 || d === 11) ? B.GLOWSTONE : B.SMOOTH_STONE);
+
+  // ---- roof garden café ----
+  for (let a = 5; a <= 12; a++) for (let d = 2; d <= 10; d++) set(a, roof, d, B.DECK);
+  for (const [a, d] of [[5, 2], [12, 2], [5, 10], [12, 10]]) { set(a, roof, d, B.PODZOL); set(a, roof + 1, d, B.BUSH); }
+  for (let a = 6; a <= 11; a++) { set(a, roof, 1, B.PODZOL); set(a, roof + 1, 1, (a & 1) ? B.TULIP : B.BUSH); }
+  for (const [a, d] of [[7, 5], [10, 5], [7, 8], [10, 8]]) {
+    set(a, roof + 1, d, B.TABLE, 0);
+    set(a - 1, roof + 1, d, B.CHAIR, toA); set(a + 1, roof + 1, d, B.CHAIR, fromA);
+  }
+  // a pergola beam with lanterns hanging from it
+  for (const a of [5, 12]) for (let y = roof + 1; y <= roof + 3; y++) set(a, y, 6, B.DARK_OAK_FENCE);
+  for (let a = 5; a <= 12; a++) set(a, roof + 4, 6, B.DARK_OAK_FENCE);
+  for (const a of [6, 8, 9, 11]) set(a, roof + 3, 6, B.LANTERN, 8);
+}

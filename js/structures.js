@@ -921,7 +921,7 @@ function buildSchool(W, g, x0, zf, sz, F, st, modern) {
     for (let a = b0 - 1; a <= b1 + 1; a++) { set(a, fl, -1, B.SANDSTONE_SLAB, 8); set(a, fl + 1, -1, B.IRON_BARS); }
   }
   // ---- inside ----
-  if (modern) { schoolStairs(W, x0, Z, sz, F, floors, roof); schoolFurnish(W, x0, Z, set, F, floors, out); return; }
+  if (modern) { schoolStairs(W, x0, Z, sz, F, floors, roof); schoolFurnish(W, x0, Z, set, F, floors, out); schoolUpgrade(W, x0, Z, set, sz, F, floors, roof, out); return; }
   // lobby: reception desk, benches, the school's sign picture, lamps
   for (let a = 2; a <= 5; a++) set(a, F, 5, B.SPRUCE_PLANKS);
   set(2, F + 1, 5, B.LANTERN, 0);
