@@ -216,3 +216,154 @@ SHAPE_FN[SH_TURNSTILE] = (f) => ({
   FACING_BLOCKS.add(B.TICKET_MACHINE);
 }
 defBlock(B.PLOT_STONE, 'Plot Stone', RT_CUBE, { top: 'plot_stone_top', bottom: 'plot_stone_side', side: 'plot_stone_side' }, { hard: 3, tool: TOOL_PICK, snd: SND.STONE, cat: 'functional' });
+
+// ---------------------------------------------------------------- more furniture ----
+// A pendant lamp, rugs that join into one carpet with a border round the whole of it, framed
+// pictures and a shelf that hang on the wall you click, a shower (two blocks tall), a bathtub that
+// joins end to end, a WC, a washing machine, a desktop computer, a games console and the TV
+// showing a game while the console is on.
+const SH_CEIL_LAMP = 44, SH_RUG = 45, SH_PAINTING = 46, SH_SHELF = 47, SH_SHOWER = 48, SH_SHOWER_TOP = 49;
+const SH_BATH = 50, SH_TOILET = 51, SH_WASHER = 52, SH_WASHER_ON = 53, SH_PC = 54, SH_CONSOLE = 55, SH_TV_GAME = 56;
+const FT2 = {
+  enamel: defTex('enamel'), tile: defTex('bath_tile'), water: defTex('bath_water'), curtain: defTex('shower_curtain'),
+  washFront: defTex('washer_front'), washFrontOn: defTex('washer_front_on'), pc: defTex('pc_screen'), keys: defTex('keyboard'),
+  consoleTop: defTex('console_top'), tvGame: defTex('tv_screen_game'), pot: defTex('pot_terracotta'), plant: defTex('plant_green'),
+  books: [defTex('book_red'), defTex('book_green'), defTex('book_blue')], frame: defTex('frame_gold'),
+};
+const RUGS = [['RUG_RED', 'Red Rug', 'rug_red'], ['RUG_BLUE', 'Blue Rug', 'rug_blue'], ['RUG_BEIGE', 'Beige Rug', 'rug_beige']];
+const RUG_TEX = RUGS.map(([, , t]) => [defTex(t), defTex(t + '_border')]);
+const PAINTINGS = [['PAINTING_SEA', 'Painting: Sea at Dusk', 'art_sea'], ['PAINTING_CITY', 'Painting: The City', 'art_city'],
+  ['PAINTING_FLOWERS', 'Painting: Flowers', 'art_flowers'], ['PAINTING_ABSTRACT', 'Painting: Composition', 'art_abstract']];
+const ART_TEX = PAINTINGS.map(([, , t]) => defTex(t));
+
+SHAPE_FN[SH_CEIL_LAMP] = () => ({
+  boxes: [[6, 15.2, 6, 10, 16, 10, FT.metal], [7.6, 10, 7.6, 8.4, 15.2, 8.4, FT.black],
+    [3.5, 5.5, 3.5, 12.5, 10, 12.5, FT.shade], [5, 10, 5, 11, 11, 11, FT.shade], [6, 4.6, 6, 10, 5.5, 10, FT.shade]],
+  coll: [[3.5, 4.6, 3.5, 12.5, 16, 12.5]],
+});
+
+// ---- rug: a border only along the edges of the whole carpet ----
+function rugBoxes(f, get, id) {
+  const [mid, bord] = RUG_TEX[(id - B.RUG_RED) % RUG_TEX.length] || RUG_TEX[0];
+  const has = (dx, dz) => get && get(dx, 0, dz) === id;
+  const b = [[0, 0, 0, 16, 0.7, 16, mid]];
+  if (!has(0, -1)) b.push([0, 0, 0, 16, 0.8, 2, bord]);
+  if (!has(0, 1)) b.push([0, 0, 14, 16, 0.8, 16, bord]);
+  if (!has(-1, 0)) b.push([0, 0, 0, 2, 0.8, 16, bord]);
+  if (!has(1, 0)) b.push([14, 0, 0, 16, 0.8, 16, bord]);
+  return b;
+}
+SHAPE_NBF[SH_RUG] = (f, get, id) => rugBoxes(f, get, id);
+SHAPE_FN[SH_RUG] = () => ({ boxes: rugBoxes(0, null, B.RUG_RED), coll: [[0, 0, 0, 16, 0.8, 16]] });
+
+// ---- a picture in a gilt frame, flat against the wall behind it ----
+function paintingBoxes(f, id) {
+  const art = ART_TEX[(id - B.PAINTING_SEA) % ART_TEX.length] || ART_TEX[0];
+  return furnXf(f, [
+    [0.5, 1.5, 0, 15.5, 2.5, 1.2, FT2.frame], [0.5, 13.5, 0, 15.5, 14.5, 1.2, FT2.frame],
+    [0.5, 2.5, 0, 1.5, 13.5, 1.2, FT2.frame], [14.5, 2.5, 0, 15.5, 13.5, 1.2, FT2.frame],
+    [1.5, 2.5, 0, 14.5, 13.5, 0.8, faces6(FT.dark, FT.dark, FT.dark, art, FT.dark)],
+  ]);
+}
+SHAPE_NBF[SH_PAINTING] = (f, get, id) => paintingBoxes(f, id);
+SHAPE_FN[SH_PAINTING] = (f) => ({ boxes: paintingBoxes(f, B.PAINTING_SEA), coll: furnXf(f, [[0.5, 1.5, 0, 15.5, 14.5, 1.2]]) });
+
+// ---- wall shelf with books and a plant ----
+SHAPE_FN[SH_SHELF] = (f) => ({
+  boxes: furnXf(f, [
+    [0, 7, 0, 16, 8, 7, FT.oak], [2, 4, 0, 3, 7, 5.5, FT.metal], [13, 4, 0, 14, 7, 5.5, FT.metal],
+    [1, 8, 0.6, 2.4, 13.5, 6, FT2.books[0]], [2.4, 8, 0.6, 3.7, 12.6, 6, FT2.books[1]], [3.7, 8, 0.6, 5.2, 14, 6, FT2.books[2]],
+    [5.2, 8, 0.6, 6.4, 13, 6, FT2.books[0]], [6.6, 8, 0.6, 8, 12, 6, FT2.books[1]],
+    [10.5, 8, 1.5, 14, 11, 5, FT2.pot], [10, 11, 1, 14.5, 14, 5.5, FT2.plant], [11, 14, 2, 13.5, 15.5, 4.5, FT2.plant],
+  ]),
+  coll: furnXf(f, [[0, 7, 0, 16, 8, 7]]),
+});
+
+// ---- shower: tiled back, tray, mixer, a curtain half drawn on the open side ----
+SHAPE_FN[SH_SHOWER] = (f) => ({
+  boxes: furnXf(f, [
+    [0, 0, 0, 16, 1.5, 16, FT2.enamel], [0, 1.5, 0, 16, 16, 1, FT2.tile],
+    [7.4, 1.5, 1, 8.6, 16, 2, FT.metal], [6.2, 7, 1, 9.8, 9, 2.4, FT.metal],
+    [0, 1.5, 15, 4.5, 16, 15.6, FT2.curtain],
+  ]),
+  coll: furnXf(f, [[0, 0, 0, 16, 1.5, 16], [0, 0, 0, 16, 16, 1]]),
+});
+SHAPE_FN[SH_SHOWER_TOP] = (f) => ({
+  boxes: furnXf(f, [
+    [0, 0, 0, 16, 14, 1, FT2.tile], [7.4, 0, 1, 8.6, 9, 2, FT.metal], [7.4, 8, 2, 8.6, 9, 6, FT.metal],
+    [5.4, 6.8, 4.4, 10.6, 8, 9.6, FT.metal], [0, 13.4, 15, 16, 14, 15.6, FT.metal],
+    [0, 0, 15, 4.5, 13.4, 15.6, FT2.curtain], [4.5, 12.4, 15.05, 5.2, 13.4, 15.55, FT2.curtain],
+  ]),
+  coll: furnXf(f, [[0, 0, 0, 16, 14, 1]]),
+});
+
+// ---- bathtub: taps at the left end, joins with the next tub along its length ----
+function bathBoxes(f, get, id, icon) {
+  const s = furnSide(f);
+  const joinR = !icon && get && get(s[0], 0, s[2]) === id, joinL = !icon && get && get(-s[0], 0, -s[2]) === id;
+  const x0 = joinL ? 0 : 2, x1 = joinR ? 16 : 14;
+  const b = [
+    [0, 0, 0, 16, 1, 16, FT2.enamel], [0, 1, 0, 16, 9, 2, FT2.enamel], [0, 1, 14, 16, 9, 16, FT2.enamel],
+    [x0, 1, 2, x1, 2, 14, FT2.enamel], [x0, 2, 2, x1, 6.5, 14, FT2.water],
+    [0, 9, 0, 16, 9.6, 2.4, FT2.enamel], [0, 9, 13.6, 16, 9.6, 16, FT2.enamel],
+  ];
+  if (!joinL) b.push([0, 1, 2, 2, 9, 14, FT2.enamel], [0, 9, 0, 2.4, 9.6, 16, FT2.enamel],
+    [0.6, 9.6, 7.4, 1.8, 12.5, 8.6, FT.metal], [1.8, 11.4, 7.4, 4.2, 12.5, 8.6, FT.metal], [0.6, 9.6, 4.5, 1.6, 10.8, 5.5, FT.metal], [0.6, 9.6, 10.5, 1.6, 10.8, 11.5, FT.metal]);
+  if (!joinR) b.push([14, 1, 2, 16, 9, 14, FT2.enamel], [13.6, 9, 0, 16, 9.6, 16, FT2.enamel]);
+  return furnXf(f, b);
+}
+SHAPE_NBF[SH_BATH] = bathBoxes;
+SHAPE_FN[SH_BATH] = (f) => ({ boxes: bathBoxes(f, null, B.BATHTUB, true), coll: furnXf(f, [[0, 0, 0, 16, 2, 16], [0, 0, 0, 16, 9.6, 2], [0, 0, 14, 16, 9.6, 16]]) });
+
+SHAPE_FN[SH_TOILET] = (f) => ({
+  boxes: furnXf(f, [
+    [5, 0, 4.5, 11, 6, 11.5, FT2.enamel], [3.5, 6, 3.5, 12.5, 8.4, 14, FT2.enamel], [3.5, 8.4, 3.5, 12.5, 9.1, 14, FT.oak],
+    [2.5, 6, 0.5, 13.5, 15, 3.8, FT2.enamel], [2.3, 15, 0.3, 13.7, 15.6, 4, FT2.enamel], [7, 15.6, 1.4, 9, 16, 2.8, FT.metal],
+  ]),
+  coll: furnXf(f, [[3.5, 0, 0.5, 12.5, 9.1, 14], [2.5, 0, 0.5, 13.5, 15.6, 4]]),
+});
+
+const washShape = (front) => (f) => ({
+  boxes: furnXf(f, [[0.5, 0, 1, 15.5, 15.4, 15.5, faces6(FT.fridgeSide, FT.fridgeSide, FT.fridgeSide, front, FT.fridgeSide)], [0.3, 15.4, 0.8, 15.7, 16, 15.7, FT.worktop]]),
+  coll: [[0.5, 0, 1, 15.5, 16, 15.5]],
+});
+SHAPE_FN[SH_WASHER] = washShape(FT2.washFront);
+SHAPE_FN[SH_WASHER_ON] = washShape(FT2.washFrontOn);
+
+// ---- a desktop computer to stand on a table: screen at the back, keyboard and mouse in front ----
+SHAPE_FN[SH_PC] = (f) => ({
+  boxes: furnXf(f, [
+    [1.5, 3.2, 2.2, 14.5, 12.4, 3.2, faces6(FT.black, FT.black, FT.black, FT2.pc, FT.black)], [1.5, 3.2, 1.6, 14.5, 12.4, 2.2, FT.black],
+    [7.2, 0.4, 1.8, 8.8, 3.2, 2.8, FT.metal], [5.5, 0, 0.8, 10.5, 0.4, 4.5, FT.metal],
+    [2.5, 0, 7.5, 13.2, 0.6, 11.5, faces6(FT.black, FT.black, FT2.keys, FT.black, FT.black)], [14, 0, 8.5, 15.3, 0.6, 11, FT.black],
+  ]),
+  coll: furnXf(f, [[1.5, 0, 0.8, 15.3, 12.4, 11.5]]),
+});
+SHAPE_FN[SH_CONSOLE] = (f) => ({
+  boxes: furnXf(f, [
+    [3, 0, 3, 13, 2.6, 11, faces6(FT.black, FT2.consoleTop, FT.black, FT.black, FT.black)], [3.4, 0.9, 11, 12.6, 1.2, 11.1, FT2.consoleTop],
+    [4, 0, 12, 8.5, 1, 15, FT.black], [3.4, 0, 12.6, 4, 1, 14.4, FT.black], [8.5, 0, 12.6, 9.1, 1, 14.4, FT.black],
+  ]),
+  coll: furnXf(f, [[3, 0, 3, 13, 2.6, 15]]),
+});
+SHAPE_FN[SH_TV_GAME] = tvShape(FT2.tvGame);
+
+{
+  const F = { hard: 1, snd: SND.WOOD, tool: TOOL_AXE, atten: 0, solid: true, cat: 'furniture' };
+  const def = (id, name, tex, k, o) => { defBlock(id, name, RT_SHAPE, tex, with_(F, o || {})); BLOCK_SHAPE[id] = k; };
+  const M = { tool: TOOL_PICK, snd: SND.METAL };
+  const E_ = { tool: TOOL_PICK, snd: SND.STONE, hard: 1.2 };
+  def(B.CEILING_LAMP, 'Ceiling Lamp', 'lamp_shade', SH_CEIL_LAMP, with_(M, { hard: 0.5, emit: 15, solid: false }));
+  RUGS.forEach(([k, n, t]) => def(B[k], n, t, SH_RUG, { snd: SND.WOOL, hard: 0.3, solid: false }));
+  PAINTINGS.forEach(([k, n, t]) => def(B[k], n, t, SH_PAINTING, { hard: 0.4, solid: false }));
+  def(B.WALL_SHELF, 'Wall Shelf', 'furn_oak', SH_SHELF, { hard: 0.6, solid: false });
+  def(B.SHOWER, 'Shower', 'bath_tile', SH_SHOWER, with_(E_, { solid: false }));
+  def(B.SHOWER_TOP, 'Shower', 'bath_tile', SH_SHOWER_TOP, with_(E_, { solid: false, cat: null }));
+  def(B.BATHTUB, 'Bathtub', 'enamel', SH_BATH, E_);
+  def(B.TOILET, 'Toilet', 'enamel', SH_TOILET, E_);
+  def(B.WASHER, 'Washing Machine', 'fridge_side', SH_WASHER, with_(M, { hard: 1.5 }));
+  def(B.WASHER_ON, 'Washing Machine', 'fridge_side', SH_WASHER_ON, with_(M, { hard: 1.5, emit: 4, cat: null }));
+  def(B.DESKTOP_PC, 'Desktop Computer', 'furn_black', SH_PC, with_(M, { hard: 0.6, emit: 6 }));
+  def(B.GAME_CONSOLE, 'Games Console', 'furn_black', SH_CONSOLE, with_(M, { hard: 0.5 }));
+  def(B.TV_GAME, 'Television', 'furn_black', SH_TV_GAME, with_(M, { hard: 0.8, emit: 8, cat: null }));
+}

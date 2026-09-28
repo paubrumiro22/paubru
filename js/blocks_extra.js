@@ -62,6 +62,9 @@
     'TURNSTILE', 'TICKET_MACHINE',
     // land claims on servers (shared.js)
     'PLOT_STONE',
+    // more furniture (furniture_blocks.js): lights, rugs, pictures, bathroom, laundry, computer and games
+    'CEILING_LAMP', 'RUG_RED', 'RUG_BLUE', 'RUG_BEIGE', 'PAINTING_SEA', 'PAINTING_CITY', 'PAINTING_FLOWERS', 'PAINTING_ABSTRACT',
+    'WALL_SHELF', 'SHOWER', 'SHOWER_TOP', 'BATHTUB', 'TOILET', 'WASHER', 'WASHER_ON', 'DESKTOP_PC', 'GAME_CONSOLE', 'TV_GAME',
   ].forEach((k) => n(k));
   B.EXTRA_END = id;
   B.SHAPE1 = 1400;   // shapes of the extra materials start here
