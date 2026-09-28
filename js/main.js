@@ -1068,6 +1068,7 @@ function frame(now) {
       if (G.sleeping) eye[1] -= 1.0;
       cam = { pos: eye, yaw: p.yaw, pitch: p.pitch, roll, fov: G.settings.fov + p.fovBoost - (Act.bow ? Math.min(1, Act.bow.t) * 12 : 0) };
       if (Photo.on) cam = Photo.camera(cam, dt);
+      else if (typeof Architect !== 'undefined' && Architect.on) cam = Architect.camera(cam, dt);
       else if (G.view && !st.dead && !G.sleeping) {
         // third person: behind you (or facing you), pulled in when a wall is in the way
         const f = [-Math.sin(p.yaw) * Math.cos(p.pitch), Math.sin(p.pitch), -Math.cos(p.yaw) * Math.cos(p.pitch)];
@@ -1087,7 +1088,7 @@ function frame(now) {
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);
     Sound.setListener(cam.pos, cam.yaw);
-    const thirdPerson = (Photo.on ? Photo.away() : G.view) && !G.vehicle && !G.onTitle && !st.dead && !G.sleeping;
+    const thirdPerson = (Photo.on ? Photo.away() : (typeof Architect !== 'undefined' && Architect.on) || G.view) && !G.vehicle && !G.onTitle && !st.dead && !G.sleeping;
     const showHand = !Photo.on && !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle && !thirdPerson;
     let self = null;
     if (thirdPerson) {

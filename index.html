@@ -447,6 +447,20 @@
   #flightHud { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 30; min-width: 300px; padding: 10px 16px 14px; border-radius: 14px; background: rgba(10, 15, 26, .88); border: 1px solid #2c3b5c; color: #fff; opacity: 0; transition: .3s; pointer-events: none; overflow: hidden; }
   #flightHud.show { opacity: 1; } #flightHud b { display: block; font: 800 14px var(--display); } #flightHud span { font-size: 12.5px; color: #b8c3d4; }
   #flightHud i { position: absolute; left: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #d6202b, #ffcc33); }
+  #hud.arch { display: none; }
+  #archUI { position: fixed; inset: 0; z-index: 50; }
+  #archUI .ar-c { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+  .ar-bar { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; } .ar-bar > * { pointer-events: auto; }
+  .ar-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: stretch; }
+  .ar-tools, .ar-pal, .ar-opts { display: flex; gap: 6px; padding: 8px; border-radius: 14px; background: rgba(10, 15, 24, 0.9); border: 1px solid var(--line-strong); backdrop-filter: blur(8px); flex-wrap: wrap; justify-content: center; }
+  .ar-tools button { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 58px; padding: 6px 8px; border-radius: 10px; border: 1px solid transparent; background: transparent; color: #cfd8e6; cursor: pointer; font: 700 11px var(--body); }
+  .ar-tools button i { font-style: normal; font-size: 20px; } .ar-tools button.on { background: #3cf2c0; color: #06221a; } .ar-tools button:disabled { opacity: .35; }
+  .ar-pal { max-width: min(980px, calc(100vw - 24px)); flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; } .ar-pal button { flex: none; width: 40px; height: 40px; border-radius: 9px; border: 2px solid transparent; background: rgba(255,255,255,.06) center / 30px no-repeat; image-rendering: pixelated; cursor: pointer; }
+  .ar-pal button.on { border-color: #3cf2c0; background-color: rgba(60,242,192,.15); }
+  .ar-opts { align-items: center; color: #cfd8e6; font: 700 12px var(--body); gap: 12px; } .ar-opts label { display: flex; align-items: center; gap: 6px; } .ar-opts b { min-width: 22px; text-align: center; color: #fff; }
+  .ar-opts button { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: rgba(255,255,255,.08); color: #fff; cursor: pointer; font: 700 12px var(--body); }
+  .ar-opts .ar-x { background: #2fbf71; border-color: #4fd58b; }
+  .ar-help { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 99px; background: rgba(10, 15, 24, 0.8); color: #cfd8e6; font: 600 12px var(--body); white-space: nowrap; }
   #dateTag { position: absolute; left: 14px; top: 12px; padding: 6px 12px; border-radius: 99px; background: rgba(11, 16, 24, 0.66); border: 1px solid var(--line); color: #e9eef5; font-size: 12.5px; text-shadow: 0 1px 2px #000; pointer-events: none; }
   #dateTag.hidden { display: none; }
   #paper { display: grid; place-items: center; z-index: 60; background: rgba(8, 10, 16, 0.6); backdrop-filter: blur(3px); overflow: auto; padding: 20px 0; }
@@ -1396,6 +1410,7 @@
 <script src="js/bus.js"></script>
 <script src="js/taxi.js"></script>
 <script src="js/airport.js"></script>
+<script src="js/architect.js"></script>
 <script src="js/football.js"></script>
 <script src="js/pets.js"></script>
 <script src="js/music.js"></script>
