@@ -265,8 +265,9 @@ class Renderer {
     const gl = this.gl;
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, magFilter);
-    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    // block textures tile: greedy-merged faces span several blocks
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.REPEAT);
     if (this.aniso) {
       const max = gl.getParameter(this.aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 1;
       gl.texParameterf(gl.TEXTURE_2D_ARRAY, this.aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, max));
@@ -388,6 +389,7 @@ class Renderer {
     const gl = this.gl;
     chunk.uploads = (chunk.uploads || 0) + 1;   // lets the minimap know the chunk changed
     if (!chunk.mesh) chunk.mesh = { opaque: null, cutout: null, water: null };
+    chunk.sec = res.sec || null; chunk.vis = res.vis || null;
     for (const kind of ['opaque', 'cutout', 'water']) {
       const b = res[kind];
       let m = chunk.mesh[kind];
@@ -398,7 +400,15 @@ class Renderer {
       if (!m) m = chunk.mesh[kind] = this.createMesh();
       gl.bindVertexArray(null);
       gl.bindBuffer(gl.ARRAY_BUFFER, m.vbo);
-      gl.bufferData(gl.ARRAY_BUFFER, b.data(), gl.STATIC_DRAW);
+      // reuse the buffer's storage when the new mesh fits (edits remesh the same chunk often);
+      // grow with some headroom otherwise, so the driver reallocates rarely
+      const data = b.data();
+      if (m.cap && data.byteLength <= m.cap && data.byteLength > m.cap >> 2) gl.bufferSubData(gl.ARRAY_BUFFER, 0, data);
+      else {
+        m.cap = Math.ceil(data.byteLength * 1.25 / 4096) * 4096;
+        gl.bufferData(gl.ARRAY_BUFFER, m.cap, gl.DYNAMIC_DRAW);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, data);
+      }
       m.count = Math.min(b.count >> 2, MAX_QUADS) * 6;
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, null);

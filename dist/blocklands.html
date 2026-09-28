@@ -326,6 +326,31 @@
   .place.locked { opacity: 0.55; cursor: default; }
   .place:hover { background: rgba(242, 185, 75, 0.16); border-color: rgba(242, 185, 75, 0.55); }
   #placesPanel .panel { width: min(720px, 100%); }
+  /* Worlds list */
+  .title-buttons button.wide { grid-column: 1 / -1; }
+  #worldsPanel { background: rgba(4, 7, 12, 0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  #worldsPanel .panel { width: min(860px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; }
+  .nwform { display: grid; grid-template-columns: 1.4fr 1fr auto auto auto; gap: 8px; margin: 4px 0 14px; padding: 10px; border-radius: 13px; background: rgba(242, 185, 75, 0.07); border: 1px dashed rgba(242, 185, 75, 0.35); }
+  .nwform input, .nwform select { min-width: 0; }
+  .wgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; overflow-y: auto; padding: 2px; min-height: 0; }
+  .wcard { border-radius: 14px; overflow: hidden; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); display: flex; flex-direction: column; transition: transform .15s, border-color .15s, box-shadow .15s; animation: rise .4s both; }
+  .wcard:hover { transform: translateY(-2px); border-color: var(--line-strong); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35); }
+  .wcard.cur { border-color: rgba(242, 185, 75, 0.7); box-shadow: 0 0 0 1px rgba(242, 185, 75, 0.35), 0 10px 30px rgba(242, 185, 75, 0.12); }
+  .wpic { position: relative; aspect-ratio: 16 / 9; background: linear-gradient(160deg, #3a6d93, #1d3a50 55%, #2f4d2a) center / cover; display: grid; place-items: center; }
+  .wpic > span { font-size: 42px; opacity: 0.55; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5)); }
+  .wpic::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(4, 7, 12, 0.6)); pointer-events: none; }
+  .wpic i { position: absolute; top: 8px; left: 8px; z-index: 1; font: 700 10px/1 var(--body); letter-spacing: 0.12em; text-transform: uppercase; font-style: normal; padding: 5px 8px; border-radius: 99px; background: var(--accent); color: var(--accent-ink); }
+  .wmode { position: absolute; right: 8px; bottom: 8px; z-index: 1; font: 600 11px/1 var(--body); font-style: normal; padding: 4px 8px; border-radius: 99px; background: rgba(8, 12, 18, 0.72); border: 1px solid var(--line-strong); }
+  .wmode.cr { color: #9fd7ff; } .wmode.sv { color: #b9f0a0; }
+  .winfo { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 3px; }
+  .winfo b { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .winfo small { color: var(--muted); font-size: 12px; }
+  .wrename { font: inherit; font-size: 14px; padding: 4px 8px; }
+  .wacts { display: flex; gap: 6px; margin-top: 8px; }
+  .wacts button { padding: 6px 10px; font-size: 13px; }
+  .wacts button.primary { flex: 1; background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  .wacts button.danger { color: #ffb4a8; }
+  @media (max-width: 640px) { .nwform { grid-template-columns: 1fr 1fr; } .nwform button { grid-column: 1 / -1; } }
   .jetbtn { margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .menu-top { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
@@ -732,6 +757,7 @@
     <p class="subtitle">Survive &#xb7; Build &#xb7; Explore &#xb7; Fly</p>
     <div class="title-buttons">
       <button id="tPlay" class="primary"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12.5-7.5z"/></svg><span id="tPlayLabel">Play</span></button>
+      <button id="tWorlds" class="wide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M3 13l5-4 4 3 3-2 6 5"/><path d="M8 21h8"/></svg><span id="tWorldsLabel">Worlds</span></button>
       <button id="tPlaces"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Places</button>
       <button id="tOnline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18.5 14.8c1.6.8 2.6 2.4 3 5.2"/></svg>Online</button>
       <button id="tJet"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 6 7.9 5.3v2L13.6 13l-.4 4.6 2.8 2.2V21l-4-1-4 1v-1.2l2.8-2.2-.4-4.6-7.9 2.3v-2L10.4 8z"/></svg>Fighter jet</button>
@@ -757,6 +783,22 @@
     <dl><dt>Arte y sonido</dt><dd>Texturas, modelos, criaturas y efectos generados por c&#xf3;digo.<br>Ning&#xfa;n archivo externo.</dd></dl>
     <dl><dt>Multijugador</dt><dd>Servidores con c&#xf3;digo para jugar con tus amigos, sin cuentas</dd></dl>
     <div class="thanks">&#xa1;Gracias por jugar!</div>
+  </div>
+</div>
+
+<div id="worldsPanel" class="overlay hidden">
+  <div class="panel">
+    <div class="brand"><h1>WOR<span>LDS</span></h1></div>
+    <p class="tagline">Every world is kept on this device with the last thing you saw in it. Start as many as you like.</p>
+    <div class="nwform">
+      <input type="text" id="nwName" maxlength="32" placeholder="Name of the new world">
+      <input type="text" id="nwSeed" placeholder="Seed (optional)">
+      <select id="nwType"><option value="default">Default</option><option value="flat">Flat</option></select>
+      <select id="nwMode"><option value="survival">Survival</option><option value="creative">Creative</option></select>
+      <button id="nwCreate" class="primary">&#xff0b; Create</button>
+    </div>
+    <div class="wgrid" id="worldsGrid"></div>
+    <div class="row" style="margin-top:16px"><button id="worldsBack">Back</button></div>
   </div>
 </div>
 
@@ -10635,6 +10677,7 @@ const PH = CH + 2;             // padded height (y = -1 .. CH)
 const POS_SCALE = 64;          // vertex position units per block
 const P4 = POS_SCALE / 16;     // per 1/16 of a block
 const VERT_BYTES = 20;
+const SECTIONS = CH >> 4;       // 16-high slices, drawn and culled separately
 const padBlocks = new Uint16Array(RSS * PH);
 const skyL = new Uint8Array(RSS * PH);
 const blkL = new Uint8Array(RSS * PH);
@@ -10937,6 +10980,93 @@ function wallTorch(builder, p, x, y, z, facing, layer, flags) {
     [[u0, 8 / 16], [u1, 8 / 16], [u1, 6 / 16], [u0, 6 / 16]], layer, 2 | (flags << 3), s, b2, WHITE_TINT);
 }
 
+// ---- greedy merging of plain cube faces ----
+// Opaque cube faces lit evenly (same ambient occlusion and light at all four corners) are
+// collected per 16-high section and merged into rectangles of up to 15x15 blocks; the texture
+// array repeats, so a merged face shows the same tiles as the separate ones.
+// Index: d*4096 + (n*16 + b)*16 + a, n along the normal, a/b along the face.
+const GQ_A = new Int32Array(6 * 4096), GQ_B = new Int32Array(6 * 4096), GQ_C = new Int32Array(6 * 4096);
+const GQ_AXES = [[0, 2, 1], [0, 2, 1], [1, 0, 2], [1, 0, 2], [2, 0, 1], [2, 0, 1]];   // normal, a, b as x/y/z
+const _lo = [0, 0, 0], _hi = [0, 0, 0], _loc = [0, 0, 0];
+const GQ_MAX = 15;                      // u/v are stored as u8 * 16
+function greedyIndex(d, x, yl, z) {
+  _loc[0] = x; _loc[1] = yl; _loc[2] = z;
+  const ax = GQ_AXES[d];
+  return d * 4096 + (_loc[ax[0]] * 16 + _loc[ax[2]]) * 16 + _loc[ax[1]];
+}
+function greedyFlush(builder, y0) {
+  for (let d = 0; d < 6; d++) {
+    const ax = GQ_AXES[d], base = d * 4096, corners = FACE_CORNERS[d], nf0 = d;
+    for (let n = 0; n < 16; n++) for (let b = 0; b < 16; b++) for (let a = 0; a < 16; a++) {
+      const i = base + (n * 16 + b) * 16 + a;
+      const ka = GQ_A[i];
+      if (!ka) continue;
+      const kb = GQ_B[i], kc = GQ_C[i];
+      let w = 1;
+      while (a + w < 16 && w < GQ_MAX && GQ_A[i + w] === ka && GQ_B[i + w] === kb && GQ_C[i + w] === kc) w++;
+      let h = 1;
+      grow: while (b + h < 16 && h < GQ_MAX) {
+        const r = i + h * 16;
+        for (let j = 0; j < w; j++) if (GQ_A[r + j] !== ka || GQ_B[r + j] !== kb || GQ_C[r + j] !== kc) break grow;
+        h++;
+      }
+      for (let hh = 0; hh < h; hh++) GQ_A.fill(0, i + hh * 16, i + hh * 16 + w);
+      _lo[ax[0]] = n; _hi[ax[0]] = n + 1;
+      _lo[ax[1]] = a; _hi[ax[1]] = a + w;
+      _lo[ax[2]] = b; _hi[ax[2]] = b + h;
+      _lo[1] += y0; _hi[1] += y0;
+      const layer = (ka & 0xffff) - 1, nf = nf0 | ((ka >>> 16) << 3), sky = kb & 255, blk = (kb >>> 8) & 255, aoV = kb >>> 16;
+      const r = kc & 255, g = (kc >>> 8) & 255, bl = kc >>> 16;
+      builder.ensure(4);
+      for (let k = 0; k < 4; k++) {
+        const c = corners[k];
+        const vx = c[0] ? _hi[0] : _lo[0], vy = c[1] ? _hi[1] : _lo[1], vz = c[2] ? _hi[2] : _lo[2];
+        const u = d === 0 ? _hi[2] - vz : d === 1 ? vz - _lo[2] : d === 5 ? _hi[0] - vx : vx - _lo[0];
+        const v = d === 2 ? vz - _lo[2] : d === 3 ? _hi[2] - vz : _hi[1] - vy;
+        builder.v(vx * POS_SCALE, vy * POS_SCALE, vz * POS_SCALE, layer, nf, aoV, sky, blk, r, g, bl, u * 16, v * 16);
+      }
+    }
+  }
+}
+
+// ---- which faces of each 16-high section see each other through non-opaque blocks ----
+// vis[s*6 + f] is the set (bits = DIRS order) of faces reachable from face f inside section s;
+// the renderer walks these to skip caves and rooms hidden behind solid rock.
+const visSeen = new Uint8Array(4096), visStack = new Int16Array(4096);
+function sectionVis(maxY) {
+  const vis = new Uint8Array(SECTIONS * 6);
+  for (let s = 0; s < SECTIONS; s++) {
+    const y0 = s * 16;
+    if (y0 > maxY) { vis.fill(63, s * 6, s * 6 + 6); continue; }
+    let solid = 0;
+    for (let i = 0; i < 4096; i++) {
+      const x = i & 15, z = (i >> 4) & 15, y = i >> 8;
+      const o = BLOCK_OPAQUE[padBlocks[pidx(x + LP, y0 + y, z + LP)]];
+      visSeen[i] = o;
+      solid += o;
+    }
+    if (!solid) { vis.fill(63, s * 6, s * 6 + 6); continue; }
+    if (solid === 4096) continue;
+    for (let i0 = 0; i0 < 4096; i0++) {
+      if (visSeen[i0]) continue;
+      let sp = 0, faces = 0;
+      visStack[sp++] = i0; visSeen[i0] = 1;
+      while (sp) {
+        const i = visStack[--sp];
+        const x = i & 15, z = (i >> 4) & 15, y = i >> 8;
+        if (x === 15) faces |= 1; else if (!visSeen[i + 1]) { visSeen[i + 1] = 1; visStack[sp++] = i + 1; }
+        if (x === 0) faces |= 2; else if (!visSeen[i - 1]) { visSeen[i - 1] = 1; visStack[sp++] = i - 1; }
+        if (y === 15) faces |= 4; else if (!visSeen[i + 256]) { visSeen[i + 256] = 1; visStack[sp++] = i + 256; }
+        if (y === 0) faces |= 8; else if (!visSeen[i - 256]) { visSeen[i - 256] = 1; visStack[sp++] = i - 256; }
+        if (z === 15) faces |= 16; else if (!visSeen[i + 16]) { visSeen[i + 16] = 1; visStack[sp++] = i + 16; }
+        if (z === 0) faces |= 32; else if (!visSeen[i - 16]) { visSeen[i - 16] = 1; visStack[sp++] = i - 16; }
+      }
+      for (let f = 0; f < 6; f++) if (faces & (1 << f)) vis[s * 6 + f] |= faces;
+    }
+  }
+  return vis;
+}
+
 function buildChunkMesh(world, chunk) {
   const cx = chunk.cx, cz = chunk.cz;
   let top = 0;
@@ -10980,7 +11110,16 @@ function buildChunkMesh(world, chunk) {
     }
   };
 
+  // first quad of each section in each stream (opaque, cutout, water), plus the end
+  const sec = new Int32Array(3 * (SECTIONS + 1));
+  const mark = (s) => { sec[s] = meshOpaque.count >> 2; sec[SECTIONS + 1 + s] = meshCutout.count >> 2; sec[2 * (SECTIONS + 1) + s] = meshWater.count >> 2; };
+  let greedy = false;
   for (let y = 0; y <= maxY; y++) {
+    if ((y & 15) === 0) {
+      if (greedy) { greedyFlush(meshOpaque, y - 16); greedy = false; }
+      mark(y >> 4);
+    }
+    const yl = y & 15;
     for (let z = 0; z < CS; z++) {
       for (let x = 0; x < CS; x++) {
         const p = pidx(x + LP, y, z + LP);
@@ -11145,6 +11284,13 @@ function buildChunkMesh(world, chunk) {
             sk[k] = Math.round((ss / cnt) * 17);
             bl[k] = Math.round((bb / cnt) * 17);
           }
+          if (builder === meshOpaque && !(flags & 3) && ao[0] === ao[1] && ao[0] === ao[2] && ao[0] === ao[3] &&
+            sk[0] === sk[1] && sk[0] === sk[2] && sk[0] === sk[3] && bl[0] === bl[1] && bl[0] === bl[2] && bl[0] === bl[3]) {
+            const gi = greedyIndex(d, x, yl, z);
+            GQ_A[gi] = (layer + 1) | (flags << 16); GQ_B[gi] = sk[0] | (bl[0] << 8) | (ao[0] << 16); GQ_C[gi] = r | (g << 8) | (b << 16);
+            greedy = true;
+            continue;
+          }
           const v0 = ao[0] / 3 + sk[0] / 255, v1 = ao[1] / 3 + sk[1] / 255;
           const v2 = ao[2] / 3 + sk[2] / 255, v3 = ao[3] / 3 + sk[3] / 255;
           const start = Math.abs(v0 - v2) > Math.abs(v1 - v3) ? 1 : 0;
@@ -11159,8 +11305,10 @@ function buildChunkMesh(world, chunk) {
       }
     }
   }
+  if (greedy) greedyFlush(meshOpaque, maxY & ~15);
+  for (let t = (maxY >> 4) + 1; t <= SECTIONS; t++) mark(t);
   void tintBuf;
-  return { opaque: meshOpaque, cutout: meshCutout, water: meshWater };
+  return { opaque: meshOpaque, cutout: meshCutout, water: meshWater, sec, vis: sectionVis(maxY) };
 }
 
 // 0..1 estimate of how exposed a position is to the open sky (drives cave eye adaptation).
@@ -11204,7 +11352,7 @@ function chunkWorkerMain() {
       const center = chunks.get(chunkKey(m.cx, m.cz));
       const res = buildChunkMesh(world, center);
       const o = pack(res.opaque), c = pack(res.cutout), w = pack(res.water);
-      self.postMessage({ t: 'mesh', epoch: m.epoch, ver: m.ver, cx: m.cx, cz: m.cz, light: center.light, opaque: o, cutout: c, water: w },
+      self.postMessage({ t: 'mesh', epoch: m.epoch, ver: m.ver, cx: m.cx, cz: m.cz, light: center.light, opaque: o, cutout: c, water: w, sec: res.sec, vis: res.vis },
         [center.light.buffer, o.buffer, c.buffer, w.buffer]);
     }
   };
@@ -11293,7 +11441,7 @@ const ChunkWorkers = {
     for (const c of list) {
       const m = this.uploads.get(c);
       this.uploads.delete(c);
-      if (c.meshVer === m.ver && G.world.getChunk(c.cx, c.cz) === c) G.renderer.uploadChunk(c, { opaque: wrap(m.opaque), cutout: wrap(m.cutout), water: wrap(m.water) });
+      if (c.meshVer === m.ver && G.world.getChunk(c.cx, c.cz) === c) G.renderer.uploadChunk(c, { opaque: wrap(m.opaque), cutout: wrap(m.cutout), water: wrap(m.water), sec: m.sec, vis: m.vis });
       if (performance.now() - t0 > budgetMs) break;
     }
   },
@@ -11316,8 +11464,8 @@ const ChunkWorkers = {
       const n = world.getChunk(c.cx + dx, c.cz + dz);
       if (!n) continue;
       const top = Math.min(CH, n.maxY + 2) * CS * CS;
-      const e = { cx: n.cx, cz: n.cz, maxY: n.maxY, blocks: new Uint16Array(CS * CS * CH) };
-      e.blocks.set(n.blocks.subarray(0, top));
+      // only the filled part of the column travels (the mesher never reads above maxY)
+      const e = { cx: n.cx, cz: n.cz, maxY: n.maxY, blocks: n.blocks.slice(0, top) };
       if (n === c) { e.grassTint = n.grassTint; e.foliageTint = n.foliageTint; e.waterTint = n.waterTint; }
       nb.push(e);
     }
@@ -11620,6 +11768,12 @@ void main() {
     rel.x += sin(uTime * 1.6 + world.x * 0.8 + world.y * 0.6) * 0.035 * uWind;
     rel.y += sin(uTime * 2.3 + world.z * 0.9 + world.x * 0.3) * 0.02 * uWind;
     rel.z += cos(uTime * 1.4 + world.z * 0.7 + world.y * 0.5) * 0.035 * uWind;
+  }
+  // level of detail: far away, small plants sink into the ground (their tops come down), so
+  // distant meadows cost no alpha-tested overdraw
+  if ((flags & 2) != 0 && (nf & 7) == 6 && uv.y < 0.5) {
+    float far = smoothstep(58.0, 84.0, length(rel.xz));
+    rel.y -= far * 0.999;
   }
   if ((flags & 2) != 0 && uv.y < 0.5) {
     float s = sin(uTime * 2.1 + world.x * 0.6 + world.z * 0.4) * 0.09 + sin(uTime * 3.7 + world.x * 1.7 + world.z) * 0.03;
@@ -12800,8 +12954,9 @@ class Renderer {
     const gl = this.gl;
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, magFilter);
-    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    // block textures tile: greedy-merged faces span several blocks
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.REPEAT);
     if (this.aniso) {
       const max = gl.getParameter(this.aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 1;
       gl.texParameterf(gl.TEXTURE_2D_ARRAY, this.aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, max));
@@ -12923,6 +13078,7 @@ class Renderer {
     const gl = this.gl;
     chunk.uploads = (chunk.uploads || 0) + 1;   // lets the minimap know the chunk changed
     if (!chunk.mesh) chunk.mesh = { opaque: null, cutout: null, water: null };
+    chunk.sec = res.sec || null; chunk.vis = res.vis || null;
     for (const kind of ['opaque', 'cutout', 'water']) {
       const b = res[kind];
       let m = chunk.mesh[kind];
@@ -12933,7 +13089,15 @@ class Renderer {
       if (!m) m = chunk.mesh[kind] = this.createMesh();
       gl.bindVertexArray(null);
       gl.bindBuffer(gl.ARRAY_BUFFER, m.vbo);
-      gl.bufferData(gl.ARRAY_BUFFER, b.data(), gl.STATIC_DRAW);
+      // reuse the buffer's storage when the new mesh fits (edits remesh the same chunk often);
+      // grow with some headroom otherwise, so the driver reallocates rarely
+      const data = b.data();
+      if (m.cap && data.byteLength <= m.cap && data.byteLength > m.cap >> 2) gl.bufferSubData(gl.ARRAY_BUFFER, 0, data);
+      else {
+        m.cap = Math.ceil(data.byteLength * 1.25 / 4096) * 4096;
+        gl.bufferData(gl.ARRAY_BUFFER, m.cap, gl.DYNAMIC_DRAW);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, data);
+      }
       m.count = Math.min(b.count >> 2, MAX_QUADS) * 6;
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -13146,20 +13310,96 @@ Object.assign(Renderer.prototype, {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   },
 
-  drawChunkList(prog, list, kind) {
+  // sections: draw only the 16-high slices the occlusion walk reached (c._sec bits)
+  drawChunkList(prog, list, kind, sections) {
     const gl = this.gl;
     const loc = prog.u.uChunkOffset;
     const cp = this.camPos;
+    const base = kind === 'opaque' ? 0 : kind === 'cutout' ? SECTIONS + 1 : 2 * (SECTIONS + 1);
     let tris = 0;
     for (const c of list) {
       const m = c.mesh && c.mesh[kind];
       if (!m || !m.count) continue;
+      const off = c.sec, mask = c._sec;
+      if (sections && off && mask !== 511) {
+        let first = -1;
+        for (let s = 0; s <= SECTIONS; s++) {
+          const on = s < SECTIONS && (mask & (1 << s));
+          if (on && first < 0) first = s;
+          else if (!on && first >= 0) {
+            const q0 = off[base + first], q1 = Math.min(off[base + s], MAX_QUADS);
+            first = -1;
+            if (q1 <= q0) continue;
+            if (loc) gl.uniform3f(loc, c.cx * CS - cp[0], -cp[1], c.cz * CS - cp[2]);
+            gl.bindVertexArray(m.vao);
+            gl.drawElements(gl.TRIANGLES, (q1 - q0) * 6, gl.UNSIGNED_INT, q0 * 24);
+            tris += (q1 - q0) * 2;
+          }
+        }
+        continue;
+      }
       if (loc) gl.uniform3f(loc, c.cx * CS - cp[0], -cp[1], c.cz * CS - cp[2]);
       gl.bindVertexArray(m.vao);
       gl.drawElements(gl.TRIANGLES, m.count, gl.UNSIGNED_INT, 0);
       tris += m.count / 3;
     }
     return tris;
+  },
+
+  // Occlusion culling: a breadth-first walk over 16x16x16 sections from the camera, crossing
+  // from one section to the next only through faces that open space inside connects (the
+  // mesher's vis sets), never doubling back, and only through sections inside the frustum.
+  // Caves under the ground and rooms behind rock are never reached, so never drawn.
+  // Marks c._sec with the sections to draw; returns the chunks that have any.
+  cullSections(chunks, cp, reach) {
+    const R = Math.ceil(reach / CS) + 1, Wd = 2 * R + 1, L = SECTIONS + 1;
+    const n = Wd * Wd * L;
+    if (!this._cull || this._cull.seen.length < n) this._cull = { seen: new Uint8Array(n), q: new Int32Array(n * 3), grid: new Array(Wd * Wd) };
+    const { seen, q, grid } = this._cull;
+    seen.fill(0, 0, n);
+    grid.fill(null, 0, Wd * Wd);
+    const ccx = Math.floor(cp[0] / CS), ccz = Math.floor(cp[2] / CS);
+    for (const c of chunks) {
+      c._sec = 0;
+      const gx = c.cx - ccx + R, gz = c.cz - ccz + R;
+      if (gx >= 0 && gz >= 0 && gx < Wd && gz < Wd) grid[gz * Wd + gx] = c;
+    }
+    const csy = clamp(Math.floor(cp[1] / 16), 0, SECTIONS);
+    const out = [];
+    const DX = [1, -1, 0, 0, 0, 0], DY = [0, 0, 1, -1, 0, 0], DZ = [0, 0, 0, 0, 1, -1], OPP = [1, 0, 3, 2, 5, 4];
+    // queue entries: grid index, entry face (or 6 = none), directions travelled so far
+    let head = 0, tail = 0;
+    const put = (gx, sy, gz, entry, dirs) => {
+      const i = (gz * Wd + gx) * L + sy;
+      seen[i] = 1;
+      q[tail++] = i; q[tail++] = entry; q[tail++] = dirs;
+    };
+    put(R, csy, R, 6, 0);
+    const reach2 = (reach + 12) * (reach + 12);
+    while (head < tail) {
+      const i = q[head++], entry = q[head++], dirs = q[head++];
+      const sy = i % L, gi = (i - sy) / L, gx = gi % Wd, gz = (gi - gx) / Wd;
+      const c = grid[gi];
+      const vis = c && c.vis && sy < SECTIONS ? c.vis : null;
+      if (c && sy < SECTIONS) {
+        if (!c._sec) out.push(c);
+        c._sec |= 1 << sy;
+      }
+      for (let g = 0; g < 6; g++) {
+        if (dirs & (1 << OPP[g])) continue;
+        if (vis && entry < 6 && !(vis[sy * 6 + entry] & (1 << g))) continue;
+        const nx = gx + DX[g], ny = sy + DY[g], nz = gz + DZ[g];
+        if (nx < 0 || nz < 0 || nx >= Wd || nz >= Wd || ny < 0 || ny > SECTIONS) continue;
+        const j = (nz * Wd + nx) * L + ny;
+        if (seen[j]) continue;
+        const x0 = (nx - R + ccx) * CS - cp[0], z0 = (nz - R + ccz) * CS - cp[2], y0 = ny * 16 - cp[1];
+        const hx = x0 + 8, hz = z0 + 8;
+        if (hx * hx + hz * hz > reach2) continue;
+        if (!this.boxVisible(x0 - 0.5, y0 - 0.5, z0 - 0.5, x0 + CS + 0.5, y0 + (ny === SECTIONS ? 400 : 16.5), z0 + CS + 0.5)) continue;
+        put(nx, ny, nz, OPP[g], dirs | (1 << g));
+      }
+    }
+    return out;
   },
 
   computeShadowMatrix() {
@@ -13207,16 +13447,21 @@ Object.assign(Renderer.prototype, {
     const visible = [], shadowList = [];
     const rd = this.rd() * CS + 8;
     const shadowReach = (SHADOW_PRESETS[S.shadows] || SHADOW_PRESETS.high).range + 24;
+    const cull = S.occlusion !== false && !this.noCull && cp[1] >= 0 && cp[1] < CH + 16;
+    const meshed = this._meshed || (this._meshed = []);
+    meshed.length = 0;
     for (const c of p.chunks) {
       if (!c.mesh) continue;
+      meshed.push(c);
       const x0 = c.cx * CS - cp[0], z0 = c.cz * CS - cp[2];
       const dx = x0 + 8, dz = z0 + 8;
       const dist = Math.hypot(dx, dz);
-      if (dist > rd + 12) continue;
       c._dist = dist;
+      if (dist > rd + 12) continue;
       if (dist < shadowReach) shadowList.push(c);
-      if (this.boxVisible(x0 - 0.2, -cp[1], z0 - 0.2, x0 + CS + 0.2, c.maxY + 2 - cp[1], z0 + CS + 0.2)) visible.push(c);
+      if (!cull && this.boxVisible(x0 - 0.2, -cp[1], z0 - 0.2, x0 + CS + 0.2, c.maxY + 2 - cp[1], z0 + CS + 0.2)) { c._sec = 511; visible.push(c); }
     }
+    if (cull) for (const c of this.cullSections(meshed, cp, rd)) if (c.mesh && c._dist <= rd + 12) visible.push(c);
     visible.sort((a, b) => a._dist - b._dist);
 
     gl.disable(gl.BLEND);
@@ -13286,10 +13531,10 @@ Object.assign(Renderer.prototype, {
     this.setCommon(prog, p.underwater);
     this.setU(prog, 'uViewProj', 'm4', this.viewProj);
     this.setU(prog, 'uCutout', '1i', 0);
-    let tris = this.drawChunkList(prog, visible, 'opaque');
+    let tris = this.drawChunkList(prog, visible, 'opaque', true);
     gl.disable(gl.CULL_FACE);
     this.setU(prog, 'uCutout', '1i', 1);
-    tris += this.drawChunkList(prog, visible, 'cutout');
+    tris += this.drawChunkList(prog, visible, 'cutout', true);
 
     // entities, then block-breaking cracks pulled slightly towards the camera
     if (ent) {
@@ -13340,7 +13585,7 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uSSR', '1i', S.ssr ? 1 : 0);
     this.bindTex(5, gl.TEXTURE_2D, this.colorB);
     this.bindTex(6, gl.TEXTURE_2D, this.depthB);
-    tris += this.drawChunkList(prog, visible, 'water');
+    tris += this.drawChunkList(prog, visible, 'water', true);
     this.stats.drawn = visible.length;
     this.stats.triangles = tris;
 
@@ -19609,6 +19854,334 @@ const Wildlife = {
 </script>
 <script>
 'use strict';
+// Saves live in IndexedDB, gzip-compressed, instead of localStorage (which tops out around
+// 5 MB for the whole site). Everything is read into memory once at start-up, so the rest of the
+// game keeps reading saves synchronously through storageGet; writes go to IndexedDB in the
+// background. Saves left in localStorage by older versions move over on the first start.
+// Without IndexedDB (some private windows) everything stays in localStorage as before.
+//
+// Worlds: any number of worlds, each with a name, the date it was last played and a picture of
+// the last view (the title screen's Worlds list). The first world keeps its old storage key.
+
+const WORLDS_KEY = 'blocklands.worlds.v1';
+const SAVE_DB = 'blocklands', SAVE_STORE = 'saves';
+
+const Saves = {
+  db: null, ok: false, cache: new Map(), dirty: new Set(), timer: 0, busy: false, sizes: new Map(),
+
+  // the keys that hold worlds (and their maps); small settings stay in localStorage
+  big(key) {
+    return key.startsWith('blocklands.world.') || key.startsWith('blocklands.slot.') || key.startsWith('blocklands.srv.') ||
+      key === 'blocklands.online.v1' || key.startsWith('blocklands.map.') || key === WORLDS_KEY;
+  },
+
+  async init() {
+    try {
+      if (typeof indexedDB === 'undefined') return false;
+      this.db = await new Promise((res, rej) => {
+        const r = indexedDB.open(SAVE_DB, 1);
+        r.onupgradeneeded = () => r.result.createObjectStore(SAVE_STORE);
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+        r.onblocked = () => rej(new Error('blocked'));
+        setTimeout(() => rej(new Error('timeout')), 4000);
+      });
+      const rows = await new Promise((res, rej) => {
+        const out = [];
+        const req = this.db.transaction(SAVE_STORE).objectStore(SAVE_STORE).openCursor();
+        req.onsuccess = () => { const c = req.result; if (c) { out.push([c.key, c.value]); c.continue(); } else res(out); };
+        req.onerror = () => rej(req.error);
+      });
+      for (const [k, v] of rows) {
+        try {
+          const json = v.z ? await this.unzip(v.z) : v.j;
+          this.cache.set(k, JSON.parse(json));
+          this.sizes.set(k, v.z ? v.z.byteLength : json.length);
+        } catch (e) { /* a damaged entry: skip it */ }
+      }
+      this.ok = true;
+      // move worlds over from localStorage (kept there until the copy is safely written)
+      const moved = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || !this.big(k)) continue;
+        if (!this.cache.has(k)) { try { this.cache.set(k, JSON.parse(localStorage.getItem(k))); this.dirty.add(k); } catch (e) { continue; } }
+        moved.push(k);
+      }
+      if (moved.length) {
+        await this.flush();
+        for (const k of moved) if (!this.dirty.has(k)) localStorage.removeItem(k);
+      }
+      return true;
+    } catch (e) {
+      this.ok = false;
+      return false;
+    }
+  },
+
+  async zip(str) {
+    const s = new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));
+    return new Response(s).arrayBuffer();
+  },
+  async unzip(buf) {
+    const s = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return new Response(s).text();
+  },
+
+  get(key) { return this.cache.has(key) ? this.cache.get(key) : null; },
+  set(key, value) {
+    this.cache.set(key, value);
+    this.dirty.add(key);
+    // leaving the page: write right now, uncompressed (compression is asynchronous and the page
+    // may be gone before it finishes); the next normal save compresses it again
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') { this.flushNow(); return true; }
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.flush(), 250);
+    return true;
+  },
+  del(key) {
+    this.cache.delete(key); this.dirty.delete(key); this.sizes.delete(key);
+    try { this.db.transaction(SAVE_STORE, 'readwrite').objectStore(SAVE_STORE).delete(key); } catch (e) { /* ignore */ }
+  },
+
+  flushNow() {
+    if (!this.db || !this.dirty.size) return;
+    try {
+      const st = this.db.transaction(SAVE_STORE, 'readwrite').objectStore(SAVE_STORE);
+      for (const k of this.dirty) { const j = JSON.stringify(this.cache.get(k)); st.put({ j, t: Date.now() }, k); this.sizes.set(k, j.length); }
+      this.dirty.clear();
+    } catch (e) { /* ignore */ }
+  },
+
+  async flush() {
+    if (this.busy) { clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 300); return; }
+    if (!this.db || !this.dirty.size) return;
+    this.busy = true;
+    try {
+      const items = [];
+      for (const k of this.dirty) items.push([k, JSON.stringify(this.cache.get(k))]);
+      this.dirty.clear();
+      const rows = [];
+      for (const [k, j] of items) {
+        if (typeof CompressionStream !== 'undefined' && j.length > 2048) { const z = await this.zip(j); rows.push([k, { z, t: Date.now() }]); this.sizes.set(k, z.byteLength); }
+        else { rows.push([k, { j, t: Date.now() }]); this.sizes.set(k, j.length); }
+      }
+      await new Promise((res, rej) => {
+        const tx = this.db.transaction(SAVE_STORE, 'readwrite');
+        const st = tx.objectStore(SAVE_STORE);
+        for (const [k, v] of rows) if (this.cache.has(k)) st.put(v, k);
+        tx.oncomplete = res; tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+      });
+    } catch (e) {
+      if (G.ui) G.ui.toast('Could not save the world: ' + (e && e.name === 'QuotaExceededError' ? 'the device is out of space' : 'storage error'));
+    }
+    this.busy = false;
+  },
+};
+
+// ---------------------------------------------------------------- worlds ----
+const Worlds = {
+  index: null,
+
+  load() {
+    let ix = storageGet(WORLDS_KEY);
+    if (!ix || !Array.isArray(ix.list)) {
+      ix = { cur: 'main', list: [] };
+      const s = storageGet(SAVE_KEY);
+      if (s) ix.list.push({ id: 'main', name: 'My world', seed: s.seed, type: s.type || 'default', mode: s.mode || 'survival', created: Date.now(), played: Date.now() });
+    }
+    this.index = ix;
+    return ix;
+  },
+  save() { storageSet(WORLDS_KEY, this.index); },
+  key(id) { return id === 'main' ? SAVE_KEY : 'blocklands.world.' + id; },
+  cur() { return (this.index || this.load()).cur; },
+  entry(id) { return (this.index || this.load()).list.find((w) => w.id === id); },
+
+  // called by saveWorld for the world being played (not the Camp Nou or online worlds)
+  touch(thumb) {
+    const ix = this.index || this.load();
+    let e = this.entry(ix.cur);
+    if (!e) { e = { id: ix.cur, name: this.freshName(), created: Date.now() }; ix.list.push(e); }
+    e.seed = G.world.seed; e.type = G.world.type; e.mode = G.mode; e.played = Date.now();
+    e.money = G.money | 0; e.days = Math.floor(G.dayTime || 0);
+    if (thumb) e.thumb = thumb;
+    this.save();
+  },
+  freshName() {
+    const n = (this.index ? this.index.list.length : 0) + 1;
+    return n === 1 ? 'My world' : 'World ' + n;
+  },
+
+  // A picture of what the player sees, taken straight after a frame is drawn.
+  wantThumb: false,
+  capture(canvas) {
+    this.wantThumb = false;
+    try {
+      const w = 320, h = Math.round(w * canvas.height / canvas.width) || 180;
+      const c = this._c || (this._c = document.createElement('canvas'));
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(canvas, 0, 0, w, h);
+      this.pendingThumb = c.toDataURL('image/jpeg', 0.72);
+    } catch (e) { /* ignore */ }
+  },
+
+  create(name, seed, type, mode) {
+    const ix = this.index || this.load();
+    const id = 'w' + Date.now().toString(36);
+    ix.list.push({ id, name: name || this.freshName(), seed, type, mode, created: Date.now(), played: Date.now() });
+    this.save();
+    return id;
+  },
+
+  // switch to another saved world (or a fresh one when it has no save yet)
+  open(id, fresh) {
+    if (typeof Net !== 'undefined' && Net.on) Net.leave();
+    saveWorld();
+    G.slot = null;
+    const ix = this.index || this.load();
+    ix.cur = id;
+    this.save();
+    const e = this.entry(id);
+    const save = storageGet(this.key(id));
+    if (save && !fresh) newWorld(save.seed, save, {});
+    else newWorld(e.seed, null, { type: e.type || 'default', mode: e.mode || 'survival' });
+    prepareArea(G.player.pos[0], G.player.pos[2], 2);
+    liftOutOfBlocks(G.player);
+    saveWorld();
+    refreshGameUI();
+  },
+
+  remove(id) {
+    const ix = this.index || this.load();
+    if (id === ix.cur) return false;
+    ix.list = ix.list.filter((w) => w.id !== id);
+    Saves.ok ? Saves.del(this.key(id)) : localStorage.removeItem(this.key(id));
+    for (const k of [...Saves.cache.keys()]) if (k === MAP_KEY + 'w.' + id) Saves.del(k);
+    this.save();
+    return true;
+  },
+
+  size(id) {
+    const n = Saves.sizes.get(this.key(id));
+    if (!n) return '';
+    return n > 1e6 ? (n / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1e3)) + ' KB';
+  },
+};
+
+function timeAgo(t) {
+  const s = (Date.now() - t) / 1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.round(s / 60) + ' min ago';
+  if (s < 86400) return Math.round(s / 3600) + ' h ago';
+  if (s < 86400 * 7) return Math.round(s / 86400) + ' days ago';
+  return new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// ---------------------------------------------------------------- the Worlds panel ----
+const WorldsPanel = {
+  armed: null,
+  open() {
+    $('worldsPanel').classList.remove('hidden');
+    this.render();
+  },
+  close() { $('worldsPanel').classList.add('hidden'); this.armed = null; },
+
+  render() {
+    const ix = Worlds.index || Worlds.load();
+    const grid = $('worldsGrid');
+    grid.innerHTML = '';
+    const list = [...ix.list].sort((a, b) => (b.played || 0) - (a.played || 0));
+    for (const w of list) {
+      const cur = w.id === ix.cur && !G.slot && !G.online;
+      const card = document.createElement('div');
+      card.className = 'wcard' + (cur ? ' cur' : '');
+      const pic = document.createElement('div');
+      pic.className = 'wpic';
+      if (w.thumb) pic.style.backgroundImage = 'url(' + w.thumb + ')';
+      else pic.innerHTML = '<span>' + (w.type === 'flat' ? '\u25a6' : '\u26f0') + '</span>';
+      if (cur) { const b = document.createElement('i'); b.textContent = 'Playing'; pic.append(b); }
+      const mode = document.createElement('em');
+      mode.className = 'wmode ' + (w.mode === 'creative' ? 'cr' : 'sv');
+      mode.textContent = w.mode === 'creative' ? 'Creative' : 'Survival';
+      pic.append(mode);
+      const info = document.createElement('div');
+      info.className = 'winfo';
+      const name = document.createElement('b'); name.textContent = w.name || 'World';
+      const meta = document.createElement('small');
+      meta.textContent = (w.type === 'flat' ? 'Flat' : 'Seed ' + w.seed) + ' \u00b7 ' + timeAgo(w.played || w.created || Date.now());
+      const size = Worlds.size(w.id);
+      if (size) meta.textContent += ' \u00b7 ' + size;
+      info.append(name, meta);
+      const acts = document.createElement('div');
+      acts.className = 'wacts';
+      const play = document.createElement('button');
+      play.className = 'primary';
+      play.textContent = cur ? 'Continue' : 'Play';
+      play.addEventListener('click', () => {
+        sfx('click', null, 1, 1);
+        if (!cur) { Worlds.open(w.id); UI.toast('\ud83c\udf0d ' + (w.name || 'World')); }
+        this.close();
+        $('tWorld').textContent = worldLabel();
+        requestLock();
+      });
+      const ren = document.createElement('button');
+      ren.textContent = 'Rename';
+      ren.addEventListener('click', () => {
+        const inp = document.createElement('input');
+        inp.type = 'text'; inp.value = w.name || ''; inp.maxLength = 32; inp.className = 'wrename';
+        name.replaceWith(inp); inp.focus(); inp.select();
+        const done = () => { w.name = inp.value.trim().slice(0, 32) || w.name; Worlds.save(); this.render(); };
+        inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') done(); if (e.key === 'Escape') this.render(); });
+        inp.addEventListener('blur', done);
+      });
+      acts.append(play, ren);
+      if (!cur) {
+        const del = document.createElement('button');
+        del.className = 'danger';
+        del.textContent = this.armed === w.id ? 'Delete forever?' : 'Delete';
+        del.addEventListener('click', () => {
+          if (this.armed !== w.id) { this.armed = w.id; this.render(); setTimeout(() => { if (this.armed === w.id) { this.armed = null; this.render(); } }, 4000); return; }
+          this.armed = null;
+          Worlds.remove(w.id);
+          UI.toast('World deleted');
+          this.render();
+        });
+        acts.append(del);
+      }
+      info.append(acts);
+      card.append(pic, info);
+      grid.append(card);
+    }
+  },
+
+  create() {
+    const name = $('nwName').value.trim().slice(0, 32);
+    const raw = $('nwSeed').value.trim();
+    let seed;
+    if (!raw) seed = (Math.random() * 2147483647) | 0;
+    else if (/^-?\d+$/.test(raw)) seed = Number(raw) | 0;
+    else { seed = 0; for (let i = 0; i < raw.length; i++) seed = (Math.imul(seed, 31) + raw.charCodeAt(i)) | 0; }
+    const type = $('nwType').value, mode = $('nwMode').value;
+    const id = Worlds.create(name, seed, type, mode);
+    Worlds.open(id, true);
+    $('nwName').value = ''; $('nwSeed').value = '';
+    this.close();
+    $('tWorld').textContent = worldLabel();
+    UI.toast('\ud83c\udf0d New world \u00b7 ' + (name || Worlds.entry(id).name));
+    requestLock();
+  },
+
+  bind() {
+    $('tWorlds').addEventListener('click', () => { sfx('click', null, 1, 1); this.open(); });
+    $('worldsBack').addEventListener('click', () => this.close());
+    $('nwCreate').addEventListener('click', () => this.create());
+    for (const id of ['nwName', 'nwSeed']) $(id).addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') this.create(); });
+  },
+};
+</script>
+<script>
+'use strict';
 // Game state, chunk streaming, block edits (support, falling, drops), random ticks (crops,
 // saplings, grass), furnaces and chests, explosions, sleeping, spawning and persistence.
 
@@ -19626,10 +20199,13 @@ const DEFAULT_SETTINGS = {
 
 const $ = (id) => document.getElementById(id);
 
+// worlds go to IndexedDB through Saves (saves.js) once it is up; settings stay in localStorage
 function storageGet(key) {
+  if (typeof Saves !== 'undefined' && Saves.ok && Saves.big(key)) return Saves.get(key);
   try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : null; } catch (e) { return null; }
 }
 function storageSet(key, value) {
+  if (typeof Saves !== 'undefined' && Saves.ok && Saves.big(key)) return Saves.set(key, value);
   try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (e) { return false; }
 }
 
@@ -20315,7 +20891,8 @@ function setGameMode(mode) {
 function saveWorld() {
   if (!G.world || !G.player) return;
   const p = G.player;
-  const ok = storageSet(G.slot ? 'blocklands.slot.' + G.slot : G.online ? Net.saveKey() : SAVE_KEY, {
+  const own = !G.slot && !G.online;
+  const ok = storageSet(G.slot ? 'blocklands.slot.' + G.slot : G.online ? Net.saveKey() : Worlds.key(Worlds.cur()), {
     net: G.online && Net.server ? Net.serializeTimes() : undefined,
     v: 2, gen: G.world.genVer, seed: G.world.seed, type: G.world.type, cnv: G.slot === 'campnou' ? CN.ver : undefined, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
     dayTime: G.dayTime, mode: G.mode, difficulty: G.difficulty, rules: G.rules, worldSpawn: G.worldSpawn, spawnPoint: G.spawnPoint,
@@ -20324,13 +20901,16 @@ function saveWorld() {
     markers: G.markers || [], deaths: G.deaths || [], prog: G.prog || {},
   });
   if (!ok && G.ui) G.ui.toast('Could not save: browser storage is full');
+  // the Worlds list: date, and a picture of the view taken after the next frame
+  if (own) { Worlds.touch(Worlds.pendingThumb); Worlds.pendingThumb = null; if (G.playing) Worlds.wantThumb = true; }
   if (typeof MapStore !== 'undefined') MapStore.save();
   G.world.editsDirty = false;
 }
 
 function loadSave() {
-  const s = storageGet(SAVE_KEY);
+  const s = storageGet(Worlds.key(Worlds.cur()));
   if (s && s.v === 2 && Number.isInteger(s.seed)) return s;
+  if (Worlds.cur() !== 'main') return null;
   const old = storageGet(SAVE_KEY_V1);
   if (old && old.v === 1 && Number.isInteger(old.seed)) {
     // worlds from the first version were creative-only
@@ -20543,6 +21123,7 @@ const Net = {
     this.servers = this.servers.filter((s) => s.code !== code);
     this.saveServers();
     try { localStorage.removeItem(SERVER_SAVE_PREFIX + code); } catch (e) { /* ignore */ }
+    if (Saves.ok) Saves.del(SERVER_SAVE_PREFIX + code);
     this.refreshUI();
   },
 
@@ -21827,7 +22408,7 @@ const MapStore = {
 };
 
 function mapKeyForWorld() {
-  return G.slot ? 'slot.' + G.slot : Net.server ? 'srv.' + Net.server.code : G.online ? 'online' : 'main';
+  return G.slot ? 'slot.' + G.slot : Net.server ? 'srv.' + Net.server.code : G.online ? 'online' : Worlds.cur() === 'main' ? 'main' : 'w.' + Worlds.cur();
 }
 
 // A themed place shows on the maps (and in the Places list) once you have been there.
@@ -30263,10 +30844,13 @@ function showTitle() {
   $('menu').classList.add('hidden');
   $('hud').classList.add('hidden');
   $('placesPanel').classList.add('hidden');
+  $('worldsPanel').classList.add('hidden');
   $('title').classList.remove('hidden');
   $('tPlayLabel').textContent = G.started ? 'Continue' : 'Play';
   $('tCampNouLabel').textContent = G.slot === 'campnou' ? 'Back to my world' : 'Camp Nou';
   $('tWorld').textContent = worldLabel();
+  const we = !G.slot && !G.online && Worlds.entry(Worlds.cur());
+  $('tWorldsLabel').textContent = we ? 'Worlds \u00b7 ' + we.name : 'Worlds';
   G.titleYaw = G.player.yaw;
 }
 
@@ -30596,12 +31180,6 @@ function bindInput() {
       return;
     }
     if (G.online) { UI.toast('Leave the online world to create a new one'); return; }
-    if (!newBtn.dataset.armed) {
-      newBtn.dataset.armed = '1';
-      newBtn.textContent = 'Replace world?';
-      armTimer = setTimeout(disarm, 4000);
-      return;
-    }
     disarm();
     const raw = $('seedInput').value.trim();
     let seed;
@@ -30609,17 +31187,15 @@ function bindInput() {
     else if (/^-?\d+$/.test(raw)) seed = Number(raw) | 0;
     else { seed = 0; for (let i = 0; i < raw.length; i++) seed = (Math.imul(seed, 31) + raw.charCodeAt(i)) | 0; }
     const type = $('worldTypeSel').value;
-    newWorld(seed, null, { type, mode: G.mode });
-    prepareArea(G.player.pos[0], G.player.pos[2], 2);
-    liftOutOfBlocks(G.player);
-    refreshGameUI();
-    saveWorld();
+    // a new entry in the Worlds list: the current world stays as it is
+    Worlds.open(Worlds.create('', seed, type, G.mode), true);
     UI.toast('New world \u00b7 seed ' + seed);
     requestLock();
   });
 
   // title screen
   $('tPlay').addEventListener('click', () => requestLock());
+  WorldsPanel.bind();
   $('tOptions').addEventListener('click', () => { sfx('click', null, 1, 1); $('title').classList.add('hidden'); showMenu(); });
   $('tOnline').addEventListener('click', () => { sfx('click', null, 1, 1); $('title').classList.add('hidden'); showMenu(); showMenuTab('online'); });
   $('tOptions').addEventListener('click', () => showMenuTab(storageGet(MENU_TAB_KEY) || 'game'));
@@ -30979,6 +31555,7 @@ function frame(now) {
       weather: Weather.overcast, flash: Weather.flash, rain: Weather.wetness, snow: Weather.snowCover, mist: Weather.mist, rainFx: Weather.rainFx,
       chunks: G.world.chunks.values(), selection: hit && !G.hudHidden ? hit.pos : null, selectionBox: hit ? hit.box : null, entities: ents,
     });
+    if (Worlds.wantThumb && G.playing && !G.screenOpen && !G.dead) Worlds.capture(G.canvas);
     Vehicles.drawHud();
     UI.update(dt);
     Minimap.update(dt);
@@ -31040,8 +31617,12 @@ async function boot() {
     UI.init();
     const workers = ChunkWorkers.init();
     Net.init();
+    setLoad(0.05, 'Opening your worlds');
+    await Saves.init();
+    Worlds.load();
     const save = loadSave();
-    newWorld(save ? save.seed : (Math.random() * 2147483647) | 0, save, { mode: 'survival', type: 'default' });
+    const cw = Worlds.entry(Worlds.cur());
+    newWorld(save ? save.seed : cw ? cw.seed : (Math.random() * 2147483647) | 0, save, { mode: cw ? cw.mode : 'survival', type: cw ? cw.type : 'default' });
     // an invite link (#s=CODE) opens that server straight away
     const invite = Net.codeFromLink();
     if (invite) Net.joinCode(invite);

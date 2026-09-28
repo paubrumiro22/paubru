@@ -30,7 +30,7 @@ function chunkWorkerMain() {
       const center = chunks.get(chunkKey(m.cx, m.cz));
       const res = buildChunkMesh(world, center);
       const o = pack(res.opaque), c = pack(res.cutout), w = pack(res.water);
-      self.postMessage({ t: 'mesh', epoch: m.epoch, ver: m.ver, cx: m.cx, cz: m.cz, light: center.light, opaque: o, cutout: c, water: w },
+      self.postMessage({ t: 'mesh', epoch: m.epoch, ver: m.ver, cx: m.cx, cz: m.cz, light: center.light, opaque: o, cutout: c, water: w, sec: res.sec, vis: res.vis },
         [center.light.buffer, o.buffer, c.buffer, w.buffer]);
     }
   };
@@ -119,7 +119,7 @@ const ChunkWorkers = {
     for (const c of list) {
       const m = this.uploads.get(c);
       this.uploads.delete(c);
-      if (c.meshVer === m.ver && G.world.getChunk(c.cx, c.cz) === c) G.renderer.uploadChunk(c, { opaque: wrap(m.opaque), cutout: wrap(m.cutout), water: wrap(m.water) });
+      if (c.meshVer === m.ver && G.world.getChunk(c.cx, c.cz) === c) G.renderer.uploadChunk(c, { opaque: wrap(m.opaque), cutout: wrap(m.cutout), water: wrap(m.water), sec: m.sec, vis: m.vis });
       if (performance.now() - t0 > budgetMs) break;
     }
   },
@@ -142,8 +142,8 @@ const ChunkWorkers = {
       const n = world.getChunk(c.cx + dx, c.cz + dz);
       if (!n) continue;
       const top = Math.min(CH, n.maxY + 2) * CS * CS;
-      const e = { cx: n.cx, cz: n.cz, maxY: n.maxY, blocks: new Uint16Array(CS * CS * CH) };
-      e.blocks.set(n.blocks.subarray(0, top));
+      // only the filled part of the column travels (the mesher never reads above maxY)
+      const e = { cx: n.cx, cz: n.cz, maxY: n.maxY, blocks: n.blocks.slice(0, top) };
       if (n === c) { e.grassTint = n.grassTint; e.foliageTint = n.foliageTint; e.waterTint = n.waterTint; }
       nb.push(e);
     }

@@ -16,10 +16,13 @@ const DEFAULT_SETTINGS = {
 
 const $ = (id) => document.getElementById(id);
 
+// worlds go to IndexedDB through Saves (saves.js) once it is up; settings stay in localStorage
 function storageGet(key) {
+  if (typeof Saves !== 'undefined' && Saves.ok && Saves.big(key)) return Saves.get(key);
   try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : null; } catch (e) { return null; }
 }
 function storageSet(key, value) {
+  if (typeof Saves !== 'undefined' && Saves.ok && Saves.big(key)) return Saves.set(key, value);
   try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (e) { return false; }
 }
 
@@ -705,7 +708,8 @@ function setGameMode(mode) {
 function saveWorld() {
   if (!G.world || !G.player) return;
   const p = G.player;
-  const ok = storageSet(G.slot ? 'blocklands.slot.' + G.slot : G.online ? Net.saveKey() : SAVE_KEY, {
+  const own = !G.slot && !G.online;
+  const ok = storageSet(G.slot ? 'blocklands.slot.' + G.slot : G.online ? Net.saveKey() : Worlds.key(Worlds.cur()), {
     net: G.online && Net.server ? Net.serializeTimes() : undefined,
     v: 2, gen: G.world.genVer, seed: G.world.seed, type: G.world.type, cnv: G.slot === 'campnou' ? CN.ver : undefined, edits: G.world.serializeEdits(), extras: G.world.serializeExtras(),
     dayTime: G.dayTime, mode: G.mode, difficulty: G.difficulty, rules: G.rules, worldSpawn: G.worldSpawn, spawnPoint: G.spawnPoint,
@@ -714,13 +718,16 @@ function saveWorld() {
     markers: G.markers || [], deaths: G.deaths || [], prog: G.prog || {},
   });
   if (!ok && G.ui) G.ui.toast('Could not save: browser storage is full');
+  // the Worlds list: date, and a picture of the view taken after the next frame
+  if (own) { Worlds.touch(Worlds.pendingThumb); Worlds.pendingThumb = null; if (G.playing) Worlds.wantThumb = true; }
   if (typeof MapStore !== 'undefined') MapStore.save();
   G.world.editsDirty = false;
 }
 
 function loadSave() {
-  const s = storageGet(SAVE_KEY);
+  const s = storageGet(Worlds.key(Worlds.cur()));
   if (s && s.v === 2 && Number.isInteger(s.seed)) return s;
+  if (Worlds.cur() !== 'main') return null;
   const old = storageGet(SAVE_KEY_V1);
   if (old && old.v === 1 && Number.isInteger(old.seed)) {
     // worlds from the first version were creative-only

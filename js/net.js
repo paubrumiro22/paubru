@@ -122,6 +122,7 @@ const Net = {
     this.servers = this.servers.filter((s) => s.code !== code);
     this.saveServers();
     try { localStorage.removeItem(SERVER_SAVE_PREFIX + code); } catch (e) { /* ignore */ }
+    if (Saves.ok) Saves.del(SERVER_SAVE_PREFIX + code);
     this.refreshUI();
   },
 

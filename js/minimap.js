@@ -182,7 +182,7 @@ const MapStore = {
 };
 
 function mapKeyForWorld() {
-  return G.slot ? 'slot.' + G.slot : Net.server ? 'srv.' + Net.server.code : G.online ? 'online' : 'main';
+  return G.slot ? 'slot.' + G.slot : Net.server ? 'srv.' + Net.server.code : G.online ? 'online' : Worlds.cur() === 'main' ? 'main' : 'w.' + Worlds.cur();
 }
 
 // A themed place shows on the maps (and in the Places list) once you have been there.

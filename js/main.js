@@ -359,10 +359,13 @@ function showTitle() {
   $('menu').classList.add('hidden');
   $('hud').classList.add('hidden');
   $('placesPanel').classList.add('hidden');
+  $('worldsPanel').classList.add('hidden');
   $('title').classList.remove('hidden');
   $('tPlayLabel').textContent = G.started ? 'Continue' : 'Play';
   $('tCampNouLabel').textContent = G.slot === 'campnou' ? 'Back to my world' : 'Camp Nou';
   $('tWorld').textContent = worldLabel();
+  const we = !G.slot && !G.online && Worlds.entry(Worlds.cur());
+  $('tWorldsLabel').textContent = we ? 'Worlds · ' + we.name : 'Worlds';
   G.titleYaw = G.player.yaw;
 }
 
@@ -692,12 +695,6 @@ function bindInput() {
       return;
     }
     if (G.online) { UI.toast('Leave the online world to create a new one'); return; }
-    if (!newBtn.dataset.armed) {
-      newBtn.dataset.armed = '1';
-      newBtn.textContent = 'Replace world?';
-      armTimer = setTimeout(disarm, 4000);
-      return;
-    }
     disarm();
     const raw = $('seedInput').value.trim();
     let seed;
@@ -705,17 +702,15 @@ function bindInput() {
     else if (/^-?\d+$/.test(raw)) seed = Number(raw) | 0;
     else { seed = 0; for (let i = 0; i < raw.length; i++) seed = (Math.imul(seed, 31) + raw.charCodeAt(i)) | 0; }
     const type = $('worldTypeSel').value;
-    newWorld(seed, null, { type, mode: G.mode });
-    prepareArea(G.player.pos[0], G.player.pos[2], 2);
-    liftOutOfBlocks(G.player);
-    refreshGameUI();
-    saveWorld();
+    // a new entry in the Worlds list: the current world stays as it is
+    Worlds.open(Worlds.create('', seed, type, G.mode), true);
     UI.toast('New world · seed ' + seed);
     requestLock();
   });
 
   // title screen
   $('tPlay').addEventListener('click', () => requestLock());
+  WorldsPanel.bind();
   $('tOptions').addEventListener('click', () => { sfx('click', null, 1, 1); $('title').classList.add('hidden'); showMenu(); });
   $('tOnline').addEventListener('click', () => { sfx('click', null, 1, 1); $('title').classList.add('hidden'); showMenu(); showMenuTab('online'); });
   $('tOptions').addEventListener('click', () => showMenuTab(storageGet(MENU_TAB_KEY) || 'game'));
@@ -1075,6 +1070,7 @@ function frame(now) {
       weather: Weather.overcast, flash: Weather.flash, rain: Weather.wetness, snow: Weather.snowCover, mist: Weather.mist, rainFx: Weather.rainFx,
       chunks: G.world.chunks.values(), selection: hit && !G.hudHidden ? hit.pos : null, selectionBox: hit ? hit.box : null, entities: ents,
     });
+    if (Worlds.wantThumb && G.playing && !G.screenOpen && !G.dead) Worlds.capture(G.canvas);
     Vehicles.drawHud();
     UI.update(dt);
     Minimap.update(dt);
@@ -1136,8 +1132,12 @@ async function boot() {
     UI.init();
     const workers = ChunkWorkers.init();
     Net.init();
+    setLoad(0.05, 'Opening your worlds');
+    await Saves.init();
+    Worlds.load();
     const save = loadSave();
-    newWorld(save ? save.seed : (Math.random() * 2147483647) | 0, save, { mode: 'survival', type: 'default' });
+    const cw = Worlds.entry(Worlds.cur());
+    newWorld(save ? save.seed : cw ? cw.seed : (Math.random() * 2147483647) | 0, save, { mode: cw ? cw.mode : 'survival', type: cw ? cw.type : 'default' });
     // an invite link (#s=CODE) opens that server straight away
     const invite = Net.codeFromLink();
     if (invite) Net.joinCode(invite);

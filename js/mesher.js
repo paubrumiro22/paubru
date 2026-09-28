@@ -17,6 +17,7 @@ const PH = CH + 2;             // padded height (y = -1 .. CH)
 const POS_SCALE = 64;          // vertex position units per block
 const P4 = POS_SCALE / 16;     // per 1/16 of a block
 const VERT_BYTES = 20;
+const SECTIONS = CH >> 4;       // 16-high slices, drawn and culled separately
 const padBlocks = new Uint16Array(RSS * PH);
 const skyL = new Uint8Array(RSS * PH);
 const blkL = new Uint8Array(RSS * PH);
@@ -319,6 +320,93 @@ function wallTorch(builder, p, x, y, z, facing, layer, flags) {
     [[u0, 8 / 16], [u1, 8 / 16], [u1, 6 / 16], [u0, 6 / 16]], layer, 2 | (flags << 3), s, b2, WHITE_TINT);
 }
 
+// ---- greedy merging of plain cube faces ----
+// Opaque cube faces lit evenly (same ambient occlusion and light at all four corners) are
+// collected per 16-high section and merged into rectangles of up to 15x15 blocks; the texture
+// array repeats, so a merged face shows the same tiles as the separate ones.
+// Index: d*4096 + (n*16 + b)*16 + a, n along the normal, a/b along the face.
+const GQ_A = new Int32Array(6 * 4096), GQ_B = new Int32Array(6 * 4096), GQ_C = new Int32Array(6 * 4096);
+const GQ_AXES = [[0, 2, 1], [0, 2, 1], [1, 0, 2], [1, 0, 2], [2, 0, 1], [2, 0, 1]];   // normal, a, b as x/y/z
+const _lo = [0, 0, 0], _hi = [0, 0, 0], _loc = [0, 0, 0];
+const GQ_MAX = 15;                      // u/v are stored as u8 * 16
+function greedyIndex(d, x, yl, z) {
+  _loc[0] = x; _loc[1] = yl; _loc[2] = z;
+  const ax = GQ_AXES[d];
+  return d * 4096 + (_loc[ax[0]] * 16 + _loc[ax[2]]) * 16 + _loc[ax[1]];
+}
+function greedyFlush(builder, y0) {
+  for (let d = 0; d < 6; d++) {
+    const ax = GQ_AXES[d], base = d * 4096, corners = FACE_CORNERS[d], nf0 = d;
+    for (let n = 0; n < 16; n++) for (let b = 0; b < 16; b++) for (let a = 0; a < 16; a++) {
+      const i = base + (n * 16 + b) * 16 + a;
+      const ka = GQ_A[i];
+      if (!ka) continue;
+      const kb = GQ_B[i], kc = GQ_C[i];
+      let w = 1;
+      while (a + w < 16 && w < GQ_MAX && GQ_A[i + w] === ka && GQ_B[i + w] === kb && GQ_C[i + w] === kc) w++;
+      let h = 1;
+      grow: while (b + h < 16 && h < GQ_MAX) {
+        const r = i + h * 16;
+        for (let j = 0; j < w; j++) if (GQ_A[r + j] !== ka || GQ_B[r + j] !== kb || GQ_C[r + j] !== kc) break grow;
+        h++;
+      }
+      for (let hh = 0; hh < h; hh++) GQ_A.fill(0, i + hh * 16, i + hh * 16 + w);
+      _lo[ax[0]] = n; _hi[ax[0]] = n + 1;
+      _lo[ax[1]] = a; _hi[ax[1]] = a + w;
+      _lo[ax[2]] = b; _hi[ax[2]] = b + h;
+      _lo[1] += y0; _hi[1] += y0;
+      const layer = (ka & 0xffff) - 1, nf = nf0 | ((ka >>> 16) << 3), sky = kb & 255, blk = (kb >>> 8) & 255, aoV = kb >>> 16;
+      const r = kc & 255, g = (kc >>> 8) & 255, bl = kc >>> 16;
+      builder.ensure(4);
+      for (let k = 0; k < 4; k++) {
+        const c = corners[k];
+        const vx = c[0] ? _hi[0] : _lo[0], vy = c[1] ? _hi[1] : _lo[1], vz = c[2] ? _hi[2] : _lo[2];
+        const u = d === 0 ? _hi[2] - vz : d === 1 ? vz - _lo[2] : d === 5 ? _hi[0] - vx : vx - _lo[0];
+        const v = d === 2 ? vz - _lo[2] : d === 3 ? _hi[2] - vz : _hi[1] - vy;
+        builder.v(vx * POS_SCALE, vy * POS_SCALE, vz * POS_SCALE, layer, nf, aoV, sky, blk, r, g, bl, u * 16, v * 16);
+      }
+    }
+  }
+}
+
+// ---- which faces of each 16-high section see each other through non-opaque blocks ----
+// vis[s*6 + f] is the set (bits = DIRS order) of faces reachable from face f inside section s;
+// the renderer walks these to skip caves and rooms hidden behind solid rock.
+const visSeen = new Uint8Array(4096), visStack = new Int16Array(4096);
+function sectionVis(maxY) {
+  const vis = new Uint8Array(SECTIONS * 6);
+  for (let s = 0; s < SECTIONS; s++) {
+    const y0 = s * 16;
+    if (y0 > maxY) { vis.fill(63, s * 6, s * 6 + 6); continue; }
+    let solid = 0;
+    for (let i = 0; i < 4096; i++) {
+      const x = i & 15, z = (i >> 4) & 15, y = i >> 8;
+      const o = BLOCK_OPAQUE[padBlocks[pidx(x + LP, y0 + y, z + LP)]];
+      visSeen[i] = o;
+      solid += o;
+    }
+    if (!solid) { vis.fill(63, s * 6, s * 6 + 6); continue; }
+    if (solid === 4096) continue;
+    for (let i0 = 0; i0 < 4096; i0++) {
+      if (visSeen[i0]) continue;
+      let sp = 0, faces = 0;
+      visStack[sp++] = i0; visSeen[i0] = 1;
+      while (sp) {
+        const i = visStack[--sp];
+        const x = i & 15, z = (i >> 4) & 15, y = i >> 8;
+        if (x === 15) faces |= 1; else if (!visSeen[i + 1]) { visSeen[i + 1] = 1; visStack[sp++] = i + 1; }
+        if (x === 0) faces |= 2; else if (!visSeen[i - 1]) { visSeen[i - 1] = 1; visStack[sp++] = i - 1; }
+        if (y === 15) faces |= 4; else if (!visSeen[i + 256]) { visSeen[i + 256] = 1; visStack[sp++] = i + 256; }
+        if (y === 0) faces |= 8; else if (!visSeen[i - 256]) { visSeen[i - 256] = 1; visStack[sp++] = i - 256; }
+        if (z === 15) faces |= 16; else if (!visSeen[i + 16]) { visSeen[i + 16] = 1; visStack[sp++] = i + 16; }
+        if (z === 0) faces |= 32; else if (!visSeen[i - 16]) { visSeen[i - 16] = 1; visStack[sp++] = i - 16; }
+      }
+      for (let f = 0; f < 6; f++) if (faces & (1 << f)) vis[s * 6 + f] |= faces;
+    }
+  }
+  return vis;
+}
+
 function buildChunkMesh(world, chunk) {
   const cx = chunk.cx, cz = chunk.cz;
   let top = 0;
@@ -362,7 +450,16 @@ function buildChunkMesh(world, chunk) {
     }
   };
 
+  // first quad of each section in each stream (opaque, cutout, water), plus the end
+  const sec = new Int32Array(3 * (SECTIONS + 1));
+  const mark = (s) => { sec[s] = meshOpaque.count >> 2; sec[SECTIONS + 1 + s] = meshCutout.count >> 2; sec[2 * (SECTIONS + 1) + s] = meshWater.count >> 2; };
+  let greedy = false;
   for (let y = 0; y <= maxY; y++) {
+    if ((y & 15) === 0) {
+      if (greedy) { greedyFlush(meshOpaque, y - 16); greedy = false; }
+      mark(y >> 4);
+    }
+    const yl = y & 15;
     for (let z = 0; z < CS; z++) {
       for (let x = 0; x < CS; x++) {
         const p = pidx(x + LP, y, z + LP);
@@ -527,6 +624,13 @@ function buildChunkMesh(world, chunk) {
             sk[k] = Math.round((ss / cnt) * 17);
             bl[k] = Math.round((bb / cnt) * 17);
           }
+          if (builder === meshOpaque && !(flags & 3) && ao[0] === ao[1] && ao[0] === ao[2] && ao[0] === ao[3] &&
+            sk[0] === sk[1] && sk[0] === sk[2] && sk[0] === sk[3] && bl[0] === bl[1] && bl[0] === bl[2] && bl[0] === bl[3]) {
+            const gi = greedyIndex(d, x, yl, z);
+            GQ_A[gi] = (layer + 1) | (flags << 16); GQ_B[gi] = sk[0] | (bl[0] << 8) | (ao[0] << 16); GQ_C[gi] = r | (g << 8) | (b << 16);
+            greedy = true;
+            continue;
+          }
           const v0 = ao[0] / 3 + sk[0] / 255, v1 = ao[1] / 3 + sk[1] / 255;
           const v2 = ao[2] / 3 + sk[2] / 255, v3 = ao[3] / 3 + sk[3] / 255;
           const start = Math.abs(v0 - v2) > Math.abs(v1 - v3) ? 1 : 0;
@@ -541,8 +645,10 @@ function buildChunkMesh(world, chunk) {
       }
     }
   }
+  if (greedy) greedyFlush(meshOpaque, maxY & ~15);
+  for (let t = (maxY >> 4) + 1; t <= SECTIONS; t++) mark(t);
   void tintBuf;
-  return { opaque: meshOpaque, cutout: meshCutout, water: meshWater };
+  return { opaque: meshOpaque, cutout: meshCutout, water: meshWater, sec, vis: sectionVis(maxY) };
 }
 
 // 0..1 estimate of how exposed a position is to the open sky (drives cave eye adaptation).

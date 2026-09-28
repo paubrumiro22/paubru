@@ -186,20 +186,96 @@ Object.assign(Renderer.prototype, {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   },
 
-  drawChunkList(prog, list, kind) {
+  // sections: draw only the 16-high slices the occlusion walk reached (c._sec bits)
+  drawChunkList(prog, list, kind, sections) {
     const gl = this.gl;
     const loc = prog.u.uChunkOffset;
     const cp = this.camPos;
+    const base = kind === 'opaque' ? 0 : kind === 'cutout' ? SECTIONS + 1 : 2 * (SECTIONS + 1);
     let tris = 0;
     for (const c of list) {
       const m = c.mesh && c.mesh[kind];
       if (!m || !m.count) continue;
+      const off = c.sec, mask = c._sec;
+      if (sections && off && mask !== 511) {
+        let first = -1;
+        for (let s = 0; s <= SECTIONS; s++) {
+          const on = s < SECTIONS && (mask & (1 << s));
+          if (on && first < 0) first = s;
+          else if (!on && first >= 0) {
+            const q0 = off[base + first], q1 = Math.min(off[base + s], MAX_QUADS);
+            first = -1;
+            if (q1 <= q0) continue;
+            if (loc) gl.uniform3f(loc, c.cx * CS - cp[0], -cp[1], c.cz * CS - cp[2]);
+            gl.bindVertexArray(m.vao);
+            gl.drawElements(gl.TRIANGLES, (q1 - q0) * 6, gl.UNSIGNED_INT, q0 * 24);
+            tris += (q1 - q0) * 2;
+          }
+        }
+        continue;
+      }
       if (loc) gl.uniform3f(loc, c.cx * CS - cp[0], -cp[1], c.cz * CS - cp[2]);
       gl.bindVertexArray(m.vao);
       gl.drawElements(gl.TRIANGLES, m.count, gl.UNSIGNED_INT, 0);
       tris += m.count / 3;
     }
     return tris;
+  },
+
+  // Occlusion culling: a breadth-first walk over 16x16x16 sections from the camera, crossing
+  // from one section to the next only through faces that open space inside connects (the
+  // mesher's vis sets), never doubling back, and only through sections inside the frustum.
+  // Caves under the ground and rooms behind rock are never reached, so never drawn.
+  // Marks c._sec with the sections to draw; returns the chunks that have any.
+  cullSections(chunks, cp, reach) {
+    const R = Math.ceil(reach / CS) + 1, Wd = 2 * R + 1, L = SECTIONS + 1;
+    const n = Wd * Wd * L;
+    if (!this._cull || this._cull.seen.length < n) this._cull = { seen: new Uint8Array(n), q: new Int32Array(n * 3), grid: new Array(Wd * Wd) };
+    const { seen, q, grid } = this._cull;
+    seen.fill(0, 0, n);
+    grid.fill(null, 0, Wd * Wd);
+    const ccx = Math.floor(cp[0] / CS), ccz = Math.floor(cp[2] / CS);
+    for (const c of chunks) {
+      c._sec = 0;
+      const gx = c.cx - ccx + R, gz = c.cz - ccz + R;
+      if (gx >= 0 && gz >= 0 && gx < Wd && gz < Wd) grid[gz * Wd + gx] = c;
+    }
+    const csy = clamp(Math.floor(cp[1] / 16), 0, SECTIONS);
+    const out = [];
+    const DX = [1, -1, 0, 0, 0, 0], DY = [0, 0, 1, -1, 0, 0], DZ = [0, 0, 0, 0, 1, -1], OPP = [1, 0, 3, 2, 5, 4];
+    // queue entries: grid index, entry face (or 6 = none), directions travelled so far
+    let head = 0, tail = 0;
+    const put = (gx, sy, gz, entry, dirs) => {
+      const i = (gz * Wd + gx) * L + sy;
+      seen[i] = 1;
+      q[tail++] = i; q[tail++] = entry; q[tail++] = dirs;
+    };
+    put(R, csy, R, 6, 0);
+    const reach2 = (reach + 12) * (reach + 12);
+    while (head < tail) {
+      const i = q[head++], entry = q[head++], dirs = q[head++];
+      const sy = i % L, gi = (i - sy) / L, gx = gi % Wd, gz = (gi - gx) / Wd;
+      const c = grid[gi];
+      const vis = c && c.vis && sy < SECTIONS ? c.vis : null;
+      if (c && sy < SECTIONS) {
+        if (!c._sec) out.push(c);
+        c._sec |= 1 << sy;
+      }
+      for (let g = 0; g < 6; g++) {
+        if (dirs & (1 << OPP[g])) continue;
+        if (vis && entry < 6 && !(vis[sy * 6 + entry] & (1 << g))) continue;
+        const nx = gx + DX[g], ny = sy + DY[g], nz = gz + DZ[g];
+        if (nx < 0 || nz < 0 || nx >= Wd || nz >= Wd || ny < 0 || ny > SECTIONS) continue;
+        const j = (nz * Wd + nx) * L + ny;
+        if (seen[j]) continue;
+        const x0 = (nx - R + ccx) * CS - cp[0], z0 = (nz - R + ccz) * CS - cp[2], y0 = ny * 16 - cp[1];
+        const hx = x0 + 8, hz = z0 + 8;
+        if (hx * hx + hz * hz > reach2) continue;
+        if (!this.boxVisible(x0 - 0.5, y0 - 0.5, z0 - 0.5, x0 + CS + 0.5, y0 + (ny === SECTIONS ? 400 : 16.5), z0 + CS + 0.5)) continue;
+        put(nx, ny, nz, OPP[g], dirs | (1 << g));
+      }
+    }
+    return out;
   },
 
   computeShadowMatrix() {
@@ -247,16 +323,21 @@ Object.assign(Renderer.prototype, {
     const visible = [], shadowList = [];
     const rd = this.rd() * CS + 8;
     const shadowReach = (SHADOW_PRESETS[S.shadows] || SHADOW_PRESETS.high).range + 24;
+    const cull = S.occlusion !== false && !this.noCull && cp[1] >= 0 && cp[1] < CH + 16;
+    const meshed = this._meshed || (this._meshed = []);
+    meshed.length = 0;
     for (const c of p.chunks) {
       if (!c.mesh) continue;
+      meshed.push(c);
       const x0 = c.cx * CS - cp[0], z0 = c.cz * CS - cp[2];
       const dx = x0 + 8, dz = z0 + 8;
       const dist = Math.hypot(dx, dz);
-      if (dist > rd + 12) continue;
       c._dist = dist;
+      if (dist > rd + 12) continue;
       if (dist < shadowReach) shadowList.push(c);
-      if (this.boxVisible(x0 - 0.2, -cp[1], z0 - 0.2, x0 + CS + 0.2, c.maxY + 2 - cp[1], z0 + CS + 0.2)) visible.push(c);
+      if (!cull && this.boxVisible(x0 - 0.2, -cp[1], z0 - 0.2, x0 + CS + 0.2, c.maxY + 2 - cp[1], z0 + CS + 0.2)) { c._sec = 511; visible.push(c); }
     }
+    if (cull) for (const c of this.cullSections(meshed, cp, rd)) if (c.mesh && c._dist <= rd + 12) visible.push(c);
     visible.sort((a, b) => a._dist - b._dist);
 
     gl.disable(gl.BLEND);
@@ -326,10 +407,10 @@ Object.assign(Renderer.prototype, {
     this.setCommon(prog, p.underwater);
     this.setU(prog, 'uViewProj', 'm4', this.viewProj);
     this.setU(prog, 'uCutout', '1i', 0);
-    let tris = this.drawChunkList(prog, visible, 'opaque');
+    let tris = this.drawChunkList(prog, visible, 'opaque', true);
     gl.disable(gl.CULL_FACE);
     this.setU(prog, 'uCutout', '1i', 1);
-    tris += this.drawChunkList(prog, visible, 'cutout');
+    tris += this.drawChunkList(prog, visible, 'cutout', true);
 
     // entities, then block-breaking cracks pulled slightly towards the camera
     if (ent) {
@@ -380,7 +461,7 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uSSR', '1i', S.ssr ? 1 : 0);
     this.bindTex(5, gl.TEXTURE_2D, this.colorB);
     this.bindTex(6, gl.TEXTURE_2D, this.depthB);
-    tris += this.drawChunkList(prog, visible, 'water');
+    tris += this.drawChunkList(prog, visible, 'water', true);
     this.stats.drawn = visible.length;
     this.stats.triangles = tris;
 

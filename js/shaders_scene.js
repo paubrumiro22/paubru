@@ -138,6 +138,12 @@ void main() {
     rel.y += sin(uTime * 2.3 + world.z * 0.9 + world.x * 0.3) * 0.02 * uWind;
     rel.z += cos(uTime * 1.4 + world.z * 0.7 + world.y * 0.5) * 0.035 * uWind;
   }
+  // level of detail: far away, small plants sink into the ground (their tops come down), so
+  // distant meadows cost no alpha-tested overdraw
+  if ((flags & 2) != 0 && (nf & 7) == 6 && uv.y < 0.5) {
+    float far = smoothstep(58.0, 84.0, length(rel.xz));
+    rel.y -= far * 0.999;
+  }
   if ((flags & 2) != 0 && uv.y < 0.5) {
     float s = sin(uTime * 2.1 + world.x * 0.6 + world.z * 0.4) * 0.09 + sin(uTime * 3.7 + world.x * 1.7 + world.z) * 0.03;
     rel.x += s * uWind;
