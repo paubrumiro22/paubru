@@ -9937,6 +9937,9 @@ function buildDistrictMetro(W, g, D) {
     }
     // fare gates into the hall (a metro card opens them, metro_panel.js)
     for (let j = 1; j <= 3; j++) set(2, P, vTop + dir * (n - 1 + j), B.TURNSTILE, 0);
+    // the card machine on the landing, facing the stairs, with its sign on the wall beside it
+    set(-1, P, vTop + dir * (n + 1), B.TICKET_MACHINE, dir > 0 ? 5 : 4);
+    S.pic(-1, P + 2, vTop + dir * (n + 1), 0, 1, 1, 'metro_cards');
     const vEnd = vTop + dir * (n + 3);
     for (let u = -2; u <= 3; u++) for (let y = P - 1; y <= P + 4; y++) set(u, y, vEnd, y === P + 1 ? stripe : B.CONCRETE);
     S.pic(-1, P + 1, vEnd - dir, dir > 0 ? 5 : 4, 3, 1, 'metro_map');
@@ -9957,9 +9960,10 @@ function buildDistrictMetro(W, g, D) {
     for (const u of [-2, 2]) for (let y = F; y <= F + 2; y++) { set(u, y, vIn, B.BLACKSTONE_WALL); if (y > F) set(u, y, vTop + dir * 3, B.BLACKSTONE_WALL); }
     for (let u = -1; u <= 1; u++) for (let y = F; y <= F + 2; y++) set(u, y, vIn, B.AIR);
     S.pic(-1, F + 3, vIn - dir, dir > 0 ? 5 : 4, 3, 1, stripe === B.BLUE_TILES ? 'metro_name' : 'metro_name2');
-    // the machine that sells metro cards, at the entrance
-    set(3, F, vIn, B.TICKET_MACHINE, dir > 0 ? 5 : 4);
+    // a sign by the entrance: the card machine is inside, before the gates
+    set(3, F, vIn, B.BLACKSTONE_WALL); set(3, F + 1, vIn, B.BLACKSTONE_WALL);
     set(3, F - 1, vIn, B.POLISHED_ANDESITE);
+    S.pic(3, F + 1, vIn - dir, dir > 0 ? 5 : 4, 1, 1, 'metro_cards');
     // the pole with the M beside the entrance
     for (let y = F; y <= F + 3; y++) set(-4, y, vIn, B.BLACKSTONE_WALL);
     set(-4, F + 4, vIn, B.CONCRETE + 14);
@@ -29839,6 +29843,22 @@ const metroSign = (name, n = 1) => (n === 1 && name === 'Universitat' ? 'metro_n
   };
 }
 
+// the sign that shows where metro cards are sold
+PIC_BUILTIN.metro_cards = { w: 1, h: 1, draw(g, W, H) {
+  const u = W / 100;
+  g.fillStyle = '#16213a'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#d6202b'; g.fillRect(6 * u, 6 * u, 24 * u, 24 * u);
+  g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = '900 ' + 20 * u + 'px Arial, sans-serif'; g.fillText('M', 18 * u, 25.5 * u);
+  // a metro card
+  g.save(); g.translate(66 * u, 20 * u); g.rotate(-0.15);
+  g.fillStyle = '#f2f4f6'; g.fillRect(-24 * u, -14 * u, 48 * u, 30 * u);
+  g.fillStyle = '#d6202b'; g.fillRect(-24 * u, -14 * u, 48 * u, 8 * u);
+  g.fillStyle = '#e6b43c'; g.fillRect(10 * u, 6 * u, 9 * u, 7 * u); g.restore();
+  g.fillStyle = '#fff'; g.font = '800 ' + 17 * u + 'px Arial, sans-serif'; g.fillText('TARGETES', 50 * u, 60 * u);
+  g.fillStyle = '#b8c6e0'; g.font = '700 ' + 10 * u + 'px Arial, sans-serif'; g.fillText('Metro cards \u00b7 20', 50 * u, 74 * u);
+  g.fillStyle = '#ffd36b'; g.font = '900 ' + 11 * u + 'px Arial, sans-serif'; g.fillText('\u2193 a dins \u2193', 50 * u, 91 * u);
+} };
+
 // the lines players built and the station names they chose (saved with the world, extras.metro)
 function metroRec() { const w = G.world; return w.metro || (w.metro = { lines: [], names: [] }); }
 
@@ -30266,8 +30286,11 @@ const MetroBuild = {
     S(-16, F + 4, vIn, B.CONCRETE + 14);
     pic(-13, F + 3, vIn - 1, back, 3, 1, sign, false);
     pic(-16, F + 4, vIn - 1, back, 1, 1, 'metro', false);
-    // the machine that sells metro cards, by the entrance
-    S(-8, F, vIn, B.TICKET_MACHINE, back);
+    // the card machine is inside, before the gates; a sign by the entrance says so
+    S(-8, F, vIn, B.BLACKSTONE_WALL); S(-8, F + 1, vIn, B.BLACKSTONE_WALL);
+    pic(-8, F + 1, vIn - 1, back, 1, 1, 'metro_cards', false);
+    S(-13, P, 9, B.TICKET_MACHINE, back);
+    pic(-13, P + 2, 8, fromWall, 1, 1, 'metro_cards', true);
     return { list: [...out.values()], pics };
   },
 

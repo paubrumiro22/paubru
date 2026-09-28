@@ -63,6 +63,22 @@ const metroSign = (name, n = 1) => (n === 1 && name === 'Universitat' ? 'metro_n
   };
 }
 
+// the sign that shows where metro cards are sold
+PIC_BUILTIN.metro_cards = { w: 1, h: 1, draw(g, W, H) {
+  const u = W / 100;
+  g.fillStyle = '#16213a'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#d6202b'; g.fillRect(6 * u, 6 * u, 24 * u, 24 * u);
+  g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = '900 ' + 20 * u + 'px Arial, sans-serif'; g.fillText('M', 18 * u, 25.5 * u);
+  // a metro card
+  g.save(); g.translate(66 * u, 20 * u); g.rotate(-0.15);
+  g.fillStyle = '#f2f4f6'; g.fillRect(-24 * u, -14 * u, 48 * u, 30 * u);
+  g.fillStyle = '#d6202b'; g.fillRect(-24 * u, -14 * u, 48 * u, 8 * u);
+  g.fillStyle = '#e6b43c'; g.fillRect(10 * u, 6 * u, 9 * u, 7 * u); g.restore();
+  g.fillStyle = '#fff'; g.font = '800 ' + 17 * u + 'px Arial, sans-serif'; g.fillText('TARGETES', 50 * u, 60 * u);
+  g.fillStyle = '#b8c6e0'; g.font = '700 ' + 10 * u + 'px Arial, sans-serif'; g.fillText('Metro cards · 20', 50 * u, 74 * u);
+  g.fillStyle = '#ffd36b'; g.font = '900 ' + 11 * u + 'px Arial, sans-serif'; g.fillText('\u2193 a dins \u2193', 50 * u, 91 * u);
+} };
+
 // the lines players built and the station names they chose (saved with the world, extras.metro)
 function metroRec() { const w = G.world; return w.metro || (w.metro = { lines: [], names: [] }); }
 
@@ -490,8 +506,11 @@ const MetroBuild = {
     S(-16, F + 4, vIn, B.CONCRETE + 14);
     pic(-13, F + 3, vIn - 1, back, 3, 1, sign, false);
     pic(-16, F + 4, vIn - 1, back, 1, 1, 'metro', false);
-    // the machine that sells metro cards, by the entrance
-    S(-8, F, vIn, B.TICKET_MACHINE, back);
+    // the card machine is inside, before the gates; a sign by the entrance says so
+    S(-8, F, vIn, B.BLACKSTONE_WALL); S(-8, F + 1, vIn, B.BLACKSTONE_WALL);
+    pic(-8, F + 1, vIn - 1, back, 1, 1, 'metro_cards', false);
+    S(-13, P, 9, B.TICKET_MACHINE, back);
+    pic(-13, P + 2, 8, fromWall, 1, 1, 'metro_cards', true);
     return { list: [...out.values()], pics };
   },
 
