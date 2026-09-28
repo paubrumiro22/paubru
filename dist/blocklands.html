@@ -497,6 +497,7 @@
   #metroPanel .mp-actions { flex-wrap: wrap; padding-bottom: 8px; }
   #metroPanel .mp-actions button:not(.primary) { background: #16213a; box-shadow: 0 6px 18px rgba(22, 33, 58, 0.25); }
   #metroPanel .mp-note { margin: 0; padding: 4px 20px 18px; font-size: 12.5px; color: #4a5064; line-height: 1.45; }
+  .wm-name { width: 100%; box-sizing: border-box; margin: 6px 0; padding: 8px 10px; border-radius: 9px; border: 1.5px solid #d6202b; background: rgba(255,255,255,.08); color: inherit; font: 700 14px var(--body); }
   #metroMap { display: grid; place-items: center; z-index: 61; background: rgba(8, 10, 16, 0.6); backdrop-filter: blur(3px); }
   #metroMap.hidden { display: none; }
   #metroMap .mm-card { border-radius: 18px; overflow: hidden; background: #f7f4ec; box-shadow: 0 24px 70px rgba(0,0,0,.5); animation: pmIn2 .22s ease-out; }
@@ -30525,12 +30526,19 @@ const MetroStrip = {
     info.querySelector('b').textContent = (mode.newLine ? 'New line L' + pl.line + ': ' : 'New station on L' + pl.line + ': ') + name;
     info.append(document.createTextNode((mode.newLine ? 'First station' : pl.bend ? 'Tunnel with a bend' : 'Straight tunnel') + ' \u00b7 ' + pl.cells + ' m \u00b7 ' + pl.steps + ' steps up to the street' +
       (pl.transfer.length ? ' \u00b7 interchange with ' + pl.transfer.map((n) => 'L' + n).join(', ') : '') + (G.mode === 'survival' ? ' \u00b7 ' + pl.cost + ' coins' : '')));
+    // the name can still be changed here, right before building
+    const nm = document.createElement('input');
+    nm.type = 'text'; nm.maxLength = 28; nm.className = 'wm-name'; nm.value = name; nm.placeholder = 'Station name';
+    nm.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') b.click(); });
+    nm.addEventListener('input', () => { mode.name = nm.value.trim(); b.textContent = '\ud83d\udea7 Build ' + (mode.name || pl.name); info.querySelector('b').textContent = (mode.newLine ? 'New line L' + pl.line + ': ' : 'New station on L' + pl.line + ': ') + (mode.name || pl.name); });
+    box.append(nm);
     const b = document.createElement('button');
     b.className = 'primary';
     b.textContent = '\ud83d\udea7 Build ' + name;
     b.addEventListener('click', () => {
+      const final = nm.value.trim().slice(0, 28) || pl.name;
       MetroPanel.picking = null; MetroPanel.name = '';
-      if (MetroBuild.start(s.x, s.z, true, { line: mode.line, newLine: mode.newLine ? pl.line : 0, name })) this.close(); else this.panel();
+      if (MetroBuild.start(s.x, s.z, true, { line: mode.line, newLine: mode.newLine ? pl.line : 0, name: final })) this.close(); else this.panel();
     });
     box.append(b);
   };

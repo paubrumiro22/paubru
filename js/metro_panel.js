@@ -762,12 +762,19 @@ const MetroStrip = {
     info.querySelector('b').textContent = (mode.newLine ? 'New line L' + pl.line + ': ' : 'New station on L' + pl.line + ': ') + name;
     info.append(document.createTextNode((mode.newLine ? 'First station' : pl.bend ? 'Tunnel with a bend' : 'Straight tunnel') + ' · ' + pl.cells + ' m · ' + pl.steps + ' steps up to the street' +
       (pl.transfer.length ? ' · interchange with ' + pl.transfer.map((n) => 'L' + n).join(', ') : '') + (G.mode === 'survival' ? ' · ' + pl.cost + ' coins' : '')));
+    // the name can still be changed here, right before building
+    const nm = document.createElement('input');
+    nm.type = 'text'; nm.maxLength = 28; nm.className = 'wm-name'; nm.value = name; nm.placeholder = 'Station name';
+    nm.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') b.click(); });
+    nm.addEventListener('input', () => { mode.name = nm.value.trim(); b.textContent = '🚧 Build ' + (mode.name || pl.name); info.querySelector('b').textContent = (mode.newLine ? 'New line L' + pl.line + ': ' : 'New station on L' + pl.line + ': ') + (mode.name || pl.name); });
+    box.append(nm);
     const b = document.createElement('button');
     b.className = 'primary';
     b.textContent = '🚧 Build ' + name;
     b.addEventListener('click', () => {
+      const final = nm.value.trim().slice(0, 28) || pl.name;
       MetroPanel.picking = null; MetroPanel.name = '';
-      if (MetroBuild.start(s.x, s.z, true, { line: mode.line, newLine: mode.newLine ? pl.line : 0, name })) this.close(); else this.panel();
+      if (MetroBuild.start(s.x, s.z, true, { line: mode.line, newLine: mode.newLine ? pl.line : 0, name: final })) this.close(); else this.panel();
     });
     box.append(b);
   };
