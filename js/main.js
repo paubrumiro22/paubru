@@ -532,7 +532,7 @@ function onKeyDown(e) {
   const now = performance.now();
   const p = G.player;
   const creative = G.mode === 'creative';
-  if (e.code === 'Enter' && Net.on) { Net.openChat(); return; }
+  if (e.code === 'Enter') { Net.openChat(); return; }
   if (e.code === 'KeyM') { WorldMap.toggle(); return; }
   if (e.code === 'KeyJ') { Progress.show(); return; }
   if (G.vehicle && vehicleKey(e.code)) return;
@@ -1037,7 +1037,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Physics.update(dt); Furniture.update(dt); SharedState.update(dt); SharedAnimals.update(dt); Claims.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Physics.update(dt); Furniture.update(dt); SharedState.update(dt); SharedAnimals.update(dt); Claims.update(dt); Home.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
     Music.update(dt);
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);

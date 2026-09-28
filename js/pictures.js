@@ -249,7 +249,7 @@ const Pictures = {
       const rel = c.map((q) => [q[0] - cp[0], q[1] - cp[1], q[2] - cp[2]]);
       const uv = [[u0, v0 + dv], [u0 + du, v0 + dv], [u0 + du, v0], [u0, v0]];
       for (let k = 0; k < 4; k++) ER.v(rel[k][0], rel[k][1], rel[k][2], uv[k][0], uv[k][1], -2, n[0], n[1], n[2]);
-      if (p.builtin !== 'stucom') this.frame(p, c, n, right, cp);
+      if (p.builtin !== 'stucom' && p.id[0] !== 's') this.frame(p, c, n, right, cp);   // signs (extras.js) have their own edge
     }
   },
 
