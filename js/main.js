@@ -316,6 +316,7 @@ function buildPlaces(el, after) {
 
 function worldLabel() {
   if (G.slot === 'campnou') return 'Camp Nou · Barcelona · real scale';
+  if (G.slot === 'jet') return 'Jet test world · creative';
   if (Net.server) return 'Server “' + Net.server.name + '” · code ' + Net.server.code + ' · ' + (Net.peers.size + 1) + ' player' + (Net.peers.size ? 's' : '');
   if (G.online) return 'Online world · ' + (Net.peers.size + 1) + ' player' + (Net.peers.size ? 's' : '');
   return (G.mode === 'creative' ? 'Creative' : 'Survival') + ' world · seed ' + G.world.seed;
@@ -337,6 +338,22 @@ function enterCampNou() {
   saveWorld();
   refreshGameUI();
   UI.toast('Camp Nou · fly with F · N for day / night');
+}
+// The fighter jet has a world of its own to try it in (creative, its own save), so it never turns
+// up in your world or on a server.
+function enterJetWorld() {
+  if (Net.on) Net.leave();
+  saveWorld();
+  G.slot = 'jet';
+  const save = storageGet('blocklands.slot.jet');
+  newWorld(20240607, save && save.v === 2 ? save : null, { type: 'default', mode: 'creative' });
+  prepareArea(G.player.pos[0], G.player.pos[2], 2);
+  liftOutOfBlocks(G.player);
+  saveWorld();
+  refreshGameUI();
+  const j = Vehicles.spawnAhead();
+  if (j) Vehicles.board(j);
+  UI.toast('✈ Jet test world · back to your world from the title screen', 4000);
 }
 function leaveCampNou() {
   saveWorld();
@@ -363,6 +380,7 @@ function showTitle() {
   $('title').classList.remove('hidden');
   $('tPlayLabel').textContent = G.started ? 'Continue' : 'Play';
   $('tCampNouLabel').textContent = G.slot === 'campnou' ? 'Back to my world' : 'Camp Nou';
+  $('tJetLabel').textContent = G.slot === 'jet' ? 'Back to my world' : 'Fighter jet';
   $('tWorld').textContent = worldLabel();
   const we = !G.slot && !G.online && Worlds.entry(Worlds.cur());
   $('tWorldsLabel').textContent = we ? 'Worlds · ' + we.name : 'Worlds';
@@ -430,6 +448,14 @@ function leaveUnlockedPlay() {
   releaseAllInput();
 }
 
+function showResume() {
+  const el = $('resumeHint');
+  if (!el || G.screenOpen) return;
+  G.playing = false;
+  el.classList.remove('hidden');
+}
+function hideResume() { const el = $('resumeHint'); if (el) el.classList.add('hidden'); }
+
 function requestLock() {
   Sound.init();
   if (G.onTitle) leaveTitle();
@@ -437,9 +463,13 @@ function requestLock() {
   if (G.unlocked) { G.playing = true; hideMenu(); return; }
   if (typeof G.canvas.requestPointerLock !== 'function') { enterUnlockedPlay(); return; }
   G.lockPending = true;
+  // coming back from a screen or panel (closed with Esc): if the browser will not capture the
+  // mouse again so soon, just wait for a click instead of opening the settings
+  const soft = G.started && !G.onTitle;
   const fail = (e) => {
     setTimeout(() => { G.lockPending = false; }, 250);
     if (document.pointerLockElement) return;
+    if (soft) { showResume(); return; }
     // SecurityError = re-locking too soon after Esc; the user just needs to click again
     if (e && e.name === 'SecurityError') { showMenu(); UI.toast('Click Play again to capture the mouse'); }
     else enterUnlockedPlay();
@@ -647,13 +677,14 @@ function bindInput() {
     else if (G.unlocked) return;
     G.playing = locked;
     releaseAllInput();
-    if (locked) { G.started = true; hideMenu(); }
-    else if (!G.screenOpen && !G.stats.dead && !G.onTitle && $('chatInput').classList.contains('hidden')) { showMenu(); saveWorld(); }
+    if (locked) { G.started = true; hideMenu(); hideResume(); }
+    else if (!G.screenOpen && !G.stats.dead && !G.onTitle && $('chatInput').classList.contains('hidden') && $('resumeHint').classList.contains('hidden') && performance.now() - (G.screenClosedAt || 0) > 400) { showMenu(); saveWorld(); }
   });
   // Browsers without the promise form only report failures through this event.
   document.addEventListener('pointerlockerror', () => { if (!G.lockPending) enterUnlockedPlay(); });
 
   $('playBtn').addEventListener('click', () => requestLock());
+  $('resumeHint').addEventListener('click', () => { hideResume(); requestLock(); });
   $('timeSlider').addEventListener('input', (e) => {
     G.dayTime = Number(e.target.value);
     $('timeVal').textContent = formatClock(G.dayTime);
@@ -719,8 +750,8 @@ function bindInput() {
   $('placesBack').addEventListener('click', () => $('placesPanel').classList.add('hidden'));
   $('tJet').addEventListener('click', () => {
     Sound.init();
-    const j = Vehicles.spawnAhead();
-    if (j) Vehicles.board(j);
+    if (G.slot === 'jet') { leaveCampNou(); showTitle(); return; }
+    enterJetWorld();
     requestLock();
   });
   $('tCredits').addEventListener('click', showCredits);
@@ -757,6 +788,8 @@ function bindInput() {
   $('creditsRoll').addEventListener('animationend', hideCredits);
   $('titleBtn').addEventListener('click', () => { sfx('click', null, 1, 1); showTitle(); });
   $('jetBtn').addEventListener('click', () => {
+    // the jet lives in its own test world, never on the server you are playing on
+    if (G.slot !== 'jet') { enterJetWorld(); requestLock(); return; }
     const j = Vehicles.spawnAhead();
     if (!j) { UI.toast('No room for a jet in front of you'); return; }
     UI.toast('Fighter jet ready: right-click it to climb in');
@@ -1037,7 +1070,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Physics.update(dt); Furniture.update(dt); SharedState.update(dt); SharedAnimals.update(dt); Claims.update(dt); Home.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Physics.update(dt); Furniture.update(dt); SharedState.update(dt); SharedAnimals.update(dt); Claims.update(dt); Home.update(dt); Police.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
     Music.update(dt);
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);

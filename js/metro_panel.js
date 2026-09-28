@@ -342,8 +342,11 @@ const MetroPlan = {
     // straight on when the spot is roughly ahead, otherwise one bend towards it
     if (Math.abs(l) <= 40) {
       const side = l < 0 ? -1 : 1;
-      const m = [-side * n[0], -side * n[1]];            // local +a: from the platform towards the track
-      return this.station(E, e, m, P, t, 0);
+      // the platform (and the exit) on the side of the spot; the other side if that one is wet
+      const a = this.station(E, e, [-side * n[0], -side * n[1]], P, t, 0);   // m: from the platform towards the track
+      if (!a.wet) return a;
+      const b = this.station(E, e, [side * n[0], side * n[1]], P, t, 0);
+      return b.reason ? a : b;
     }
     if (t < 10) return { reason: 'Too close to the line, or behind its end. Pick a spot further along.', score: 2 };
     const f = [Math.sign(l) * n[0], Math.sign(l) * n[1]];
@@ -369,6 +372,13 @@ const MetroPlan = {
     if (steps < 9) return { reason: 'The ground there is too low for a station at this depth.', score: 3 };
     if (steps > 44) return { reason: 'The ground there is too high above the line (a hill).', score: 3 };
     const c0 = top.c0;
+    // the whole square round the exit must be dry land (near a beach it came up in the sea)
+    const sTop = 7 - steps;
+    const X = (a, t) => Math.floor(O[0] + d[0] * (c0 + t) + m[0] * a), Z = (a, t) => Math.floor(O[2] + d[1] * (c0 + t) + m[1] * a);
+    for (let a = -18; a <= -6; a += 2) for (let t = sTop - 4; t <= sTop + 8; t += 2) {
+      const sf = MetroNet.surface(X(a, t), Z(a, t));
+      if (sf.water || sf.h < SEA) return { reason: 'The exit would come up in the sea or a river: pick a spot a little further inland.', score: 3, wet: true };
+    }
     if (c0 - 14 < 4) return { reason: 'Too close to the line, or behind its end. Pick a spot further along.', score: 1 };
     const cells = (bend || 0) + Math.round(c0 + 14);
     if (cells > 1600) return { reason: 'Too far: the tunnel would be over 1.6 km long.', score: 4 };
@@ -582,6 +592,7 @@ const MetroBuild = {
       for (const p of j.pics) if (!w.pictures.has(p.id)) Pictures.add(p, !j.mine);
       w.editsDirty = true;
       MetroNet.dirty = true;
+      if (typeof FareRetro !== 'undefined') FareRetro.done.clear();
       if (Metro.train && G.vehicle !== Metro.train) { Metro.train.removed = true; Metro.train = null; }
       if (j.mine) { G.ui.banner(j.icon || '🚇', j.done || j.name + ' station is open'); sfx('metro_chime', null, 1, 1); saveWorld(); }
     }
@@ -975,12 +986,32 @@ const FareRetro = {
     const p = G.player.pos, w = G.world;
     for (const N of MetroNet.all()) for (const st of N.stations) {
       const c = st.c, key = c.join(',');
-      if (this.done.has(key) || Math.hypot(c[0] - p[0], c[2] - p[2]) > 48 || !w.isLoaded(c[0], c[2])) continue;
+      if (this.done.has(key) || Math.hypot(c[0] - p[0], c[2] - p[2]) > 48) continue;
+      if (![[-30, -30], [30, -30], [-30, 30], [30, 30], [0, 0]].every(([a, b]) => w.isLoaded(c[0] + a, c[2] + b))) continue;
       this.done.add(key);
       this.fit(N, st);
     }
   },
+  // the stairs of a station all rise the same way: each step's high side faces the next step up
+  // (whatever turned some of them, this puts them right; only terrazzo stairs near the station)
+  stairs(st) {
+    const w = G.world, id = shapeId('terrazzo', 'stairs'), c = st.c, out = [];
+    const D = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (let y = Math.max(1, c[1] - 2); y <= Math.min(CH - 2, c[1] + 50); y++) for (let dx = -30; dx <= 30; dx++) for (let dz = -30; dz <= 30; dz++) {
+      const x = c[0] + dx, z = c[2] + dz;
+      if (w.getBlock(x, y, z) !== id) continue;
+      let want = -1;
+      for (const [ex, ez] of D) if (w.getBlock(x + ex, y + 1, z + ez) === id) { want = mface(ex, ez); break; }
+      if (want < 0) for (const [ex, ez] of D) if (w.getBlock(x + ex, y - 1, z + ez) === id) { want = mface(-ex, -ez); break; }
+      if (want >= 0 && (w.getFacing(x, y, z) & 7) !== want) out.push([x, y, z, id, want]);
+    }
+    if (!out.length) return;
+    const was = Net.capture;
+    Net.capture = false;
+    try { editBlocks(out); } finally { Net.capture = was; }
+  },
   fit(N, st) {
+    this.stairs(st);
     const w = G.world, P = st.c[1] + 1, i = N.path.indexOf(st.c);
     const a0 = N.path[Math.max(0, i - 1)], a1 = N.path[Math.min(N.path.length - 1, i + 1)];
     const d = [Math.sign(a1[0] - a0[0]), Math.sign(a1[2] - a0[2])];

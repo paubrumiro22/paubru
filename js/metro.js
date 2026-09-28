@@ -117,6 +117,8 @@ const Metro = {
     const close = Math.hypot(p.pos[0] - v.pos[0], p.pos[2] - v.pos[2]) < 40;
     if (!aboard && !close) return;
     sfx('metro_chime', aboard ? null : v.pos, 1, 1);
+    // the stop sign only for whoever is on the train
+    if (!aboard) return;
     this.showSign(kind === 'arrive' ? name : 'Next stop: ' + name, kind === 'arrive' ? 'Doors open' : 'Doors closing · mind the gap');
   },
   showSign(title, sub) {

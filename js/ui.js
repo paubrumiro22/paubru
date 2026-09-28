@@ -271,6 +271,7 @@ const UI = {
     $('screen').classList.add('hidden');
     this.cursorEl.style.display = 'none';
     this.invDirty();
+    G.screenClosedAt = performance.now();
     if (!silent) requestLock();
   },
 

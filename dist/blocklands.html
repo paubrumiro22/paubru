@@ -346,6 +346,13 @@
   #signEditor .se-styles button.on { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(242,185,75,.25); }
   #signEditor .se-sp { flex: 1; }
   #signEditor .se-ok { background: var(--accent); color: var(--accent-ink); }
+  #jailTag { position: absolute; top: 52px; left: 50%; transform: translate(-50%, -8px); display: flex; gap: 10px; align-items: center; padding: 8px 16px; border-radius: 12px;
+    background: rgba(60, 12, 12, 0.82); border: 1px solid rgba(255, 110, 90, 0.5); color: #ffe2dc; font-size: 14px; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; }
+  #jailTag.show { opacity: 1; transform: translate(-50%, 0); }
+  #jailTag b { font: 800 18px var(--display); color: #fff; min-width: 44px; text-align: right; }
+  #resumeHint { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 40; padding: 14px 24px; border-radius: 14px; font: 700 16px var(--body);
+    background: rgba(10, 15, 22, 0.8); border: 1px solid var(--line-strong); color: #fff; backdrop-filter: blur(6px); cursor: pointer; animation: rise .25s both; }
+  #resumeHint.hidden { display: none; }
   /* Plots */
   #plotTag { position: absolute; left: 50%; bottom: 118px; transform: translate(-50%, 8px); display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 14px; border-radius: 12px;
     background: rgba(14, 30, 20, 0.72); border: 1px solid rgba(120, 230, 150, 0.4); color: #dfffe6; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; text-shadow: 0 1px 2px #000; }
@@ -828,6 +835,7 @@
 
 <div id="hud" class="hidden">
   <div id="plotTag"></div>
+  <div id="jailTag"><span>&#x1f694; In the cells</span><b></b></div>
   <div id="crosshair"></div>
   <div id="blockname"></div>
   <div id="bottombar">
@@ -892,7 +900,7 @@
       <button id="tWorlds" class="wide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M3 13l5-4 4 3 3-2 6 5"/><path d="M8 21h8"/></svg><span id="tWorldsLabel">Worlds</span></button>
       <button id="tPlaces"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Places</button>
       <button id="tOnline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18.5 14.8c1.6.8 2.6 2.4 3 5.2"/></svg>Online</button>
-      <button id="tJet"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 6 7.9 5.3v2L13.6 13l-.4 4.6 2.8 2.2V21l-4-1-4 1v-1.2l2.8-2.2-.4-4.6-7.9 2.3v-2L10.4 8z"/></svg>Fighter jet</button>
+      <button id="tJet"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 6 7.9 5.3v2L13.6 13l-.4 4.6 2.8 2.2V21l-4-1-4 1v-1.2l2.8-2.2-.4-4.6-7.9 2.3v-2L10.4 8z"/></svg><span id="tJetLabel">Fighter jet</span></button>
       <button id="tOptions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Options</button>
       <button id="tCampNou"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="13" rx="10" ry="6"/><ellipse cx="12" cy="13" rx="5.5" ry="2.8"/><path d="M2 13v-3c0-3.3 4.5-6 10-6s10 2.7 10 6v3"/></svg><span id="tCampNouLabel">Camp Nou</span></button>
       <button id="tCredits"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20.5s-8-4.6-8-10.4A4.4 4.4 0 0 1 12 7.6a4.4 4.4 0 0 1 8 2.5c0 5.8-8 10.4-8 10.4z"/></svg>Credits</button>
@@ -926,6 +934,8 @@
     <div class="ph-row"><div id="photoChips"></div><button id="photoShoot" title="C or Enter"><span></span>C</button></div>
   </div>
 </div>
+
+<button id="resumeHint" class="hidden">&#x25b6; Click to keep playing</button>
 
 <div id="worldsPanel" class="overlay hidden">
   <div class="panel">
@@ -26002,6 +26012,8 @@ const Metro = {
     const close = Math.hypot(p.pos[0] - v.pos[0], p.pos[2] - v.pos[2]) < 40;
     if (!aboard && !close) return;
     sfx('metro_chime', aboard ? null : v.pos, 1, 1);
+    // the stop sign only for whoever is on the train
+    if (!aboard) return;
     this.showSign(kind === 'arrive' ? name : 'Next stop: ' + name, kind === 'arrive' ? 'Doors open' : 'Doors closing \u00b7 mind the gap');
   },
   showSign(title, sub) {
@@ -28071,6 +28083,7 @@ const UI = {
     $('screen').classList.add('hidden');
     this.cursorEl.style.display = 'none';
     this.invDirty();
+    G.screenClosedAt = performance.now();
     if (!silent) requestLock();
   },
 
@@ -30122,8 +30135,11 @@ const MetroPlan = {
     // straight on when the spot is roughly ahead, otherwise one bend towards it
     if (Math.abs(l) <= 40) {
       const side = l < 0 ? -1 : 1;
-      const m = [-side * n[0], -side * n[1]];            // local +a: from the platform towards the track
-      return this.station(E, e, m, P, t, 0);
+      // the platform (and the exit) on the side of the spot; the other side if that one is wet
+      const a = this.station(E, e, [-side * n[0], -side * n[1]], P, t, 0);   // m: from the platform towards the track
+      if (!a.wet) return a;
+      const b = this.station(E, e, [side * n[0], side * n[1]], P, t, 0);
+      return b.reason ? a : b;
     }
     if (t < 10) return { reason: 'Too close to the line, or behind its end. Pick a spot further along.', score: 2 };
     const f = [Math.sign(l) * n[0], Math.sign(l) * n[1]];
@@ -30149,6 +30165,13 @@ const MetroPlan = {
     if (steps < 9) return { reason: 'The ground there is too low for a station at this depth.', score: 3 };
     if (steps > 44) return { reason: 'The ground there is too high above the line (a hill).', score: 3 };
     const c0 = top.c0;
+    // the whole square round the exit must be dry land (near a beach it came up in the sea)
+    const sTop = 7 - steps;
+    const X = (a, t) => Math.floor(O[0] + d[0] * (c0 + t) + m[0] * a), Z = (a, t) => Math.floor(O[2] + d[1] * (c0 + t) + m[1] * a);
+    for (let a = -18; a <= -6; a += 2) for (let t = sTop - 4; t <= sTop + 8; t += 2) {
+      const sf = MetroNet.surface(X(a, t), Z(a, t));
+      if (sf.water || sf.h < SEA) return { reason: 'The exit would come up in the sea or a river: pick a spot a little further inland.', score: 3, wet: true };
+    }
     if (c0 - 14 < 4) return { reason: 'Too close to the line, or behind its end. Pick a spot further along.', score: 1 };
     const cells = (bend || 0) + Math.round(c0 + 14);
     if (cells > 1600) return { reason: 'Too far: the tunnel would be over 1.6 km long.', score: 4 };
@@ -30362,6 +30385,7 @@ const MetroBuild = {
       for (const p of j.pics) if (!w.pictures.has(p.id)) Pictures.add(p, !j.mine);
       w.editsDirty = true;
       MetroNet.dirty = true;
+      if (typeof FareRetro !== 'undefined') FareRetro.done.clear();
       if (Metro.train && G.vehicle !== Metro.train) { Metro.train.removed = true; Metro.train = null; }
       if (j.mine) { G.ui.banner(j.icon || '\ud83d\ude87', j.done || j.name + ' station is open'); sfx('metro_chime', null, 1, 1); saveWorld(); }
     }
@@ -30755,12 +30779,32 @@ const FareRetro = {
     const p = G.player.pos, w = G.world;
     for (const N of MetroNet.all()) for (const st of N.stations) {
       const c = st.c, key = c.join(',');
-      if (this.done.has(key) || Math.hypot(c[0] - p[0], c[2] - p[2]) > 48 || !w.isLoaded(c[0], c[2])) continue;
+      if (this.done.has(key) || Math.hypot(c[0] - p[0], c[2] - p[2]) > 48) continue;
+      if (![[-30, -30], [30, -30], [-30, 30], [30, 30], [0, 0]].every(([a, b]) => w.isLoaded(c[0] + a, c[2] + b))) continue;
       this.done.add(key);
       this.fit(N, st);
     }
   },
+  // the stairs of a station all rise the same way: each step's high side faces the next step up
+  // (whatever turned some of them, this puts them right; only terrazzo stairs near the station)
+  stairs(st) {
+    const w = G.world, id = shapeId('terrazzo', 'stairs'), c = st.c, out = [];
+    const D = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (let y = Math.max(1, c[1] - 2); y <= Math.min(CH - 2, c[1] + 50); y++) for (let dx = -30; dx <= 30; dx++) for (let dz = -30; dz <= 30; dz++) {
+      const x = c[0] + dx, z = c[2] + dz;
+      if (w.getBlock(x, y, z) !== id) continue;
+      let want = -1;
+      for (const [ex, ez] of D) if (w.getBlock(x + ex, y + 1, z + ez) === id) { want = mface(ex, ez); break; }
+      if (want < 0) for (const [ex, ez] of D) if (w.getBlock(x + ex, y - 1, z + ez) === id) { want = mface(-ex, -ez); break; }
+      if (want >= 0 && (w.getFacing(x, y, z) & 7) !== want) out.push([x, y, z, id, want]);
+    }
+    if (!out.length) return;
+    const was = Net.capture;
+    Net.capture = false;
+    try { editBlocks(out); } finally { Net.capture = was; }
+  },
   fit(N, st) {
+    this.stairs(st);
     const w = G.world, P = st.c[1] + 1, i = N.path.indexOf(st.c);
     const a0 = N.path[Math.max(0, i - 1)], a1 = N.path[Math.min(N.path.length - 1, i + 1)];
     const d = [Math.sign(a1[0] - a0[0]), Math.sign(a1[2] - a0[2])];
@@ -31893,6 +31937,170 @@ const Home = {
     return rm.call(this, p, fromNet);
   };
   window.addEventListener('keydown', (e) => { if (Signs.el && !Signs.el.classList.contains('hidden') && e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); Signs.close(); } }, true);
+}
+</script>
+<script>
+'use strict';
+// The Banc Central is protected: its blocks cannot be broken. Try it in survival and the police
+// come: the first time a fine (100 coins), again within ten minutes a stay in the cells under the
+// bank (45 s, walls of bedrock, no teleports), and then back out at the bank door.
+// In creative the blocks just stay put.
+
+const POLICE_FINE = 100, JAIL_TIME = 45, CRIME_MEMORY = 600;
+
+const Police = {
+  rect: null, rectKey: '', warnT: 0, jail: null, cops: [],
+
+  bank() {
+    const w = G.world;
+    const key = w && w.seed + ':' + w.genVer + ':' + w.type;
+    if (key !== this.rectKey) {
+      this.rectKey = key; this.rect = null;
+      try {
+        const st = typeof stucomVillage === 'function' && w.gen && w.gen.structs ? stucomVillage(w.gen) : null;
+        const b = st && st.campus && st.campus.bank;
+        if (b && [b.x0, b.z0, b.x1, b.z1, b.F].every(Number.isFinite)) this.rect = b;
+      } catch (e) { this.rect = null; }
+    }
+    return this.rect;
+  },
+  inBank(x, y, z) {
+    const b = this.bank();
+    return !!b && x >= b.x0 - 1 && x <= b.x1 + 1 && z >= b.z0 - 1 && z <= b.z1 + 1 && y >= b.F - 16 && y <= b.F + 28;
+  },
+
+  // somebody tried to break a block of the bank
+  caught(x, y, z) {
+    if (this.warnT > 0) return;
+    this.warnT = 3;
+    if (G.mode !== 'survival') { G.ui.toast('\ud83c\udfe6 The Banc Central is protected', 2000); return; }
+    const pr = G.prog || (G.prog = {});
+    const now = Date.now() / 1000;
+    const again = pr.crime && now - pr.crime < CRIME_MEMORY;
+    pr.crime = now;
+    sfx('siren', null, 1, 1);
+    this.arrive();
+    if (!again) {
+      const fine = Math.min(G.money | 0, POLICE_FINE);
+      G.money = (G.money | 0) - fine;
+      if (typeof Bank !== 'undefined' && Bank.refresh) Bank.refresh();
+      G.ui.banner('\ud83d\udea8', 'Police! Fine of ' + fine + ' coins for damaging the bank. Next time: jail.');
+    } else { this.arrestAt = G.time + 1.6; G.ui.banner('\ud83d\udea8', 'Police! You are under arrest.'); }
+  },
+
+  // two officers appear next to you and face you
+  arrive() {
+    const p = G.player;
+    for (const s of [-1, 1]) {
+      const a = p.yaw + s * 0.9;
+      const x = p.pos[0] - Math.sin(a) * 2.2, z = p.pos[2] - Math.cos(a) * 2.2;
+      const m = Ents.spawnMob('villager', x, p.pos[1] + 0.2, z);
+      m.prof = 'police'; m.skin = 0; m.tint = [0.2, 0.28, 0.62]; m.police = true; m.hideAt = G.time + 10;
+      m.bodyYaw = m.headYaw = Math.atan2(p.pos[0] - x, p.pos[2] - z);
+      this.cops.push(m);
+    }
+  },
+
+  arrest() {
+    const b = this.bank();
+    if (!b) return;
+    const cx = Math.floor((b.x0 + b.x1) / 2), cz = Math.floor((b.z0 + b.z1) / 2), y0 = b.F - 22;
+    // the cell: bedrock all round, a glowstone light, a bench and bars on the corridor side
+    const list = [];
+    for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) for (let dy = -1; dy <= 4; dy++) {
+      const edge = Math.abs(dx) === 3 || Math.abs(dz) === 3 || dy === -1 || dy === 4;
+      let id = edge ? B.BEDROCK : B.AIR;
+      if (dy === 4 && dx === 0 && dz === 0) id = B.GLOWSTONE;
+      if (!edge && dz === 2 && dy === 0 && Math.abs(dx) <= 1) id = shapeId('oak', 'stairs');
+      if (edge && dz === -3 && Math.abs(dx) <= 1 && dy >= 1 && dy <= 2) id = B.IRON_BARS;
+      list.push([cx + dx, y0 + dy, cz + dz, id, id === B.AIR || id === B.BEDROCK ? undefined : 5]);
+    }
+    for (let dx = -3; dx <= 3; dx++) for (let dz = -6; dz <= -4; dz++) for (let dy = -1; dy <= 4; dy++) {
+      const edge = Math.abs(dx) === 3 || dz === -6 || dy === -1 || dy === 4;
+      list.push([cx + dx, y0 + dy, cz + dz, edge ? B.BEDROCK : B.AIR]);
+    }
+    const was = Net.capture;
+    Net.capture = false;
+    try {
+      prepareArea(cx, cz, 1);
+      editBlocks(list);
+    } finally { Net.capture = was; }
+    if (G.vehicle) Vehicles.dismount(true);
+    if (G.player.seat) Furniture.stand(G.player);
+    const p = G.player;
+    p.pos = [cx + 0.5, y0, cz + 0.5]; p.vel = [0, 0, 0]; p.flying = false; p.fallStart = null;
+    this.jail = { until: G.time + JAIL_TIME, out: [b.x0 - 4 + 0.5, b.F + 0.05, cz + 0.5], cell: [cx, y0, cz] };
+    for (const m of this.cops) m.removed = true;
+    this.cops = [];
+    G.ui.banner('\ud83d\ude94', 'Arrested for damaging the Banc Central \u00b7 ' + JAIL_TIME + ' s in the cells');
+    sfx('door_close', null, 1, 0.7);
+    Net.teleported();
+  },
+
+  update(dt) {
+    this.warnT -= dt;
+    if (this.arrestAt && G.time >= this.arrestAt) { this.arrestAt = 0; this.arrest(); }
+    for (const m of this.cops) if (G.time > m.hideAt || m.dead) m.removed = true;
+    this.cops = this.cops.filter((m) => !m.removed);
+    const j = this.jail, el = $('jailTag');
+    if (el) el.classList.toggle('show', !!j);
+    if (!j) return;
+    const p = G.player, left = Math.max(0, Math.ceil(j.until - G.time));
+    if (el) el.querySelector('b').textContent = left + ' s';
+    // no leaving early
+    if (Math.abs(p.pos[0] - (j.cell[0] + 0.5)) > 2.6 || Math.abs(p.pos[2] - (j.cell[2] + 0.5)) > 2.6 || Math.abs(p.pos[1] - j.cell[1]) > 3) {
+      p.pos = [j.cell[0] + 0.5, j.cell[1], j.cell[2] + 0.5]; p.vel = [0, 0, 0];
+    }
+    if (G.time >= j.until) {
+      this.jail = null;
+      p.pos = j.out.slice(); p.vel = [0, 0, 0]; p.fallStart = null;
+      prepareArea(p.pos[0], p.pos[2], 1);
+      liftOutOfBlocks(p);
+      Net.teleported();
+      G.ui.banner('\ud83d\udd13', 'You are free. Behave!');
+    }
+  },
+};
+
+SYNTH.siren = (ctx, o, t) => {
+  for (let i = 0; i < 4; i++) {
+    Sound.tone(ctx, o, t + i * 0.5, 0.25, { wave: 'sawtooth', f0: 700, f1: 1000, gain: 0.07, filter: ['lowpass', 2400, 1] });
+    Sound.tone(ctx, o, t + i * 0.5 + 0.25, 0.25, { wave: 'sawtooth', f0: 1000, f1: 700, gain: 0.07, filter: ['lowpass', 2400, 1] });
+  }
+};
+
+// ---------------------------------------------------------------- hooks ----
+{
+  const mining = Act.updateMining;
+  Act.updateMining = function (dt, now) {
+    const t = this.target, b = t && t.block;
+    if (G.mouse.left && b && Police.inBank(b.pos[0], b.pos[1], b.pos[2])) {
+      this.mine.pos = null; this.mine.progress = 0;
+      Police.caught(b.pos[0], b.pos[1], b.pos[2]);
+      return;
+    }
+    return mining.call(this, dt, now);
+  };
+  // officers are not traders
+  const use = Act.useItem;
+  Act.useItem = function (initial) {
+    const t = this.target;
+    if (initial && t && t.mob && t.mob.police) { G.ui.toast('\ud83d\udc6e Move along, nothing to see here'); this.swingHand(); return true; }
+    return use.call(this, initial);
+  };
+  // no teleport commands from the cells
+  if (typeof Commands !== 'undefined') {
+    const run = Commands.run;
+    Commands.run = function (text) {
+      if (Police.jail && /^\/(home|spawn|tp)\b/i.test(text)) { this.sys('\ud83d\ude94 Not while you are in the cells'); return; }
+      return run.call(this, text);
+    };
+  }
+  const travel = typeof travelTo === 'function' ? travelTo : null;
+  if (travel) {
+    // eslint-disable-next-line no-global-assign
+    travelTo = function (key) { if (Police.jail) { G.ui.toast('\ud83d\ude94 Not while you are in the cells'); return false; } return travel(key); };
+  }
 }
 </script>
 <script>
@@ -33118,6 +33326,7 @@ function buildPlaces(el, after) {
 
 function worldLabel() {
   if (G.slot === 'campnou') return 'Camp Nou \u00b7 Barcelona \u00b7 real scale';
+  if (G.slot === 'jet') return 'Jet test world \u00b7 creative';
   if (Net.server) return 'Server \u201c' + Net.server.name + '\u201d \u00b7 code ' + Net.server.code + ' \u00b7 ' + (Net.peers.size + 1) + ' player' + (Net.peers.size ? 's' : '');
   if (G.online) return 'Online world \u00b7 ' + (Net.peers.size + 1) + ' player' + (Net.peers.size ? 's' : '');
   return (G.mode === 'creative' ? 'Creative' : 'Survival') + ' world \u00b7 seed ' + G.world.seed;
@@ -33139,6 +33348,22 @@ function enterCampNou() {
   saveWorld();
   refreshGameUI();
   UI.toast('Camp Nou \u00b7 fly with F \u00b7 N for day / night');
+}
+// The fighter jet has a world of its own to try it in (creative, its own save), so it never turns
+// up in your world or on a server.
+function enterJetWorld() {
+  if (Net.on) Net.leave();
+  saveWorld();
+  G.slot = 'jet';
+  const save = storageGet('blocklands.slot.jet');
+  newWorld(20240607, save && save.v === 2 ? save : null, { type: 'default', mode: 'creative' });
+  prepareArea(G.player.pos[0], G.player.pos[2], 2);
+  liftOutOfBlocks(G.player);
+  saveWorld();
+  refreshGameUI();
+  const j = Vehicles.spawnAhead();
+  if (j) Vehicles.board(j);
+  UI.toast('\u2708 Jet test world \u00b7 back to your world from the title screen', 4000);
 }
 function leaveCampNou() {
   saveWorld();
@@ -33165,6 +33390,7 @@ function showTitle() {
   $('title').classList.remove('hidden');
   $('tPlayLabel').textContent = G.started ? 'Continue' : 'Play';
   $('tCampNouLabel').textContent = G.slot === 'campnou' ? 'Back to my world' : 'Camp Nou';
+  $('tJetLabel').textContent = G.slot === 'jet' ? 'Back to my world' : 'Fighter jet';
   $('tWorld').textContent = worldLabel();
   const we = !G.slot && !G.online && Worlds.entry(Worlds.cur());
   $('tWorldsLabel').textContent = we ? 'Worlds \u00b7 ' + we.name : 'Worlds';
@@ -33232,6 +33458,14 @@ function leaveUnlockedPlay() {
   releaseAllInput();
 }
 
+function showResume() {
+  const el = $('resumeHint');
+  if (!el || G.screenOpen) return;
+  G.playing = false;
+  el.classList.remove('hidden');
+}
+function hideResume() { const el = $('resumeHint'); if (el) el.classList.add('hidden'); }
+
 function requestLock() {
   Sound.init();
   if (G.onTitle) leaveTitle();
@@ -33239,9 +33473,13 @@ function requestLock() {
   if (G.unlocked) { G.playing = true; hideMenu(); return; }
   if (typeof G.canvas.requestPointerLock !== 'function') { enterUnlockedPlay(); return; }
   G.lockPending = true;
+  // coming back from a screen or panel (closed with Esc): if the browser will not capture the
+  // mouse again so soon, just wait for a click instead of opening the settings
+  const soft = G.started && !G.onTitle;
   const fail = (e) => {
     setTimeout(() => { G.lockPending = false; }, 250);
     if (document.pointerLockElement) return;
+    if (soft) { showResume(); return; }
     // SecurityError = re-locking too soon after Esc; the user just needs to click again
     if (e && e.name === 'SecurityError') { showMenu(); UI.toast('Click Play again to capture the mouse'); }
     else enterUnlockedPlay();
@@ -33449,13 +33687,14 @@ function bindInput() {
     else if (G.unlocked) return;
     G.playing = locked;
     releaseAllInput();
-    if (locked) { G.started = true; hideMenu(); }
-    else if (!G.screenOpen && !G.stats.dead && !G.onTitle && $('chatInput').classList.contains('hidden')) { showMenu(); saveWorld(); }
+    if (locked) { G.started = true; hideMenu(); hideResume(); }
+    else if (!G.screenOpen && !G.stats.dead && !G.onTitle && $('chatInput').classList.contains('hidden') && $('resumeHint').classList.contains('hidden') && performance.now() - (G.screenClosedAt || 0) > 400) { showMenu(); saveWorld(); }
   });
   // Browsers without the promise form only report failures through this event.
   document.addEventListener('pointerlockerror', () => { if (!G.lockPending) enterUnlockedPlay(); });
 
   $('playBtn').addEventListener('click', () => requestLock());
+  $('resumeHint').addEventListener('click', () => { hideResume(); requestLock(); });
   $('timeSlider').addEventListener('input', (e) => {
     G.dayTime = Number(e.target.value);
     $('timeVal').textContent = formatClock(G.dayTime);
@@ -33521,8 +33760,8 @@ function bindInput() {
   $('placesBack').addEventListener('click', () => $('placesPanel').classList.add('hidden'));
   $('tJet').addEventListener('click', () => {
     Sound.init();
-    const j = Vehicles.spawnAhead();
-    if (j) Vehicles.board(j);
+    if (G.slot === 'jet') { leaveCampNou(); showTitle(); return; }
+    enterJetWorld();
     requestLock();
   });
   $('tCredits').addEventListener('click', showCredits);
@@ -33559,6 +33798,8 @@ function bindInput() {
   $('creditsRoll').addEventListener('animationend', hideCredits);
   $('titleBtn').addEventListener('click', () => { sfx('click', null, 1, 1); showTitle(); });
   $('jetBtn').addEventListener('click', () => {
+    // the jet lives in its own test world, never on the server you are playing on
+    if (G.slot !== 'jet') { enterJetWorld(); requestLock(); return; }
     const j = Vehicles.spawnAhead();
     if (!j) { UI.toast('No room for a jet in front of you'); return; }
     UI.toast('Fighter jet ready: right-click it to climb in');
@@ -33839,7 +34080,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Physics.update(dt); Furniture.update(dt); SharedState.update(dt); SharedAnimals.update(dt); Claims.update(dt); Home.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Physics.update(dt); Furniture.update(dt); SharedState.update(dt); SharedAnimals.update(dt); Claims.update(dt); Home.update(dt); Police.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
     Music.update(dt);
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);
