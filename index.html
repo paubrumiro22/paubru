@@ -400,6 +400,20 @@
     padding: 12px 16px; border-radius: 14px; background: #06090f; border: 1px solid #2a3446; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
   #liftTag.show { opacity: 1; transform: translate(0, -50%); }
   #liftTag i { font-style: normal; color: #ff9d2e; font-size: 16px; } #liftTag b { font: 800 34px/1 'Courier New', monospace; color: #ff9d2e; text-shadow: 0 0 12px rgba(255, 157, 46, .7); } #liftTag span { color: #93a0b4; font-size: 11px; }
+  .gp .mp-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; margin: 0 6px 6px 0; border-radius: 99px; background: rgba(255,255,255,.08); border: 1px solid var(--line); font: 700 12.5px var(--body); }
+  .gp .mp-chip button { border: 0; background: none; color: #ff8a7a; cursor: pointer; padding: 0; }
+  .pp-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; box-shadow: 0 0 0 3px rgba(255,255,255,.08), 0 0 10px currentColor; } .pp-dot.off { background: #4a5566; box-shadow: none; }
+  .pp-role { font: 800 10px var(--body); text-transform: uppercase; letter-spacing: .08em; padding: 2px 6px; border-radius: 6px; background: #2c3a52; color: #9cc0ff; vertical-align: middle; }
+  .pp-role.admin { background: #4a3a10; color: #ffd34d; } .pp-role.banned { background: #4a1616; color: #ff8a7a; } .pp-role.member { background: #173d2a; color: #6fe3a5; }
+  .pp-sec { margin-bottom: 16px; } .pp-sec > label { display: block; font: 800 11px var(--body); letter-spacing: .12em; text-transform: uppercase; color: #93a0b4; margin: 0 0 8px; }
+  .pp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .gp-row .gp-btn { padding: 7px 10px; }
+  #askBox { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 80; display: flex; flex-direction: column; gap: 8px; width: min(420px, calc(100vw - 32px)); pointer-events: none; }
+  .ask { pointer-events: auto; position: relative; overflow: hidden; padding: 14px 16px; border-radius: 14px; background: rgba(14, 20, 30, 0.94); border: 1px solid var(--line-strong); box-shadow: 0 14px 40px rgba(0,0,0,.5); color: #fff; animation: rise .25s both; }
+  .ask.out { opacity: 0; transform: translateY(-8px); transition: .25s; }
+  .ask-t { font: 700 14.5px var(--body); margin-bottom: 10px; } .ask-b { display: flex; gap: 8px; } .ask kbd { font: 700 10px var(--body); padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,.2); margin-left: 4px; }
+  .ask-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: linear-gradient(90deg, #3d8bff, #3cf2c0); transform-origin: left; animation: askbar linear forwards; }
+  @keyframes askbar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
   #dateTag { position: absolute; left: 14px; top: 12px; padding: 6px 12px; border-radius: 99px; background: rgba(11, 16, 24, 0.66); border: 1px solid var(--line); color: #e9eef5; font-size: 12.5px; text-shadow: 0 1px 2px #000; pointer-events: none; }
   #dateTag.hidden { display: none; }
   #paper { display: grid; place-items: center; z-index: 60; background: rgba(8, 10, 16, 0.6); backdrop-filter: blur(3px); overflow: auto; padding: 20px 0; }
@@ -1342,6 +1356,7 @@
 <script src="js/calendar.js"></script>
 <script src="js/furniture_more.js"></script>
 <script src="js/lift.js"></script>
+<script src="js/people.js"></script>
 <script src="js/football.js"></script>
 <script src="js/pets.js"></script>
 <script src="js/music.js"></script>
