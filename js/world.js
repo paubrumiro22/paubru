@@ -872,7 +872,7 @@ class World {
     for (const [k, e] of this.blockEntities) be.push([k, e]);
     const flow = [];
     for (const [k, l] of this.flow) flow.push(k, l);
-    return { facing, be, flow, pics: typeof serializePictures === 'function' ? serializePictures(this) : [], metro: this.metro || undefined };
+    return { facing, be, flow, pics: typeof serializePictures === 'function' ? serializePictures(this) : [], metro: this.metro || undefined, homes: this.homes || undefined };
   }
 
   loadExtras(obj) {
@@ -881,7 +881,10 @@ class World {
     this.blockEntities.clear();
     this.pictures.clear();
     this.metro = null;
+    this.homes = null;
     if (!obj || typeof obj !== 'object') return;
+    // houses bought on the district plots (homes.js)
+    if (obj.homes && typeof obj.homes === 'object') this.homes = obj.homes;
     // metro lines built by players and the names given to stations (metro_panel.js)
     const M = obj.metro;
     if (M && typeof M === 'object') {

@@ -145,10 +145,15 @@ function planDistrict(g, plan) {
     home('villager', 'student', -12, F, 50, -10, 48, 9);
   }
 
-  // ---- the four corner blocks: free building plots ----
+  // ---- the four corner blocks: free building plots (houses for sale: homes.js) ----
+  plan.plots = [];
   for (const i of [-1, 1]) for (const j of [-1, 1]) {
     const u0 = i * DP - DI / 2, v0 = j * DP - DI / 2;
     piece(box(u0, v0, u0 + DI - 1, v0 + DI - 1), (W) => buildPlotBlock(W, g, D, u0, v0));
+    for (const a0 of [3, 19]) for (const b0 of [3, 19]) {
+      const x0 = cx + u0 + a0, z0 = cz + v0 + b0;
+      plan.plots.push({ id: 'p' + (plan.plots.length + 1), x0, z0, x1: x0 + 13, z1: z0 + 13, F, front: b0 > 10 ? 1 : -1, sign: [x0 + 6, b0 > 10 ? z0 + 13 : z0] });
+    }
   }
 
   // ---- the metro, last: nothing is ever built over its stairs ----
