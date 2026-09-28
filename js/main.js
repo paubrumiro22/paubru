@@ -22,7 +22,9 @@ const SETTINGS_UI = [
   { key: 'music', group: 'sound', label: 'Music volume', hint: 'Soft music written live for each place: days, nights, fights, the Nether, the End, the stadium.', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => (v ? Math.round(v * 100) + '%' : 'Off') },
   { key: 'minimap', group: 'hud', label: 'Minimap', hint: 'The round map in the corner. Press M for the big map.', type: 'select', options: [['normal', 'Close'], ['large', 'Far'], ['off', 'Off']] },
   { key: 'bobbing', group: 'hud', label: 'View bobbing', hint: 'The camera sways as you walk.', type: 'check' },
-  { key: 'sensitivity', group: 'controls', label: 'Mouse sensitivity', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: (v) => v.toFixed(2) + '×' },
+  { key: 'sensitivity', group: 'controls', label: 'Mouse sensitivity', hint: 'How fast the view turns. Very sensitive gaming mice feel best around 0.3–0.6.', type: 'range', min: 0.05, max: 4, step: 0.05, fmt: (v) => v.toFixed(2) + '×' },
+  { key: 'rawMouse', group: 'controls', label: 'Raw mouse input', hint: 'Ignore the system’s mouse acceleration (steadier aim). Turn off if the view feels stuck.', type: 'check' },
+  { key: 'invertY', group: 'controls', label: 'Invert mouse Y', type: 'check' },
 ];
 
 // Quality presets offered above the graphics options.
@@ -70,7 +72,7 @@ function loadSettings() {
   st.renderDistance = clamp(Math.round(st.renderDistance), 3, 16);
   st.renderScale = clamp(st.renderScale, 0.5, 2);
   st.fov = clamp(st.fov, 50, 110);
-  st.sensitivity = clamp(st.sensitivity, 0.2, 3);
+  st.sensitivity = clamp(Number(st.sensitivity) || 1, 0.05, 4);
   st.brightness = clamp(st.brightness, 0.6, 1.8);
   st.volume = clamp(st.volume, 0, 1);
   if (!['auto', ...WEATHER_KINDS].includes(st.weather)) st.weather = 'auto';
@@ -475,7 +477,10 @@ function requestLock() {
     else enterUnlockedPlay();
   };
   try {
-    const r = G.canvas.requestPointerLock();
+    // raw input (no OS acceleration) where the browser has it; plain lock otherwise
+    let r;
+    try { r = G.canvas.requestPointerLock(G.settings.rawMouse !== false ? { unadjustedMovement: true } : undefined); } catch (e2) { r = G.canvas.requestPointerLock(); }
+    if (r && typeof r.catch === 'function' && G.settings.rawMouse !== false) r = r.catch((err) => { if (err && err.name === 'NotSupportedError') return G.canvas.requestPointerLock(); throw err; });
     if (r && typeof r.then === 'function') r.then(() => { G.lockPending = false; }, fail);
     else G.lockPending = false;
   } catch (e) { fail(e); }
@@ -623,7 +628,14 @@ function bindInput() {
   document.addEventListener('mousemove', (e) => {
     if (!G.playing || G.screenOpen || G.stats.dead) return;
     if (G.unlocked && !G.drag.active) return;
-    const mx = clamp(e.movementX || 0, -300, 300), my = clamp(e.movementY || 0, -300, 300);
+    let mx = e.movementX || 0, my = e.movementY || 0;
+    // some browsers send a huge jump now and then (pointer lock bug on Windows / after alt-tab):
+    // a single step far bigger than the recent movement is dropped instead of spinning the view
+    const mag = Math.abs(mx) + Math.abs(my), avg = G.mouseAvg || 0;
+    if (mag > 180 && mag > avg * 8 + 60) { G.mouseAvg = avg * 0.9; return; }
+    G.mouseAvg = avg * 0.8 + mag * 0.2;
+    mx = clamp(mx, -400, 400); my = clamp(my, -400, 400);
+    if (G.settings.invertY) my = -my;
     if (G.unlocked) {
       G.drag.moved += Math.abs(mx) + Math.abs(my);
       if (G.drag.mining) return;
@@ -1070,7 +1082,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Physics.update(dt); Furniture.update(dt); SharedState.update(dt); SharedAnimals.update(dt); Claims.update(dt); Home.update(dt); Police.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Physics.update(dt); Furniture.update(dt); SharedState.update(dt); SharedAnimals.update(dt); Claims.update(dt); Home.update(dt); Police.update(dt); Calendar.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
     Music.update(dt);
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);

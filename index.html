@@ -358,6 +358,28 @@
   #resumeHint { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 40; padding: 14px 24px; border-radius: 14px; font: 700 16px var(--body);
     background: rgba(10, 15, 22, 0.8); border: 1px solid var(--line-strong); color: #fff; backdrop-filter: blur(6px); cursor: pointer; animation: rise .25s both; }
   #resumeHint.hidden { display: none; }
+  #dateTag { position: absolute; left: 14px; top: 12px; padding: 6px 12px; border-radius: 99px; background: rgba(11, 16, 24, 0.66); border: 1px solid var(--line); color: #e9eef5; font-size: 12.5px; text-shadow: 0 1px 2px #000; pointer-events: none; }
+  #dateTag.hidden { display: none; }
+  #paper { display: grid; place-items: center; z-index: 60; background: rgba(8, 10, 16, 0.6); backdrop-filter: blur(3px); overflow: auto; padding: 20px 0; }
+  #paper.hidden { display: none; }
+  #paper .np { position: relative; width: min(760px, calc(100vw - 32px)); padding: 26px 30px 22px; background: #f4efe2; color: #1d1a14; font-family: Georgia, 'Times New Roman', serif;
+    box-shadow: 0 30px 80px rgba(0,0,0,.55), inset 0 0 60px rgba(120, 100, 60, 0.12); transform: rotate(-0.4deg); animation: pmIn2 .25s ease-out; }
+  #paper .np-x { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(0,0,0,.08); color: #1d1a14; cursor: pointer; }
+  #paper header { text-align: center; border-bottom: 3px double #1d1a14; padding-bottom: 8px; }
+  #paper .np-date { font: italic 13px Georgia, serif; color: #5a5040; }
+  #paper h1 { margin: 4px 0 2px; font: 900 clamp(30px, 6vw, 50px)/1 'Times New Roman', Georgia, serif; letter-spacing: 0.02em; text-transform: uppercase; }
+  #paper .np-sub { font: 12px Georgia, serif; color: #5a5040; border-top: 1px solid #1d1a14; margin-top: 6px; padding-top: 4px; }
+  #paper .np-main { padding: 14px 0 10px; border-bottom: 1px solid #1d1a14; }
+  #paper .np-main h2 { margin: 0 0 6px; font: 800 clamp(22px, 4vw, 32px)/1.1 Georgia, serif; color: #1d1a14; letter-spacing: 0; text-transform: none; background: none; -webkit-text-fill-color: #1d1a14; }
+  #paper .np-main p { margin: 0; font-size: 15px; font-style: italic; }
+  #paper .np-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0 18px; padding: 10px 0; }
+  #paper .np-cols section { padding: 4px 0 8px; border-bottom: 1px solid rgba(0,0,0,.2); }
+  #paper h3 { margin: 6px 0 4px; font: 800 12px Arial, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #8a2a1c; }
+  #paper p { margin: 3px 0; font-size: 13.5px; line-height: 1.45; }
+  #paper .np-big { font-size: 20px; font-weight: 700; }
+  #paper .np-ads { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-top: 10px; }
+  #paper .np-ads div { border: 1.5px solid #1d1a14; padding: 8px; display: flex; flex-direction: column; gap: 2px; text-align: center; }
+  #paper .np-ads i { font-style: normal; font-size: 22px; } #paper .np-ads b { font-size: 13px; } #paper .np-ads span { font-size: 11px; color: #5a5040; }
   /* Plots */
   #plotTag { position: absolute; left: 50%; bottom: 118px; transform: translate(-50%, 8px); display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 14px; border-radius: 12px;
     background: rgba(14, 30, 20, 0.72); border: 1px solid rgba(120, 230, 150, 0.4); color: #dfffe6; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; text-shadow: 0 1px 2px #000; }
@@ -855,6 +877,7 @@
   <div id="debug" class="hidden"></div>
   <div id="toast"></div>
   <div id="money"></div>
+  <div id="dateTag"></div>
   <div id="homeTag"><i>➤</i><span>🏠</span><b></b></div>
   <div id="placeBanner"></div>
   <div id="nametags"></div>
@@ -1274,6 +1297,7 @@
 <script src="js/shared.js"></script>
 <script src="js/extras.js"></script>
 <script src="js/police.js"></script>
+<script src="js/calendar.js"></script>
 <script src="js/football.js"></script>
 <script src="js/pets.js"></script>
 <script src="js/music.js"></script>

@@ -9,7 +9,7 @@ const DAY_LENGTH = 1200; // seconds per full day
 
 const DEFAULT_SETTINGS = {
   renderDistance: 10, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
-  renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
+  renderScale: 1, fov: 75, sensitivity: 1, rawMouse: true, invertY: false, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
   weather: 'auto', events: true, wildlife: true, skin: 0, minimap: 'normal', autoTuned: false,
   autoQuality: true, preAuto: null, settingsVer: 2, pvp: true, physics: 'realistic',
 };

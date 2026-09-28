@@ -183,6 +183,7 @@ uniform sampler2D uNoise;
 uniform int uCutout;
 uniform vec2 uNightL;    // layers that only glow when the lamps are on (street lamps, lit windows)
 uniform float uLampsOn;
+uniform vec4 uSeason;    // trees and plants of the season: target colour, amount (calendar.js)
 in vec3 vRel;
 in vec3 vUV;
 in vec3 vTint;
@@ -210,6 +211,10 @@ void main() {
   vec4 alb = texture(uAlbedo, vUV);
   if (uCutout == 1 && alb.a < 0.5) discard;
   vec3 albedo = alb.rgb * vTint;
+  if ((vFlags & 3) != 0 && (vFlags & 4) == 0 && uSeason.a > 0.001) {
+    float lum = dot(albedo, vec3(0.3, 0.59, 0.11));
+    albedo = mix(albedo, lum * uSeason.rgb * 2.1, uSeason.a);
+  }
   bool plant = vNormal == 6;
   vec3 N0 = NRM[vNormal];
   vec3 T0 = TAN[vNormal], B0 = BIT[vNormal];

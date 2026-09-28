@@ -353,6 +353,28 @@
   #resumeHint { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 40; padding: 14px 24px; border-radius: 14px; font: 700 16px var(--body);
     background: rgba(10, 15, 22, 0.8); border: 1px solid var(--line-strong); color: #fff; backdrop-filter: blur(6px); cursor: pointer; animation: rise .25s both; }
   #resumeHint.hidden { display: none; }
+  #dateTag { position: absolute; left: 14px; top: 12px; padding: 6px 12px; border-radius: 99px; background: rgba(11, 16, 24, 0.66); border: 1px solid var(--line); color: #e9eef5; font-size: 12.5px; text-shadow: 0 1px 2px #000; pointer-events: none; }
+  #dateTag.hidden { display: none; }
+  #paper { display: grid; place-items: center; z-index: 60; background: rgba(8, 10, 16, 0.6); backdrop-filter: blur(3px); overflow: auto; padding: 20px 0; }
+  #paper.hidden { display: none; }
+  #paper .np { position: relative; width: min(760px, calc(100vw - 32px)); padding: 26px 30px 22px; background: #f4efe2; color: #1d1a14; font-family: Georgia, 'Times New Roman', serif;
+    box-shadow: 0 30px 80px rgba(0,0,0,.55), inset 0 0 60px rgba(120, 100, 60, 0.12); transform: rotate(-0.4deg); animation: pmIn2 .25s ease-out; }
+  #paper .np-x { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(0,0,0,.08); color: #1d1a14; cursor: pointer; }
+  #paper header { text-align: center; border-bottom: 3px double #1d1a14; padding-bottom: 8px; }
+  #paper .np-date { font: italic 13px Georgia, serif; color: #5a5040; }
+  #paper h1 { margin: 4px 0 2px; font: 900 clamp(30px, 6vw, 50px)/1 'Times New Roman', Georgia, serif; letter-spacing: 0.02em; text-transform: uppercase; }
+  #paper .np-sub { font: 12px Georgia, serif; color: #5a5040; border-top: 1px solid #1d1a14; margin-top: 6px; padding-top: 4px; }
+  #paper .np-main { padding: 14px 0 10px; border-bottom: 1px solid #1d1a14; }
+  #paper .np-main h2 { margin: 0 0 6px; font: 800 clamp(22px, 4vw, 32px)/1.1 Georgia, serif; color: #1d1a14; letter-spacing: 0; text-transform: none; background: none; -webkit-text-fill-color: #1d1a14; }
+  #paper .np-main p { margin: 0; font-size: 15px; font-style: italic; }
+  #paper .np-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0 18px; padding: 10px 0; }
+  #paper .np-cols section { padding: 4px 0 8px; border-bottom: 1px solid rgba(0,0,0,.2); }
+  #paper h3 { margin: 6px 0 4px; font: 800 12px Arial, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #8a2a1c; }
+  #paper p { margin: 3px 0; font-size: 13.5px; line-height: 1.45; }
+  #paper .np-big { font-size: 20px; font-weight: 700; }
+  #paper .np-ads { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-top: 10px; }
+  #paper .np-ads div { border: 1.5px solid #1d1a14; padding: 8px; display: flex; flex-direction: column; gap: 2px; text-align: center; }
+  #paper .np-ads i { font-style: normal; font-size: 22px; } #paper .np-ads b { font-size: 13px; } #paper .np-ads span { font-size: 11px; color: #5a5040; }
   /* Plots */
   #plotTag { position: absolute; left: 50%; bottom: 118px; transform: translate(-50%, 8px); display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 14px; border-radius: 12px;
     background: rgba(14, 30, 20, 0.72); border: 1px solid rgba(120, 230, 150, 0.4); color: #dfffe6; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; text-shadow: 0 1px 2px #000; }
@@ -848,6 +870,7 @@
   <div id="debug" class="hidden"></div>
   <div id="toast"></div>
   <div id="money"></div>
+  <div id="dateTag"></div>
   <div id="homeTag"><i>&#x27a4;</i><span>&#x1f3e0;</span><b></b></div>
   <div id="placeBanner"></div>
   <div id="nametags"></div>
@@ -12216,6 +12239,7 @@ uniform sampler2D uNoise;
 uniform int uCutout;
 uniform vec2 uNightL;    // layers that only glow when the lamps are on (street lamps, lit windows)
 uniform float uLampsOn;
+uniform vec4 uSeason;    // trees and plants of the season: target colour, amount (calendar.js)
 in vec3 vRel;
 in vec3 vUV;
 in vec3 vTint;
@@ -12243,6 +12267,10 @@ void main() {
   vec4 alb = texture(uAlbedo, vUV);
   if (uCutout == 1 && alb.a < 0.5) discard;
   vec3 albedo = alb.rgb * vTint;
+  if ((vFlags & 3) != 0 && (vFlags & 4) == 0 && uSeason.a > 0.001) {
+    float lum = dot(albedo, vec3(0.3, 0.59, 0.11));
+    albedo = mix(albedo, lum * uSeason.rgb * 2.1, uSeason.a);
+  }
   bool plant = vNormal == 6;
   vec3 N0 = NRM[vNormal];
   vec3 T0 = TAN[vNormal], B0 = BIT[vNormal];
@@ -13665,6 +13693,8 @@ Object.assign(Renderer.prototype, {
     // street lamps and lit windows: on from dusk, and on dark stormy days
     this.setU(prog, 'uLampsOn', '1f', Math.max(A.night, clamp(((A.weather || 0) - 0.55) * 2.5, 0, 1)) * (A.dim ? 0 : 1));
     this.setU(prog, 'uNightL', '2f', NIGHT_LAYERS[0], NIGHT_LAYERS[1]);
+    const SE = this.season || NO_DIM;
+    this.setU(prog, 'uSeason', '4f', SE[0], SE[1], SE[2], A.dim ? 0 : SE[3]);
     this.setU(prog, 'uShadowOn', '1f', this.shadowsActive ? 1 : 0);
     this.setU(prog, 'uShadowSize', '1f', this.shadowSize);
     this.setU(prog, 'uShadowTexel', '1f', this.shadowTexel || 0.05);
@@ -20666,7 +20696,7 @@ const DAY_LENGTH = 1200; // seconds per full day
 
 const DEFAULT_SETTINGS = {
   renderDistance: 10, shadows: 'medium', ssr: true, clouds: true, godrays: true, bloom: true, fxaa: true,
-  renderScale: 1, fov: 75, sensitivity: 1, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
+  renderScale: 1, fov: 75, sensitivity: 1, rawMouse: true, invertY: false, brightness: 1, dayCycle: true, volume: 0.7, bobbing: true, dynamicRes: true,
   weather: 'auto', events: true, wildlife: true, skin: 0, minimap: 'normal', autoTuned: false,
   autoQuality: true, preAuto: null, settingsVer: 2, pvp: true, physics: 'realistic',
 };
@@ -32105,6 +32135,259 @@ SYNTH.siren = (ctx, o, t) => {
 </script>
 <script>
 'use strict';
+// The calendar: days go by (a new one every time the sun comes up, sleeping included), a year of
+// four short seasons of three days each. Each season tints the trees and plants (autumn goes
+// orange and red, winter brings snow to the whole map, spring is fresh green), and three days a
+// year are festes in STUCOM: Sant Joan (fireworks and bonfires), la Merc\u00e8 (fireworks and a
+// correfoc of sparks) and Nadal (snow, a big lit tree in the square). Every morning the
+// newspaper \u2014 La Gaseta de STUCOM \u2014 comes out with the weather, the festes, the metro and the
+// town (U, or the kiosk in the square).
+
+const SEASON_DAYS = 3, YEAR_DAYS = SEASON_DAYS * 4;
+const SEASONS = [
+  { k: 'spring', name: 'Spring', ca: 'Primavera', icon: '\ud83c\udf38', tint: [0.72, 1.0, 0.5], amt: 0.14 },
+  { k: 'summer', name: 'Summer', ca: 'Estiu', icon: '\u2600\ufe0f', tint: [0.95, 1.0, 0.55], amt: 0.1 },
+  { k: 'autumn', name: 'Autumn', ca: 'Tardor', icon: '\ud83c\udf42', tint: [1.0, 0.5, 0.16], amt: 0.62 },
+  { k: 'winter', name: 'Winter', ca: 'Hivern', icon: '\u2744\ufe0f', tint: [0.86, 0.8, 0.7], amt: 0.4 },
+];
+const WEEKDAYS = ['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte', 'Diumenge'];
+// festes: day of the year (0-based)
+const FESTES = [
+  { k: 'santjoan', day: 4, name: 'Revetlla de Sant Joan', icon: '\ud83c\udf86', text: 'Fireworks and bonfires in STUCOM tonight' },
+  { k: 'merce', day: 7, name: 'Festes de la Merc\u00e8', icon: '\ud83c\udf87', text: 'Fireworks and a correfoc in the streets tonight' },
+  { k: 'nadal', day: 10, name: 'Nadal', icon: '\ud83c\udf84', text: 'A giant lit tree in the square, and snow' },
+];
+
+const Calendar = {
+  lastT: null, tagT: 0, fwT: 0, paperDay: -1,
+
+  day() { return (G.prog && G.prog.day) | 0; },
+  yearDay(d = this.day()) { return ((d % YEAR_DAYS) + YEAR_DAYS) % YEAR_DAYS; },
+  season(d = this.day()) { return SEASONS[Math.floor(this.yearDay(d) / SEASON_DAYS)]; },
+  year(d = this.day()) { return Math.floor(d / YEAR_DAYS) + 1; },
+  festa(d = this.day()) { const y = this.yearDay(d); return FESTES.find((f) => f.day === y) || null; },
+  dateText(d = this.day()) {
+    const s = this.season(d);
+    return WEEKDAYS[d % 7] + ' \u00b7 ' + s.icon + ' ' + s.ca + ', dia ' + (this.yearDay(d) % SEASON_DAYS + 1) + ' \u00b7 Any ' + this.year(d);
+  },
+  outside() { return !G.slot && typeof dimOf === 'function' && dimOf(G.player.pos[0], G.player.pos[2]) === DIM_OVER; },
+
+  update(dt) {
+    if (!G.world || !G.player) return;
+    if (!G.prog) G.prog = {};
+    // a new day when the sun comes up (the clock wraps, or someone slept through the night)
+    if (this.lastT !== null && G.dayTime < this.lastT - 0.3) this.newDay();
+    this.lastT = G.dayTime;
+    // the trees and plants of the season (blended into the next over its last half day)
+    const d = this.day() + G.dayTime;
+    const pos = ((d / SEASON_DAYS) % 4 + 4) % 4, i = Math.floor(pos), f = clamp((pos - i - (1 - 0.5 / SEASON_DAYS)) / (0.5 / SEASON_DAYS), 0, 1);
+    const a = SEASONS[i], b = SEASONS[(i + 1) % 4];
+    const mix = (u, v) => u + (v - u) * f;
+    const on = this.outside() ? 1 : 0;
+    if (G.renderer) G.renderer.season = [mix(a.tint[0], b.tint[0]), mix(a.tint[1], b.tint[1]), mix(a.tint[2], b.tint[2]), mix(a.amt, b.amt) * on];
+    // the HUD date
+    this.tagT -= dt;
+    if (this.tagT <= 0) {
+      this.tagT = 0.5;
+      const el = $('dateTag');
+      if (el) {
+        const s = this.season(), fe = this.festa();
+        el.textContent = s.icon + ' ' + s.ca + ' \u00b7 dia ' + (this.yearDay() % SEASON_DAYS + 1) + '/' + SEASON_DAYS + ' \u00b7 ' + (typeof formatClock === 'function' ? formatClock(G.dayTime) : '') + (fe ? ' \u00b7 ' + fe.icon + ' ' + fe.name : '');
+        el.classList.toggle('hidden', !!G.slot);
+      }
+    }
+    this.festes(dt);
+  },
+
+  newDay() {
+    G.prog.day = this.day() + 1;
+    const s = this.season(), fe = this.festa();
+    const first = this.yearDay() % SEASON_DAYS === 0;
+    if (G.ui) {
+      if (fe) G.ui.banner(fe.icon, fe.name + ' \u00b7 ' + fe.text);
+      else if (first) G.ui.banner(s.icon, s.ca + ' has arrived');
+      G.ui.toast('\ud83d\udcf0 La Gaseta de STUCOM is out \u00b7 press U to read it', 4500);
+    }
+    if (fe && fe.k === 'nadal') this.xmasTree(true);
+    else if (G.prog.xmas) this.xmasTree(false);
+  },
+
+  // ---------------------------------------------------------------- festes ----
+  square() {
+    try {
+      const st = G.world.gen && G.world.gen.structs && typeof stucomVillage === 'function' ? stucomVillage(G.world.gen) : null;
+      return st && st.spawnAt ? [st.spawnAt[0] + 6, st.spawnAt[1], st.spawnAt[2] + 6] : null;
+    } catch (e) { return null; }
+  },
+  festes(dt) {
+    const fe = this.festa();
+    if (!fe || G.slot || !G.player) return;
+    const sq = this.square();
+    if (!sq) return;
+    const p = G.player.pos, near = Math.hypot(p[0] - sq[0], p[2] - sq[2]) < 260;
+    const night = G.dayTime > 0.52 && G.dayTime < 0.95;
+    if (!near || !night) return;
+    this.fwT -= dt;
+    if (this.fwT > 0) return;
+    this.fwT = rand(2.5, 5);
+    if (typeof Football !== 'undefined') Football.fireworks([sq[0] + rand(-30, 30), sq[1] + rand(14, 26), sq[2] + rand(-30, 30)]);
+    // Sant Joan: bonfires round the square; la Merc\u00e8: sparks running down the street
+    if (fe.k === 'santjoan') for (const [dx, dz] of [[-14, -14], [14, -14], [-14, 14], [14, 14]]) {
+      for (let i = 0; i < 6; i++) Particles.flame && Particles.flame(sq[0] + dx + rand(-0.8, 0.8), sq[1] + 0.3 + rand(0, 1.2), sq[2] + dz + rand(-0.8, 0.8));
+      Particles.smoke(sq[0] + dx, sq[1] + 2, sq[2] + dz, 3, 0.6, true);
+    }
+    if (fe.k === 'merce') {
+      const x = sq[0] + rand(-25, 25), z = sq[2] + rand(-25, 25);
+      for (let i = 0; i < 40; i++) {
+        const l = rand(0.4, 0.9);
+        Particles.add(Particles.base(x, sq[1] + 2, z, { vx: rand(-4, 4), vy: rand(2, 6), vz: rand(-4, 4), life: l, max: l, size: rand(0.06, 0.12), layer: T.p_crit, r: 1, g: rand(0.5, 0.9), b: 0.2, glow: true, grav: 9, collide: false }));
+      }
+      sfx('fizz', [x, sq[1] + 2, z], 0.6, 1.4);
+    }
+  },
+  // a giant Christmas tree with lights in the square for Nadal (taken down the next day)
+  xmasTree(up) {
+    const sq = this.square();
+    if (!sq || !G.world.isLoaded(sq[0], sq[2])) { if (!up) G.prog.xmas = null; return; }
+    const was = Net.capture;
+    Net.capture = false;
+    try {
+      if (!up) {
+        const list = (G.prog.xmas || []).map(([x, y, z]) => [x, y, z, B.AIR]);
+        if (list.length) editBlocks(list);
+        G.prog.xmas = null;
+        return;
+      }
+      const [cx, y0, cz] = sq.map(Math.floor), list = [], put = [];
+      for (let y = 0; y < 3; y++) list.push([cx, y0 + y, cz, B.SPRUCE_LOG]);
+      for (let layer = 0; layer < 9; layer++) {
+        const r = Math.max(0, 4 - Math.floor(layer / 2)), y = y0 + 2 + layer;
+        for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+          if (dx * dx + dz * dz > r * r + 1) continue;
+          const lit = (dx + dz + layer) % 3 === 0 && (Math.abs(dx) === r || Math.abs(dz) === r);
+          list.push([cx + dx, y, cz + dz, lit ? (layer % 2 ? B.GLOWSTONE : B.SEA_LANTERN) : B.SPRUCE_LEAVES]);
+        }
+      }
+      list.push([cx, y0 + 11, cz, B.GLOWSTONE]);
+      for (const q of list) if (BLOCK_REPLACE[G.world.getBlock(q[0], q[1], q[2])] || G.world.getBlock(q[0], q[1], q[2]) === B.AIR) put.push(q);
+      editBlocks(put);
+      G.prog.xmas = put.map((q) => q.slice(0, 3));
+    } finally { Net.capture = was; }
+  },
+};
+
+// ---------------------------------------------------------------- winter: snow everywhere ----
+{
+  const cold = Weather.cold;
+  Weather.cold = function (x, z) { return (Calendar.season().k === 'winter' && Calendar.outside()) || cold.call(this, x, z); };
+  const upd = Weather.update;
+  Weather.update = function (dt, cam) {
+    upd.call(this, dt, cam);
+    const s = Calendar.season().k;
+    if (!Calendar.outside()) return;
+    // winter keeps a white cover; spring melts it
+    if (s === 'winter' || Calendar.festa() && Calendar.festa().k === 'nadal') this.snowCover = Math.max(this.snowCover, 0.7);
+  };
+}
+
+// ---------------------------------------------------------------- the newspaper ----
+const HEADLINES = [
+  'Pigeons of Pla\u00e7a Universitat demand more breadcrumbs', 'STUCOM students break the record of stairs climbed in a day',
+  'Local cat elected mayor of the square for the third year', 'The bank\u2019s vault is \u201cvery, very safe\u201d, says the bank',
+  'Mystery: who keeps putting flowers on the metro platform?', 'Record queue at the kiosk for the new metro card design',
+  'Seagulls spotted wearing tiny hats near the port', 'Teachers agree: homework is good for you', 'New study: blocks are square',
+  'The fountain of the square will be cleaned on Tuesday (again)', 'Traffic jam of three horses on the main street',
+  'Survey: 9 out of 10 villagers prefer the morning sun', 'Brave student pets a wolf, wolf approves',
+];
+const ADS = [
+  ['\ud83e\udd56', 'Forn de Pa Can Pau', 'Fresh bread every morning \u00b7 Carrer dels Blocs'], ['\ud83d\udecb\ufe0f', 'Mobles C\u00fabics', 'Sofas that join into long couches'],
+  ['\ud83d\ude87', 'Metro de STUCOM', 'Your stop, next to your house \u00b7 ask at the panel'], ['\ud83c\udfab', 'Targeta Metro', '10 trips for 20 coins'],
+  ['\ud83c\udfe6', 'Banc Central', '2 % interest every morning. Do not break the walls.'], ['\ud83c\udfe0', 'Pedra de Parcel\u00b7la', 'Protect what you build'],
+  ['\ud83d\udcf7', 'Foto R\u00e0pida', 'Press P and smile'], ['\ud83c\udf2d', 'Frankfurt del Mercat', 'The best in the square since yesterday'],
+];
+
+const Newspaper = {
+  el: null, open: false,
+  pick(list, d, k) { return list[Math.floor(hash3(d, k, 17, 911) * list.length)]; },
+  show() {
+    if (!this.el) {
+      this.el = document.createElement('div');
+      this.el.id = 'paper';
+      this.el.className = 'overlay';
+      document.body.append(this.el);
+      this.el.addEventListener('click', (e) => { if (e.target === this.el) this.close(); });
+    }
+    this.open = true;
+    G.screenOpen = true;
+    releaseAllInput();
+    try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { /* ignore */ }
+    this.render();
+    this.el.classList.remove('hidden');
+    sfx('click', null, 0.8, 0.7);
+  },
+  close() {
+    if (!this.open) return;
+    this.open = false;
+    G.screenOpen = false;
+    this.el.classList.add('hidden');
+    requestLock();
+  },
+  render() {
+    const d = Calendar.day(), s = Calendar.season(), fe = Calendar.festa();
+    const next = FESTES.map((f) => ({ f, in: ((f.day - Calendar.yearDay() + YEAR_DAYS) % YEAR_DAYS) })).sort((a, b) => a.in - b.in);
+    const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const w = Weather.kind, wx = { clear: '\u2600\ufe0f Sunny', rain: '\ud83c\udf27\ufe0f Rain', storm: '\u26c8\ufe0f Storms', snow: '\u2744\ufe0f Snow', fog: '\ud83c\udf2b\ufe0f Fog' }[w] || '\u2600\ufe0f Sunny';
+    // metro and town news
+    let metro = 'The metro runs as usual.';
+    try {
+      const all = typeof MetroNet !== 'undefined' ? MetroNet.all() : [];
+      const st = all.reduce((a, n) => a + n.stations.length, 0);
+      const names = G.world.metro && G.world.metro.names || [];
+      if (all.length) metro = all.length + ' line' + (all.length > 1 ? 's' : '') + ' and ' + st + ' stations.' + (names.length ? ' Newest station: ' + names[names.length - 1].name + '.' : '');
+    } catch (e) { /* ignore */ }
+    const plots = typeof Claims !== 'undefined' ? Claims.map.size : 0;
+    const people = typeof Net !== 'undefined' && Net.on ? Net.peers.size + 1 : 1;
+    const head = fe ? { t: fe.name + ' today!', s: fe.text + '. Everybody is invited.' } :
+      next[0].in === 1 ? { t: 'Tomorrow: ' + next[0].f.name, s: next[0].f.text + '.' } :
+      Calendar.yearDay() % SEASON_DAYS === 0 ? { t: s.ca + ' arrives in STUCOM', s: s.k === 'autumn' ? 'The trees turn orange and red.' : s.k === 'winter' ? 'Snow is expected all over the map.' : s.k === 'spring' ? 'Everything is green again.' : 'Long, warm days ahead.' } :
+      { t: this.pick(HEADLINES, d, 1), s: 'Our reporters are on the story.' };
+    const ad1 = this.pick(ADS, d, 2), ad2 = this.pick(ADS, d, 3), ad3 = this.pick(ADS, d + 1, 4);
+    this.el.innerHTML = `<article class="np">
+      <button class="np-x" title="Close">\u2715</button>
+      <header><div class="np-date">${esc(Calendar.dateText())}</div><h1>La Gaseta de STUCOM</h1><div class="np-sub">Daily newspaper of the neighbourhood \u00b7 No. ${d + 1} \u00b7 1 coin</div></header>
+      <section class="np-main"><h2>${esc(head.t)}</h2><p>${esc(head.s)}</p></section>
+      <div class="np-cols">
+        <section><h3>Weather</h3><p class="np-big">${wx}</p><p>${s.icon} ${esc(s.ca)}, day ${Calendar.yearDay() % SEASON_DAYS + 1} of ${SEASON_DAYS}. ${s.k === 'winter' ? 'Wrap up warm.' : s.k === 'autumn' ? 'Leaves on the pavements.' : s.k === 'summer' ? 'Do not forget the sunscreen.' : 'Flowers everywhere.'}</p></section>
+        <section><h3>Metro</h3><p>${esc(metro)}</p><p>Cards: 10 trips for 20 coins at the machines by the gates.</p></section>
+        <section><h3>Town</h3><p>${people > 1 ? people + ' neighbours online today.' : 'A quiet day in the neighbourhood.'} ${plots ? plots + ' plot' + (plots > 1 ? 's are' : ' is') + ' claimed.' : 'Plots are still free: claim yours with a Plot Stone.'}</p><p>Your savings: ${G.mode === 'creative' ? 'unlimited' : (G.money | 0) + ' coins'}.</p></section>
+        <section><h3>Agenda</h3>${next.map((n) => `<p>${n.f.icon} <b>${esc(n.f.name)}</b> \u00b7 ${n.in === 0 ? 'today' : 'in ' + n.in + ' day' + (n.in > 1 ? 's' : '')}</p>`).join('')}</section>
+      </div>
+      <footer class="np-ads">${[ad1, ad2, ad3].map((a) => `<div><i>${a[0]}</i><b>${esc(a[1])}</b><span>${esc(a[2])}</span></div>`).join('')}</footer>
+    </article>`;
+    this.el.querySelector('.np-x').addEventListener('click', () => this.close());
+  },
+};
+
+// ---------------------------------------------------------------- hooks ----
+{
+  window.addEventListener('keydown', (e) => {
+    if (Newspaper.open) { if (e.code === 'Escape' || e.code === 'KeyU') { e.preventDefault(); e.stopImmediatePropagation(); Newspaper.close(); } return; }
+    if (e.code === 'KeyU' && G.playing && !G.screenOpen && !e.repeat && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); Newspaper.show(); }
+  }, true);
+  // the kiosk in the square sells the paper (right-click its counter)
+  const use = Act.useItem;
+  Act.useItem = function (initial) {
+    const t = this.target, b = t && t.block;
+    if (initial && b && !G.player.sneaking && Calendar.square()) {
+      const sq = Calendar.square();
+      if (Math.hypot(b.pos[0] - sq[0], b.pos[2] - sq[2]) < 30 && (b.id === B.CONCRETE + 13 || b.id === B.CRATE)) { Newspaper.show(); this.swingHand(); return true; }
+    }
+    return use.call(this, initial);
+  };
+}
+</script>
+<script>
+'use strict';
 // Football on the Camp Nou pitch and on STUCOM's campus pitch.
 // A ball waits on the centre spot while you are near a pitch. Walk into it to dribble, left-click
 // near it to shoot where you look (harder while sprinting), right-click to chip it up. A ball
@@ -33032,7 +33315,9 @@ const SETTINGS_UI = [
   { key: 'music', group: 'sound', label: 'Music volume', hint: 'Soft music written live for each place: days, nights, fights, the Nether, the End, the stadium.', type: 'range', min: 0, max: 1, step: 0.05, fmt: (v) => (v ? Math.round(v * 100) + '%' : 'Off') },
   { key: 'minimap', group: 'hud', label: 'Minimap', hint: 'The round map in the corner. Press M for the big map.', type: 'select', options: [['normal', 'Close'], ['large', 'Far'], ['off', 'Off']] },
   { key: 'bobbing', group: 'hud', label: 'View bobbing', hint: 'The camera sways as you walk.', type: 'check' },
-  { key: 'sensitivity', group: 'controls', label: 'Mouse sensitivity', type: 'range', min: 0.2, max: 3, step: 0.05, fmt: (v) => v.toFixed(2) + '\u00d7' },
+  { key: 'sensitivity', group: 'controls', label: 'Mouse sensitivity', hint: 'How fast the view turns. Very sensitive gaming mice feel best around 0.3\u20130.6.', type: 'range', min: 0.05, max: 4, step: 0.05, fmt: (v) => v.toFixed(2) + '\u00d7' },
+  { key: 'rawMouse', group: 'controls', label: 'Raw mouse input', hint: 'Ignore the system\u2019s mouse acceleration (steadier aim). Turn off if the view feels stuck.', type: 'check' },
+  { key: 'invertY', group: 'controls', label: 'Invert mouse Y', type: 'check' },
 ];
 
 // Quality presets offered above the graphics options.
@@ -33080,7 +33365,7 @@ function loadSettings() {
   st.renderDistance = clamp(Math.round(st.renderDistance), 3, 16);
   st.renderScale = clamp(st.renderScale, 0.5, 2);
   st.fov = clamp(st.fov, 50, 110);
-  st.sensitivity = clamp(st.sensitivity, 0.2, 3);
+  st.sensitivity = clamp(Number(st.sensitivity) || 1, 0.05, 4);
   st.brightness = clamp(st.brightness, 0.6, 1.8);
   st.volume = clamp(st.volume, 0, 1);
   if (!['auto', ...WEATHER_KINDS].includes(st.weather)) st.weather = 'auto';
@@ -33485,7 +33770,10 @@ function requestLock() {
     else enterUnlockedPlay();
   };
   try {
-    const r = G.canvas.requestPointerLock();
+    // raw input (no OS acceleration) where the browser has it; plain lock otherwise
+    let r;
+    try { r = G.canvas.requestPointerLock(G.settings.rawMouse !== false ? { unadjustedMovement: true } : undefined); } catch (e2) { r = G.canvas.requestPointerLock(); }
+    if (r && typeof r.catch === 'function' && G.settings.rawMouse !== false) r = r.catch((err) => { if (err && err.name === 'NotSupportedError') return G.canvas.requestPointerLock(); throw err; });
     if (r && typeof r.then === 'function') r.then(() => { G.lockPending = false; }, fail);
     else G.lockPending = false;
   } catch (e) { fail(e); }
@@ -33633,7 +33921,14 @@ function bindInput() {
   document.addEventListener('mousemove', (e) => {
     if (!G.playing || G.screenOpen || G.stats.dead) return;
     if (G.unlocked && !G.drag.active) return;
-    const mx = clamp(e.movementX || 0, -300, 300), my = clamp(e.movementY || 0, -300, 300);
+    let mx = e.movementX || 0, my = e.movementY || 0;
+    // some browsers send a huge jump now and then (pointer lock bug on Windows / after alt-tab):
+    // a single step far bigger than the recent movement is dropped instead of spinning the view
+    const mag = Math.abs(mx) + Math.abs(my), avg = G.mouseAvg || 0;
+    if (mag > 180 && mag > avg * 8 + 60) { G.mouseAvg = avg * 0.9; return; }
+    G.mouseAvg = avg * 0.8 + mag * 0.2;
+    mx = clamp(mx, -400, 400); my = clamp(my, -400, 400);
+    if (G.settings.invertY) my = -my;
     if (G.unlocked) {
       G.drag.moved += Math.abs(mx) + Math.abs(my);
       if (G.drag.mining) return;
@@ -34080,7 +34375,7 @@ function frame(now) {
     }
     if (G.shake > 0.01) for (let i = 0; i < 3; i++) cam.pos[i] += (Math.random() - 0.5) * G.shake * 0.25;
     G.eyeSky = sampleSkyExposure(G.world, cam.pos[0], cam.pos[1], cam.pos[2]);
-    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Physics.update(dt); Furniture.update(dt); SharedState.update(dt); SharedAnimals.update(dt); Claims.update(dt); Home.update(dt); Police.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
+    if (!paused) { Weather.update(dt, cam); Fluids.update(dt); Wildlife.update(dt, cam); Portals.update(dt); DimMobs.update(dt); Fire.update(dt); Bank.update(dt); Mech.update(dt); AutoDoor.update(dt); Lumber.update(dt); Social.update(dt); MetroBuild.update(dt); Physics.update(dt); Furniture.update(dt); SharedState.update(dt); SharedAnimals.update(dt); Claims.update(dt); Home.update(dt); Police.update(dt); Calendar.update(dt); Wyrm.update(dt); Progress.update(dt); Metro.update(dt); Football.update(dt); Pets.update(dt); }
     Music.update(dt);
     const dim = G.onTitle ? DIM_OVER : dimOf(cam.pos[0], cam.pos[2]);
     if (!paused) DimAir.update(dt, cam.pos, dim);
