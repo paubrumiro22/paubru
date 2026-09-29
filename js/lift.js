@@ -43,7 +43,7 @@ const Lift = {
   },
 
   offer(x, z, stops, cur) {
-    const p = GPanel.open({ title: 'Ascensor', sub: 'Tria la planta', icon: '🛗', cls: 'gp-lift', width: 300 });
+    const p = GPanel.open({ title: ED('Ascensor', 'Lift'), sub: ED('Tria la planta', 'Pick a floor'), icon: '🛗', cls: 'gp-lift', width: 300 });
     this.panel = p;
     p.onClose = () => { this.panel = null; };
     const btns = stops.map((s, i) => `<button class="lift-b${i === cur ? ' cur' : ''}" data-i="${i}"><b>${this.short(i, stops)}</b><span>${GPanel.esc(this.label(i, stops))}</span></button>`).reverse().join('');

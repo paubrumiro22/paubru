@@ -123,12 +123,14 @@ const Crazy = {
       if (showBanner) this.call(() => this.sdk.banner.requestResponsiveBanner('cgBanner'));
       else this.call(() => this.sdk.banner.clearAllBanners());
     }
-    // the invite button while on a server
+    // the invite button and link while on a server
     const code = Net.on && Net.server ? Net.server.code : null;
     if (code !== this.invite) {
       this.invite = code;
       this.call(() => (code ? this.sdk.game.showInviteButton({ roomId: code }) : this.sdk.game.hideInviteButton()));
+      if (code) this.call(() => Promise.resolve(this.sdk.game.inviteLink({ roomId: code })).then((u) => { this.link = u; }).catch(() => {}));
     }
+    this.chatOff = !!this.call(() => this.sdk.game.settings.disableChat);
   },
 
   // an ad: the game muted and paused while it plays; done(ok) afterwards
@@ -305,6 +307,29 @@ if (CG) {
     if (wait > 0) { G.ui.toast('🎁 More free coins in ' + Math.ceil(wait / 60000) + ' min'); return; }
     Crazy.rewarded(() => { Crazy.bonusAt = Date.now() + 300000; G.money = (G.money || 0) + 100; sfx('shop_till', null, 0.8, 1); G.ui.toast('🎁 +100 coins!'); });
   } });
+  // the chat: bad words masked (their players are often young), off when CrazyGames says so
+  const BAD = ['fuck', 'fck', 'fuk', 'shit', 'bitch', 'cunt', 'dick', 'cock', 'pussy', 'asshole', 'bastard', 'slut', 'whore', 'fag', 'faggot', 'nigga', 'nigger', 'retard', 'rape', 'porn', 'sex', 'nazi', 'hitler',
+    'puta', 'puto', 'mierda', 'joder', 'coño', 'cabron', 'cabrón', 'gilipollas', 'maricon', 'maricón', 'polla', 'zorra', 'pendejo', 'verga', 'culero', 'follar',
+    'merda', 'collons', 'fill de puta', 'cony', 'putain', 'merde', 'connard', 'salope', 'scheisse', 'arschloch', 'hure', 'cazzo', 'stronzo', 'caralho', 'porra'];
+  const norm = (t) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[0@]/g, 'o').replace(/[1!|]/g, 'i').replace(/3/g, 'e').replace(/4/g, 'a').replace(/[5$]/g, 's').replace(/7/g, 't');
+  // short words only on their own (so "Essex" or "Dickens" stay as they are)
+  const RE = new RegExp('(' + BAD.map((w) => { const n = norm(w), body = n.split('').map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\W_]*'); return n.length <= 4 ? '(?<![a-z])' + body + '(?![a-z])' : body; }).join('|') + ')', 'gi');
+  Crazy.clean = (text) => {
+    const t = String(text), n = norm(t);
+    if (n.length !== t.length) return RE.test(n) ? n.replace(RE, (m) => '*'.repeat(m.length)) : t;
+    let out = t, m;
+    RE.lastIndex = 0;
+    while ((m = RE.exec(n))) out = out.slice(0, m.index) + '*'.repeat(m[0].length) + out.slice(m.index + m[0].length);
+    return out;
+  };
+  const add = Net.addChat;
+  Net.addChat = function (name, color, text) {
+    if (Crazy.chatOff && name !== this.name) return;
+    return add.call(this, Crazy.clean(name), color, Crazy.clean(text));
+  };
+  const oc = Net.openChat;
+  Net.openChat = function () { if (Crazy.chatOff) { G.ui.toast('Chat is turned off'); return; } return oc.apply(this, arguments); };
+
   // every save also goes to the cloud; invite links are CrazyGames links
   const ss = storageSet;
   storageSet = function (key, value) { const r = ss(key, value); Crazy.wrote(key); return r; };
