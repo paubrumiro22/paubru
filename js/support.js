@@ -4,7 +4,7 @@
 // unlock anything. Set SUPPORT.kofi (the Ko-fi page name) and/or SUPPORT.paypal (a paypal.me
 // name) to switch the buttons on; until then the card says it is coming soon.
 
-const SUPPORT = { kofi: '', paypal: '' };
+const SUPPORT = { kofi: 'paubru', paypal: '' };
 
 const Support = {
   el: null,
