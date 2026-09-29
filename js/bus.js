@@ -44,7 +44,15 @@ const Bus = {
         pts.forEach((p, i) => { const d = Math.hypot(p[0] - st.u, p[1] - st.v); if (d < bd) { bd = d; bi = i; } });
         return { name: st.name, s: s[bi], u: st.u, v: st.v, su: st.su !== undefined ? st.su : st.u, sv: st.sv !== undefined ? st.sv : st.v };
       }).sort((a, b) => a.s - b.s);
-      out[n] = { n: Number(n), L, pts, s, total, stops, cx: pl.x, cz: pl.z, F: pl.y };
+      // the timetable: from each stop to the next, then the wait there (the same for everybody)
+      let t = 0;
+      const legs = stops.map((st, i) => {
+        const nx = stops[(i + 1) % stops.length], len = ((nx.s - st.s) % total + total) % total || total;
+        const prof = runProfile(len, BUS_MAX, BUS_ACC), l = { from: i, to: (i + 1) % stops.length, s0: st.s, len, prof, t0: t, arr: t + prof.tt };
+        t = l.arr + BUS_DWELL;
+        return l;
+      });
+      out[n] = { n: Number(n), L, pts, s, total, stops, legs, cycle: t, cx: pl.x, cz: pl.z, F: pl.y };
     }
     return out;
   },
@@ -69,31 +77,29 @@ const Bus = {
       if (b && (b.v.removed || !Vehicles.list.includes(b.v))) { b = this.buses[R.n] = null; }
       if (!near) { if (b && G.vehicle !== b.v) { b.v.removed = true; this.buses[R.n] = null; } continue; }
       if (!b) {
-        // wherever the timetable says it is now
-        const s0 = ((Date.now() / 1000) * 5.2 + R.n * 97) % R.total, [u, v, yaw] = this.at(R, s0);
-        const v2 = Rides.spawn('bus', R.cx + u + 0.5, R.F, R.cz + v + 0.5, yaw, R.n === 1 ? 0 : 1);
+        const v2 = Rides.spawn('bus', R.cx + 0.5, R.F, R.cz + 0.5, 0, R.n === 1 ? 0 : 1);
         v2.scripted = true; v2.busLine = R.n; v2.onGround = true;
-        b = this.buses[R.n] = { v: v2, s: s0, speed: 0, state: 'run', t: 0, stop: R.stops.findIndex((st) => st.s > s0), said: false };
-        if (b.stop < 0) b.stop = 0;
+        b = this.buses[R.n] = { v: v2, s: 0, speed: 0, state: 'run', t: 0, stop: 0, said: false, first: true };
       }
       this.drive(R, b, dt);
     }
     this.updateHud(dt);
   },
+  phase(R) { return (((Date.now() / 1000 + R.n * 97) % R.cycle) + R.cycle) % R.cycle; },
   drive(R, b, dt) {
-    const st = R.stops[b.stop], v = b.v;
-    if (b.state === 'dwell') {
-      b.t -= dt; b.speed = 0;
-      if (b.t <= 0) { b.state = 'run'; b.stop = (b.stop + 1) % R.stops.length; b.said = false; sfx('metro_doors', v.pos, 0.6, 1.2); }
-    } else {
-      const d = this.ahead(R, b.s, st.s);
-      const want = Math.min(BUS_MAX, Math.sqrt(2 * BUS_DEC * Math.max(0, d - 0.2)) + 0.3);
-      b.speed = b.speed < want ? Math.min(want, b.speed + BUS_ACC * dt) : Math.max(want, b.speed - BUS_DEC * 1.6 * dt);
-      const step = Math.min(b.speed * dt, d);
-      b.s = (b.s + step) % R.total;
-      if (!b.said && d < 30) { b.said = true; if (G.vehicle === v) this.sign(R, 'Next stop: ' + st.name, 'Press the bell · Shift to get off'); sfx('bell', v.pos, 0.6, 1); }
-      if (d - step < 0.05) {
-        b.state = 'dwell'; b.t = BUS_DWELL; b.speed = 0;
+    const v = b.v, ph = this.phase(R);
+    let l = R.legs[0];
+    for (const q of R.legs) if (q.t0 <= ph) l = q;
+    const dtl = ph - l.t0, run = dtl < l.prof.tt;
+    const [d, sp] = run ? l.prof.at(dtl) : [l.len, 0];
+    const was = { state: b.state, stop: b.stop };
+    b.s = (l.s0 + d) % R.total; b.speed = sp; b.stop = l.to;
+    b.state = run ? 'run' : 'dwell'; b.t = run ? 0 : l.arr + BUS_DWELL - ph;
+    const st = R.stops[l.to];
+    if (!b.first) {
+      if (run && was.stop !== b.stop) { b.said = false; sfx('metro_doors', v.pos, 0.6, 1.2); }
+      if (run && !b.said && l.len - d < 30) { b.said = true; if (G.vehicle === v) this.sign(R, 'Next stop: ' + st.name, 'Press the bell · Shift to get off'); sfx('bell', v.pos, 0.6, 1); }
+      if (!run && was.state === 'run') {
         sfx('metro_doors', v.pos, 0.6, 1);
         if (G.vehicle === v) this.sign(R, st.name, 'Doors open · L' + R.n + ' ' + R.L.name);
       }
@@ -101,7 +107,8 @@ const Bus = {
     const [u, w, yaw] = this.at(R, b.s);
     v.pos = [R.cx + u + 0.5, R.F, R.cz + w + 0.5];
     let dy = yaw - v.yaw; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI;
-    v.yaw += dy * Math.min(1, dt * 6);
+    v.yaw = b.first ? yaw : v.yaw + dy * Math.min(1, dt * 6);
+    b.first = false;
     v.pitch = 0; v.roll = 0; v.speed = b.speed; v.vel = [0, 0, 0]; v.onGround = true;
     v.rpm = 0.2 + b.speed / BUS_MAX * 0.7;
     if (v.basis) v.basis();
@@ -116,16 +123,10 @@ const Bus = {
 
   // when is the next bus at this stop?
   eta(R, stopIdx) {
-    const b = this.buses[R.n];
-    if (!b) return null;
-    const st = R.stops[stopIdx];
-    if (b.state === 'dwell' && b.stop === stopIdx) return 0;
-    let t = this.ahead(R, b.s, st.s) / (BUS_MAX * 0.72);
-    // dwell at every stop on the way
-    let k = b.stop;
-    while (k !== stopIdx) { t += BUS_DWELL; k = (k + 1) % R.stops.length; }
-    if (b.state === 'dwell') t += b.t;
-    return t;
+    const ph = this.phase(R), l = R.legs.find((q) => q.to === stopIdx);
+    if (!l) return null;
+    if (ph >= l.arr && ph < l.arr + BUS_DWELL) return 0;
+    return ((l.arr - ph) % R.cycle + R.cycle) % R.cycle;
   },
   updateHud(dt) {
     this.hudT = (this.hudT || 0) - dt;
@@ -205,6 +206,9 @@ const TransportMap = {
         g.beginPath(); g.arc(X(q[0] + 0.5), Z(q[2] + 0.5), 7, 0, 7); g.fill(); g.stroke();
         g.fillStyle = '#20242c'; g.font = '800 19px Arial'; g.textAlign = 'left'; g.fillText('Ⓜ ' + st.name, X(q[0] + 0.5) + 10, Z(q[2] + 0.5) - 10);
       }
+      // the trains, where the timetable has them now
+      g.font = '24px serif'; g.textAlign = 'center';
+      for (const q of Metro.positions(N)) g.fillText('🚇', X(q.x), Z(q.z) + 8);
     }
     // bus lines
     if (lines) for (const R of Object.values(lines)) {

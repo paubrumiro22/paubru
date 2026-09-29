@@ -31,7 +31,9 @@ const METRO_STRIPES = [B.BLUE_TILES, B.CONCRETE + 14, B.CONCRETE + 4, B.CONCRETE
 const MDIRV = [[0, -1], [1, 0], [0, 1], [-1, 0]];   // rail link directions (as RIDE_DIRV)
 const mdirOf = (dx, dz) => (dz < 0 ? 0 : dx > 0 ? 1 : dz > 0 ? 2 : 3);
 const mface = (dx, dz) => (dx > 0 ? 0 : dx < 0 ? 1 : dz > 0 ? 4 : 5);   // block facing towards a direction
-const TRANSFER_DIST = 90;   // stations of different lines this close are an interchange
+const TRANSFER_DIST = 90;
+// v turned the way that turns a into b (a quarter turn either way)
+const mrot = (a, b, v) => (-a[1] === b[0] && a[0] === b[1] ? [-v[1], v[0]] : [v[1], -v[0]]);   // stations of different lines this close are an interchange
 
 // Station name signs: 'metro_st_<name>' (line 1, old saves) or 'metro_st_<line>~<name>'
 function metroStSign(key) {
@@ -220,6 +222,7 @@ const MetroNet = {
       N.color = lineInfo(N.n).color;
       N.idx = new Map();
       N.path.forEach((c, i) => N.idx.set(posKey(c[0], c[1], c[2]), i));
+      try { N.twin = this.twinOf(N); } catch (e) { N.twin = null; }
       for (const s of N.stations) {
         s.c = N.path[Math.round((s.i0 + s.i1) / 2)];
         const q = names.find((e) => Math.abs(e.x - s.c[0]) < 26 && Math.abs(e.z - s.c[2]) < 26);
@@ -233,6 +236,42 @@ const MetroNet = {
       for (const M of nets) if (M !== N && M.stations.some((t) => Math.hypot(t.c[0] - s.c[0], t.c[2] - s.c[2]) < TRANSFER_DIST)) s.transfer.push(M.n);
     }
     return nets;
+  },
+  // The second track of a double-track line: 3 blocks to one side of the first all the way, with
+  // its own platforms (the far ones). Oriented like the first; bOf[i] = the twin cell beside cell i.
+  twinOf(N) {
+    const A = N.path, n = A.length;
+    if (n < 10) return null;
+    for (const i of [3, n >> 2, n >> 1, (3 * n) >> 2, n - 4]) {
+      const a = A[i - 1], b = A[i + 1], c = A[i];
+      if (!a || !b || a[1] !== b[1] || Math.abs(b[0] - a[0]) + Math.abs(b[2] - a[2]) !== 2 || (b[0] !== a[0] && b[2] !== a[2])) continue;
+      const dx = Math.sign(b[0] - a[0]), dz = Math.sign(b[2] - a[2]);
+      for (const sd of [1, -1]) {
+        const q = [c[0] - dz * sd * 3, c[1], c[2] + dx * sd * 3];
+        if (!this.links(q[0], q[1], q[2])) continue;
+        let path = this.walkFrom(q);
+        if (!path || path.length < n * 0.6) continue;
+        const d = (p, r) => Math.abs(p[0] - r[0]) + Math.abs(p[2] - r[2]);
+        if (d(path[path.length - 1], A[0]) < d(path[0], A[0])) path = path.reverse();
+        if (d(path[0], A[0]) > 9 || d(path[path.length - 1], A[n - 1]) > 9) continue;
+        // the twin cell beside every cell of the first track (both go the same way)
+        const bOf = [];
+        let j = 0;
+        for (let k = 0; k < n; k++) {
+          let bj = j, bd = Infinity;
+          for (let m = Math.max(0, j - 4); m < Math.min(path.length, j + 12); m++) { const e = d(path[m], A[k]) + Math.abs(path[m][1] - A[k][1]); if (e < bd) { bd = e; bj = m; } }
+          if (bd > 7) return null;
+          bOf.push(bj); j = bj;
+        }
+        const stations = this.platforms(path, []);
+        for (const s of stations) {
+          const mid = path[Math.round((s.i0 + s.i1) / 2)];
+          s.a = N.stations.findIndex((t) => { const m = A[Math.round((t.i0 + t.i1) / 2)]; return d(m, mid) < 10; });
+        }
+        return { path, bOf, stations: stations.filter((s) => s.a >= 0) };
+      }
+    }
+    return null;
   },
   themed(x, z, used) {
     let h = Math.floor(hash3(Math.floor(x / 8), 0, Math.floor(z / 8), 313) * METRO_NAMES.length);
@@ -266,7 +305,13 @@ const MetroPlan = {
       if (Math.abs(e[0]) + Math.abs(e[1]) !== 1) continue;
       const nv = [-e[1], e[0]];
       const t = (x - E[0]) * e[0] + (z - E[2]) * e[1], l = (x - E[0]) * nv[0] + (z - E[2]) * nv[1];
-      const r = this.route(E, e, nv, t, l, end);
+      // a double-track line goes on double: its twin is 3 blocks to this side at the end
+      let tw = null;
+      if (N.twin) {
+        for (const sd of [1, -1]) if (MetroNet.links(E[0] + nv[0] * sd * 3, E[1], E[2] + nv[1] * sd * 3)) tw = [nv[0] * sd, nv[1] * sd];
+        if (!tw) { tries.push({ reason: 'The second track does not reach this end of the line.', score: 1 }); continue; }
+      }
+      const r = this.route(E, e, nv, t, l, end, tw);
       if (r.reason) tries.push(r); else tries.push(Object.assign(r, { end, E, e }));
     }
     let ok = tries.filter((r) => !r.reason).sort((a, b) => a.cells - b.cells);
@@ -293,7 +338,7 @@ const MetroPlan = {
         const O = [Math.round(x) - d[0] * along + m[0] * 12, Math.round(z) - d[1] * along + m[1] * 12];
         const r = this.station([O[0], P - 1, O[1]], d, m, P, along, 0);
         if (r.reason) { if (!best) best = r; continue; }
-        Object.assign(r, { E: [O[0], P - 1, O[1]], e: d, end: 1 });
+        Object.assign(r, { E: [O[0], P - 1, O[1]], e: d, end: 1, twin: 1 });
         if (this.clashes(r, 0)) { if (!best || best.reason) best = { reason: 'Another line’s tunnel is in the way. Pick a spot a little further from it.', score: 2 }; continue; }
         if (!best || best.reason || r.cells < best.cells) best = r;
       }
@@ -309,7 +354,7 @@ const MetroPlan = {
     const near = new Set();
     for (const N of MetroNet.all()) {
       if (N.n === n) continue;
-      for (const c of N.path) for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) near.add((c[0] + dx) + ',' + (c[2] + dz) + ',' + (c[1] >> 2));
+      for (const c of N.twin ? N.path.concat(N.twin.path) : N.path) for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) near.add((c[0] + dx) + ',' + (c[2] + dz) + ',' + (c[1] >> 2));
     }
     if (!near.size) return false;
     const { list } = MetroBuild.blocks(pl, pl.E, pl.e);
@@ -317,11 +362,11 @@ const MetroPlan = {
     return false;
   },
 
-  pack(pl) { return [pl.E[0], pl.E[1], pl.E[2], pl.e[0], pl.e[1], pl.d[0], pl.d[1], pl.m[0], pl.m[1], pl.P, pl.c0, pl.F, pl.steps, pl.bend || 0, pl.newLine || 0]; },
+  pack(pl) { return [pl.E[0], pl.E[1], pl.E[2], pl.e[0], pl.e[1], pl.d[0], pl.d[1], pl.m[0], pl.m[1], pl.P, pl.c0, pl.F, pl.steps, pl.bend || 0, pl.newLine || 0, pl.twin ? 1 : 0]; },
   unpack(a, x, z, n) {
-    if (!Array.isArray(a) || a.length !== 15 || !a.every(Number.isFinite)) return { reason: 'bad plan' };
+    if (!Array.isArray(a) || (a.length !== 15 && a.length !== 16) || !a.every(Number.isFinite)) return { reason: 'bad plan' };
     const u = (v) => Math.sign(v);
-    const pl = { E: [a[0], a[1], a[2]], e: [u(a[3]), u(a[4])], d: [u(a[5]), u(a[6])], m: [u(a[7]), u(a[8])], P: a[9], c0: a[10], F: a[11], steps: clamp(a[12] | 0, 1, 60), bend: clamp(a[13] | 0, 0, 1700), newLine: a[14] | 0 };
+    const pl = { E: [a[0], a[1], a[2]], e: [u(a[3]), u(a[4])], d: [u(a[5]), u(a[6])], m: [u(a[7]), u(a[8])], P: a[9], c0: a[10], F: a[11], steps: clamp(a[12] | 0, 1, 60), bend: clamp(a[13] | 0, 0, 1700), newLine: a[14] | 0, twin: a[15] ? 1 : 0 };
     if (pl.P < 2 || pl.F >= CH || Math.abs(pl.c0) > 1800) return { reason: 'bad plan' };
     return this.finish(pl, x, z, pl.newLine || n);
   },
@@ -337,8 +382,18 @@ const MetroPlan = {
     return pl;
   },
 
-  route(E, e, n, t, l, end) {
+  route(E, e, n, t, l, end, tw) {
     const P = E[1] + 1;
+    if (tw) {
+      // double track: the far track stays on its side, so the platform (and the exit) is on the
+      // other one; with a bend the twin turns with the line
+      if (Math.abs(l) <= 40) return Object.assign(this.station(E, e, tw, P, t, 0), { twin: 1 });
+      if (t < 10) return { reason: 'Too close to the line, or behind its end. Pick a spot further along.', score: 2 };
+      const f = [Math.sign(l) * n[0], Math.sign(l) * n[1]];
+      const K = [E[0] + e[0] * t, E[2] + e[1] * t];
+      const r = this.station([K[0], E[1], K[1]], f, mrot(e, f, tw), P, Math.abs(l), t);
+      return Object.assign(r, { twin: 1 });
+    }
     // straight on when the spot is roughly ahead, otherwise one bend towards it
     if (Math.abs(l) <= 40) {
       const side = l < 0 ? -1 : 1;
@@ -409,10 +464,65 @@ const MetroBuild = {
         }
       }
     };
+    // double track: the twin 3 blocks to the side tw, a wider vault over both
+    const tunnel2 = (x, z, dv, tw, k, walls) => {
+      for (let l = -2; l <= 5; l++) {
+        const cx = x + tw[0] * l, cz = z + tw[1] * l;
+        for (let y = P - 3; y <= P + 4; y++) {
+          const wall = l === -2 || l === 5, roof = y === P + 4 || (y === P + 3 && (l === -1 || l === 4));
+          let id = B.AIR;
+          if (y <= P - 2) id = y === P - 2 && !wall ? B.GRAVEL : B.CONCRETE + 7;
+          else if (wall || roof) { if (!walls && wall) continue; id = y === P ? B.BLUE_TILES : B.CONCRETE + 8; }
+          else if (y === P + 3 && (l === 1 || l === 2)) id = (k + l) % 8 === 4 ? B.GLASS_LAMP : B.CONCRETE + 8;
+          else if (y === P - 1 && (l === 0 || l === 3)) id = dv[0] ? B.RAIL_EW : B.RAIL;
+          set(cx, y, cz, id);
+        }
+      }
+    };
+    const railOf = (v) => (v[0] ? B.RAIL_EW : B.RAIL);
     // first leg (and the whole tunnel when there is no bend)
     const leg1 = pl.bend ? pl.bend : Math.round(c0 - 14);
-    for (let k = 1; k <= leg1; k++) tunnelCell(E[0] + e[0] * k, E[2] + e[1] * k, e, [-e[1], e[0]], k, k > 2);
-    if (pl.bend) {
+    const tw1 = pl.twin ? (pl.bend ? mrot(d, e, m) : m) : null;
+    if (pl.twin) {
+      for (let k = 1; k <= leg1; k++) tunnel2(E[0] + e[0] * k, E[2] + e[1] * k, e, tw1, k, k > 2);
+      if (pl.bend) {
+        // both legs, then a chamber round both curves (the inner and the outer one)
+        const K = [E[0] + e[0] * pl.bend, E[2] + e[1] * pl.bend];
+        for (let k = 1; k <= Math.round(c0 - 14); k++) tunnel2(K[0] + d[0] * k, K[1] + d[1] * k, d, m, k, k > 6);
+        const Kb = [K[0] + 3 * tw1[0] + 3 * m[0], K[1] + 3 * tw1[1] + 3 * m[1]];
+        const x0 = Math.min(K[0], Kb[0]) - 3, x1 = Math.max(K[0], Kb[0]) + 3, z0 = Math.min(K[1], Kb[1]) - 3, z1 = Math.max(K[1], Kb[1]) + 3;
+        const ring = (x, z) => x === x0 || x === x1 || z === z0 || z === z1;
+        const inBox = (x, z) => x >= x0 && x <= x1 && z >= z0 && z <= z1;
+        for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) for (let y = P - 3; y <= P + 5; y++) {
+          const r = ring(x, z);
+          let id = B.AIR;
+          if (y <= P - 2) id = y === P - 2 && !r ? B.GRAVEL : B.CONCRETE + 7;
+          else if (r || y === P + 5) id = y === P ? B.BLUE_TILES : B.CONCRETE + 8;
+          else if (y === P + 4 && ((x === K[0] && z === K[1]) || (x === Kb[0] && z === Kb[1]))) id = B.GLASS_LAMP;
+          set(x, y, z, id);
+        }
+        // the legs come in through the ring
+        for (const [from, dir, lat] of [[K, [-e[0], -e[1]], tw1], [K, d, m]]) for (let k = 1; k <= 14; k++) for (let l = -1; l <= 4; l++) {
+          const x = from[0] + dir[0] * k + lat[0] * l, z = from[1] + dir[1] * k + lat[1] * l;
+          if (!inBox(x, z) || !ring(x, z)) continue;
+          for (let y = P; y <= P + 2; y++) set(x, y, z, B.AIR);
+          set(x, P - 1, z, l === 0 || l === 3 ? railOf(dir) : B.AIR);
+          set(x, P - 2, z, B.GRAVEL);
+        }
+        // the rails through the chamber and the two curves
+        for (const C of [K, Kb]) {
+          for (const dir of [[-e[0], -e[1]], d]) for (let k = 1; k <= 14; k++) {
+            const x = C[0] + dir[0] * k, z = C[1] + dir[1] * k;
+            if (!inBox(x, z) || ring(x, z)) break;
+            set(x, P - 1, z, railOf(dir));
+          }
+          const din = mdirOf(-e[0], -e[1]), dout = mdirOf(d[0], d[1]);
+          const ci = RAIL_LINKS.findIndex((q) => q.includes(din) && q.includes(dout));
+          if (ci >= 0) set(C[0], P - 1, C[1], RAIL_IDS[ci]);
+        }
+      }
+    } else for (let k = 1; k <= leg1; k++) tunnelCell(E[0] + e[0] * k, E[2] + e[1] * k, e, [-e[1], e[0]], k, k > 2);
+    if (pl.bend && !pl.twin) {
       // a chamber at the bend, then the second leg to the station
       const K = [E[0] + e[0] * pl.bend, E[2] + e[1] * pl.bend];
       for (let a = -3; a <= 3; a++) for (let b = -3; b <= 3; b++) for (let y = P - 3; y <= P + 5; y++) {
@@ -440,21 +550,24 @@ const MetroBuild = {
     const X = (a, s) => O[0] + d[0] * (c0 + s) + m[0] * a, Z = (a, s) => O[1] + d[1] * (c0 + s) + m[1] * a;
     const S = (a, y, s, id, f) => set(X(a, s), y, Z(a, s), id, f);
     const stripe = pl.stripe || METRO_STRIPES[(pl.index || 0) % METRO_STRIPES.length];
-    for (let a = -9; a <= 2; a++) for (let s = -14; s <= 14; s++) {
-      const mouth = s === -14 && a >= -1 && a <= 1;
-      const wall = a === -9 || a === 2 || ((s === -14 || s === 14) && !mouth);
+    // (double track: the twin at a = 3 and the far platform a 5..8 behind it)
+    const tw = !!pl.twin, aMax = tw ? 9 : 2, aTr = tw ? 4 : 1;
+    const track = (a) => a === 0 || (tw && a === 3);
+    for (let a = -9; a <= aMax; a++) for (let s = -14; s <= 14; s++) {
+      const mouth = s === -14 && a >= -1 && a <= aTr;
+      const wall = a === -9 || a === aMax || ((s === -14 || s === 14) && !mouth);
       for (let y = P - 3; y <= P + 6; y++) {
         let id = B.AIR;
         if (y === P + 6) id = B.CONCRETE;
         else if (y === P + 5) id = !wall && (a + s) % 4 === 0 ? B.GLASS_LAMP : B.CONCRETE + 8;
         else if (wall) id = y === P + 1 ? stripe : y < P - 1 ? B.CONCRETE + 7 : B.CONCRETE;
-        else if (y === P - 1) id = a <= -2 ? (a === -2 ? B.CONCRETE + 4 : B.TERRAZZO) : a === 0 && s <= 12 ? (d[0] ? B.RAIL_EW : B.RAIL) : B.AIR;
-        else if (y === P - 2) id = a >= -1 ? (a === 0 && s >= -13 && s <= 12 ? B.METRO_MARK : B.GRAVEL) : B.CONCRETE + 7;
+        else if (y === P - 1) id = a <= -2 ? (a === -2 ? B.CONCRETE + 4 : B.TERRAZZO) : a > aTr ? (a === aTr + 1 ? B.CONCRETE + 4 : B.TERRAZZO) : track(a) && s <= 12 ? (d[0] ? B.RAIL_EW : B.RAIL) : B.AIR;
+        else if (y === P - 2) id = a >= -1 && a <= aTr ? (track(a) && s >= -13 && s <= 12 ? B.METRO_MARK : B.GRAVEL) : B.CONCRETE + 7;
         else if (y < P - 2) id = B.CONCRETE + 7;
         S(a, y, s, id);
       }
     }
-    for (let a = -1; a <= 1; a++) { S(a, P - 1, 13, B.CONCRETE + 15); S(a, P, 13, B.CONCRETE + 14); }
+    for (let a = -1; a <= aTr; a++) { S(a, P - 1, 13, B.CONCRETE + 15); S(a, P, 13, B.CONCRETE + 14); }
     for (const s of [-9, -2, 5]) for (let y = P; y <= P + 4; y++) S(-5, y, s, y === P + 1 ? stripe : B.QUARTZ_PILLAR);
     const toWall = mface(-m[0], -m[1]), fromWall = mface(m[0], m[1]), back = mface(-d[0], -d[1]);
     for (const s of [-7, -6, 10, 11]) S(-8, P, s, shapeId('oak', 'stairs'), toWall);
@@ -469,9 +582,15 @@ const MetroBuild = {
     };
     const sign = metroSign(pl.name, pl.line || 1);
     const trackSide = mface(-m[0], -m[1]);
-    pic(1, P + 2, -11, trackSide, 3, 1, sign, true);
-    pic(1, P + 2, 4, trackSide, 3, 1, sign, true);
+    pic(aMax - 1, P + 2, -11, trackSide, 3, 1, sign, true);
+    pic(aMax - 1, P + 2, 4, trackSide, 3, 1, sign, true);
     pic(-8, P + 1, 1, fromWall, 2, 1, 'metro_map', true);
+    if (tw) {
+      // the far platform: benches, the name across the tracks, the underpass
+      for (const s of [8, 9]) S(8, P, s, shapeId('oak', 'stairs'), fromWall);
+      pic(-8, P + 2, -13, fromWall, 3, 1, sign, true);
+      metroUnderpass(S, P, -4, 7, -6, -1, mface(d[0], d[1]), stripe, (a, s) => a === -5 && (s === -9 || s === -2 || s === 5));
+    }
     // the stair up to the street, 3 wide at a -13..-11, top at s = 7 - steps, landing s 7..9
     const n = pl.steps, st = shapeId('terrazzo', 'stairs'), sTop = 7 - n;
     for (let k = 0; k < n; k++) {
@@ -593,7 +712,7 @@ const MetroBuild = {
       w.editsDirty = true;
       MetroNet.dirty = true;
       if (typeof FareRetro !== 'undefined') FareRetro.done.clear();
-      if (Metro.train && G.vehicle !== Metro.train) { Metro.train.removed = true; Metro.train = null; }
+      Metro.reset();
       if (j.mine) { G.ui.banner(j.icon || '🚇', j.done || j.name + ' station is open'); sfx('metro_chime', null, 1, 1); saveWorld(); }
     }
   },
@@ -646,18 +765,20 @@ const MetroPanel = {
       const len = N.path.length, p = G.player.pos;
       let here = -1, hd = 160;
       N.stations.forEach((s, i) => { const d = Math.hypot(s.c[0] - p[0], s.c[2] - p[2]); if (d < hd) { hd = d; here = i; } });
-      const t = Metro.train, ti = t && t.auto && t.auto.line === N.n && t.rail ? N.idx.get(posKey(t.rail.x, t.rail.y, t.rail.z)) : undefined;
+      const R = Metro.route(N);
+      const trains = Metro.positions(N).map((q) => ({ i: MetroNet.nearIdx(N.path, [q.x, q.y, q.z]), dir: q.dir }));
       const pos = (i) => (len > 1 ? 4 + (i / (len - 1)) * 92 : 50);
-      const minutes = Math.max(1, Math.round((len / 14 + N.stations.length * METRO_STOP.dwell) / 60));
+      const minutes = Math.max(1, Math.round((R ? R.cycle / 2 : len / 14 + N.stations.length * METRO_STOP.dwell) / 60));
       body = `
         <div class="mp-line" style="--lc:${N.color}"><div class="mp-track"></div>
           ${N.stations.map((s, i) => `<div class="mp-st${i === here ? ' here' : ''}${s.transfer.length ? ' xfer' : ''}" style="left:${pos((s.i0 + s.i1) / 2)}%"><em></em><span>${escapeHtml(s.name)}</span>${s.transfer.length ? `<small class="mp-x2">${s.transfer.map((n) => this.pill(n)).join('')}</small>` : i === here ? '<small>You are here</small>' : ''}</div>`).join('')}
-          ${ti !== undefined ? `<div class="mp-train" style="left:${pos(ti)}%">🚇</div>` : ''}
+          ${trains.map((q) => `<div class="mp-train${q.dir < 0 ? ' back' : ''}" style="left:${pos(q.i)}%">🚇</div>`).join('')}
         </div>
         <div class="mp-stats">
           <div><b>${N.stations.length}</b><span>stations</span></div>
           <div><b>${(len / 1000).toFixed(2)} km</b><span>of track</span></div>
           <div><b>~${minutes} min</b><span>end to end</span></div>
+          <div><b>${R ? (R.double ? '2 tracks' : '1 track') : '—'}</b><span>${R ? R.count + ' train' + (R.count > 1 ? 's' : '') + ' · every ' + timeText(R.cycle / R.count) : 'no service'}</span></div>
           <div><b>${N.stations.reduce((a, s) => a + (s.transfer.length ? 1 : 0), 0)}</b><span>interchanges</span></div>
         </div>`;
     } else body = '<p class="mp-empty">No metro yet in this world. Start the first line wherever you like — next to your house, for example.</p>';

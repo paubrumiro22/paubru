@@ -105,6 +105,7 @@ const Airport = {
       if (this.step(F, dt)) { this.flights.splice(this.flights.indexOf(F), 1); if (F.then) F.then(F); else if (G.vehicle !== F.v) F.v.removed = true; }
     }
     if (!pl) return;
+    this.updateHud();
     // traffic while you are around: a plane lands, waits at the stand and takes off again
     const p = G.player.pos, near = Math.hypot(p[0] - (pl.x + 110), p[2] - pl.z) < 320 && Math.abs(p[1] - pl.y) < 120;
     if (!near) { for (const F of this.flights) if (!F.player && G.vehicle !== F.v) F.v.removed = true; return; }
@@ -116,7 +117,6 @@ const Airport = {
         setTimeout(() => { if (!F.v.removed && !this.mine) this.fly(FLIGHT_OUT, (G2) => { G2.v.removed = true; }, F.v); else F.v.removed = true; }, 25000);
       });
     }
-    this.updateHud();
   },
 
   // ---- flights for the player ----
@@ -128,9 +128,36 @@ const Airport = {
       return { key: r.key, name: r.p.name, icon: r.p.icon, d, price: 40 + Math.round(d / 30), mins: Math.max(1, Math.round(d / 250)) };
     }).sort((a, b) => a.d - b.d);
   },
+  // far from STUCOM (after a flight, or anywhere): the only flight is the one back home
+  away() {
+    const pl = this.plan(), p = G.player.pos;
+    return !!pl && (dimOf(p[0], p[2]) !== DIM_OVER || Math.hypot(p[0] - pl.x - 100, p[2] - pl.z) > 420);
+  },
+  homePrice() {
+    const pl = this.plan(), p = G.player.pos;
+    return pl ? 40 + Math.round(Math.min(6000, Math.hypot(p[0] - pl.x, p[2] - pl.z)) / 30) : 40;
+  },
+  openReturn() {
+    const q = GPanel.open({ title: 'Blocklands Air', sub: 'Return flight · to Aeroport STUCOM', icon: '✈️', cls: 'gp-shop', width: 520 });
+    q.wrap.querySelector('.gp').style.setProperty('--shop', '#d6202b');
+    const pass = G.inv.count(I.BOARDING_PASS) > 0, price = this.homePrice();
+    const where = G.prog && G.prog.trip ? (this.dests().find((d) => d.key === G.prog.trip) || null) : null;
+    q.body.innerHTML = `<div class="ret-card"><div class="ret-route"><span>${where ? where.icon + ' ' + GPanel.esc(where.name) : '📍 Here'}</span><i>✈️</i><span>🏫 STUCOM</span></div>
+      <p>${pass ? 'You have a return boarding pass: the flight is on us.' : 'No boarding pass? Buy a ticket home.'} A plane picks you up and lands at the STUCOM runway.</p>
+      <button class="gp-btn ok ret-go">${pass ? '🎫 Use boarding pass' : '🪙 ' + price + ' · fly home'}</button></div>`;
+    q.body.querySelector('.ret-go').addEventListener('click', () => {
+      if (this.mine) { G.ui.toast('You are already on a flight'); return; }
+      if (pass) { G.inv.remove(I.BOARDING_PASS, 1); G.ui.invDirty(); }
+      else if (!Shops.pay(price)) { G.ui.toast('🪙 The ticket costs ' + price + ' coins'); sfx('gate_no', null, 0.6, 1); return; }
+      q.close();
+      sfx('shop_till', null, 0.7, 1);
+      this.flyHome();
+    });
+  },
   open() {
     const pl = this.plan();
     if (!pl) { G.ui.toast('Flights leave from the airport of the STUCOM district'); return; }
+    if (this.away()) { this.openReturn(); return; }
     const q = GPanel.open({ title: 'Blocklands Air', sub: 'Departures · Aeroport STUCOM', icon: '✈️', cls: 'gp-shop', width: 640 });
     q.wrap.querySelector('.gp').style.setProperty('--shop', '#d6202b');
     const now = new Date();
@@ -182,25 +209,56 @@ const Airport = {
       const left = G.inv.add(mkStack(I.BOARDING_PASS, 1));
       if (left) Ents.spawnItem(mkStack(I.BOARDING_PASS, 1), G.player.pos[0], G.player.pos[1] + 1, G.player.pos[2]);
       G.ui.invDirty();
-      G.ui.banner(d.icon, 'Welcome to ' + d.name + '! Your return boarding pass is in your inventory');
+      pr.trip = d.key;
+      G.ui.banner(d.icon, 'Welcome to ' + d.name + '! To fly home: your boarding pass, or Flights on the phone (L)');
       this.fade(false);
     }, 1400);
   },
+  // The flight home: you are aboard a plane on its approach to STUCOM, it lands, taxis to the
+  // stand and you get off at the terminal.
   flyHome() {
     const pl = this.plan();
     if (!pl) { G.ui.toast('This world has no STUCOM airport'); return false; }
-    if (Police.jail) return false;
+    if (Police.jail || this.mine) return false;
+    const from = G.prog && G.prog.trip ? this.dests().find((d) => d.key === G.prog.trip) : null;
     this.fade(true, () => {
       if (G.vehicle) Vehicles.dismount(true);
+      // the ambient plane would land on top of ours
+      for (const F of this.flights.slice()) if (!F.player && G.vehicle !== F.v) { F.v.removed = true; this.flights.splice(this.flights.indexOf(F), 1); }
+      this.ambientT = 70;
+      const F = this.fly(FLIGHT_LAND, () => this.landed());
+      if (!F) { this.fade(false); return; }
+      F.player = true;
+      this.mine = { d: { name: 'STUCOM', icon: '🏫' }, from, F, home: true };
+      this.step(F, 0);
+      const p = G.player;
+      p.pos = F.v.pos.slice(); p.vel = [0, 0, 0]; p.fallStart = null;
+      prepareArea(pl.x + 110, pl.z, 3);
+      Vehicles.board(F.v);
+      p.yaw = F.v.yaw + Math.PI + 0.7; p.pitch = -0.22;
+      Net.teleported();
+      G.ui.banner('✈️', 'Blocklands Air · back to STUCOM · we are starting our approach');
+      sfx('metro_chime', null, 0.8, 0.8);
+      this.fade(false);
+    }, 1200);
+    return true;
+  },
+  landed() {
+    const pl = this.plan(), m = this.mine;
+    this.fade(true, () => {
+      const v = m && m.F.v;
+      this.mine = null;
+      if (G.vehicle === v) Vehicles.dismount(true);
+      if (v) v.removed = true;
+      if (G.prog) G.prog.trip = null;
       const p = G.player;
       p.pos = [pl.x + 94.5, pl.y, pl.z + 0.5]; p.vel = [0, 0, 0]; p.fallStart = null; p.yaw = Math.PI / 2;
       prepareArea(p.pos[0], p.pos[2], 2);
       liftOutOfBlocks(p);
       Net.teleported();
-      G.ui.banner('✈️', 'Welcome back to Aeroport STUCOM');
+      G.ui.banner('🏫', 'Welcome back to Aeroport STUCOM');
       this.fade(false);
-    }, 1200);
-    return true;
+    }, 900);
   },
   fade(on, then, ms = 700) {
     let el = $('flightFade');
@@ -213,9 +271,10 @@ const Airport = {
     let el = $('tripHud');
     if (!m) { if (el) el.classList.remove('show'); return; }
     if (!el) { el = document.createElement('div'); el.id = 'tripHud'; document.body.append(el); }
-    const F = m.F, tot = FLIGHT_OUT[FLIGHT_OUT.length - 1][0], alt = Math.max(0, Math.round(F.v.pos[1] - F.pl.y));
-    const phase = F.t < 17 ? 'Taxiing' : F.t < 32 ? 'Take-off' : 'Climbing';
-    el.innerHTML = `<b>✈️ STUCOM → ${GPanel.esc(m.d.name)}</b><span>${phase} · ${Math.round(F.v.speed * 3.6)} km/h · ${alt} m</span><i style="width:${Math.min(100, F.t / tot * 100)}%"></i>`;
+    const F = m.F, fr = m.home ? FLIGHT_LAND : FLIGHT_OUT, tot = fr[fr.length - 1][0], alt = Math.max(0, Math.round(F.v.pos[1] - F.pl.y));
+    const phase = m.home ? (F.t < 18 ? 'Final approach' : F.t < 28 ? 'Landing' : 'Taxiing to the stand') : F.t < 17 ? 'Taxiing' : F.t < 32 ? 'Take-off' : 'Climbing';
+    const route = m.home ? (m.from ? GPanel.esc(m.from.name) : 'Here') + ' → STUCOM' : 'STUCOM → ' + GPanel.esc(m.d.name);
+    el.innerHTML = `<b>✈️ ${route}</b><span>${phase} · ${Math.round(F.v.speed * 3.6)} km/h · ${alt} m</span><i style="width:${Math.min(100, F.t / tot * 100)}%"></i>`;
     el.classList.add('show');
   },
 };

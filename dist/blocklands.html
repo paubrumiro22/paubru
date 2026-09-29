@@ -301,6 +301,26 @@
   .tworld { color: var(--muted); font-size: 12px; margin-top: 8px; text-shadow: 0 1px 4px #000; animation: fadein 1s 1s both; }
   .title-foot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; color: #c9d3de; font-size: 13px; text-shadow: 0 1px 4px #000; }
   .title-foot b { color: #fff; }
+  #tSupport { display: inline-flex; align-items: center; gap: 7px; padding: 7px 16px; font: 800 13px var(--body); color: #fff; border-radius: 99px; background: linear-gradient(135deg, #ff7a59, #ff4f8b); border: 0; box-shadow: 0 6px 20px rgba(255, 90, 110, .35); animation: spGlow 3s ease-in-out infinite; }
+  #tSupport span { display: inline-block; animation: spCup 3s ease-in-out infinite; } #tSupport:hover { transform: translateY(-1px) scale(1.03); }
+  @keyframes spGlow { 50% { box-shadow: 0 6px 28px rgba(255, 90, 110, .6); } } @keyframes spCup { 0%, 80%, 100% { transform: none; } 85% { transform: rotate(-14deg); } 92% { transform: rotate(10deg); } }
+  #supportUI { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 16px; background: rgba(4, 7, 12, .55); backdrop-filter: blur(6px); opacity: 0; transition: opacity .25s; }
+  #supportUI.on { opacity: 1; } #supportUI.on .sp-card { transform: none; }
+  .sp-card { position: relative; width: min(460px, 100%); padding: 26px 24px 20px; border-radius: 22px; text-align: center; color: #eef2f7; background: radial-gradient(130% 80% at 50% 0%, #3a2233 0%, #161b26 55%, #10141c 100%); border: 1px solid rgba(255, 140, 150, .25); box-shadow: 0 30px 80px rgba(0, 0, 0, .55); transform: translateY(14px) scale(.97); transition: transform .3s cubic-bezier(.2, .9, .3, 1.2); }
+  .sp-card h2 { margin: 6px 0 8px; font: 900 24px var(--display); letter-spacing: .5px; } .sp-card p { margin: 0 0 18px; color: #c3cbd8; font-size: 14px; line-height: 1.55; }
+  .sp-card small { display: block; margin-top: 14px; color: #8591a4; font-size: 11.5px; line-height: 1.45; }
+  .sp-x { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; padding: 0; border-radius: 50%; background: rgba(255, 255, 255, .06); }
+  .sp-cup { width: 84px; height: 84px; margin: 0 auto; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle, rgba(255, 122, 89, .35), transparent 70%); }
+  .sp-cup svg { width: 64px; height: 64px; } .sp-steam { fill: none; stroke: #ffd6c9; stroke-width: 2.5; stroke-linecap: round; opacity: .8; animation: spSteam 2.2s ease-in-out infinite; }
+  @keyframes spSteam { 0% { transform: translateY(3px); opacity: 0; } 40% { opacity: .9; } 100% { transform: translateY(-5px); opacity: 0; } }
+  .sp-tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .sp-tier { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 6px; border-radius: 16px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .1); color: inherit; text-decoration: none; transition: .2s; cursor: pointer; }
+  .sp-tier:hover { background: rgba(255, 122, 89, .16); border-color: #ff7a59; transform: translateY(-2px); } .sp-tier.off { cursor: default; opacity: .75; } .sp-tier.off:hover { transform: none; background: rgba(255, 255, 255, .05); border-color: rgba(255, 255, 255, .1); }
+  .sp-tier i { font-style: normal; font-size: 26px; } .sp-tier b { font: 900 17px var(--display); color: #ffb199; } .sp-tier span { font-size: 11.5px; color: #a8b2c2; line-height: 1.3; }
+  .sp-row { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 14px; min-height: 20px; }
+  .sp-soon { font: 700 13px var(--body); color: #ffcf8a; } .sp-btn { padding: 9px 18px; border-radius: 99px; font: 800 13.5px var(--body); color: #fff; text-decoration: none; } .sp-btn.kofi { background: #ff5e5b; } .sp-btn.paypal { background: #0070ba; }
+  @media (max-width: 420px) { .sp-tiers { grid-template-columns: 1fr; } .sp-tier { flex-direction: row; justify-content: center; gap: 10px; } }
+
   .title-foot button { padding: 5px 12px; font-size: 12px; background: rgba(10, 15, 22, 0.5); }
 
   /* Credits roll */
@@ -442,6 +462,18 @@
   #tripHud { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 30; min-width: 300px; padding: 10px 16px 14px; border-radius: 14px; background: rgba(10, 15, 26, .88); border: 1px solid #2c3b5c; color: #fff; opacity: 0; transition: .3s; pointer-events: none; overflow: hidden; }
   #tripHud.show { opacity: 1; } #tripHud b { display: block; font: 800 14px var(--display); } #tripHud span { font-size: 12.5px; color: #b8c3d4; }
   #tripHud i { position: absolute; left: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #d6202b, #ffcc33); }
+  .ret-card { text-align: center; padding: 18px 16px 20px; border-radius: 16px; background: radial-gradient(120% 90% at 50% 0%, #1d2a44 0%, #0b0f18 70%); border: 1px solid #243049; }
+  .ret-card p { color: #b8c3d4; font-size: 13px; margin: 12px 0 16px; line-height: 1.5; } .ret-card .gp-btn { font-size: 15px; padding: 10px 22px; }
+  .ret-route { display: flex; align-items: center; justify-content: center; gap: 14px; font: 800 17px var(--display); color: #fff; }
+  .ret-route i { font-style: normal; font-size: 22px; animation: retFly 2.4s ease-in-out infinite; } @keyframes retFly { 0%, 100% { transform: translate(-10px, 3px) rotate(8deg); } 50% { transform: translate(10px, -3px) rotate(-4deg); } }
+  #metroHud { position: fixed; right: 18px; top: 250px; z-index: 30; width: 272px; border-radius: 12px; background: #07090d; border: 2px solid #20242e; box-shadow: 0 12px 30px rgba(0,0,0,.45), inset 0 0 0 1px #000; color: #ffb52e; opacity: 0; transform: translateX(20px); transition: .3s; pointer-events: none; overflow: hidden; }
+  #metroHud.show { opacity: 1; transform: none; }
+  #metroHud h4 { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 12px; background: var(--lc, #d6202b); color: #fff; font: 800 13.5px var(--display); }
+  #metroHud h4 i { font: 900 12px var(--body); font-style: normal; background: #fff; color: var(--lc, #d6202b); border-radius: 5px; padding: 1px 6px; } #metroHud h4 em { margin-left: auto; font: 700 12px 'Courier New', monospace; font-style: normal; opacity: .9; }
+  #metroHud .mh-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 10px; padding: 9px 12px; border-top: 1px solid #1a1d24; font: 700 13px 'Courier New', monospace; text-shadow: 0 0 6px rgba(255,181,46,.45); }
+  #metroHud .mh-row b { font: 800 19px 'Courier New', monospace; color: #ffcf5c; } #metroHud .mh-row small { grid-column: 1 / -1; color: #b07a1c; font-size: 11px; }
+  #metroHud .mh-row.now b { color: #3cf2c0; text-shadow: 0 0 8px rgba(60,242,192,.6); animation: mhBlink 1s steps(2) infinite; } @keyframes mhBlink { 50% { opacity: .35; } }
+  #metroHud .mh-foot { padding: 6px 12px 8px; font: 600 10.5px var(--body); color: #6d7382; border-top: 1px solid #1a1d24; }
   #hud.arch { display: none; }
   #archUI { position: fixed; inset: 0; z-index: 50; }
   #archUI .ar-c { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
@@ -619,7 +651,8 @@
   #metroPanel .mp-st.here em { background: #d6202b; box-shadow: 0 0 0 6px rgba(214, 32, 43, 0.2); }
   #metroPanel .mp-st small { position: absolute; top: 30px; left: 50%; transform: translateX(-50%); white-space: nowrap; font: 700 10.5px var(--body); color: #d6202b; text-transform: uppercase; letter-spacing: 0.05em; }
   #metroPanel .mp-train { position: absolute; top: 86px; transform: translateX(-50%); font-size: 20px; transition: left 0.5s; }
-  #metroPanel .mp-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 8px 20px 4px; }
+  #metroPanel .mp-train.back { top: 104px; transform: translateX(-50%) scaleX(-1); opacity: .85; }
+  #metroPanel .mp-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 8px 20px 4px; }
   #metroPanel .mp-stats div { background: #fff; border-radius: 12px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
   #metroPanel .mp-stats b { display: block; font-size: 16px; } #metroPanel .mp-stats span { font-size: 12px; color: #6a7082; }
   #metroPanel .mp-works { margin: 10px 20px 0; padding: 10px 12px; border-radius: 10px; background: #fff4d6; color: #7a5a00; font-weight: 700; font-size: 13px; }
@@ -9988,7 +10021,7 @@ function planDistrict(g, plan) {
 
   // ---- the metro, last: nothing is ever built over its stairs ----
   const tx = cx + 12, at = (v) => [tx + 0.5, D.P - 1, cz + v + 0.5];
-  piece(box(-5, -18, 16, 60), (W) => buildDistrictMetro(W, g, D));
+  piece(box(-5, -18, 22, 60), (W) => buildDistrictMetro(W, g, D));
   // ---- bus stops: shelters on the pavements of the two bus lines (bus.js drives the buses) ----
   for (const st of BUS_STOPS) if (!st.plaza) piece(box(st.u - 4, st.v - 4, st.u + 4, st.v + 4), (W) => buildBusShelter(W, g, D, st));
 
@@ -10225,6 +10258,34 @@ function buildPlotBlock(W, g, D, u0, v0) {
 }
 
 // ---------------------------------------------------------------- the metro ----
+// The underpass between the two platforms of a double-track station, in a station's local frame
+// (set(a, y, s, id, f): a across the tracks, s along them, platforms at floor level P). Two stairs
+// 2 wide (at a = aW and a = aE) go down along s from s0 in the direction dir to a corridor under
+// both tracks. faceDown: the stair facing for going down that way. pillar(a, s): no railing there.
+function metroUnderpass(set, P, aW, aE, s0, dir, faceDown, stripe, pillar) {
+  const st = shapeId('terrazzo', 'stairs');
+  const S = (k) => s0 + dir * k;
+  // a solid shell, then the corridor carved in it
+  for (let a = aW - 1; a <= aE + 2; a++) for (let k = -1; k <= 7; k++) for (let y = P - 7; y <= P - 3; y++) set(a, y, S(k), B.CONCRETE + 7);
+  for (let a = aW; a <= aE + 1; a++) for (const k of [5, 6]) {
+    set(a, P - 6, S(k), B.TERRAZZO);
+    set(a, P - 5, S(k), B.AIR); set(a, P - 4, S(k), B.AIR);
+    set(a, P - 3, S(k), (a - aW) % 4 === 1 && k === 5 ? B.GLASS_LAMP : B.CONCRETE + 8);
+  }
+  for (let a = aW; a <= aE + 1; a++) set(a, P - 4, S(7), stripe);
+  for (const col of [aW, aE]) for (let c = col; c <= col + 1; c++) for (let k = 0; k <= 4; k++) {
+    const y = P - 1 - k;
+    set(c, y, S(k), st, faceDown);
+    set(c, y - 1, S(k), B.TERRAZZO);
+    for (let yy = y + 1; yy <= P - 1; yy++) set(c, yy, S(k), B.AIR);
+  }
+  // railings along the openings on the walkway side (the platform edges stay clear for the doors)
+  for (let k = 0; k <= 4; k++) {
+    for (const a of [aW - 1, aE - 1]) if (!pillar || !pillar(a, S(k))) set(a, P, S(k), B.IRON_BARS);
+  }
+  for (const a of [aW, aW + 1, aE, aE + 1]) set(a, P, S(5), B.IRON_BARS);
+}
+
 // Universitat under the square, a straight tunnel and Catalunya under the park. The track runs
 // along z at u = 12, the platform on its west side. Each station has a wide stair from the street
 // (open at the top, with railings, a glass canopy and the red M) down to a landing that opens onto
@@ -10234,50 +10295,62 @@ function buildDistrictMetro(W, g, D) {
   const set = (u, y, v, id, f) => W.set(cx + u, y, cz + v, id, f);
   const L = { X: (a) => cx + a, Z: (a, d) => cz + d };
   const S = lwriter(W, L);
+  // two tracks: towards Catalunya at u = 12 (by the main platform), back at u = 15 (far platform
+  // u 17..20, reached by the underpass)
   const hall = (v0, v1, stripe, mouth) => {
-    const vb = mouth === v0 ? v1 - 1 : v0 + 1;      // buffer stop at the closed end
-    for (let u = 3; u <= 14; u++) for (let v = v0; v <= v1; v++) {
-      const endWall = v === v0 || v === v1, open = u >= 11 && u <= 13 && v === mouth;
-      const wall = u === 3 || u === 14 || (endWall && !open);
+    const vb = mouth === v0 ? v1 - 1 : v0 + 1;      // buffer stops at the closed end
+    for (let u = 3; u <= 21; u++) for (let v = v0; v <= v1; v++) {
+      const endWall = v === v0 || v === v1, open = u >= 11 && u <= 16 && v === mouth;
+      const wall = u === 3 || u === 21 || (endWall && !open);
+      const railRun = mouth === v1 ? v > vb && v <= v1 : v >= v0 && v < vb;
       for (let y = P - 3; y <= P + 6; y++) {
         let id = B.AIR;
         if (y === P + 6) id = B.CONCRETE;
         else if (y === P + 5) id = !wall && (u + v) % 4 === 0 ? B.GLASS_LAMP : B.CONCRETE + 8;
         else if (wall) id = y === P + 1 ? stripe : y < P - 1 ? B.CONCRETE + 7 : B.CONCRETE;
-        else if (y === P - 1) id = u <= 10 ? (u === 10 ? B.CONCRETE + 4 : B.TERRAZZO) : u === 12 && (mouth === v1 ? v > vb && v <= v1 : v >= v0 && v < vb) ? B.RAIL : B.AIR;
-        else if (y === P - 2) id = u >= 11 ? B.GRAVEL : B.CONCRETE + 7;
+        else if (y === P - 1) id = u <= 10 ? (u === 10 ? B.CONCRETE + 4 : B.TERRAZZO) : u >= 17 ? (u === 17 ? B.CONCRETE + 4 : B.TERRAZZO) : (u === 12 || u === 15) && railRun ? B.RAIL : B.AIR;
+        else if (y === P - 2) id = u >= 11 && u <= 16 ? B.GRAVEL : B.CONCRETE + 7;
         else if (y < P - 2) id = B.CONCRETE + 7;
         set(u, y, v, id);
       }
     }
-    for (let u = 11; u <= 13; u++) { set(u, P - 1, vb, B.CONCRETE + 15); set(u, P, vb, B.CONCRETE + 14); }
+    for (let u = 11; u <= 16; u++) { set(u, P - 1, vb, B.CONCRETE + 15); set(u, P, vb, B.CONCRETE + 14); }
   };
   hall(-16, 12, B.BLUE_TILES, 12);
   hall(31, 58, B.CONCRETE + 14, 31);
   // the trains know a platform by the marker under its track (metro_panel.js)
-  for (const [m0, m1] of [[-14, 11], [31, 56]]) for (let v = m0; v <= m1; v++) set(12, P - 2, v, B.METRO_MARK);
+  for (const [m0, m1] of [[-14, 11], [31, 56]]) for (let v = m0; v <= m1; v++) { set(12, P - 2, v, B.METRO_MARK); set(15, P - 2, v, B.METRO_MARK); }
   set(3, P + 1, -7, B.METRO_PANEL, 0);
   set(3, P + 1, 42, B.METRO_PANEL, 0);
-  // tunnel between them: walls, a vault, lamps, the track
-  for (let v = 13; v <= 30; v++) for (let u = 10; u <= 14; u++) for (let y = P - 3; y <= P + 4; y++) {
-    const wall = u === 10 || u === 14, roof = y === P + 4 || (y === P + 3 && (u === 11 || u === 13));
+  // tunnel between them: walls, a vault, lamps, both tracks
+  for (let v = 13; v <= 30; v++) for (let u = 10; u <= 17; u++) for (let y = P - 3; y <= P + 4; y++) {
+    const wall = u === 10 || u === 17, roof = y === P + 4 || (y === P + 3 && (u === 11 || u === 16));
     let id = B.AIR;
     if (y <= P - 2) id = y === P - 2 && !wall ? B.GRAVEL : B.CONCRETE + 7;
     else if (wall || roof) id = y === P ? B.BLUE_TILES : B.CONCRETE + 8;
-    else if (y === P + 3 && u === 12) id = v % 8 === 4 ? B.GLASS_LAMP : B.CONCRETE + 8;
-    else if (y === P - 1 && u === 12) id = B.RAIL;
+    else if (y === P + 3 && (u === 13 || u === 14)) id = (v + u) % 8 === 4 ? B.GLASS_LAMP : B.CONCRETE + 8;
+    else if (y === P - 1 && (u === 12 || u === 15)) id = B.RAIL;
     set(u, y, v, id);
   }
-  // platform furniture: columns, benches against the wall, signs, map, a ticket machine
+  // the crossovers where the trains change track before each terminus (metro.js drives them)
+  for (const [u, v] of [[13, 28], [13, 27], [14, 26], [14, 25], [14, 18], [14, 17], [13, 16], [13, 15]]) set(u, P - 1, v, B.RAIL);
+  // platform furniture: columns, benches against the walls, signs, map, a ticket machine
   for (const [v0, v1, name, stripe, benches] of [[-16, 12, 'metro_name', B.BLUE_TILES, [-9, -8, 3, 4]], [31, 58, 'metro_name2', B.CONCRETE + 14, [45, 46, 50, 51]]]) {
     for (let v = v0 + 5; v < v1 - 3; v += 7) for (let y = P; y <= P + 4; y++) set(7, y, v, y === P + 1 ? stripe : B.QUARTZ_PILLAR);
-    for (const v of benches) set(4, P, v, shapeId('oak', 'stairs'), 1);
-    S.pic(13, P + 2, v0 + 6, 1, 3, 1, name, true);
-    S.pic(13, P + 2, v1 - 10, 1, 3, 1, name, true);
-    S.pic(13, P + 1, v0 + 16, 1, 2, 1, v0 < 0 ? 'sunset' : 'mountains', true);
+    const closed = v0 < 0 ? -1 : 1, s0 = closed < 0 ? v0 + 7 : v1 - 8;
+    for (const v of benches) {
+      set(4, P, v, shapeId('oak', 'stairs'), 1);
+      if ((v - s0) * closed < -1 || (v - s0) * closed > 6) set(20, P, v, shapeId('oak', 'stairs'), 0);
+    }
+    S.pic(20, P + 2, v0 + 6, 1, 3, 1, name, true);
+    S.pic(20, P + 2, v1 - 10, 1, 3, 1, name, true);
+    S.pic(20, P + 1, v0 + 16, 1, 2, 1, v0 < 0 ? 'sunset' : 'mountains', true);
+    S.pic(4, P + 2, v0 + 20, 0, 3, 1, name, true);
     S.pic(4, P + 1, v0 + 3, 0, 2, 1, 'metro_map', true);
     S.pic(4, P + 2, v0 + 12, 0, 1, 1, 'metro', true);
     set(4, P, v0 + 1, B.VENDING_MACHINE, 0);
+    // the underpass to the far platform, at the closed end
+    metroUnderpass(set, P, 8, 19, s0, closed, closed > 0 ? 5 : 4, stripe, (u, v) => u === 7 && (v - v0 - 5) % 7 === 0);
   }
   // the stairs: 3 wide at u -1..1 between tiled walls; dir = the way they go down along z
   const stairs = (vTop, dir, stripe) => {
@@ -26667,119 +26740,233 @@ SYNTH.wyrm_breath = (ctx, o, t) => { Sound.noise(ctx, o, t, 1.6, { type: 'bandpa
 </script>
 <script>
 'use strict';
-// The STUCOM metro line runs by itself, and players can ride in other players' vehicles.
+// The metro runs on a timetable, and players can ride in other players' vehicles.
 //
 // Line: campus.js / district.js build Universitat and Catalunya; the control panel (metro_panel.js)
-// adds stations further on. MetroNet follows the rails to find the whole line and its platforms.
-// While you are near it a train (a metro ride with `auto`) runs from station to station: it pulls
-// into each platform, opens for a few seconds with the chime and the next station on the sign,
-// and at the end of the line the driver changes cab (the train keeps its place on the track and
-// the lead car becomes the other end). Right-click it to get on as a passenger; Shift gets off.
-// It is local to each player and never saved.
+// adds stations further on. MetroNet follows the rails to find the whole line, its platforms and,
+// on double-track lines, the second track (the twin) that runs back the other way.
 //
-// Passengers: right-click another player's car, bus, boat, helicopter or metro to sit in one of
-// its free seats. Your position then follows their vehicle, and your presence says where you sit
-// (`ps`: [driver's peer id, seat]) so everybody draws you there.
+// Trains: every line has a fixed cycle worked out from its track (Metro.build): out along the
+// first track stopping at every station, a few seconds at the terminus while the driver changes
+// cab, back along the twin (over a crossover just outside the station) stopping at the far
+// platforms, and over the other crossover into the first terminus again. Single-track lines
+// shuttle on their one track. Where each train is comes from the clock alone, so every player
+// sees the same trains in the same places (nothing is spawned per player any more, nothing
+// collides) and the platforms can say when the next one comes. Long lines run several trains,
+// spaced along the cycle. A train is only built as a vehicle while someone is near it.
+// Right-click it while it stands at a platform to get on; Shift at a station gets you off.
+//
+// Passengers: right-click another player's car, bus, boat or helicopter to sit in one of its free
+// seats (`ps`: [driver's peer id, seat]). On the metro and the buses, which every player drives
+// the same, the presence only says which train and seat (`sv`) and everybody draws you there.
 
 const METRO_LEN = 20.7;   // from the lead car's centre to the back of the last car
-const METRO_STOP = { dwell: 9, announce: 5 };
+const METRO_STOP = { dwell: 9, end: 14, announce: 5 };
+const METRO_RUN = { vmax: 11, acc: 1.3, body: 16.7, tail: 26, cross: 6 };
 // Passenger seats in each vehicle (local coordinates, like def.seat).
 const PASSENGER_SEATS = {
   car: [[-0.42, 0.42, -0.1], [0.42, 0.42, -1.25], [-0.42, 0.42, -1.25]],
   bus: [[-0.6, 0.95, 2.6], [0.6, 0.95, 1.2], [-0.6, 0.95, 1.2], [0.6, 0.95, -0.4], [-0.6, 0.95, -0.4], [0.6, 0.95, -2], [-0.6, 0.95, -2]],
   boat: [[0, 0.4, 0.35], [0, 0.4, -0.35]],
   heli: [[-0.42, 0.55, 0.55], [0.42, 0.55, -0.6], [-0.42, 0.55, -0.6]],
-  metro: [[0.7, 0.75, -2], [-0.7, 0.75, -2], [0.7, 0.75, -10.5], [-0.7, 0.75, -10.5], [0.7, 0.75, -18.5], [-0.7, 0.75, -18.5]],
+  metro: [[0.7, 0.75, -2], [-0.7, 0.75, -2], [0.7, 0.75, -10.5], [-0.7, 0.75, -10.5], [0.7, 0.75, -18.5], [-0.7, 0.75, -18.5], [0.7, 0.75, 1.2], [-0.7, 0.75, -6.5]],
   dozer: [[0.5, 1.3, -0.6]],
 };
 
-const Metro = {
-  train: null, sign: null, signT: 0,
+// distance and speed after t seconds on a run of length L (accelerate, cruise, brake)
+function runProfile(L, vmax, acc) {
+  const full = L >= vmax * vmax / acc;
+  const t1 = full ? vmax / acc : Math.sqrt(L / acc);
+  const top = full ? vmax : acc * t1;
+  const tt = full ? 2 * t1 + (L - vmax * vmax / acc) / vmax : 2 * t1;
+  return {
+    tt,
+    at(t) {
+      if (t <= 0) return [0, 0];
+      if (t >= tt) return [L, 0];
+      if (t < t1) return [acc * t * t / 2, acc * t];
+      if (t > tt - t1) { const r = tt - t; return [L - acc * r * r / 2, acc * r]; }
+      return [acc * t1 * t1 / 2 + (t - t1) * top, top];
+    },
+  };
+}
+// a polyline with its running length, and the point at any length along it
+function polyline(pts) {
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1], pts[i][2] - pts[i - 1][2]));
+  return { pts, cum, len: cum[cum.length - 1] };
+}
+function polyAt(P, s) {
+  const { pts, cum } = P;
+  if (s <= 0) return pts[0];
+  if (s >= P.len) return pts[pts.length - 1];
+  let lo = 0, hi = cum.length - 1;
+  while (lo < hi - 1) { const m = (lo + hi) >> 1; if (cum[m] <= s) lo = m; else hi = m; }
+  const a = pts[lo], b = pts[hi], k = (s - cum[lo]) / Math.max(1e-6, cum[hi] - cum[lo]);
+  return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+}
+const timeText = (t) => (t < 60 ? Math.ceil(t) + ' s' : Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0'));
 
+const Metro = {
+  routes: new Map(),   // line -> its cycle
+  trains: new Map(),   // 'line:k' -> the train's vehicle, while someone is near it
+  st: new Map(),       // 'line:k' -> what that train was doing last frame (for the chimes)
+  sign: null, signT: 0, hudT: 0,
+
+  clock() { return Date.now() / 1000; },
   // the line as traced along its rails (metro_panel.js): path, index of each cell, stations
   net() { return typeof MetroNet !== 'undefined' ? MetroNet.current(G.player.pos) : null; },
 
+  // ---- the cycle of a line ----
+  route(N) {
+    let R = this.routes.get(N.n);
+    if (R && R.N === N) return R;
+    try { R = this.build(N); } catch (e) { console.warn('Blocklands: metro route', e); R = null; }
+    if (R) R.N = N;
+    this.routes.set(N.n, R);
+    return R;
+  },
+  build(N) {
+    const S = N.stations, A = N.path;
+    if (!S || S.length < 2 || A.length < 6) return null;
+    const pt = (path, i) => {
+      const n = path.length, c = (j) => [path[j][0] + 0.5, path[j][1] + 2 / 16, path[j][2] + 0.5];
+      if (i >= 0 && i < n) return c(i);
+      const [a, b, k] = i < 0 ? [c(0), c(1), -i] : [c(n - 1), c(n - 2), i - n + 1];
+      return [a[0] + (a[0] - b[0]) * k, a[1], a[2] + (a[2] - b[2]) * k];
+    };
+    const seq = (path, i0, i1) => { const out = [], d = i1 >= i0 ? 1 : -1; for (let i = i0; i !== i1 + d; i += d) out.push(pt(path, i)); return out; };
+    const tailOf = (path, i, dir) => seq(path, i - dir * METRO_RUN.tail, i - dir);
+    const legs = [];
+    const leg = (tail, pts, stop, dwell) => {
+      const P = polyline(tail.concat(pts)), s0 = polyline(tail.concat([pts[0]])).len;
+      const L = Math.max(0.5, P.len - s0), prof = runProfile(L, METRO_RUN.vmax, METRO_RUN.acc);
+      legs.push({ P, s0, L, prof, stop, dwell });
+    };
+    const first = S[0], last = S[S.length - 1], name = (k) => S[k].name;
+    const T = N.twin, X = METRO_RUN.cross;
+    const aX1 = last.i0 - 2, aX0 = first.i1 + 2;
+    const double = T && T.bOf && aX1 - X > aX0 + X;
+    // out along the first track, a stop at every platform
+    for (let k = 0; k < S.length - 1; k++) {
+      const end = k + 1 === S.length - 1;
+      leg(tailOf(A, S[k].hp, 1), seq(A, S[k].hp, S[k + 1].hp), { st: k + 1, plat: 'A', dir: 1, to: end ? name(0) : name(S.length - 1), end }, end ? METRO_STOP.end : METRO_STOP.dwell);
+    }
+    if (double) {
+      // back: over the crossover onto the twin, the far platforms, and over into the terminus
+      const B = T.path, bOf = T.bOf;
+      const ptB = (ai) => pt(B, bOf[clamp(ai, 0, bOf.length - 1)]);
+      const cross = (from, to, a0) => {
+        const out = [];
+        for (let j = 1; j < X; j++) {
+          const f = j / X, e = f * f * (3 - 2 * f), p = from(a0 - j), q = to(a0 - j);
+          out.push([p[0] + (q[0] - p[0]) * e, p[1] + (q[1] - p[1]) * e, p[2] + (q[2] - p[2]) * e]);
+        }
+        return out;
+      };
+      const ptA = (ai) => pt(A, ai);
+      let pts = seq(A, last.hm, aX1).concat(cross(ptA, ptB, aX1));
+      let bi = bOf[aX1 - X], tail = tailOf(A, last.hm, -1);
+      for (let k = S.length - 2; k >= 1; k--) {
+        const bs = T.stations.find((q) => q.a === k);
+        if (!bs || bs.hm >= bi) continue;
+        pts = pts.concat(seq(B, bi, bs.hm));
+        leg(tail, pts, { st: k, plat: 'B', dir: -1, to: name(0) }, METRO_STOP.dwell);
+        tail = tailOf(B, bs.hm, -1); bi = bs.hm; pts = [];
+      }
+      const bEnd = bOf[aX0 + X];
+      pts = pts.concat(seq(B, bi, Math.min(bi, bEnd)), cross(ptB, ptA, aX0 + X), seq(A, aX0, first.hm));
+      leg(tail, pts, { st: 0, plat: 'A', dir: -1, to: name(S.length - 1), end: true }, METRO_STOP.end);
+    } else {
+      // one track: back the same way, stopping again
+      for (let k = S.length - 1; k > 0; k--) {
+        const end = k - 1 === 0;
+        leg(tailOf(A, S[k].hm, -1), seq(A, S[k].hm, S[k - 1].hm), { st: k - 1, plat: 'A', dir: -1, to: end ? name(S.length - 1) : name(0), end }, end ? METRO_STOP.end : METRO_STOP.dwell);
+      }
+    }
+    let t = 0;
+    for (const l of legs) { l.t0 = t; l.arr = t + l.prof.tt; t = l.arr + l.dwell; }
+    const cycle = t;
+    const count = double ? clamp(Math.floor(cycle / 45), 1, 6) : 1;
+    // a bounding box, to know when anybody is near the line
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity, y = 0;
+    for (const c of A) { x0 = Math.min(x0, c[0]); x1 = Math.max(x1, c[0]); z0 = Math.min(z0, c[2]); z1 = Math.max(z1, c[2]); y = c[1]; }
+    return { n: N.n, legs, cycle, count, double, box: [x0, z0, x1, z1, y], offset: (N.n * 37.3) % cycle };
+  },
+  // where train k of a route is at time t
+  state(R, k, t) {
+    const ph = (((t + R.offset + (k * R.cycle) / R.count) % R.cycle) + R.cycle) % R.cycle;
+    let j = 0;
+    while (j < R.legs.length - 1 && R.legs[j + 1].t0 <= ph) j++;
+    const l = R.legs[j], dt = ph - l.t0;
+    const [d, v] = dt < l.prof.tt ? l.prof.at(dt) : [l.L, 0];
+    const s = l.s0 + d, head = polyAt(l.P, s), back = polyAt(l.P, s - METRO_RUN.body);
+    return { j, leg: l, run: dt < l.prof.tt, left: l.arr + l.dwell - ph, speed: v, pos: head, yaw: Math.atan2(head[0] - back[0], head[2] - back[2]) };
+  },
+  near(R, p, r) {
+    const b = R.box;
+    return p[0] > b[0] - r && p[0] < b[2] + r && p[2] > b[1] - r && p[2] < b[3] + r && Math.abs(p[1] - b[4]) < 70;
+  },
+
   update(dt) {
-    const N = this.net();
     this.updateSign(dt);
     Passengers.update(dt);
     if (typeof MetroStrip !== 'undefined') MetroStrip.update();
-    const p = G.player, w = G.world;
-    const t = this.train;
-    if (t && (t.removed || !Vehicles.list.includes(t))) this.train = null;
-    // one train, on the line you are near
-    if (!N || N.stations.length < 2 || (this.train && this.train.auto && this.train.auto.line !== N.n)) {
-      if (this.train && G.vehicle !== this.train) { this.train.removed = true; this.train = null; }
-      return;
-    }
-    if (!MetroNet.near(p.pos)) {
-      if (this.train && G.vehicle !== this.train) { this.train.removed = true; this.train = null; }
-      return;
-    }
-    if (this.train) return;
-    // a train waits at the station nearest to you, about to leave along the line
-    let best = null, bd = Infinity;
-    N.stations.forEach((st, i) => {
-      const c = N.path[st.hp];
-      const d = Math.hypot(c[0] + 0.5 - p.pos[0], c[2] + 0.5 - p.pos[2]);
-      if (d < bd) { bd = d; best = i; }
-    });
-    const dir = best === N.stations.length - 1 ? -1 : 1, st = N.stations[best];
-    const h = dir > 0 ? st.hp : st.hm, c = N.path[h], nx = N.path[clamp(h + dir, 0, N.path.length - 1)];
-    if (!w.isLoaded(c[0], c[2]) || !IS_RAIL(w.getBlock(c[0], c[1], c[2]))) return;
-    const yaw = Math.atan2(nx[0] - c[0], nx[2] - c[2]);
-    const v = Rides.spawn('metro', c[0] + 0.5, c[1] + 2 / 16, c[2] + 0.5, yaw, 0);
-    if (v.findRail()) {
-      v.auto = { dir, target: best, state: 'dwell', t: METRO_STOP.dwell, said: false, line: N.n };
-      this.train = v;
-    } else v.removed = true;
-  },
-
-  // One step of the autopilot: accelerate, brake into the next platform, wait, go on; at the end
-  // of the line the driver changes cab and the train comes back.
-  drive(v, dt) {
-    const a = v.auto, N = typeof MetroNet !== 'undefined' ? MetroNet.get(a.line || 1) : null;
-    if (!N || !v.rail || !N.stations[a.target]) { v.drive(dt, null); return; }
-    const keys = new Set();
-    const r = v.rail, cur = N.idx.get(posKey(r.x, r.y, r.z));
-    if (cur === undefined) { v.drive(dt, { keys }); return; }
-    const T = N.stations[a.target];
-    if (a.state === 'run') {
-      const goal = a.dir > 0 ? T.hp : T.hm;
-      const s = (goal - cur) * a.dir - (r.t - 0.5);
-      const brakeDist = v.speed * v.speed / (2 * v.def.brake * 1.5) + 1;
-      if (s > brakeDist) keys.add('KeyW');
-      else if (v.speed > 0.6) keys.add('Space');
-      if (s < 0.4 || (s < 2.5 && v.speed < 0.7)) {
-        a.state = 'dwell'; a.t = METRO_STOP.dwell; a.said = false; v.speed = 0;
-        this.say(v, 'arrive', T.name);
-      }
-    } else {
-      a.t -= dt;
-      v.speed = 0;
-      const end = !N.stations[a.target + a.dir];
-      const next = N.stations[a.target + (end ? -a.dir : a.dir)];
-      if (!a.said && a.t < METRO_STOP.announce && next) { a.said = true; this.say(v, 'next', next.name); }
-      if (a.t <= 0) {
-        if (end) {
-          // the driver walks to the other cab: the lead car becomes the far end of the train
-          const nh = clamp(cur - a.dir * Math.round(METRO_LEN - 4), 0, N.path.length - 1);
-          const c = N.path[nh], o = N.path[clamp(nh - a.dir, 0, N.path.length - 1)];
-          v.pos = [c[0] + 0.5, c[1] + 2 / 16, c[2] + 0.5];
-          v.yaw = Math.atan2(o[0] - c[0], o[2] - c[2]);
-          v.findRail();
-          a.dir = -a.dir;
+    const lines = typeof MetroNet !== 'undefined' ? MetroNet.all() : [];
+    const p = G.player.pos, t = this.clock(), seen = new Set();
+    for (const N of lines) {
+      const R = this.route(N);
+      if (!R || !this.near(R, p, 160)) continue;
+      for (let k = 0; k < R.count; k++) {
+        const key = N.n + ':' + k, s = this.state(R, k, t);
+        let v = this.trains.get(key);
+        if (v && (v.removed || !Vehicles.list.includes(v))) { this.trains.delete(key); v = null; }
+        const close = Math.hypot(s.pos[0] - p[0], s.pos[2] - p[2]) < 150 && Math.abs(s.pos[1] - p[1]) < 45;
+        if (!close && G.vehicle !== v) { if (v) v.removed = true; this.trains.delete(key); this.st.delete(key); continue; }
+        seen.add(key);
+        if (!v) {
+          v = Rides.spawn('metro', s.pos[0], s.pos[1], s.pos[2], s.yaw, 0);
+          v.scripted = true; v.metro = { n: N.n, k }; v.onGround = true;
+          this.trains.set(key, v);
         }
-        a.target += a.dir;
-        if (!N.stations[a.target]) a.target = clamp(a.target, 0, N.stations.length - 1);
-        a.state = 'run';
-        sfx('metro_doors', v.pos, 1, 1);
+        this.place(v, s, R, N);
+        this.events(key, v, s, N);
       }
     }
-    v.drive(dt, { keys });
+    // trains of lines nobody is near any more (or that were rebuilt)
+    for (const [key, v] of this.trains) if (!seen.has(key) && G.vehicle !== v) { v.removed = true; this.trains.delete(key); this.st.delete(key); }
+    this.updateHud(dt);
+  },
+  place(v, s, R, N) {
+    const prev = v.pos;
+    v.pos = s.pos.slice();
+    v.yaw = s.yaw; v.pitch = 0; v.roll = 0;
+    v.speed = s.speed; v.vel = [0, 0, 0]; v.onGround = true;
+    v.rpm = 0.15 + s.speed / METRO_RUN.vmax * 0.75;
+    // what the line strip and the panel read
+    const st = s.leg.stop;
+    v.auto = { line: N.n, target: st.st, state: s.run ? 'run' : 'dwell', dir: st.dir, to: st.to, left: s.left };
+    if (Math.hypot(prev[0] - v.pos[0], prev[2] - v.pos[2]) > 4) v.rail = null;
+    if (v.basis) v.basis();
+  },
+  events(key, v, s, N) {
+    const was = this.st.get(key), now = { j: s.j, run: s.run, said: was && was.j === s.j ? was.said : false };
+    this.st.set(key, now);
+    if (!was) return;
+    const S = N.stations, stop = s.leg.stop, here = S[stop.st];
+    if (was.run && !s.run) {
+      this.say(v, 'arrive', here ? here.name : '', stop.end ? 'Terminus \u00b7 all change' : 'Doors open');
+      sfx('metro_doors', v.pos, 0.7, 1.1);
+    }
+    if (!s.run && !now.said && s.left < METRO_STOP.announce) {
+      now.said = true;
+      const R = this.routes.get(N.n), nx = R && R.legs[(s.j + 1) % R.legs.length], ns = nx && S[nx.stop.st];
+      if (ns) this.say(v, 'next', ns.name, 'Doors closing \u00b7 mind the gap');
+    }
+    if (!was.run && s.run && was.j !== s.j) sfx('metro_doors', v.pos, 1, 1);
   },
 
-  say(v, kind, name) {
+  say(v, kind, name, sub) {
     const p = G.player;
     const aboard = G.vehicle === v;
     const close = Math.hypot(p.pos[0] - v.pos[0], p.pos[2] - v.pos[2]) < 40;
@@ -26787,7 +26974,7 @@ const Metro = {
     sfx('metro_chime', aboard ? null : v.pos, 1, 1);
     // the stop sign only for whoever is on the train
     if (!aboard) return;
-    this.showSign(kind === 'arrive' ? name : 'Next stop: ' + name, kind === 'arrive' ? 'Doors open' : 'Doors closing \u00b7 mind the gap');
+    this.showSign(kind === 'arrive' ? name : 'Next stop: ' + name, sub);
   },
   showSign(title, sub) {
     if (!this.sign) {
@@ -26805,6 +26992,99 @@ const Metro = {
     if (!this.sign || this.signT <= 0) return;
     this.signT -= dt;
     if (this.signT <= 0) this.sign.classList.remove('show');
+  },
+
+  // ---- the platforms: when does the next train come? ----
+  // the station and platform you stand on, or null
+  platformAt(p) {
+    if (typeof MetroNet === 'undefined') return null;
+    let best = null;
+    for (const N of MetroNet.all()) {
+      const R = this.route(N);
+      if (!R || !this.near(R, p, 20)) continue;
+      N.stations.forEach((st, k) => {
+        const tracks = [['A', N.path, st]];
+        const bs = N.twin && N.twin.stations.find((q) => q.a === k);
+        if (bs) tracks.push(['B', N.twin.path, bs]);
+        for (const [plat, path, run] of tracks) for (let i = run.i0; i <= run.i1; i += 2) {
+          const c = path[i];
+          if (Math.abs(p[1] - (c[1] + 1)) > 2.5) continue;
+          const d = Math.hypot(c[0] + 0.5 - p[0], c[2] + 0.5 - p[2]);
+          if (d < 7.5 && (!best || d < best.d)) best = { d, N, R, k, plat, st };
+        }
+      });
+    }
+    return best;
+  },
+  // the next trains at a platform: [{ eta, to, boarding }]
+  arrivals(R, k, plat, t) {
+    const out = [];
+    for (let n = 0; n < R.count; n++) {
+      const ph = (((t + R.offset + (n * R.cycle) / R.count) % R.cycle) + R.cycle) % R.cycle;
+      for (const l of R.legs) {
+        if (l.stop.st !== k || l.stop.plat !== plat) continue;
+        const since = ph - l.arr;
+        if (since >= 0 && since < l.dwell) out.push({ eta: 0, left: l.dwell - since, to: l.stop.to });
+        else out.push({ eta: ((l.arr - ph) % R.cycle + R.cycle) % R.cycle, to: l.stop.to });
+      }
+    }
+    return out.sort((a, b) => a.eta - b.eta);
+  },
+  updateHud(dt) {
+    this.hudT -= dt;
+    if (this.hudT > 0) return;
+    this.hudT = 0.25;
+    let el = $('metroHud');
+    const at = !G.vehicle && !G.hudHidden ? this.platformAt(G.player.pos) : null;
+    if (!at) { if (el) el.classList.remove('show'); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'metroHud'; document.body.append(el); }
+    const { N, R, k, plat, st } = at, t = this.clock();
+    const list = this.arrivals(R, k, plat, t);
+    // one row per destination: the next train and the one after
+    const rows = [];
+    for (const to of [...new Set(list.map((a) => a.to))]) {
+      const mine = list.filter((a) => a.to === to);
+      const a = mine[0], b = mine[1];
+      const big = a.eta === 0 ? (a.left > 1 ? 'Boarding' : 'Departing') : a.eta < 6 ? 'Arriving' : timeText(a.eta);
+      rows.push(`<div class="mh-row${a.eta < 6 ? ' now' : ''}"><span>\u2192 ${escapeHtml(to)}</span><b>${big}</b><small>${b ? 'then ' + timeText(b.eta) : 'every ' + timeText(R.cycle / R.count)}${R.double ? ' \u00b7 platform ' + (plat === 'A' ? 1 : 2) : ''}</small></div>`);
+    }
+    const clock = typeof Phone !== 'undefined' ? Phone.clock() : '';
+    el.style.setProperty('--lc', N.color);
+    // the far platform of a terminus: the trains leave from the other one
+    const none = `<div class="mh-row"><span>${R.double ? 'Trains leave from platform 1' : 'No service'}</span><small>${R.double ? 'take the underpass \u2193' : ''}</small></div>`;
+    el.innerHTML = `<h4><i>L${N.n}</i>${escapeHtml(st.name || '')}<em>${clock}</em></h4>${rows.join('') || none}<div class="mh-foot">Right-click the train when it stops \u00b7 Shift to get off</div>`;
+    el.classList.add('show');
+  },
+
+  // every train of a line right now (the panel and the maps draw them)
+  positions(N) {
+    const R = N && this.route(N);
+    if (!R) return [];
+    const t = this.clock(), out = [];
+    for (let k = 0; k < R.count; k++) { const s = this.state(R, k, t); out.push({ x: s.pos[0], y: s.pos[1], z: s.pos[2], dir: s.leg.stop.dir, run: s.run }); }
+    return out;
+  },
+  // forget the cycles (a station was built): the trains come back on the new track
+  reset() {
+    this.routes.clear();
+    for (const [key, v] of this.trains) if (G.vehicle !== v) { v.removed = true; this.trains.delete(key); }
+  },
+  // get off onto the platform side, not between the tracks
+  alight(v) {
+    const p = G.player, y = Math.floor(v.pos[1]);
+    const opts = [];
+    for (const side of [1, -1]) for (const z of [2.8, -3, -10.5, -17]) {
+      const q = v.toWorld([side * 2.2, 0, z]);
+      const id = G.world.getBlock(Math.floor(q[0]), y, Math.floor(q[2]));
+      if (BLOCK_SOLID[id] && !IS_RAIL(id)) opts.push([q[0], y + 1, q[2]]);
+    }
+    return opts.length ? standNear(p, opts, 0) : false;
+  },
+  mySeat() {
+    const id = String((typeof Net !== 'undefined' && Net.selfPeer) || 'me');
+    let h = 0;
+    for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0;
+    return Math.abs(h) % PASSENGER_SEATS.metro.length;
   },
 };
 
@@ -26876,8 +27156,15 @@ const Passengers = {
     const k = G.input && G.input.keys;
     if (this.exitT <= 0 && k && (k.has('ShiftLeft') || k.has('ShiftRight'))) this.leave();
   },
-  // where a remote passenger sits (their presence `ps`), or null
+  // where a remote passenger sits (their presence `ps`, or `sv` on a timetable train or bus)
   seatOf(r) {
+    if (Array.isArray(r.sv)) {
+      const [kind, line, a, b] = r.sv;
+      const v = kind === 'm' ? Metro.trains.get(line + ':' + a) : kind === 'b' && typeof Bus !== 'undefined' && Bus.buses[line] ? Bus.buses[line].v : null;
+      const seats = v && PASSENGER_SEATS[v.kind];
+      const seat = seats && seats[(kind === 'm' ? b : a) % seats.length];
+      return seat ? { v, seat } : null;
+    }
     if (!Array.isArray(r.ps) || r.ps.length < 2) return null;
     const [peer, idx] = r.ps;
     const v = peer === Net.selfPeer ? (G.vehicle && G.vehicle.ride ? G.vehicle : null) : (Net.peers.get(peer) || {}).ride;
@@ -26894,30 +27181,46 @@ const Passengers = {
 
 // ---------------------------------------------------------------- hooks ----
 {
-  // the autopilot drives the line's train, parked or with you aboard
+  // the timetable moves the trains
   const idle0 = Ride.prototype.updateIdle;
-  Ride.prototype.updateIdle = function (dt) { if (this.auto) Metro.drive(this, dt); else idle0.call(this, dt); };
+  Ride.prototype.updateIdle = function (dt) { if (this.metro) { if (this.basis) this.basis(); return; } idle0.call(this, dt); };
   const pilot0 = Rides.pilot;
   Rides.pilot = function (v, dt, input, horn) {
-    if (!v.auto) return pilot0.call(this, v, dt, input, horn);
-    Metro.drive(v, dt);
-    const p = G.player, at = v.toWorld(PASSENGER_SEATS.metro[0]);
+    if (!v.metro) return pilot0.call(this, v, dt, input, horn);
+    const p = G.player, at = v.toWorld(PASSENGER_SEATS.metro[Metro.mySeat()]);
     p.pos = [at[0], at[1] - 0.75, at[2]];
     p.vel = [0, 0, 0]; p.onGround = true; p.fallStart = null; p.landed = 0;
     this.updateMotor(v);
   };
   const board0 = Rides.board;
   Rides.board = function (v) {
-    board0.call(this, v);
-    if (v.auto) G.ui.toast('All aboard! The train runs by itself \u00b7 Shift to get off', 3500);
+    if (v.metro) {
+      if (v.auto && v.auto.state === 'run' && v.speed > 0.8) { G.ui.toast('\ud83d\ude87 Wait for the train to stop at the platform'); return; }
+      board0.call(this, v);
+      G.ui.toast('\ud83d\ude87 All aboard \u00b7 L' + v.metro.n + (v.auto && v.auto.to ? ' to ' + v.auto.to : '') + ' \u00b7 Shift to get off at a station', 3500);
+      return;
+    }
+    return board0.call(this, v);
   };
-  // the line's train is never saved
+  const dis0 = Vehicles.dismount;
+  Vehicles.dismount = function (forced) {
+    const v = G.vehicle;
+    if (v && v.metro && !forced && v.auto && v.auto.state === 'run') { G.ui.toast('\ud83d\ude87 Wait for the next station'); return; }
+    const r = dis0.call(this, forced);
+    if (v && v.metro && G.vehicle !== v) Metro.alight(v);
+    return r;
+  };
+  // the line's trains are never saved, hit or picked up
   const ser0 = Vehicles.serialize;
   Vehicles.serialize = function () {
     const keep = this.list;
-    this.list = keep.filter((v) => !v.auto);
+    this.list = keep.filter((v) => !v.metro);
     try { return ser0.call(this); } finally { this.list = keep; }
   };
+  const hit0 = Vehicles.hit;
+  if (hit0) Vehicles.hit = function (v) { if (v && v.metro) return; return hit0.call(this, v); };
+  const pick0 = Vehicles.pickUp;
+  Vehicles.pickUp = function (v) { if (v && v.metro) return; return pick0.call(this, v); };
   // right-clicking another player's vehicle gets you in as a passenger
   const ray0 = Vehicles.raycast;
   Vehicles.raycast = function (o, d, maxDist) {
@@ -26934,18 +27237,24 @@ const Passengers = {
     }
     return vb0.call(this, v);
   };
-  // presence: where we sit
+  // presence: where we sit. On a timetable train or bus the others have the same vehicle, so
+  // only which one and which seat (no copy of it is sent)
   const pd0 = Net.presenceData;
   Net.presenceData = function () {
     const d = pd0.call(this);
     if (Passengers.seat) d.ps = [Passengers.seat.peer, Passengers.seat.idx];
+    const v = G.vehicle;
+    if (v && v.metro) { delete d.rd; d.sv = ['m', v.metro.n, v.metro.k, Metro.mySeat()]; }
+    else if (v && v.busLine) { delete d.rd; d.sv = ['b', v.busLine, 1]; }
     return d;
   };
   const op0 = Net.onPresence;
   Net.onPresence = function (peer, pr) {
     op0.call(this, peer, pr);
     const r = this.peers.get(peer);
-    if (r) r.ps = pr && Array.isArray(pr.ps) && typeof pr.ps[0] === 'string' && Number.isInteger(pr.ps[1]) ? pr.ps : null;
+    if (!r) return;
+    r.ps = pr && Array.isArray(pr.ps) && typeof pr.ps[0] === 'string' && Number.isInteger(pr.ps[1]) ? pr.ps : null;
+    r.sv = pr && Array.isArray(pr.sv) && (pr.sv[0] === 'm' || pr.sv[0] === 'b') && pr.sv.slice(1).every((n) => Number.isInteger(n) && n >= 0 && n < 100) ? pr.sv : null;
   };
 }
 
@@ -30597,7 +30906,9 @@ const METRO_STRIPES = [B.BLUE_TILES, B.CONCRETE + 14, B.CONCRETE + 4, B.CONCRETE
 const MDIRV = [[0, -1], [1, 0], [0, 1], [-1, 0]];   // rail link directions (as RIDE_DIRV)
 const mdirOf = (dx, dz) => (dz < 0 ? 0 : dx > 0 ? 1 : dz > 0 ? 2 : 3);
 const mface = (dx, dz) => (dx > 0 ? 0 : dx < 0 ? 1 : dz > 0 ? 4 : 5);   // block facing towards a direction
-const TRANSFER_DIST = 90;   // stations of different lines this close are an interchange
+const TRANSFER_DIST = 90;
+// v turned the way that turns a into b (a quarter turn either way)
+const mrot = (a, b, v) => (-a[1] === b[0] && a[0] === b[1] ? [-v[1], v[0]] : [v[1], -v[0]]);   // stations of different lines this close are an interchange
 
 // Station name signs: 'metro_st_<name>' (line 1, old saves) or 'metro_st_<line>~<name>'
 function metroStSign(key) {
@@ -30786,6 +31097,7 @@ const MetroNet = {
       N.color = lineInfo(N.n).color;
       N.idx = new Map();
       N.path.forEach((c, i) => N.idx.set(posKey(c[0], c[1], c[2]), i));
+      try { N.twin = this.twinOf(N); } catch (e) { N.twin = null; }
       for (const s of N.stations) {
         s.c = N.path[Math.round((s.i0 + s.i1) / 2)];
         const q = names.find((e) => Math.abs(e.x - s.c[0]) < 26 && Math.abs(e.z - s.c[2]) < 26);
@@ -30799,6 +31111,42 @@ const MetroNet = {
       for (const M of nets) if (M !== N && M.stations.some((t) => Math.hypot(t.c[0] - s.c[0], t.c[2] - s.c[2]) < TRANSFER_DIST)) s.transfer.push(M.n);
     }
     return nets;
+  },
+  // The second track of a double-track line: 3 blocks to one side of the first all the way, with
+  // its own platforms (the far ones). Oriented like the first; bOf[i] = the twin cell beside cell i.
+  twinOf(N) {
+    const A = N.path, n = A.length;
+    if (n < 10) return null;
+    for (const i of [3, n >> 2, n >> 1, (3 * n) >> 2, n - 4]) {
+      const a = A[i - 1], b = A[i + 1], c = A[i];
+      if (!a || !b || a[1] !== b[1] || Math.abs(b[0] - a[0]) + Math.abs(b[2] - a[2]) !== 2 || (b[0] !== a[0] && b[2] !== a[2])) continue;
+      const dx = Math.sign(b[0] - a[0]), dz = Math.sign(b[2] - a[2]);
+      for (const sd of [1, -1]) {
+        const q = [c[0] - dz * sd * 3, c[1], c[2] + dx * sd * 3];
+        if (!this.links(q[0], q[1], q[2])) continue;
+        let path = this.walkFrom(q);
+        if (!path || path.length < n * 0.6) continue;
+        const d = (p, r) => Math.abs(p[0] - r[0]) + Math.abs(p[2] - r[2]);
+        if (d(path[path.length - 1], A[0]) < d(path[0], A[0])) path = path.reverse();
+        if (d(path[0], A[0]) > 9 || d(path[path.length - 1], A[n - 1]) > 9) continue;
+        // the twin cell beside every cell of the first track (both go the same way)
+        const bOf = [];
+        let j = 0;
+        for (let k = 0; k < n; k++) {
+          let bj = j, bd = Infinity;
+          for (let m = Math.max(0, j - 4); m < Math.min(path.length, j + 12); m++) { const e = d(path[m], A[k]) + Math.abs(path[m][1] - A[k][1]); if (e < bd) { bd = e; bj = m; } }
+          if (bd > 7) return null;
+          bOf.push(bj); j = bj;
+        }
+        const stations = this.platforms(path, []);
+        for (const s of stations) {
+          const mid = path[Math.round((s.i0 + s.i1) / 2)];
+          s.a = N.stations.findIndex((t) => { const m = A[Math.round((t.i0 + t.i1) / 2)]; return d(m, mid) < 10; });
+        }
+        return { path, bOf, stations: stations.filter((s) => s.a >= 0) };
+      }
+    }
+    return null;
   },
   themed(x, z, used) {
     let h = Math.floor(hash3(Math.floor(x / 8), 0, Math.floor(z / 8), 313) * METRO_NAMES.length);
@@ -30832,7 +31180,13 @@ const MetroPlan = {
       if (Math.abs(e[0]) + Math.abs(e[1]) !== 1) continue;
       const nv = [-e[1], e[0]];
       const t = (x - E[0]) * e[0] + (z - E[2]) * e[1], l = (x - E[0]) * nv[0] + (z - E[2]) * nv[1];
-      const r = this.route(E, e, nv, t, l, end);
+      // a double-track line goes on double: its twin is 3 blocks to this side at the end
+      let tw = null;
+      if (N.twin) {
+        for (const sd of [1, -1]) if (MetroNet.links(E[0] + nv[0] * sd * 3, E[1], E[2] + nv[1] * sd * 3)) tw = [nv[0] * sd, nv[1] * sd];
+        if (!tw) { tries.push({ reason: 'The second track does not reach this end of the line.', score: 1 }); continue; }
+      }
+      const r = this.route(E, e, nv, t, l, end, tw);
       if (r.reason) tries.push(r); else tries.push(Object.assign(r, { end, E, e }));
     }
     let ok = tries.filter((r) => !r.reason).sort((a, b) => a.cells - b.cells);
@@ -30859,7 +31213,7 @@ const MetroPlan = {
         const O = [Math.round(x) - d[0] * along + m[0] * 12, Math.round(z) - d[1] * along + m[1] * 12];
         const r = this.station([O[0], P - 1, O[1]], d, m, P, along, 0);
         if (r.reason) { if (!best) best = r; continue; }
-        Object.assign(r, { E: [O[0], P - 1, O[1]], e: d, end: 1 });
+        Object.assign(r, { E: [O[0], P - 1, O[1]], e: d, end: 1, twin: 1 });
         if (this.clashes(r, 0)) { if (!best || best.reason) best = { reason: 'Another line\u2019s tunnel is in the way. Pick a spot a little further from it.', score: 2 }; continue; }
         if (!best || best.reason || r.cells < best.cells) best = r;
       }
@@ -30875,7 +31229,7 @@ const MetroPlan = {
     const near = new Set();
     for (const N of MetroNet.all()) {
       if (N.n === n) continue;
-      for (const c of N.path) for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) near.add((c[0] + dx) + ',' + (c[2] + dz) + ',' + (c[1] >> 2));
+      for (const c of N.twin ? N.path.concat(N.twin.path) : N.path) for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) near.add((c[0] + dx) + ',' + (c[2] + dz) + ',' + (c[1] >> 2));
     }
     if (!near.size) return false;
     const { list } = MetroBuild.blocks(pl, pl.E, pl.e);
@@ -30883,11 +31237,11 @@ const MetroPlan = {
     return false;
   },
 
-  pack(pl) { return [pl.E[0], pl.E[1], pl.E[2], pl.e[0], pl.e[1], pl.d[0], pl.d[1], pl.m[0], pl.m[1], pl.P, pl.c0, pl.F, pl.steps, pl.bend || 0, pl.newLine || 0]; },
+  pack(pl) { return [pl.E[0], pl.E[1], pl.E[2], pl.e[0], pl.e[1], pl.d[0], pl.d[1], pl.m[0], pl.m[1], pl.P, pl.c0, pl.F, pl.steps, pl.bend || 0, pl.newLine || 0, pl.twin ? 1 : 0]; },
   unpack(a, x, z, n) {
-    if (!Array.isArray(a) || a.length !== 15 || !a.every(Number.isFinite)) return { reason: 'bad plan' };
+    if (!Array.isArray(a) || (a.length !== 15 && a.length !== 16) || !a.every(Number.isFinite)) return { reason: 'bad plan' };
     const u = (v) => Math.sign(v);
-    const pl = { E: [a[0], a[1], a[2]], e: [u(a[3]), u(a[4])], d: [u(a[5]), u(a[6])], m: [u(a[7]), u(a[8])], P: a[9], c0: a[10], F: a[11], steps: clamp(a[12] | 0, 1, 60), bend: clamp(a[13] | 0, 0, 1700), newLine: a[14] | 0 };
+    const pl = { E: [a[0], a[1], a[2]], e: [u(a[3]), u(a[4])], d: [u(a[5]), u(a[6])], m: [u(a[7]), u(a[8])], P: a[9], c0: a[10], F: a[11], steps: clamp(a[12] | 0, 1, 60), bend: clamp(a[13] | 0, 0, 1700), newLine: a[14] | 0, twin: a[15] ? 1 : 0 };
     if (pl.P < 2 || pl.F >= CH || Math.abs(pl.c0) > 1800) return { reason: 'bad plan' };
     return this.finish(pl, x, z, pl.newLine || n);
   },
@@ -30903,8 +31257,18 @@ const MetroPlan = {
     return pl;
   },
 
-  route(E, e, n, t, l, end) {
+  route(E, e, n, t, l, end, tw) {
     const P = E[1] + 1;
+    if (tw) {
+      // double track: the far track stays on its side, so the platform (and the exit) is on the
+      // other one; with a bend the twin turns with the line
+      if (Math.abs(l) <= 40) return Object.assign(this.station(E, e, tw, P, t, 0), { twin: 1 });
+      if (t < 10) return { reason: 'Too close to the line, or behind its end. Pick a spot further along.', score: 2 };
+      const f = [Math.sign(l) * n[0], Math.sign(l) * n[1]];
+      const K = [E[0] + e[0] * t, E[2] + e[1] * t];
+      const r = this.station([K[0], E[1], K[1]], f, mrot(e, f, tw), P, Math.abs(l), t);
+      return Object.assign(r, { twin: 1 });
+    }
     // straight on when the spot is roughly ahead, otherwise one bend towards it
     if (Math.abs(l) <= 40) {
       const side = l < 0 ? -1 : 1;
@@ -30975,10 +31339,65 @@ const MetroBuild = {
         }
       }
     };
+    // double track: the twin 3 blocks to the side tw, a wider vault over both
+    const tunnel2 = (x, z, dv, tw, k, walls) => {
+      for (let l = -2; l <= 5; l++) {
+        const cx = x + tw[0] * l, cz = z + tw[1] * l;
+        for (let y = P - 3; y <= P + 4; y++) {
+          const wall = l === -2 || l === 5, roof = y === P + 4 || (y === P + 3 && (l === -1 || l === 4));
+          let id = B.AIR;
+          if (y <= P - 2) id = y === P - 2 && !wall ? B.GRAVEL : B.CONCRETE + 7;
+          else if (wall || roof) { if (!walls && wall) continue; id = y === P ? B.BLUE_TILES : B.CONCRETE + 8; }
+          else if (y === P + 3 && (l === 1 || l === 2)) id = (k + l) % 8 === 4 ? B.GLASS_LAMP : B.CONCRETE + 8;
+          else if (y === P - 1 && (l === 0 || l === 3)) id = dv[0] ? B.RAIL_EW : B.RAIL;
+          set(cx, y, cz, id);
+        }
+      }
+    };
+    const railOf = (v) => (v[0] ? B.RAIL_EW : B.RAIL);
     // first leg (and the whole tunnel when there is no bend)
     const leg1 = pl.bend ? pl.bend : Math.round(c0 - 14);
-    for (let k = 1; k <= leg1; k++) tunnelCell(E[0] + e[0] * k, E[2] + e[1] * k, e, [-e[1], e[0]], k, k > 2);
-    if (pl.bend) {
+    const tw1 = pl.twin ? (pl.bend ? mrot(d, e, m) : m) : null;
+    if (pl.twin) {
+      for (let k = 1; k <= leg1; k++) tunnel2(E[0] + e[0] * k, E[2] + e[1] * k, e, tw1, k, k > 2);
+      if (pl.bend) {
+        // both legs, then a chamber round both curves (the inner and the outer one)
+        const K = [E[0] + e[0] * pl.bend, E[2] + e[1] * pl.bend];
+        for (let k = 1; k <= Math.round(c0 - 14); k++) tunnel2(K[0] + d[0] * k, K[1] + d[1] * k, d, m, k, k > 6);
+        const Kb = [K[0] + 3 * tw1[0] + 3 * m[0], K[1] + 3 * tw1[1] + 3 * m[1]];
+        const x0 = Math.min(K[0], Kb[0]) - 3, x1 = Math.max(K[0], Kb[0]) + 3, z0 = Math.min(K[1], Kb[1]) - 3, z1 = Math.max(K[1], Kb[1]) + 3;
+        const ring = (x, z) => x === x0 || x === x1 || z === z0 || z === z1;
+        const inBox = (x, z) => x >= x0 && x <= x1 && z >= z0 && z <= z1;
+        for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) for (let y = P - 3; y <= P + 5; y++) {
+          const r = ring(x, z);
+          let id = B.AIR;
+          if (y <= P - 2) id = y === P - 2 && !r ? B.GRAVEL : B.CONCRETE + 7;
+          else if (r || y === P + 5) id = y === P ? B.BLUE_TILES : B.CONCRETE + 8;
+          else if (y === P + 4 && ((x === K[0] && z === K[1]) || (x === Kb[0] && z === Kb[1]))) id = B.GLASS_LAMP;
+          set(x, y, z, id);
+        }
+        // the legs come in through the ring
+        for (const [from, dir, lat] of [[K, [-e[0], -e[1]], tw1], [K, d, m]]) for (let k = 1; k <= 14; k++) for (let l = -1; l <= 4; l++) {
+          const x = from[0] + dir[0] * k + lat[0] * l, z = from[1] + dir[1] * k + lat[1] * l;
+          if (!inBox(x, z) || !ring(x, z)) continue;
+          for (let y = P; y <= P + 2; y++) set(x, y, z, B.AIR);
+          set(x, P - 1, z, l === 0 || l === 3 ? railOf(dir) : B.AIR);
+          set(x, P - 2, z, B.GRAVEL);
+        }
+        // the rails through the chamber and the two curves
+        for (const C of [K, Kb]) {
+          for (const dir of [[-e[0], -e[1]], d]) for (let k = 1; k <= 14; k++) {
+            const x = C[0] + dir[0] * k, z = C[1] + dir[1] * k;
+            if (!inBox(x, z) || ring(x, z)) break;
+            set(x, P - 1, z, railOf(dir));
+          }
+          const din = mdirOf(-e[0], -e[1]), dout = mdirOf(d[0], d[1]);
+          const ci = RAIL_LINKS.findIndex((q) => q.includes(din) && q.includes(dout));
+          if (ci >= 0) set(C[0], P - 1, C[1], RAIL_IDS[ci]);
+        }
+      }
+    } else for (let k = 1; k <= leg1; k++) tunnelCell(E[0] + e[0] * k, E[2] + e[1] * k, e, [-e[1], e[0]], k, k > 2);
+    if (pl.bend && !pl.twin) {
       // a chamber at the bend, then the second leg to the station
       const K = [E[0] + e[0] * pl.bend, E[2] + e[1] * pl.bend];
       for (let a = -3; a <= 3; a++) for (let b = -3; b <= 3; b++) for (let y = P - 3; y <= P + 5; y++) {
@@ -31006,21 +31425,24 @@ const MetroBuild = {
     const X = (a, s) => O[0] + d[0] * (c0 + s) + m[0] * a, Z = (a, s) => O[1] + d[1] * (c0 + s) + m[1] * a;
     const S = (a, y, s, id, f) => set(X(a, s), y, Z(a, s), id, f);
     const stripe = pl.stripe || METRO_STRIPES[(pl.index || 0) % METRO_STRIPES.length];
-    for (let a = -9; a <= 2; a++) for (let s = -14; s <= 14; s++) {
-      const mouth = s === -14 && a >= -1 && a <= 1;
-      const wall = a === -9 || a === 2 || ((s === -14 || s === 14) && !mouth);
+    // (double track: the twin at a = 3 and the far platform a 5..8 behind it)
+    const tw = !!pl.twin, aMax = tw ? 9 : 2, aTr = tw ? 4 : 1;
+    const track = (a) => a === 0 || (tw && a === 3);
+    for (let a = -9; a <= aMax; a++) for (let s = -14; s <= 14; s++) {
+      const mouth = s === -14 && a >= -1 && a <= aTr;
+      const wall = a === -9 || a === aMax || ((s === -14 || s === 14) && !mouth);
       for (let y = P - 3; y <= P + 6; y++) {
         let id = B.AIR;
         if (y === P + 6) id = B.CONCRETE;
         else if (y === P + 5) id = !wall && (a + s) % 4 === 0 ? B.GLASS_LAMP : B.CONCRETE + 8;
         else if (wall) id = y === P + 1 ? stripe : y < P - 1 ? B.CONCRETE + 7 : B.CONCRETE;
-        else if (y === P - 1) id = a <= -2 ? (a === -2 ? B.CONCRETE + 4 : B.TERRAZZO) : a === 0 && s <= 12 ? (d[0] ? B.RAIL_EW : B.RAIL) : B.AIR;
-        else if (y === P - 2) id = a >= -1 ? (a === 0 && s >= -13 && s <= 12 ? B.METRO_MARK : B.GRAVEL) : B.CONCRETE + 7;
+        else if (y === P - 1) id = a <= -2 ? (a === -2 ? B.CONCRETE + 4 : B.TERRAZZO) : a > aTr ? (a === aTr + 1 ? B.CONCRETE + 4 : B.TERRAZZO) : track(a) && s <= 12 ? (d[0] ? B.RAIL_EW : B.RAIL) : B.AIR;
+        else if (y === P - 2) id = a >= -1 && a <= aTr ? (track(a) && s >= -13 && s <= 12 ? B.METRO_MARK : B.GRAVEL) : B.CONCRETE + 7;
         else if (y < P - 2) id = B.CONCRETE + 7;
         S(a, y, s, id);
       }
     }
-    for (let a = -1; a <= 1; a++) { S(a, P - 1, 13, B.CONCRETE + 15); S(a, P, 13, B.CONCRETE + 14); }
+    for (let a = -1; a <= aTr; a++) { S(a, P - 1, 13, B.CONCRETE + 15); S(a, P, 13, B.CONCRETE + 14); }
     for (const s of [-9, -2, 5]) for (let y = P; y <= P + 4; y++) S(-5, y, s, y === P + 1 ? stripe : B.QUARTZ_PILLAR);
     const toWall = mface(-m[0], -m[1]), fromWall = mface(m[0], m[1]), back = mface(-d[0], -d[1]);
     for (const s of [-7, -6, 10, 11]) S(-8, P, s, shapeId('oak', 'stairs'), toWall);
@@ -31035,9 +31457,15 @@ const MetroBuild = {
     };
     const sign = metroSign(pl.name, pl.line || 1);
     const trackSide = mface(-m[0], -m[1]);
-    pic(1, P + 2, -11, trackSide, 3, 1, sign, true);
-    pic(1, P + 2, 4, trackSide, 3, 1, sign, true);
+    pic(aMax - 1, P + 2, -11, trackSide, 3, 1, sign, true);
+    pic(aMax - 1, P + 2, 4, trackSide, 3, 1, sign, true);
     pic(-8, P + 1, 1, fromWall, 2, 1, 'metro_map', true);
+    if (tw) {
+      // the far platform: benches, the name across the tracks, the underpass
+      for (const s of [8, 9]) S(8, P, s, shapeId('oak', 'stairs'), fromWall);
+      pic(-8, P + 2, -13, fromWall, 3, 1, sign, true);
+      metroUnderpass(S, P, -4, 7, -6, -1, mface(d[0], d[1]), stripe, (a, s) => a === -5 && (s === -9 || s === -2 || s === 5));
+    }
     // the stair up to the street, 3 wide at a -13..-11, top at s = 7 - steps, landing s 7..9
     const n = pl.steps, st = shapeId('terrazzo', 'stairs'), sTop = 7 - n;
     for (let k = 0; k < n; k++) {
@@ -31159,7 +31587,7 @@ const MetroBuild = {
       w.editsDirty = true;
       MetroNet.dirty = true;
       if (typeof FareRetro !== 'undefined') FareRetro.done.clear();
-      if (Metro.train && G.vehicle !== Metro.train) { Metro.train.removed = true; Metro.train = null; }
+      Metro.reset();
       if (j.mine) { G.ui.banner(j.icon || '\ud83d\ude87', j.done || j.name + ' station is open'); sfx('metro_chime', null, 1, 1); saveWorld(); }
     }
   },
@@ -31212,18 +31640,20 @@ const MetroPanel = {
       const len = N.path.length, p = G.player.pos;
       let here = -1, hd = 160;
       N.stations.forEach((s, i) => { const d = Math.hypot(s.c[0] - p[0], s.c[2] - p[2]); if (d < hd) { hd = d; here = i; } });
-      const t = Metro.train, ti = t && t.auto && t.auto.line === N.n && t.rail ? N.idx.get(posKey(t.rail.x, t.rail.y, t.rail.z)) : undefined;
+      const R = Metro.route(N);
+      const trains = Metro.positions(N).map((q) => ({ i: MetroNet.nearIdx(N.path, [q.x, q.y, q.z]), dir: q.dir }));
       const pos = (i) => (len > 1 ? 4 + (i / (len - 1)) * 92 : 50);
-      const minutes = Math.max(1, Math.round((len / 14 + N.stations.length * METRO_STOP.dwell) / 60));
+      const minutes = Math.max(1, Math.round((R ? R.cycle / 2 : len / 14 + N.stations.length * METRO_STOP.dwell) / 60));
       body = `
         <div class="mp-line" style="--lc:${N.color}"><div class="mp-track"></div>
           ${N.stations.map((s, i) => `<div class="mp-st${i === here ? ' here' : ''}${s.transfer.length ? ' xfer' : ''}" style="left:${pos((s.i0 + s.i1) / 2)}%"><em></em><span>${escapeHtml(s.name)}</span>${s.transfer.length ? `<small class="mp-x2">${s.transfer.map((n) => this.pill(n)).join('')}</small>` : i === here ? '<small>You are here</small>' : ''}</div>`).join('')}
-          ${ti !== undefined ? `<div class="mp-train" style="left:${pos(ti)}%">\ud83d\ude87</div>` : ''}
+          ${trains.map((q) => `<div class="mp-train${q.dir < 0 ? ' back' : ''}" style="left:${pos(q.i)}%">\ud83d\ude87</div>`).join('')}
         </div>
         <div class="mp-stats">
           <div><b>${N.stations.length}</b><span>stations</span></div>
           <div><b>${(len / 1000).toFixed(2)} km</b><span>of track</span></div>
           <div><b>~${minutes} min</b><span>end to end</span></div>
+          <div><b>${R ? (R.double ? '2 tracks' : '1 track') : '\u2014'}</b><span>${R ? R.count + ' train' + (R.count > 1 ? 's' : '') + ' \u00b7 every ' + timeText(R.cycle / R.count) : 'no service'}</span></div>
           <div><b>${N.stations.reduce((a, s) => a + (s.transfer.length ? 1 : 0), 0)}</b><span>interchanges</span></div>
         </div>`;
     } else body = '<p class="mp-empty">No metro yet in this world. Start the first line wherever you like \u2014 next to your house, for example.</p>';
@@ -35213,7 +35643,15 @@ const Bus = {
         pts.forEach((p, i) => { const d = Math.hypot(p[0] - st.u, p[1] - st.v); if (d < bd) { bd = d; bi = i; } });
         return { name: st.name, s: s[bi], u: st.u, v: st.v, su: st.su !== undefined ? st.su : st.u, sv: st.sv !== undefined ? st.sv : st.v };
       }).sort((a, b) => a.s - b.s);
-      out[n] = { n: Number(n), L, pts, s, total, stops, cx: pl.x, cz: pl.z, F: pl.y };
+      // the timetable: from each stop to the next, then the wait there (the same for everybody)
+      let t = 0;
+      const legs = stops.map((st, i) => {
+        const nx = stops[(i + 1) % stops.length], len = ((nx.s - st.s) % total + total) % total || total;
+        const prof = runProfile(len, BUS_MAX, BUS_ACC), l = { from: i, to: (i + 1) % stops.length, s0: st.s, len, prof, t0: t, arr: t + prof.tt };
+        t = l.arr + BUS_DWELL;
+        return l;
+      });
+      out[n] = { n: Number(n), L, pts, s, total, stops, legs, cycle: t, cx: pl.x, cz: pl.z, F: pl.y };
     }
     return out;
   },
@@ -35238,31 +35676,29 @@ const Bus = {
       if (b && (b.v.removed || !Vehicles.list.includes(b.v))) { b = this.buses[R.n] = null; }
       if (!near) { if (b && G.vehicle !== b.v) { b.v.removed = true; this.buses[R.n] = null; } continue; }
       if (!b) {
-        // wherever the timetable says it is now
-        const s0 = ((Date.now() / 1000) * 5.2 + R.n * 97) % R.total, [u, v, yaw] = this.at(R, s0);
-        const v2 = Rides.spawn('bus', R.cx + u + 0.5, R.F, R.cz + v + 0.5, yaw, R.n === 1 ? 0 : 1);
+        const v2 = Rides.spawn('bus', R.cx + 0.5, R.F, R.cz + 0.5, 0, R.n === 1 ? 0 : 1);
         v2.scripted = true; v2.busLine = R.n; v2.onGround = true;
-        b = this.buses[R.n] = { v: v2, s: s0, speed: 0, state: 'run', t: 0, stop: R.stops.findIndex((st) => st.s > s0), said: false };
-        if (b.stop < 0) b.stop = 0;
+        b = this.buses[R.n] = { v: v2, s: 0, speed: 0, state: 'run', t: 0, stop: 0, said: false, first: true };
       }
       this.drive(R, b, dt);
     }
     this.updateHud(dt);
   },
+  phase(R) { return (((Date.now() / 1000 + R.n * 97) % R.cycle) + R.cycle) % R.cycle; },
   drive(R, b, dt) {
-    const st = R.stops[b.stop], v = b.v;
-    if (b.state === 'dwell') {
-      b.t -= dt; b.speed = 0;
-      if (b.t <= 0) { b.state = 'run'; b.stop = (b.stop + 1) % R.stops.length; b.said = false; sfx('metro_doors', v.pos, 0.6, 1.2); }
-    } else {
-      const d = this.ahead(R, b.s, st.s);
-      const want = Math.min(BUS_MAX, Math.sqrt(2 * BUS_DEC * Math.max(0, d - 0.2)) + 0.3);
-      b.speed = b.speed < want ? Math.min(want, b.speed + BUS_ACC * dt) : Math.max(want, b.speed - BUS_DEC * 1.6 * dt);
-      const step = Math.min(b.speed * dt, d);
-      b.s = (b.s + step) % R.total;
-      if (!b.said && d < 30) { b.said = true; if (G.vehicle === v) this.sign(R, 'Next stop: ' + st.name, 'Press the bell \u00b7 Shift to get off'); sfx('bell', v.pos, 0.6, 1); }
-      if (d - step < 0.05) {
-        b.state = 'dwell'; b.t = BUS_DWELL; b.speed = 0;
+    const v = b.v, ph = this.phase(R);
+    let l = R.legs[0];
+    for (const q of R.legs) if (q.t0 <= ph) l = q;
+    const dtl = ph - l.t0, run = dtl < l.prof.tt;
+    const [d, sp] = run ? l.prof.at(dtl) : [l.len, 0];
+    const was = { state: b.state, stop: b.stop };
+    b.s = (l.s0 + d) % R.total; b.speed = sp; b.stop = l.to;
+    b.state = run ? 'run' : 'dwell'; b.t = run ? 0 : l.arr + BUS_DWELL - ph;
+    const st = R.stops[l.to];
+    if (!b.first) {
+      if (run && was.stop !== b.stop) { b.said = false; sfx('metro_doors', v.pos, 0.6, 1.2); }
+      if (run && !b.said && l.len - d < 30) { b.said = true; if (G.vehicle === v) this.sign(R, 'Next stop: ' + st.name, 'Press the bell \u00b7 Shift to get off'); sfx('bell', v.pos, 0.6, 1); }
+      if (!run && was.state === 'run') {
         sfx('metro_doors', v.pos, 0.6, 1);
         if (G.vehicle === v) this.sign(R, st.name, 'Doors open \u00b7 L' + R.n + ' ' + R.L.name);
       }
@@ -35270,7 +35706,8 @@ const Bus = {
     const [u, w, yaw] = this.at(R, b.s);
     v.pos = [R.cx + u + 0.5, R.F, R.cz + w + 0.5];
     let dy = yaw - v.yaw; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI;
-    v.yaw += dy * Math.min(1, dt * 6);
+    v.yaw = b.first ? yaw : v.yaw + dy * Math.min(1, dt * 6);
+    b.first = false;
     v.pitch = 0; v.roll = 0; v.speed = b.speed; v.vel = [0, 0, 0]; v.onGround = true;
     v.rpm = 0.2 + b.speed / BUS_MAX * 0.7;
     if (v.basis) v.basis();
@@ -35285,16 +35722,10 @@ const Bus = {
 
   // when is the next bus at this stop?
   eta(R, stopIdx) {
-    const b = this.buses[R.n];
-    if (!b) return null;
-    const st = R.stops[stopIdx];
-    if (b.state === 'dwell' && b.stop === stopIdx) return 0;
-    let t = this.ahead(R, b.s, st.s) / (BUS_MAX * 0.72);
-    // dwell at every stop on the way
-    let k = b.stop;
-    while (k !== stopIdx) { t += BUS_DWELL; k = (k + 1) % R.stops.length; }
-    if (b.state === 'dwell') t += b.t;
-    return t;
+    const ph = this.phase(R), l = R.legs.find((q) => q.to === stopIdx);
+    if (!l) return null;
+    if (ph >= l.arr && ph < l.arr + BUS_DWELL) return 0;
+    return ((l.arr - ph) % R.cycle + R.cycle) % R.cycle;
   },
   updateHud(dt) {
     this.hudT = (this.hudT || 0) - dt;
@@ -35374,6 +35805,9 @@ const TransportMap = {
         g.beginPath(); g.arc(X(q[0] + 0.5), Z(q[2] + 0.5), 7, 0, 7); g.fill(); g.stroke();
         g.fillStyle = '#20242c'; g.font = '800 19px Arial'; g.textAlign = 'left'; g.fillText('\u24c2 ' + st.name, X(q[0] + 0.5) + 10, Z(q[2] + 0.5) - 10);
       }
+      // the trains, where the timetable has them now
+      g.font = '24px serif'; g.textAlign = 'center';
+      for (const q of Metro.positions(N)) g.fillText('\ud83d\ude87', X(q.x), Z(q.z) + 8);
     }
     // bus lines
     if (lines) for (const R of Object.values(lines)) {
@@ -35738,6 +36172,7 @@ const Airport = {
       if (this.step(F, dt)) { this.flights.splice(this.flights.indexOf(F), 1); if (F.then) F.then(F); else if (G.vehicle !== F.v) F.v.removed = true; }
     }
     if (!pl) return;
+    this.updateHud();
     // traffic while you are around: a plane lands, waits at the stand and takes off again
     const p = G.player.pos, near = Math.hypot(p[0] - (pl.x + 110), p[2] - pl.z) < 320 && Math.abs(p[1] - pl.y) < 120;
     if (!near) { for (const F of this.flights) if (!F.player && G.vehicle !== F.v) F.v.removed = true; return; }
@@ -35749,7 +36184,6 @@ const Airport = {
         setTimeout(() => { if (!F.v.removed && !this.mine) this.fly(FLIGHT_OUT, (G2) => { G2.v.removed = true; }, F.v); else F.v.removed = true; }, 25000);
       });
     }
-    this.updateHud();
   },
 
   // ---- flights for the player ----
@@ -35761,9 +36195,36 @@ const Airport = {
       return { key: r.key, name: r.p.name, icon: r.p.icon, d, price: 40 + Math.round(d / 30), mins: Math.max(1, Math.round(d / 250)) };
     }).sort((a, b) => a.d - b.d);
   },
+  // far from STUCOM (after a flight, or anywhere): the only flight is the one back home
+  away() {
+    const pl = this.plan(), p = G.player.pos;
+    return !!pl && (dimOf(p[0], p[2]) !== DIM_OVER || Math.hypot(p[0] - pl.x - 100, p[2] - pl.z) > 420);
+  },
+  homePrice() {
+    const pl = this.plan(), p = G.player.pos;
+    return pl ? 40 + Math.round(Math.min(6000, Math.hypot(p[0] - pl.x, p[2] - pl.z)) / 30) : 40;
+  },
+  openReturn() {
+    const q = GPanel.open({ title: 'Blocklands Air', sub: 'Return flight \u00b7 to Aeroport STUCOM', icon: '\u2708\ufe0f', cls: 'gp-shop', width: 520 });
+    q.wrap.querySelector('.gp').style.setProperty('--shop', '#d6202b');
+    const pass = G.inv.count(I.BOARDING_PASS) > 0, price = this.homePrice();
+    const where = G.prog && G.prog.trip ? (this.dests().find((d) => d.key === G.prog.trip) || null) : null;
+    q.body.innerHTML = `<div class="ret-card"><div class="ret-route"><span>${where ? where.icon + ' ' + GPanel.esc(where.name) : '\ud83d\udccd Here'}</span><i>\u2708\ufe0f</i><span>\ud83c\udfeb STUCOM</span></div>
+      <p>${pass ? 'You have a return boarding pass: the flight is on us.' : 'No boarding pass? Buy a ticket home.'} A plane picks you up and lands at the STUCOM runway.</p>
+      <button class="gp-btn ok ret-go">${pass ? '\ud83c\udfab Use boarding pass' : '\ud83e\ude99 ' + price + ' \u00b7 fly home'}</button></div>`;
+    q.body.querySelector('.ret-go').addEventListener('click', () => {
+      if (this.mine) { G.ui.toast('You are already on a flight'); return; }
+      if (pass) { G.inv.remove(I.BOARDING_PASS, 1); G.ui.invDirty(); }
+      else if (!Shops.pay(price)) { G.ui.toast('\ud83e\ude99 The ticket costs ' + price + ' coins'); sfx('gate_no', null, 0.6, 1); return; }
+      q.close();
+      sfx('shop_till', null, 0.7, 1);
+      this.flyHome();
+    });
+  },
   open() {
     const pl = this.plan();
     if (!pl) { G.ui.toast('Flights leave from the airport of the STUCOM district'); return; }
+    if (this.away()) { this.openReturn(); return; }
     const q = GPanel.open({ title: 'Blocklands Air', sub: 'Departures \u00b7 Aeroport STUCOM', icon: '\u2708\ufe0f', cls: 'gp-shop', width: 640 });
     q.wrap.querySelector('.gp').style.setProperty('--shop', '#d6202b');
     const now = new Date();
@@ -35815,25 +36276,56 @@ const Airport = {
       const left = G.inv.add(mkStack(I.BOARDING_PASS, 1));
       if (left) Ents.spawnItem(mkStack(I.BOARDING_PASS, 1), G.player.pos[0], G.player.pos[1] + 1, G.player.pos[2]);
       G.ui.invDirty();
-      G.ui.banner(d.icon, 'Welcome to ' + d.name + '! Your return boarding pass is in your inventory');
+      pr.trip = d.key;
+      G.ui.banner(d.icon, 'Welcome to ' + d.name + '! To fly home: your boarding pass, or Flights on the phone (L)');
       this.fade(false);
     }, 1400);
   },
+  // The flight home: you are aboard a plane on its approach to STUCOM, it lands, taxis to the
+  // stand and you get off at the terminal.
   flyHome() {
     const pl = this.plan();
     if (!pl) { G.ui.toast('This world has no STUCOM airport'); return false; }
-    if (Police.jail) return false;
+    if (Police.jail || this.mine) return false;
+    const from = G.prog && G.prog.trip ? this.dests().find((d) => d.key === G.prog.trip) : null;
     this.fade(true, () => {
       if (G.vehicle) Vehicles.dismount(true);
+      // the ambient plane would land on top of ours
+      for (const F of this.flights.slice()) if (!F.player && G.vehicle !== F.v) { F.v.removed = true; this.flights.splice(this.flights.indexOf(F), 1); }
+      this.ambientT = 70;
+      const F = this.fly(FLIGHT_LAND, () => this.landed());
+      if (!F) { this.fade(false); return; }
+      F.player = true;
+      this.mine = { d: { name: 'STUCOM', icon: '\ud83c\udfeb' }, from, F, home: true };
+      this.step(F, 0);
+      const p = G.player;
+      p.pos = F.v.pos.slice(); p.vel = [0, 0, 0]; p.fallStart = null;
+      prepareArea(pl.x + 110, pl.z, 3);
+      Vehicles.board(F.v);
+      p.yaw = F.v.yaw + Math.PI + 0.7; p.pitch = -0.22;
+      Net.teleported();
+      G.ui.banner('\u2708\ufe0f', 'Blocklands Air \u00b7 back to STUCOM \u00b7 we are starting our approach');
+      sfx('metro_chime', null, 0.8, 0.8);
+      this.fade(false);
+    }, 1200);
+    return true;
+  },
+  landed() {
+    const pl = this.plan(), m = this.mine;
+    this.fade(true, () => {
+      const v = m && m.F.v;
+      this.mine = null;
+      if (G.vehicle === v) Vehicles.dismount(true);
+      if (v) v.removed = true;
+      if (G.prog) G.prog.trip = null;
       const p = G.player;
       p.pos = [pl.x + 94.5, pl.y, pl.z + 0.5]; p.vel = [0, 0, 0]; p.fallStart = null; p.yaw = Math.PI / 2;
       prepareArea(p.pos[0], p.pos[2], 2);
       liftOutOfBlocks(p);
       Net.teleported();
-      G.ui.banner('\u2708\ufe0f', 'Welcome back to Aeroport STUCOM');
+      G.ui.banner('\ud83c\udfeb', 'Welcome back to Aeroport STUCOM');
       this.fade(false);
-    }, 1200);
-    return true;
+    }, 900);
   },
   fade(on, then, ms = 700) {
     let el = $('flightFade');
@@ -35846,9 +36338,10 @@ const Airport = {
     let el = $('tripHud');
     if (!m) { if (el) el.classList.remove('show'); return; }
     if (!el) { el = document.createElement('div'); el.id = 'tripHud'; document.body.append(el); }
-    const F = m.F, tot = FLIGHT_OUT[FLIGHT_OUT.length - 1][0], alt = Math.max(0, Math.round(F.v.pos[1] - F.pl.y));
-    const phase = F.t < 17 ? 'Taxiing' : F.t < 32 ? 'Take-off' : 'Climbing';
-    el.innerHTML = `<b>\u2708\ufe0f STUCOM \u2192 ${GPanel.esc(m.d.name)}</b><span>${phase} \u00b7 ${Math.round(F.v.speed * 3.6)} km/h \u00b7 ${alt} m</span><i style="width:${Math.min(100, F.t / tot * 100)}%"></i>`;
+    const F = m.F, fr = m.home ? FLIGHT_LAND : FLIGHT_OUT, tot = fr[fr.length - 1][0], alt = Math.max(0, Math.round(F.v.pos[1] - F.pl.y));
+    const phase = m.home ? (F.t < 18 ? 'Final approach' : F.t < 28 ? 'Landing' : 'Taxiing to the stand') : F.t < 17 ? 'Taxiing' : F.t < 32 ? 'Take-off' : 'Climbing';
+    const route = m.home ? (m.from ? GPanel.esc(m.from.name) : 'Here') + ' \u2192 STUCOM' : 'STUCOM \u2192 ' + GPanel.esc(m.d.name);
+    el.innerHTML = `<b>\u2708\ufe0f ${route}</b><span>${phase} \u00b7 ${Math.round(F.v.speed * 3.6)} km/h \u00b7 ${alt} m</span><i style="width:${Math.min(100, F.t / tot * 100)}%"></i>`;
     el.classList.add('show');
   },
 };
@@ -36935,6 +37428,70 @@ for (const [k, draw] of Object.entries(TEACHER_FACES)) PIC_BUILTIN['face_' + k] 
     gc.call(this);
     for (const [i, k] of keep) { this.used[i] = k; this.slots.set(k, i); }
   };
+}
+</script>
+<script>
+'use strict';
+// "Support Blocklands": a button on the title screen (and an app on the phone) that opens a small
+// card to buy Pau a coffee. The game stays free and without ads; donations are optional and never
+// unlock anything. Set SUPPORT.kofi (the Ko-fi page name) and/or SUPPORT.paypal (a paypal.me
+// name) to switch the buttons on; until then the card says it is coming soon.
+
+const SUPPORT = { kofi: '', paypal: '' };
+
+const Support = {
+  el: null,
+  url(kind, amount) {
+    if (kind === 'kofi' && SUPPORT.kofi) return 'https://ko-fi.com/' + encodeURIComponent(SUPPORT.kofi);
+    if (kind === 'paypal' && SUPPORT.paypal) return 'https://paypal.me/' + encodeURIComponent(SUPPORT.paypal) + (amount ? '/' + amount + 'EUR' : '');
+    return '';
+  },
+  open() {
+    if (this.el) { this.close(); return; }
+    if (document.pointerLockElement) document.exitPointerLock();
+    const on = !!(SUPPORT.kofi || SUPPORT.paypal);
+    const tiers = [['\u2615', 'A coffee', 3], ['\ud83e\udd50', 'Coffee & croissant', 5], ['\ud83c\udf55', 'A pizza for the dev nights', 10]];
+    const el = this.el = document.createElement('div');
+    el.id = 'supportUI';
+    el.innerHTML = `<div class="sp-card" role="dialog" aria-label="Support Blocklands">
+      <button class="sp-x" aria-label="Close">\u2715</button>
+      <div class="sp-cup"><svg viewBox="0 0 64 64"><path class="sp-steam" d="M24 8c-3 4 3 6 0 10M32 5c-3 4 3 7 0 11M40 8c-3 4 3 6 0 10"/><path d="M12 24h36v14a16 16 0 0 1-16 16h-4a16 16 0 0 1-16-16z" fill="#fff"/><path d="M48 28h4a7 7 0 0 1 0 14h-5" fill="none" stroke="#fff" stroke-width="4"/><path d="M16 30h28v6a12 12 0 0 1-12 12h-4a12 12 0 0 1-12-12z" fill="#ff7a59"/><path d="M26 36c0-3 6-3 6 1 0-4 6-4 6-1 0 4-6 8-6 8s-6-4-6-8z" fill="#fff"/></svg></div>
+      <h2>Support Blocklands</h2>
+      <p>Blocklands is free, with no ads and nothing to buy. If you enjoy it, you can buy Pau a coffee: it keeps the servers and the new updates going.</p>
+      <div class="sp-tiers">${tiers.map(([i, n, eur]) => `<a class="sp-tier${on ? '' : ' off'}" data-eur="${eur}" target="_blank" rel="noopener"><i>${i}</i><b>${eur} \u20ac</b><span>${n}</span></a>`).join('')}</div>
+      <div class="sp-row">${on ? '' : '<span class="sp-soon">Donations open very soon \u2728</span>'}
+        ${SUPPORT.kofi ? `<a class="sp-btn kofi" href="${this.url('kofi')}" target="_blank" rel="noopener">\u2615 Ko-fi</a>` : ''}
+        ${SUPPORT.paypal ? `<a class="sp-btn paypal" href="${this.url('paypal')}" target="_blank" rel="noopener">PayPal</a>` : ''}</div>
+      <small>Under 18? Ask an adult first. Donations are a thank-you: they don't unlock anything in the game.</small>
+    </div>`;
+    document.body.append(el);
+    el.querySelectorAll('.sp-tier').forEach((a) => {
+      const u = this.url(SUPPORT.kofi ? 'kofi' : 'paypal', a.dataset.eur);
+      if (u) a.href = u; else a.addEventListener('click', (e) => e.preventDefault());
+    });
+    el.addEventListener('click', (e) => { if (e.target === el || e.target.closest('.sp-x')) this.close(); });
+    requestAnimationFrame(() => el.classList.add('on'));
+  },
+  close() {
+    const el = this.el;
+    if (!el) return;
+    this.el = null;
+    el.classList.remove('on');
+    setTimeout(() => el.remove(), 250);
+  },
+};
+
+{
+  const foot = document.querySelector('#title .title-foot');
+  if (foot) {
+    const b = document.createElement('button');
+    b.id = 'tSupport';
+    b.innerHTML = '<span>\u2615</span> Support Blocklands';
+    b.addEventListener('click', () => Support.open());
+    foot.insertBefore(b, foot.lastElementChild);
+  }
+  window.addEventListener('keydown', (e) => { if (Support.el && e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); Support.close(); } }, true);
+  if (typeof PC !== 'undefined') PC.add({ key: 'support', icon: '\u2615', name: 'Support', closes: true, run() { setTimeout(() => Support.open(), 80); } });
 }
 </script>
 <script>

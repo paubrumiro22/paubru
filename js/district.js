@@ -160,7 +160,7 @@ function planDistrict(g, plan) {
 
   // ---- the metro, last: nothing is ever built over its stairs ----
   const tx = cx + 12, at = (v) => [tx + 0.5, D.P - 1, cz + v + 0.5];
-  piece(box(-5, -18, 16, 60), (W) => buildDistrictMetro(W, g, D));
+  piece(box(-5, -18, 22, 60), (W) => buildDistrictMetro(W, g, D));
   // ---- bus stops: shelters on the pavements of the two bus lines (bus.js drives the buses) ----
   for (const st of BUS_STOPS) if (!st.plaza) piece(box(st.u - 4, st.v - 4, st.u + 4, st.v + 4), (W) => buildBusShelter(W, g, D, st));
 
@@ -397,6 +397,34 @@ function buildPlotBlock(W, g, D, u0, v0) {
 }
 
 // ---------------------------------------------------------------- the metro ----
+// The underpass between the two platforms of a double-track station, in a station's local frame
+// (set(a, y, s, id, f): a across the tracks, s along them, platforms at floor level P). Two stairs
+// 2 wide (at a = aW and a = aE) go down along s from s0 in the direction dir to a corridor under
+// both tracks. faceDown: the stair facing for going down that way. pillar(a, s): no railing there.
+function metroUnderpass(set, P, aW, aE, s0, dir, faceDown, stripe, pillar) {
+  const st = shapeId('terrazzo', 'stairs');
+  const S = (k) => s0 + dir * k;
+  // a solid shell, then the corridor carved in it
+  for (let a = aW - 1; a <= aE + 2; a++) for (let k = -1; k <= 7; k++) for (let y = P - 7; y <= P - 3; y++) set(a, y, S(k), B.CONCRETE + 7);
+  for (let a = aW; a <= aE + 1; a++) for (const k of [5, 6]) {
+    set(a, P - 6, S(k), B.TERRAZZO);
+    set(a, P - 5, S(k), B.AIR); set(a, P - 4, S(k), B.AIR);
+    set(a, P - 3, S(k), (a - aW) % 4 === 1 && k === 5 ? B.GLASS_LAMP : B.CONCRETE + 8);
+  }
+  for (let a = aW; a <= aE + 1; a++) set(a, P - 4, S(7), stripe);
+  for (const col of [aW, aE]) for (let c = col; c <= col + 1; c++) for (let k = 0; k <= 4; k++) {
+    const y = P - 1 - k;
+    set(c, y, S(k), st, faceDown);
+    set(c, y - 1, S(k), B.TERRAZZO);
+    for (let yy = y + 1; yy <= P - 1; yy++) set(c, yy, S(k), B.AIR);
+  }
+  // railings along the openings on the walkway side (the platform edges stay clear for the doors)
+  for (let k = 0; k <= 4; k++) {
+    for (const a of [aW - 1, aE - 1]) if (!pillar || !pillar(a, S(k))) set(a, P, S(k), B.IRON_BARS);
+  }
+  for (const a of [aW, aW + 1, aE, aE + 1]) set(a, P, S(5), B.IRON_BARS);
+}
+
 // Universitat under the square, a straight tunnel and Catalunya under the park. The track runs
 // along z at u = 12, the platform on its west side. Each station has a wide stair from the street
 // (open at the top, with railings, a glass canopy and the red M) down to a landing that opens onto
@@ -406,50 +434,62 @@ function buildDistrictMetro(W, g, D) {
   const set = (u, y, v, id, f) => W.set(cx + u, y, cz + v, id, f);
   const L = { X: (a) => cx + a, Z: (a, d) => cz + d };
   const S = lwriter(W, L);
+  // two tracks: towards Catalunya at u = 12 (by the main platform), back at u = 15 (far platform
+  // u 17..20, reached by the underpass)
   const hall = (v0, v1, stripe, mouth) => {
-    const vb = mouth === v0 ? v1 - 1 : v0 + 1;      // buffer stop at the closed end
-    for (let u = 3; u <= 14; u++) for (let v = v0; v <= v1; v++) {
-      const endWall = v === v0 || v === v1, open = u >= 11 && u <= 13 && v === mouth;
-      const wall = u === 3 || u === 14 || (endWall && !open);
+    const vb = mouth === v0 ? v1 - 1 : v0 + 1;      // buffer stops at the closed end
+    for (let u = 3; u <= 21; u++) for (let v = v0; v <= v1; v++) {
+      const endWall = v === v0 || v === v1, open = u >= 11 && u <= 16 && v === mouth;
+      const wall = u === 3 || u === 21 || (endWall && !open);
+      const railRun = mouth === v1 ? v > vb && v <= v1 : v >= v0 && v < vb;
       for (let y = P - 3; y <= P + 6; y++) {
         let id = B.AIR;
         if (y === P + 6) id = B.CONCRETE;
         else if (y === P + 5) id = !wall && (u + v) % 4 === 0 ? B.GLASS_LAMP : B.CONCRETE + 8;
         else if (wall) id = y === P + 1 ? stripe : y < P - 1 ? B.CONCRETE + 7 : B.CONCRETE;
-        else if (y === P - 1) id = u <= 10 ? (u === 10 ? B.CONCRETE + 4 : B.TERRAZZO) : u === 12 && (mouth === v1 ? v > vb && v <= v1 : v >= v0 && v < vb) ? B.RAIL : B.AIR;
-        else if (y === P - 2) id = u >= 11 ? B.GRAVEL : B.CONCRETE + 7;
+        else if (y === P - 1) id = u <= 10 ? (u === 10 ? B.CONCRETE + 4 : B.TERRAZZO) : u >= 17 ? (u === 17 ? B.CONCRETE + 4 : B.TERRAZZO) : (u === 12 || u === 15) && railRun ? B.RAIL : B.AIR;
+        else if (y === P - 2) id = u >= 11 && u <= 16 ? B.GRAVEL : B.CONCRETE + 7;
         else if (y < P - 2) id = B.CONCRETE + 7;
         set(u, y, v, id);
       }
     }
-    for (let u = 11; u <= 13; u++) { set(u, P - 1, vb, B.CONCRETE + 15); set(u, P, vb, B.CONCRETE + 14); }
+    for (let u = 11; u <= 16; u++) { set(u, P - 1, vb, B.CONCRETE + 15); set(u, P, vb, B.CONCRETE + 14); }
   };
   hall(-16, 12, B.BLUE_TILES, 12);
   hall(31, 58, B.CONCRETE + 14, 31);
   // the trains know a platform by the marker under its track (metro_panel.js)
-  for (const [m0, m1] of [[-14, 11], [31, 56]]) for (let v = m0; v <= m1; v++) set(12, P - 2, v, B.METRO_MARK);
+  for (const [m0, m1] of [[-14, 11], [31, 56]]) for (let v = m0; v <= m1; v++) { set(12, P - 2, v, B.METRO_MARK); set(15, P - 2, v, B.METRO_MARK); }
   set(3, P + 1, -7, B.METRO_PANEL, 0);
   set(3, P + 1, 42, B.METRO_PANEL, 0);
-  // tunnel between them: walls, a vault, lamps, the track
-  for (let v = 13; v <= 30; v++) for (let u = 10; u <= 14; u++) for (let y = P - 3; y <= P + 4; y++) {
-    const wall = u === 10 || u === 14, roof = y === P + 4 || (y === P + 3 && (u === 11 || u === 13));
+  // tunnel between them: walls, a vault, lamps, both tracks
+  for (let v = 13; v <= 30; v++) for (let u = 10; u <= 17; u++) for (let y = P - 3; y <= P + 4; y++) {
+    const wall = u === 10 || u === 17, roof = y === P + 4 || (y === P + 3 && (u === 11 || u === 16));
     let id = B.AIR;
     if (y <= P - 2) id = y === P - 2 && !wall ? B.GRAVEL : B.CONCRETE + 7;
     else if (wall || roof) id = y === P ? B.BLUE_TILES : B.CONCRETE + 8;
-    else if (y === P + 3 && u === 12) id = v % 8 === 4 ? B.GLASS_LAMP : B.CONCRETE + 8;
-    else if (y === P - 1 && u === 12) id = B.RAIL;
+    else if (y === P + 3 && (u === 13 || u === 14)) id = (v + u) % 8 === 4 ? B.GLASS_LAMP : B.CONCRETE + 8;
+    else if (y === P - 1 && (u === 12 || u === 15)) id = B.RAIL;
     set(u, y, v, id);
   }
-  // platform furniture: columns, benches against the wall, signs, map, a ticket machine
+  // the crossovers where the trains change track before each terminus (metro.js drives them)
+  for (const [u, v] of [[13, 28], [13, 27], [14, 26], [14, 25], [14, 18], [14, 17], [13, 16], [13, 15]]) set(u, P - 1, v, B.RAIL);
+  // platform furniture: columns, benches against the walls, signs, map, a ticket machine
   for (const [v0, v1, name, stripe, benches] of [[-16, 12, 'metro_name', B.BLUE_TILES, [-9, -8, 3, 4]], [31, 58, 'metro_name2', B.CONCRETE + 14, [45, 46, 50, 51]]]) {
     for (let v = v0 + 5; v < v1 - 3; v += 7) for (let y = P; y <= P + 4; y++) set(7, y, v, y === P + 1 ? stripe : B.QUARTZ_PILLAR);
-    for (const v of benches) set(4, P, v, shapeId('oak', 'stairs'), 1);
-    S.pic(13, P + 2, v0 + 6, 1, 3, 1, name, true);
-    S.pic(13, P + 2, v1 - 10, 1, 3, 1, name, true);
-    S.pic(13, P + 1, v0 + 16, 1, 2, 1, v0 < 0 ? 'sunset' : 'mountains', true);
+    const closed = v0 < 0 ? -1 : 1, s0 = closed < 0 ? v0 + 7 : v1 - 8;
+    for (const v of benches) {
+      set(4, P, v, shapeId('oak', 'stairs'), 1);
+      if ((v - s0) * closed < -1 || (v - s0) * closed > 6) set(20, P, v, shapeId('oak', 'stairs'), 0);
+    }
+    S.pic(20, P + 2, v0 + 6, 1, 3, 1, name, true);
+    S.pic(20, P + 2, v1 - 10, 1, 3, 1, name, true);
+    S.pic(20, P + 1, v0 + 16, 1, 2, 1, v0 < 0 ? 'sunset' : 'mountains', true);
+    S.pic(4, P + 2, v0 + 20, 0, 3, 1, name, true);
     S.pic(4, P + 1, v0 + 3, 0, 2, 1, 'metro_map', true);
     S.pic(4, P + 2, v0 + 12, 0, 1, 1, 'metro', true);
     set(4, P, v0 + 1, B.VENDING_MACHINE, 0);
+    // the underpass to the far platform, at the closed end
+    metroUnderpass(set, P, 8, 19, s0, closed, closed > 0 ? 5 : 4, stripe, (u, v) => u === 7 && (v - v0 - 5) % 7 === 0);
   }
   // the stairs: 3 wide at u -1..1 between tiled walls; dir = the way they go down along z
   const stairs = (vTop, dir, stripe) => {
