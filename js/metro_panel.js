@@ -589,7 +589,7 @@ const MetroBuild = {
       // the far platform: benches, the name across the tracks, the underpass
       for (const s of [8, 9]) S(8, P, s, shapeId('oak', 'stairs'), fromWall);
       pic(-8, P + 2, -13, fromWall, 3, 1, sign, true);
-      metroUnderpass(S, P, -4, 7, -6, -1, mface(d[0], d[1]), stripe, (a, s) => a === -5 && (s === -9 || s === -2 || s === 5));
+      metroUnderpass(S, P, -4, 7, -4, -1, mface(d[0], d[1]), stripe, (a, s) => a === -5 && (s === -9 || s === -2 || s === 5));
     }
     // the stair up to the street, 3 wide at a -13..-11, top at s = 7 - steps, landing s 7..9
     const n = pl.steps, st = shapeId('terrazzo', 'stairs'), sTop = 7 - n;
@@ -784,7 +784,7 @@ const MetroPanel = {
     } else body = '<p class="mp-empty">No metro yet in this world. Start the first line wherever you like — next to your house, for example.</p>';
     el.innerHTML = `
       <div class="mp-card">
-        <div class="mp-head"><i>M</i><div><b>${N ? 'Línia ' + N.n + (N.n === 1 ? ' · STUCOM' : '') : 'Metro'}</b><span>Metro control panel</span></div><button class="mp-x" data-a="close">✕</button></div>
+        <div class="mp-head"><i>M</i><div><b>${N ? 'Línia ' + N.n + (N.n === 1 ? ' · ' + CITY : '') : 'Metro'}</b><span>Metro control panel</span></div><button class="mp-x" data-a="close">✕</button></div>
         ${all.length ? `<div class="mp-tabs">${tabs}</div>` : ''}
         ${body}
         ${job ? `<div class="mp-works">🚧 Building ${escapeHtml(job.name)}… ${Math.round(job.i / job.total * 100)}%</div>` : ''}

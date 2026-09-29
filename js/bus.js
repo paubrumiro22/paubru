@@ -9,7 +9,7 @@
 // lines with their stops and every metro line with its stations, and where you are.
 
 const BUS_LINES = {
-  1: { name: 'Ronda STUCOM', color: '#e3262f', loop: [[-23, -23], [22, -23], [22, 22], [-23, 22]] },
+  1: { name: 'Ronda ' + CITY, color: '#e3262f', loop: [[-23, -23], [22, -23], [22, 22], [-23, 22]] },
   2: { name: 'Circumval·lació', color: '#2a6ce0', loop: [[-69, -69], [68, -69], [68, 68], [-69, 68]] },
 };
 const BUS_MAX = 8, BUS_ACC = 2.2, BUS_DEC = 2.6, BUS_DWELL = 7, BUS_FARE = 2;
@@ -185,7 +185,7 @@ const TransportMap = {
     // the district: blocks and streets
     if (pl) {
       g.fillStyle = '#c9cfc6'; g.fillRect(X(pl.x - 74), Z(pl.z - 74), 148 * k, 148 * k);
-      const blocks = [[-18, -18, 'Plaça Universitat', '#e9e3d3'], [-18, -64, 'STUCOM', '#f2dfc2'], [28, -18, 'Banc Central', '#e6dccb'], [-64, -18, 'Camp de Futbol', '#bfe0b5'], [-18, 28, 'Parc', '#bfe0b5'],
+      const blocks = [[-18, -18, 'Plaça Universitat', '#e9e3d3'], [-18, -64, SCHOOL, '#f2dfc2'], [28, -18, 'Banc Central', '#e6dccb'], [-64, -18, 'Camp de Futbol', '#bfe0b5'], [-18, 28, 'Parc', '#bfe0b5'],
         [-64, -64, 'Solars', '#dde8d2'], [28, -64, 'Solars', '#dde8d2'], [-64, 28, 'Solars', '#dde8d2'], [28, 28, 'Solars', '#dde8d2']];
       g.font = `700 ${Math.max(16, 3.2 * k)}px Arial`; g.textAlign = 'center'; g.textBaseline = 'middle';
       for (const [u, v, name, col] of blocks) {

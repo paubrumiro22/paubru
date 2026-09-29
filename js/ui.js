@@ -812,7 +812,7 @@ const UI = {
     builtins.className = 'picrow picbuiltins';
     for (const [k, b] of Object.entries(PIC_BUILTIN)) {
       const btn = document.createElement('button');
-      btn.textContent = { stucom: 'STUCOM sign', sunset: 'Sunset', mountains: 'Mountains' }[k] || k;
+      btn.textContent = { stucom: SCHOOL + ' sign', sunset: 'Sunset', mountains: 'Mountains' }[k] || k;
       btn.addEventListener('click', () => { s.pic = { builtin: k, w: b.w, h: b.h }; this.render(); });
       builtins.append(btn);
     }

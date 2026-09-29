@@ -62,7 +62,7 @@ const Taxi = {
     }
     if (!j) {
       const s = this.spot(25, 110, v.pos);
-      if (!s) { this.showHud('<b>🚕 Free</b><span>Drive into the STUCOM district to find customers</span>'); return; }
+      if (!s) { this.showHud('<b>🚕 Free</b><span>Drive into ' + CITY + ' to find customers</span>'); return; }
       const m = Ents.spawnMob('villager', s.x, s.y + 0.05, s.z);
       m.prof = 'student'; m.skin = STUDENT_SKINS.length ? STUDENT_SKINS[Math.floor(Math.random() * STUDENT_SKINS.length)] : m.skin;
       m.home = [s.x, s.z]; m.homeR = 0.5; m.taxiFare = true;

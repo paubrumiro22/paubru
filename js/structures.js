@@ -8,7 +8,7 @@
 // chests hold loot. Loaded in the chunk workers too (data-w).
 
 const STRUCT_CELL = 320;
-const STRUCT_REACH = 200;       // no structure reaches further than this from its centre (the STUCOM metro line is the longest)
+const STRUCT_REACH = CG ? 232 : 200;       // no structure reaches further than this from its centre (the STUCOM metro line is the longest)
 const GEN_LATEST = 4;
 
 // ---- building materials by village style ----
@@ -774,7 +774,7 @@ function stucomSiteCost(g, p) {
 
 function decorateStucom(g, plan) {
   plan.stucom = true;
-  plan.name = 'STUCOM';
+  plan.name = CITY;
   const st = VSTYLE[plan.style];
   const cx = plan.x, cz = plan.z;
   const W = 17, D = 13;

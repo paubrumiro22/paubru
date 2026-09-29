@@ -30,7 +30,7 @@ const SHOPS = {
     sell: [[I.BREAD, 3], [I.CROISSANT, 3], [I.ENSAIMADA, 4], [I.COCA, 10], [I.COOKIE, 1], [I.PA_TOMAQUET, 5], [I.SANDWICH, 7], [I.CHOCOLATE, 2]],
     buy: [[I.WHEAT, 1.5], [B.SUGAR_CANE, 1], [I.EGG, 1]] },
   mobles: { name: 'Mobles Blocklands', icon: '🛋️', tag: 'Mobles', color: '#e0782a', sell: [], buy: [] },
-  cotxes: { name: 'Motor STUCOM', icon: '🚗', tag: 'Concessionari', color: '#1e2432',
+  cotxes: { name: 'Motor ' + CITY, icon: '🚗', tag: 'Concessionari', color: '#1e2432',
     sell: [[I.BIKE, 60], [I.CAR, 400], [I.BOAT, 180], [I.BUS, 900], [I.HELI, 1600], [I.CART, 90]], buy: [] },
   quiosc: { name: 'Quiosc de la Plaça', icon: '📰', tag: 'Quiosc', color: '#2a6ce0',
     sell: [[I.JUICE, 3], [I.CHOCOLATE, 2], [I.COOKIE, 1], [I.PAPER, 1], [I.METRO_CARD, 20], [I.PICTURE, 4], [I.SIGN, 3]], buy: [] },
@@ -238,7 +238,7 @@ SYNTH.shop_till = (ctx, o, t) => {
   sign('super', plate(['#e3262f', '#a8141c'], '#fff', 'SuperBloc', 'SUPERMERCAT · obert cada dia', '🛒'));
   sign('forn', plate(['#f3e2c4', '#d9b98a'], '#6a3a14', 'Forn Can Pau', 'PA · PASTISSERIA · DES DE 1924', '🥐'));
   sign('mobles', plate(['#ff9a3c', '#d9651a'], '#fff', 'Mobles', 'BLOCKLANDS · la teva casa', '🛋️'));
-  sign('cotxes', plate(['#2a3244', '#10141c'], '#e8edf5', 'Motor STUCOM', 'CONCESSIONARI OFICIAL', '🚗'));
+  sign('cotxes', plate(['#2a3244', '#10141c'], '#e8edf5', 'Motor ' + CITY, ED('CONCESSIONARI OFICIAL', 'OFFICIAL DEALER'), '🚗'));
   sign('quiosc', plate(['#2f7df0', '#1a55b8'], '#fff', 'Quiosc', 'PREMSA · BEGUDES · TARGETES', '📰'));
   PIC_BUILTIN.shop_galeries = { w: 3, h: 1, draw: plate(['#141a26', '#0a0e16'], '#ffd34d', 'Galeries', '← BOTIGUES · SHOPS', '🛍️') };
 }

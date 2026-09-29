@@ -40,7 +40,7 @@ const Football = {
     const F = pt.F, c = world(15, 9);
     const [pa, pd] = loc(p[0], p[2]);
     return {
-      key: 'stucom', teams: ['STUCOM A', 'STUCOM B'], centre: [c[0], F + BALL_R, c[1]], y0: F,
+      key: 'stucom', teams: [CITY + ' A', CITY + ' B'], centre: [c[0], F + BALL_R, c[1]], y0: F,
       near: pa > -6 && pa < 36 && pd > -6 && pd < 26 && Math.abs(p[1] - F) < 12,
       goals: [
         { team: 0, at: [...world(27.5, 9)].flatMap((v, i) => (i === 0 ? [v, F + 1.5] : [v])), test: (b) => { const [a, d] = loc(b[0], b[2]); return a >= 27 && a < 28.6 && d > 8 && d < 10 && b[1] < F + 2; } },

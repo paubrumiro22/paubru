@@ -35,7 +35,7 @@ const ACHIEVEMENTS = [
   { k: 'metro', name: 'Next Stop', desc: 'Ride the metro', icon: I.METRO, coins: 25 },
   { k: 'mech', name: 'Engineer', desc: 'Flip a lever or press a button', icon: B.LEVER, coins: 15 },
   { k: 'piston', name: 'Heavy Lifting', desc: 'Push blocks with a piston', icon: B.PISTON, coins: 25 },
-  { k: 'stucom', name: 'Back to School', desc: 'Visit STUCOM', icon: B.CHALKBOARD, coins: 15 },
+  { k: 'stucom', name: 'Back to School', desc: 'Visit ' + SCHOOL, icon: B.CHALKBOARD, coins: 15 },
   { k: 'campnou', name: 'Més que un club', desc: 'Visit the Camp Nou', icon: B.SEAT_BLUE || B.WOOL + 11, coins: 30 },
   { k: 'nether', name: 'Into the Fire', desc: 'Enter the Nether', icon: B.NETHERRACK, coins: 50 },
   { k: 'deep', name: 'Hush', desc: 'Enter the Deep Dark', icon: B.SCULK, coins: 50 },

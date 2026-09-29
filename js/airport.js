@@ -7,7 +7,7 @@
 // in your hand) wherever you are to fly back to the terminal.
 
 Object.assign(I, { BOARDING_PASS: 443 });
-defItem(I.BOARDING_PASS, 'Boarding Pass · back to STUCOM', { sprite: 'i_boarding_pass', stack: 16, cat: 'transport' });
+defItem(I.BOARDING_PASS, 'Boarding Pass · back to ' + CITY, { sprite: 'i_boarding_pass', stack: 16, cat: 'transport' });
 
 // ---- the airliner: 22 long, 18 wingspan, white with a red tail and a blue cheat line ----
 {
@@ -138,12 +138,12 @@ const Airport = {
     return pl ? 40 + Math.round(Math.min(6000, Math.hypot(p[0] - pl.x, p[2] - pl.z)) / 30) : 40;
   },
   openReturn() {
-    const q = GPanel.open({ title: 'Blocklands Air', sub: 'Return flight · to Aeroport STUCOM', icon: '✈️', cls: 'gp-shop', width: 520 });
+    const q = GPanel.open({ title: 'Blocklands Air', sub: 'Return flight · to ' + CITY + ' Airport', icon: '✈️', cls: 'gp-shop', width: 520 });
     q.wrap.querySelector('.gp').style.setProperty('--shop', '#d6202b');
     const pass = G.inv.count(I.BOARDING_PASS) > 0, price = this.homePrice();
     const where = G.prog && G.prog.trip ? (this.dests().find((d) => d.key === G.prog.trip) || null) : null;
-    q.body.innerHTML = `<div class="ret-card"><div class="ret-route"><span>${where ? where.icon + ' ' + GPanel.esc(where.name) : '📍 Here'}</span><i>✈️</i><span>🏫 STUCOM</span></div>
-      <p>${pass ? 'You have a return boarding pass: the flight is on us.' : 'No boarding pass? Buy a ticket home.'} A plane picks you up and lands at the STUCOM runway.</p>
+    q.body.innerHTML = `<div class="ret-card"><div class="ret-route"><span>${where ? where.icon + ' ' + GPanel.esc(where.name) : '📍 Here'}</span><i>✈️</i><span>🏙️ ${CITY}</span></div>
+      <p>${pass ? 'You have a return boarding pass: the flight is on us.' : 'No boarding pass? Buy a ticket home.'} A plane picks you up and lands at the ${CITY} runway.</p>
       <button class="gp-btn ok ret-go">${pass ? '🎫 Use boarding pass' : '🪙 ' + price + ' · fly home'}</button></div>`;
     q.body.querySelector('.ret-go').addEventListener('click', () => {
       if (this.mine) { G.ui.toast('You are already on a flight'); return; }
@@ -156,9 +156,9 @@ const Airport = {
   },
   open() {
     const pl = this.plan();
-    if (!pl) { G.ui.toast('Flights leave from the airport of the STUCOM district'); return; }
+    if (!pl) { G.ui.toast('Flights leave from the airport of ' + CITY); return; }
     if (this.away()) { this.openReturn(); return; }
-    const q = GPanel.open({ title: 'Blocklands Air', sub: 'Departures · Aeroport STUCOM', icon: '✈️', cls: 'gp-shop', width: 640 });
+    const q = GPanel.open({ title: 'Blocklands Air', sub: 'Departures · ' + CITY + ' Airport', icon: '✈️', cls: 'gp-shop', width: 640 });
     q.wrap.querySelector('.gp').style.setProperty('--shop', '#d6202b');
     const now = new Date();
     const list = this.dests();
@@ -218,7 +218,7 @@ const Airport = {
   // stand and you get off at the terminal.
   flyHome() {
     const pl = this.plan();
-    if (!pl) { G.ui.toast('This world has no STUCOM airport'); return false; }
+    if (!pl) { G.ui.toast('This world has no ' + CITY + ' airport'); return false; }
     if (Police.jail || this.mine) return false;
     const from = G.prog && G.prog.trip ? this.dests().find((d) => d.key === G.prog.trip) : null;
     this.fade(true, () => {
@@ -229,7 +229,7 @@ const Airport = {
       const F = this.fly(FLIGHT_LAND, () => this.landed());
       if (!F) { this.fade(false); return; }
       F.player = true;
-      this.mine = { d: { name: 'STUCOM', icon: '🏫' }, from, F, home: true };
+      this.mine = { d: { name: CITY, icon: '🏙️' }, from, F, home: true };
       this.step(F, 0);
       const p = G.player;
       p.pos = F.v.pos.slice(); p.vel = [0, 0, 0]; p.fallStart = null;
@@ -237,7 +237,7 @@ const Airport = {
       Vehicles.board(F.v);
       p.yaw = F.v.yaw + Math.PI + 0.7; p.pitch = -0.22;
       Net.teleported();
-      G.ui.banner('✈️', 'Blocklands Air · back to STUCOM · we are starting our approach');
+      G.ui.banner('✈️', 'Blocklands Air · back to ' + CITY + ' · we are starting our approach');
       sfx('metro_chime', null, 0.8, 0.8);
       this.fade(false);
     }, 1200);
@@ -256,7 +256,7 @@ const Airport = {
       prepareArea(p.pos[0], p.pos[2], 2);
       liftOutOfBlocks(p);
       Net.teleported();
-      G.ui.banner('🏫', 'Welcome back to Aeroport STUCOM');
+      G.ui.banner('🏙️', 'Welcome back to ' + CITY + ' Airport');
       this.fade(false);
     }, 900);
   },
@@ -273,7 +273,7 @@ const Airport = {
     if (!el) { el = document.createElement('div'); el.id = 'tripHud'; document.body.append(el); }
     const F = m.F, fr = m.home ? FLIGHT_LAND : FLIGHT_OUT, tot = fr[fr.length - 1][0], alt = Math.max(0, Math.round(F.v.pos[1] - F.pl.y));
     const phase = m.home ? (F.t < 18 ? 'Final approach' : F.t < 28 ? 'Landing' : 'Taxiing to the stand') : F.t < 17 ? 'Taxiing' : F.t < 32 ? 'Take-off' : 'Climbing';
-    const route = m.home ? (m.from ? GPanel.esc(m.from.name) : 'Here') + ' → STUCOM' : 'STUCOM → ' + GPanel.esc(m.d.name);
+    const route = m.home ? (m.from ? GPanel.esc(m.from.name) : 'Here') + ' → ' + CITY : CITY + ' → ' + GPanel.esc(m.d.name);
     el.innerHTML = `<b>✈️ ${route}</b><span>${phase} · ${Math.round(F.v.speed * 3.6)} km/h · ${alt} m</span><i style="width:${Math.min(100, F.t / tot * 100)}%"></i>`;
     el.classList.add('show');
   },
@@ -296,7 +296,7 @@ PIC_BUILTIN.airport_sign = { w: 6, h: 2, draw(g, W, H) {
   g.fillStyle = grd; g.fillRect(0, 0, W, H);
   g.font = `${H * 0.6}px serif`; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillText('✈️', H * 0.55, H * 0.5);
   g.textAlign = 'left'; g.fillStyle = '#fff'; g.font = `900 ${H * 0.36}px Arial`; g.fillText('AEROPORT', H * 1.1, H * 0.36);
-  g.fillStyle = '#ffcc33'; g.font = `900 ${H * 0.26}px Arial`; g.fillText('STUCOM · BLOCKLANDS AIR', H * 1.12, H * 0.72);
+  g.fillStyle = '#ffcc33'; g.font = `900 ${H * 0.26}px Arial`; g.fillText(CITY.toUpperCase() + ' · BLOCKLANDS AIR', H * 1.12, H * 0.72);
 } };
 sprite('i_boarding_pass', (d) => {
   sprRect(d, 3, 9, 29, 24, [246, 246, 240]); sprRect(d, 3, 9, 29, 13, [214, 32, 43]);

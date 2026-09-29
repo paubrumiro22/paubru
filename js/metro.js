@@ -294,7 +294,7 @@ const Metro = {
     if (this.hudT > 0) return;
     this.hudT = 0.25;
     let el = $('metroHud');
-    const at = !G.vehicle && !G.hudHidden ? this.platformAt(G.player.pos) : null;
+    const at = G.playing && !G.vehicle && !G.hudHidden ? this.platformAt(G.player.pos) : null;
     if (!at) { if (el) el.classList.remove('show'); return; }
     if (!el) { el = document.createElement('div'); el.id = 'metroHud'; document.body.append(el); }
     const { N, R, k, plat, st } = at, t = this.clock();
@@ -516,6 +516,15 @@ const Passengers = {
     r.sv = pr && Array.isArray(pr.sv) && (pr.sv[0] === 'm' || pr.sv[0] === 'b') && pr.sv.slice(1).every((n) => Number.isInteger(n) && n >= 0 && n < 100) ? pr.sv : null;
   };
 }
+
+// the platform, bus stop and flight panels live outside the HUD: hide them whenever the game is not
+// being played (title screen, pause menu, other worlds' loading), since the updates stop then
+setInterval(() => {
+  const vis = (id) => { const el = $(id); return el && !el.classList.contains('hidden'); };
+  if (G.playing && !vis('title') && !vis('menu') && !vis('worldsPanel') && !vis('placesPanel') && !vis('credits')) return;
+  for (const id of ['metroHud', 'busHud', 'tripHud']) { const el = $(id); if (el) el.classList.remove('show'); }
+  Metro.hudT = 0;
+}, 200);
 
 SYNTH.metro_chime = (ctx, o, t) => {
   [659, 523, 784].forEach((f, i) => Sound.tone(ctx, o, t + i * 0.28, 0.5, { wave: 'sine', f0: f, gain: 0.16 }));

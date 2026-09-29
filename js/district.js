@@ -11,11 +11,11 @@
 // Loaded in the chunk workers too (data-w): only deterministic code.
 
 const DI = 36, DS = 10, DP = DI + DS;      // block ("illa") size, street width, grid pitch
-const DHALF = 74, DBLEND = 20;
+const DHALF = CG ? 120 : 74, DBLEND = 20;      // CG: a second ring of blocks (city_towers.js)
 // Around the street grid the ground stays flat, open land for building, out to an irregular edge
 // (DFLAT ± a few waves, never closer than 10 blocks to the grid) and then blends into the
 // countryside. DOUT bounds all of it.
-const DFLAT = 118, DOUT = 166;
+const DFLAT = CG ? 150 : 118, DOUT = CG ? 214 : 166;
 function districtEdge(D, u, v) {
   const a = Math.atan2(v, u), q = D.ph;
   const r = DFLAT + 12 * Math.sin(3 * a + q[0]) + 8 * Math.sin(5 * a + q[1]) + 5 * Math.sin(8 * a + q[2]);
@@ -61,7 +61,7 @@ function planDistrict(g, plan) {
   hs.sort((a, b) => a - b);
   const F = Math.max(SEA + 3, hs[hs.length >> 1] + 1);
   Object.assign(plan, {
-    stucom: true, district: true, name: 'STUCOM', y: F, radius: 90, roadDirs: [],
+    stucom: true, district: true, name: CITY, y: F, radius: 90, roadDirs: [],
     pieces: [], spawns: [], zones: [[cx - DOUT, cz - DOUT, cx + DOUT - 1, cz + DOUT - 1]],
   });
   // nothing else is built on the district or its edge
@@ -77,15 +77,16 @@ function planDistrict(g, plan) {
   const home = (kind, prof, u, y, v, hu, hv, r) => plan.spawns.push({ kind, prof, x: cx + u + 0.5, y, z: cz + v + 0.5, home: [cx + hu + 0.5, cz + hv + 0.5], homeR: r });
 
   // plane trees and lamps along every pavement, clear of the crossings
-  for (const b0 of [-74, -28, 18, 64]) for (let t = -DHALF; t < DHALF; t++) {
+  const inAirport = (u, v) => CG && u >= 72 && u <= 142 && v >= -76 && v <= 76;
+  for (const b0 of CG ? [-120, -74, -28, 18, 64, 110] : [-74, -28, 18, 64]) for (let t = -DHALF; t < DHALF; t++) {
     const bt = dBand(t);
     if (bt.st >= 0) continue;
     // symmetric about the middle of each block, which stays clear (entrances face it)
     const kind = [5, 13, 22, 30].includes(bt.r) ? 'tree' : bt.r === 9 || bt.r === 26 ? 'lamp' : null;
     if (!kind) continue;
     for (const s of [1, 8]) {
-      D.furn.push([cx + b0 + s, cz + t, kind]);   // street running along z
-      D.furn.push([cx + t, cz + b0 + s, kind]);   // street running along x
+      if (!inAirport(b0 + s, t)) D.furn.push([cx + b0 + s, cz + t, kind]);   // street running along z
+      if (!inAirport(t, b0 + s)) D.furn.push([cx + t, cz + b0 + s, kind]);   // street running along x
     }
   }
   piece(box(-DOUT, -DOUT, DOUT - 1, DOUT - 1), (W) => buildDistrictBase(W, g, D));
@@ -102,7 +103,8 @@ function planDistrict(g, plan) {
   piece(box(-18, -64, 17, -29), (W) => buildSchoolBlock(W, g, D));
   piece([sx0 - 2, szf - 13, sx0 + 18, szf + 3], (W) => buildSchool(W, g, sx0, szf, -1, F, VSTYLE.temperate, true));
   // the teachers: the head of the school in the lobby, Noelia in a classroom, Pedro in the computer room
-  const teacher = (person, hi, u, y, v, r) => plan.spawns.push({ kind: 'villager', prof: 'teacher', person, hi, x: cx + u + 0.5, y, z: cz + v + 0.5, home: [cx + u + 0.5, cz + v + 0.5], homeR: r });
+  // (the CrazyGames edition has no real people: plain teachers there)
+  const teacher = (person, hi, u, y, v, r) => plan.spawns.push(CG ? { kind: 'villager', prof: 'teacher', x: cx + u + 0.5, y, z: cz + v + 0.5, home: [cx + u + 0.5, cz + v + 0.5], homeR: r } : { kind: 'villager', prof: 'teacher', person, hi, x: cx + u + 0.5, y, z: cz + v + 0.5, home: [cx + u + 0.5, cz + v + 0.5], homeR: r });
   teacher('joan', 'Benvinguts a STUCOM! Sóc en Joan Zarzuela, el director.', 0, F, -37, 5);
   home('villager', 'student', 5, F, -38, 4, -38, 5);
   home('villager', 'student', -4, F + 7, -37, -3, -37, 5);
@@ -158,6 +160,12 @@ function planDistrict(g, plan) {
     }
   }
 
+  // ---- CG: downtown, a ring of skyscrapers and apartment blocks round the grid ----
+  if (CG) for (const [i, j, kind] of CITY_RING) {
+    const u0 = i * DP - DI / 2, v0 = j * DP - DI / 2;
+    piece(box(u0 - 2, v0 - 2, u0 + DI + 1, v0 + DI + 1), (W) => buildCityBlock(W, g, D, u0, v0, kind));
+  }
+
   // ---- the metro, last: nothing is ever built over its stairs ----
   const tx = cx + 12, at = (v) => [tx + 0.5, D.P - 1, cz + v + 0.5];
   piece(box(-5, -18, 22, 60), (W) => buildDistrictMetro(W, g, D));
@@ -205,7 +213,7 @@ function buildDistrictBase(W, g, D) {
   if (xa > xb || za > zb) return;
   for (let x = xa; x <= xb; x++) for (let z = za; z <= zb; z++) {
     const u = x - cx, v = z - cz, h = g.height(x, z);
-    const inGrid = u >= -DHALF && u < DHALF && v >= -DHALF && v < DHALF;
+    const inGrid = u >= -DHALF && u < DHALF && v >= -DHALF && v < DHALF && !(CG && u >= 74 && v >= -74 && v <= 73 && u < DHALF);
     if (!inGrid) {
       const r = Math.hypot(u + 0.5, v + 0.5), edge = districtEdge(D, u, v);
       if (r > edge + DBLEND) continue;
@@ -234,7 +242,8 @@ function buildDistrictBase(W, g, D) {
     for (let y = F; y <= Math.max(h, F) + 14 && y < CH; y++) if (W.get(x, y, z) !== B.AIR) W.set(x, y, z, B.AIR);
   }
   // survey stones under the built blocks (the town planning board adds more, city.js)
-  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) if (W.has(cx + i * DP, cz + j * DP)) W.set(cx + i * DP, F - 6, cz + j * DP, B.CITY_MARK);
+  const DK = CG ? 2 : 1;
+  for (let i = -DK; i <= DK; i++) for (let j = -DK; j <= DK; j++) if (W.has(cx + i * DP, cz + j * DP)) W.set(cx + i * DP, F - 6, cz + j * DP, B.CITY_MARK);
   // street trees in grated pits and lamps
   for (const [x, z, kind] of D.furn) {
     if (x < W.x0 - 3 || x > W.x1 + 3 || z < W.z0 - 3 || z > W.z1 + 3) continue;
@@ -404,31 +413,29 @@ function buildPlotBlock(W, g, D, u0, v0) {
 function metroUnderpass(set, P, aW, aE, s0, dir, faceDown, stripe, pillar) {
   const st = shapeId('terrazzo', 'stairs');
   const S = (k) => s0 + dir * k;
-  // a solid shell, then the corridor carved in it
-  for (let a = aW - 1; a <= aE + 2; a++) for (let k = -1; k <= 7; k++) for (let y = P - 7; y <= P - 3; y++) set(a, y, S(k), B.CONCRETE + 7);
-  for (let a = aW; a <= aE + 1; a++) for (const k of [5, 6]) {
-    set(a, P - 6, S(k), B.TERRAZZO);
-    set(a, P - 5, S(k), B.AIR); set(a, P - 4, S(k), B.AIR);
-    set(a, P - 3, S(k), (a - aW) % 4 === 1 && k === 5 ? B.GLASS_LAMP : B.CONCRETE + 8);
+  // a solid shell, then the corridor carved in it: 3 high (floor P-7, ceiling P-3), so there is
+  // headroom where the stairs come down into it
+  for (let a = aW - 1; a <= aE + 2; a++) for (let k = -1; k <= 9; k++) for (let y = P - 8; y <= P - 3; y++) set(a, y, S(k), B.CONCRETE + 7);
+  for (let a = aW; a <= aE + 1; a++) for (const k of [6, 7, 8]) {
+    set(a, P - 7, S(k), B.TERRAZZO);
+    for (let y = P - 6; y <= P - 4; y++) set(a, y, S(k), B.AIR);
+    set(a, P - 3, S(k), (a - aW) % 4 === 1 && k === 7 ? B.GLASS_LAMP : B.CONCRETE + 8);
   }
-  for (let a = aW; a <= aE + 1; a++) set(a, P - 4, S(7), stripe);
-  for (const col of [aW, aE]) for (let c = col; c <= col + 1; c++) for (let k = 0; k <= 4; k++) {
+  for (let a = aW; a <= aE + 1; a++) set(a, P - 5, S(9), stripe);
+  // six steps down on each side; above every step clear up to the platform
+  for (const col of [aW, aE]) for (let c = col; c <= col + 1; c++) for (let k = 0; k <= 5; k++) {
     const y = P - 1 - k;
     set(c, y, S(k), st, faceDown);
     set(c, y - 1, S(k), B.TERRAZZO);
     for (let yy = y + 1; yy <= P - 1; yy++) set(c, yy, S(k), B.AIR);
   }
   // railings along the openings on the walkway side (the platform edges stay clear for the doors)
-  for (let k = 0; k <= 4; k++) {
+  for (let k = 0; k <= 5; k++) {
     for (const a of [aW - 1, aE - 1]) if (!pillar || !pillar(a, S(k))) set(a, P, S(k), B.IRON_BARS);
   }
-  for (const a of [aW, aW + 1, aE, aE + 1]) set(a, P, S(5), B.IRON_BARS);
+  for (const a of [aW, aW + 1, aE, aE + 1]) set(a, P, S(6), B.IRON_BARS);
 }
 
-// Universitat under the square, a straight tunnel and Catalunya under the park. The track runs
-// along z at u = 12, the platform on its west side. Each station has a wide stair from the street
-// (open at the top, with railings, a glass canopy and the red M) down to a landing that opens onto
-// the platform.
 function buildDistrictMetro(W, g, D) {
   const { cx, cz, F, P } = D;
   const set = (u, y, v, id, f) => W.set(cx + u, y, cz + v, id, f);
@@ -476,10 +483,10 @@ function buildDistrictMetro(W, g, D) {
   // platform furniture: columns, benches against the walls, signs, map, a ticket machine
   for (const [v0, v1, name, stripe, benches] of [[-16, 12, 'metro_name', B.BLUE_TILES, [-9, -8, 3, 4]], [31, 58, 'metro_name2', B.CONCRETE + 14, [45, 46, 50, 51]]]) {
     for (let v = v0 + 5; v < v1 - 3; v += 7) for (let y = P; y <= P + 4; y++) set(7, y, v, y === P + 1 ? stripe : B.QUARTZ_PILLAR);
-    const closed = v0 < 0 ? -1 : 1, s0 = closed < 0 ? v0 + 7 : v1 - 8;
+    const closed = v0 < 0 ? -1 : 1, s0 = closed < 0 ? v0 + 7 : v1 - 7;
     for (const v of benches) {
       set(4, P, v, shapeId('oak', 'stairs'), 1);
-      if ((v - s0) * closed < -1 || (v - s0) * closed > 6) set(20, P, v, shapeId('oak', 'stairs'), 0);
+      if ((v - s0) * closed < -1 || (v - s0) * closed > 9) set(20, P, v, shapeId('oak', 'stairs'), 0);
     }
     S.pic(20, P + 2, v0 + 6, 1, 3, 1, name, true);
     S.pic(20, P + 2, v1 - 10, 1, 3, 1, name, true);
@@ -804,7 +811,7 @@ function buildMall(W, g, D) {
 // stands: back row at (su, sv), the road towards rd. Line 1 goes round the square, line 2 round
 // the outer ring road, both with the square on their right.
 const BUS_STOPS = [
-  { line: 1, name: 'STUCOM', u: 0, v: -23, su: 0, sv: -19, rd: [0, -1] },
+  { line: 1, name: SCHOOL, u: 0, v: -23, su: 0, sv: -19, rd: [0, -1] },
   { line: 1, name: 'Banc Central', u: 22, v: 0, su: 18, sv: 0, rd: [1, 0] },
   { line: 1, name: 'Plaça Universitat', u: 11, v: 22, plaza: true },
   { line: 1, name: 'Camp de Futbol', u: -23, v: -1, su: -19, sv: -1, rd: [-1, 0] },

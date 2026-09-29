@@ -22,7 +22,7 @@ const BANK_SERVICES = [
   { key: 'car', name: 'Car', desc: 'Delivered to your inventory', price: 250, item: I.CAR },
   { key: 'bike', name: 'Bicycle', desc: 'Cheap and cheerful', price: 40, item: I.BIKE },
   { key: 'emerald', name: 'Emerald', desc: 'For trading with villagers', price: 12, item: I.EMERALD },
-  { key: 'taxi_stucom', name: 'Taxi to STUCOM', desc: 'A ride to the school square', price: 30, taxi: 'stucom' },
+  { key: 'taxi_stucom', name: 'Taxi to ' + CITY, desc: ED('A ride to the school square', 'A ride to the main square'), price: 30, taxi: 'stucom' },
   { key: 'taxi_home', name: 'Taxi home', desc: 'To your bed, or the world spawn', price: 30, taxi: 'home' },
 ];
 
@@ -60,7 +60,7 @@ const Bank = {
     const box = document.createElement('div');
     box.className = 'bankbox';
     const m = ui.screen.mob;
-    box.innerHTML = `<div class="bk-head"><div><b>Banc Central</b><small>${m ? m.name + ' · Banker' : 'STUCOM'}</small></div>
+    box.innerHTML = `<div class="bk-head"><div><b>Banc Central</b><small>${m ? m.name + ' · Banker' : CITY}</small></div>
       <div class="bk-bal"><small>Balance</small><span>${this.unlimited() ? '∞' : this.fmt(this.money)}</span><i>🪙</i></div></div>`;
     const cols = document.createElement('div');
     cols.className = 'bk-cols';
@@ -122,7 +122,7 @@ const Bank = {
   buy(s) {
     if (s.taxi) {
       const to = this.taxiTarget(s.taxi);
-      if (!to) { UI.toast(s.taxi === 'stucom' ? 'There is no STUCOM in this world' : 'Nowhere to go'); return; }
+      if (!to) { UI.toast(s.taxi === 'stucom' ? 'There is no ' + CITY + ' in this world' : 'Nowhere to go'); return; }
       if (!this.pay(s.price)) return;
       G.ui.closeScreen(true);
       if (G.vehicle) Vehicles.dismount(true);

@@ -215,11 +215,11 @@ const People = {
     let place = '';
     if (st) {
       const dx = pos[0] - st.x, dz = pos[2] - st.z, d = Math.hypot(dx, dz);
-      if (d < 22) place = 'Plaça de STUCOM';
-      else if (d < 95) place = 'STUCOM district';
+      if (d < 22) place = ED('Plaça de STUCOM', CITY + ' Square');
+      else if (d < 95) place = CITY;
       else {
         const dir = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round((Math.atan2(dx, -dz) / (Math.PI / 4) + 8)) % 8];
-        place = (d >= 1000 ? (d / 1000).toFixed(1) + ' km ' : Math.round(d) + ' m ') + dir + ' of STUCOM';
+        place = (d >= 1000 ? (d / 1000).toFixed(1) + ' km ' : Math.round(d) + ' m ') + dir + ' of ' + CITY;
       }
     }
     const h = G.world && G.world.surfaceHeight ? G.world.surfaceHeight(Math.floor(pos[0]), Math.floor(pos[2])) : -1;

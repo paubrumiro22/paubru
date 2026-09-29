@@ -14,12 +14,12 @@ const SEASONS = [
   { k: 'autumn', name: 'Autumn', ca: 'Tardor', icon: '🍂', tint: [1.0, 0.5, 0.16], amt: 0.62 },
   { k: 'winter', name: 'Winter', ca: 'Hivern', icon: '❄️', tint: [0.86, 0.8, 0.7], amt: 0.4 },
 ];
-const WEEKDAYS = ['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte', 'Diumenge'];
+const WEEKDAYS = ED(['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte', 'Diumenge'], ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']);
 // festes: day of the year (0-based)
 const FESTES = [
-  { k: 'santjoan', day: 4, name: 'Revetlla de Sant Joan', icon: '🎆', text: 'Fireworks and bonfires in STUCOM tonight' },
-  { k: 'merce', day: 7, name: 'Festes de la Mercè', icon: '🎇', text: 'Fireworks and a correfoc in the streets tonight' },
-  { k: 'nadal', day: 10, name: 'Nadal', icon: '🎄', text: 'A giant lit tree in the square, and snow' },
+  { k: 'santjoan', day: 4, name: ED('Revetlla de Sant Joan', 'Midsummer Night'), icon: '🎆', text: 'Fireworks and bonfires in ' + CITY + ' tonight' },
+  { k: 'merce', day: 7, name: ED('Festes de la Mercè', 'City Festival'), icon: '🎇', text: 'Fireworks and a correfoc in the streets tonight' },
+  { k: 'nadal', day: 10, name: ED('Nadal', 'Christmas'), icon: '🎄', text: 'A giant lit tree in the square, and snow' },
 ];
 
 const Calendar = {
@@ -32,7 +32,7 @@ const Calendar = {
   festa(d = this.day()) { const y = this.yearDay(d); return FESTES.find((f) => f.day === y) || null; },
   dateText(d = this.day()) {
     const s = this.season(d);
-    return WEEKDAYS[d % 7] + ' · ' + s.icon + ' ' + s.ca + ', dia ' + (this.yearDay(d) % SEASON_DAYS + 1) + ' · Any ' + this.year(d);
+    return WEEKDAYS[d % 7] + ' · ' + s.icon + ' ' + (CG ? s.name : s.ca) + ED(', dia ', ', day ') + (this.yearDay(d) % SEASON_DAYS + 1) + ED(' · Any ', ' · Year ') + this.year(d);
   },
   outside() { return !G.slot && typeof dimOf === 'function' && dimOf(G.player.pos[0], G.player.pos[2]) === DIM_OVER; },
 
@@ -56,7 +56,7 @@ const Calendar = {
       const el = $('dateTag');
       if (el) {
         const s = this.season(), fe = this.festa();
-        el.textContent = s.icon + ' ' + s.ca + ' · dia ' + (this.yearDay() % SEASON_DAYS + 1) + '/' + SEASON_DAYS + ' · ' + (typeof formatClock === 'function' ? formatClock(G.dayTime) : '') + (fe ? ' · ' + fe.icon + ' ' + fe.name : '');
+        el.textContent = s.icon + ' ' + (CG ? s.name : s.ca) + ED(' · dia ', ' · day ') + (this.yearDay() % SEASON_DAYS + 1) + '/' + SEASON_DAYS + ' · ' + (typeof formatClock === 'function' ? formatClock(G.dayTime) : '') + (fe ? ' · ' + fe.icon + ' ' + fe.name : '');
         el.classList.toggle('hidden', !!G.slot);
       }
     }
@@ -69,8 +69,8 @@ const Calendar = {
     const first = this.yearDay() % SEASON_DAYS === 0;
     if (G.ui) {
       if (fe) G.ui.banner(fe.icon, fe.name + ' · ' + fe.text);
-      else if (first) G.ui.banner(s.icon, s.ca + ' has arrived');
-      G.ui.toast('📰 La Gaseta de STUCOM is out · press U to read it', 4500);
+      else if (first) G.ui.banner(s.icon, (CG ? s.name : s.ca) + ' has arrived');
+      G.ui.toast('📰 ' + ED('La Gaseta de STUCOM', 'The ' + CITY + ' Gazette') + ' is out · press U to read it', 4500);
     }
     if (fe && fe.k === 'nadal') this.xmasTree(true);
     else if (G.prog.xmas) this.xmasTree(false);
@@ -156,7 +156,7 @@ const Calendar = {
 
 // ---------------------------------------------------------------- the newspaper ----
 const HEADLINES = [
-  'Pigeons of Plaça Universitat demand more breadcrumbs', 'STUCOM students break the record of stairs climbed in a day',
+  'Pigeons of Plaça Universitat demand more breadcrumbs', SCHOOL + ' students break the record of stairs climbed in a day',
   'Local cat elected mayor of the square for the third year', 'The bank’s vault is “very, very safe”, says the bank',
   'Mystery: who keeps putting flowers on the metro platform?', 'Record queue at the kiosk for the new metro card design',
   'Seagulls spotted wearing tiny hats near the port', 'Teachers agree: homework is good for you', 'New study: blocks are square',
@@ -165,7 +165,7 @@ const HEADLINES = [
 ];
 const ADS = [
   ['🥖', 'Forn de Pa Can Pau', 'Fresh bread every morning · Carrer dels Blocs'], ['🛋️', 'Mobles Cúbics', 'Sofas that join into long couches'],
-  ['🚇', 'Metro de STUCOM', 'Your stop, next to your house · ask at the panel'], ['🎫', 'Targeta Metro', '10 trips for 20 coins'],
+  ['🚇', ED('Metro de STUCOM', CITY + ' Metro'), 'Your stop, next to your house · ask at the panel'], ['🎫', 'Targeta Metro', '10 trips for 20 coins'],
   ['🏦', 'Banc Central', '2 % interest every morning. Do not break the walls.'], ['🏠', 'Pedra de Parcel·la', 'Protect what you build'],
   ['📷', 'Foto Ràpida', 'Press P and smile'], ['🌭', 'Frankfurt del Mercat', 'The best in the square since yesterday'],
 ];
@@ -213,15 +213,15 @@ const Newspaper = {
     const people = typeof Net !== 'undefined' && Net.on ? Net.peers.size + 1 : 1;
     const head = fe ? { t: fe.name + ' today!', s: fe.text + '. Everybody is invited.' } :
       next[0].in === 1 ? { t: 'Tomorrow: ' + next[0].f.name, s: next[0].f.text + '.' } :
-      Calendar.yearDay() % SEASON_DAYS === 0 ? { t: s.ca + ' arrives in STUCOM', s: s.k === 'autumn' ? 'The trees turn orange and red.' : s.k === 'winter' ? 'Snow is expected all over the map.' : s.k === 'spring' ? 'Everything is green again.' : 'Long, warm days ahead.' } :
+      Calendar.yearDay() % SEASON_DAYS === 0 ? { t: (CG ? s.name : s.ca) + ' arrives in ' + CITY, s: s.k === 'autumn' ? 'The trees turn orange and red.' : s.k === 'winter' ? 'Snow is expected all over the map.' : s.k === 'spring' ? 'Everything is green again.' : 'Long, warm days ahead.' } :
       { t: this.pick(HEADLINES, d, 1), s: 'Our reporters are on the story.' };
     const ad1 = this.pick(ADS, d, 2), ad2 = this.pick(ADS, d, 3), ad3 = this.pick(ADS, d + 1, 4);
     this.el.innerHTML = `<article class="np">
       <button class="np-x" title="Close">✕</button>
-      <header><div class="np-date">${esc(Calendar.dateText())}</div><h1>La Gaseta de STUCOM</h1><div class="np-sub">Daily newspaper of the neighbourhood · No. ${d + 1} · 1 coin</div></header>
+      <header><div class="np-date">${esc(Calendar.dateText())}</div><h1>${ED('La Gaseta de STUCOM', 'The ' + CITY + ' Gazette')}</h1><div class="np-sub">Daily newspaper of the neighbourhood · No. ${d + 1} · 1 coin</div></header>
       <section class="np-main"><h2>${esc(head.t)}</h2><p>${esc(head.s)}</p></section>
       <div class="np-cols">
-        <section><h3>Weather</h3><p class="np-big">${wx}</p><p>${s.icon} ${esc(s.ca)}, day ${Calendar.yearDay() % SEASON_DAYS + 1} of ${SEASON_DAYS}. ${s.k === 'winter' ? 'Wrap up warm.' : s.k === 'autumn' ? 'Leaves on the pavements.' : s.k === 'summer' ? 'Do not forget the sunscreen.' : 'Flowers everywhere.'}</p></section>
+        <section><h3>Weather</h3><p class="np-big">${wx}</p><p>${s.icon} ${esc(CG ? s.name : s.ca)}, day ${Calendar.yearDay() % SEASON_DAYS + 1} of ${SEASON_DAYS}. ${s.k === 'winter' ? 'Wrap up warm.' : s.k === 'autumn' ? 'Leaves on the pavements.' : s.k === 'summer' ? 'Do not forget the sunscreen.' : 'Flowers everywhere.'}</p></section>
         <section><h3>Metro</h3><p>${esc(metro)}</p><p>Cards: 10 trips for 20 coins at the machines by the gates.</p></section>
         <section><h3>Town</h3><p>${people > 1 ? people + ' neighbours online today.' : 'A quiet day in the neighbourhood.'} ${plots ? plots + ' plot' + (plots > 1 ? 's are' : ' is') + ' claimed.' : 'Plots are still free: claim yours with a Plot Stone.'}</p><p>Your savings: ${G.mode === 'creative' ? 'unlimited' : (G.money | 0) + ' coins'}.</p></section>
         <section><h3>Agenda</h3>${next.map((n) => `<p>${n.f.icon} <b>${esc(n.f.name)}</b> · ${n.in === 0 ? 'today' : 'in ' + n.in + ' day' + (n.in > 1 ? 's' : '')}</p>`).join('')}</section>

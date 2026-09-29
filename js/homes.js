@@ -304,9 +304,9 @@ const Homes = {
   // ---- the estate agent ----
   open(p) {
     const plots = this.plots();
-    if (!plots.length) { G.ui.toast('Houses are sold on the plots of the STUCOM district'); return; }
+    if (!plots.length) { G.ui.toast('Houses are sold on the plots of ' + CITY); return; }
     const R = this.rec();
-    const q = GPanel.open({ title: 'Immobiliària STUCOM', sub: p ? 'Plot ' + p.id.slice(1) : plots.filter((x) => !R[x.id]).length + ' plots for sale', icon: '🏠', cls: 'gp-homes', width: 680 });
+    const q = GPanel.open({ title: ED('Immobiliària STUCOM', CITY + ' Real Estate'), sub: p ? 'Plot ' + p.id.slice(1) : plots.filter((x) => !R[x.id]).length + ' plots for sale', icon: '🏠', cls: 'gp-homes', width: 680 });
     const draw = () => {
       const e = GPanel.esc, money = G.mode === 'creative' ? '∞' : (G.money | 0);
       if (p) {

@@ -107,7 +107,7 @@ const Phone = {
     const tNow = s ? { spring: 18, summer: 29, autumn: 15, winter: 4 }[s.k] : 20;
     const temp = Math.round(tNow + Math.sin(((G.dayTime || 0.3) - 0.25) * Math.PI * 2) * 4 - (w === 'rain' || w === 'storm' ? 3 : 0));
     const next = ['☀️', '⛅', '🌧️', '☀️', '⛅'].map((ic, i) => `<div class="ph-fc"><small>+${i + 1} h</small><i>${ic}</i><b>${temp + Math.round(Math.sin(i) * 2)}°</b></div>`).join('');
-    q.body.innerHTML = `<div class="gp-card"><div class="gp-big">${icon} ${temp}°</div><p>${name}${s ? ' · ' + s.icon + ' ' + GPanel.esc(s.ca) : ''}</p></div><div class="ph-fcs">${next}</div>`;
+    q.body.innerHTML = `<div class="gp-card"><div class="gp-big">${icon} ${temp}°</div><p>${name}${s ? ' · ' + s.icon + ' ' + GPanel.esc(CG ? s.name : s.ca) : ''}</p></div><div class="ph-fcs">${next}</div>`;
   },
 };
 

@@ -29,7 +29,7 @@ const City = {
     return id === undefined ? null : id;
   },
   built(i, j) {
-    if (Math.abs(i) <= 1 && Math.abs(j) <= 1) return true;
+    if (Math.abs(i) <= (CG ? 2 : 1) && Math.abs(j) <= (CG ? 2 : 1)) return true;
     const st = this.plan();
     return !!st && this.known(st.x + i * DP, st.y - 6, st.z + j * DP) === B.CITY_MARK;
   },
@@ -128,7 +128,7 @@ const CityPanel = {
   el: null, open: false, sel: null,
 
   show() {
-    if (!City.plan()) { G.ui.toast('This board only works in the STUCOM district'); return; }
+    if (!City.plan()) { G.ui.toast('This board only works in ' + CITY); return; }
     this.open = true;
     G.screenOpen = true;
     releaseAllInput();
@@ -173,7 +173,7 @@ const CityPanel = {
       </div>` : `<div class="cp-side"><b>Grow the district</b><span>Pick a free square (+) next to the built blocks. Each block comes with its streets, pavements, trees and lamps, levelled with the rest of STUCOM.</span></div>`;
     el.innerHTML = `
       <div class="mp-card cp-card">
-        <div class="mp-head"><i class="cp-logo">🏛️</i><div><b>Ajuntament de STUCOM · Urbanisme</b><span>Town planning board · ${n} blocks built</span></div><button class="mp-x" data-a="close">✕</button></div>
+        <div class="mp-head"><i class="cp-logo">🏛️</i><div><b>${ED('Ajuntament de STUCOM · Urbanisme', CITY + ' City Hall · Planning')}</b><span>Town planning board · ${n} blocks built</span></div><button class="mp-x" data-a="close">✕</button></div>
         <div class="cp-body"><div class="cp-grid" style="grid-template-columns: repeat(${CITY_RANGE * 2 + 1}, 1fr)">${cells.join('')}</div>${side}</div>
       </div>`;
     el.querySelector('[data-a="close"]').addEventListener('click', () => this.close());

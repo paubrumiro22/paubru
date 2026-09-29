@@ -19,11 +19,21 @@ const headKept = head
   .trim();
 
 // attributes such as data-w (sources shared with the chunk workers) are kept
-const inlined = body.replace(/<script src="([^"]+)"([^>]*)><\/script>/g, (_, src, attrs) => {
-  const code = fs.readFileSync(path.join(root, src), 'utf8');
-  if (/<\/script/i.test(code)) throw new Error(src + ' contains a closing script tag');
-  return '<script' + attrs + '>\n' + code.trim() + '\n</script>';
-});
+function bundle(edition) {
+  const skip = edition === 'cg' ? new Set(['js/faces.js', 'js/support.js']) : new Set();
+  const inlined = body.replace(/<script src="([^"]+)"([^>]*)><\/script>/g, (_, src, attrs) => {
+    if (skip.has(src)) return '';
+    let code = fs.readFileSync(path.join(root, src), 'utf8');
+    if (/<\/script/i.test(code)) throw new Error(src + ' contains a closing script tag');
+    if (src === 'js/edition.js') code = code.replace("const EDITION = 'full';", "const EDITION = '" + edition + "';");
+    return '<script' + attrs + '>\n' + code.trim() + '\n</script>';
+  });
+  const scripts = [];
+  let out = headKept + '\n@@BODY@@\n' + inlined.trim() + '\n';
+  out = out.replace(/<script([^>]*)>([\s\S]*?)<\/script>/g, (_, attrs, code) => { scripts.push(asciiJs(code)); return '<script' + attrs + '>@@SCRIPT' + (scripts.length - 1) + '@@</script>'; });
+  out = asciiHtml(out).replace(/@@SCRIPT(\d+)@@/g, (_, i) => scripts[Number(i)]);
+  return out.split('\n@@BODY@@\n');
+}
 
 // The host page may not declare a charset: keep the output pure ASCII.
 const asciiJs = (code) => code.replace(/[^\x00-\x7f]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
@@ -32,11 +42,18 @@ const asciiHtml = (html) => html.replace(/[\u0080-\uffff]/g, (c, i, str) => {
   if (cp >= 0xdc00 && cp <= 0xdfff) return '';
   return '&#x' + cp.toString(16) + ';';
 });
-const scripts = [];
-let out = headKept + '\n' + inlined.trim() + '\n';
-out = out.replace(/<script([^>]*)>([\s\S]*?)<\/script>/g, (_, attrs, code) => { scripts.push(asciiJs(code)); return '<script' + attrs + '>@@SCRIPT' + (scripts.length - 1) + '@@</script>'; });
-out = asciiHtml(out).replace(/@@SCRIPT(\d+)@@/g, (_, i) => scripts[Number(i)]);
+
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 const file = path.join(root, 'dist', 'blocklands.html');
-fs.writeFileSync(file, out);
-console.log('wrote', path.relative(root, file), (out.length / 1024).toFixed(1) + ' KB');
+const full = bundle('full').join('\n');
+fs.writeFileSync(file, full);
+console.log('wrote', path.relative(root, file), (full.length / 1024).toFixed(1) + ' KB');
+
+// The CrazyGames edition: a complete page (their iframe loads it as is) with their SDK first.
+const [cgHead, cgBody] = bundle('cg');
+const page = '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">\n' +
+  cgHead.trim() + '\n<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>\n</head>\n<body>\n' + cgBody + '</body>\n</html>\n';
+fs.mkdirSync(path.join(root, 'dist', 'crazygames'), { recursive: true });
+const cgFile = path.join(root, 'dist', 'crazygames', 'index.html');
+fs.writeFileSync(cgFile, page);
+console.log('wrote', path.relative(root, cgFile), (page.length / 1024).toFixed(1) + ' KB');

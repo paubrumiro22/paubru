@@ -18,13 +18,13 @@ const Lift = {
     return out;
   },
   label(i, stops) {
-    if (i === 0) return 'Planta baixa';
+    if (i === 0) return ED('Planta baixa', 'Ground floor');
     const w = G.world, s = stops[i];
     let open = true;
     for (let y = s + 3; y < Math.min(CH, s + 24); y++) if (BLOCK_SOLID[w.getBlock(this.px, y, this.pz)] && w.getBlock(this.px, y, this.pz) !== B.GLOWSTONE) { open = false; break; }
-    return i === stops.length - 1 && (open || stops.length > 2 && s - stops[i - 1] > 6) ? 'Terrat' : 'Planta ' + i;
+    return i === stops.length - 1 && (open || stops.length > 2 && s - stops[i - 1] > 6) ? ED('Terrat', 'Roof') : ED('Planta ', 'Floor ') + i;
   },
-  short(i, stops) { const l = this.label(i, stops); return l === 'Planta baixa' ? '0' : l === 'Terrat' ? 'T' : String(i); },
+  short(i, stops) { const l = this.label(i, stops); return i === 0 ? '0' : l === ED('Terrat', 'Roof') ? ED('T', 'R') : String(i); },
 
   update(dt) {
     const p = G.player;
