@@ -439,9 +439,9 @@
   .dep-row { display: grid; grid-template-columns: 60px 64px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid #1a2336; font: 700 13px 'Courier New', monospace; color: #e8eef8; }
   .dep-row:last-child { border-bottom: 0; } .dep-t, .dep-f { color: #ffcc33; } .dep-d { font-family: var(--body); font-weight: 800; } .dep-g { color: #8b9ab4; font-size: 11.5px; }
   #flightFade { position: fixed; inset: 0; z-index: 90; background: #000; opacity: 0; pointer-events: none; transition: opacity .7s; } #flightFade.on { opacity: 1; }
-  #flightHud { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 30; min-width: 300px; padding: 10px 16px 14px; border-radius: 14px; background: rgba(10, 15, 26, .88); border: 1px solid #2c3b5c; color: #fff; opacity: 0; transition: .3s; pointer-events: none; overflow: hidden; }
-  #flightHud.show { opacity: 1; } #flightHud b { display: block; font: 800 14px var(--display); } #flightHud span { font-size: 12.5px; color: #b8c3d4; }
-  #flightHud i { position: absolute; left: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #d6202b, #ffcc33); }
+  #tripHud { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 30; min-width: 300px; padding: 10px 16px 14px; border-radius: 14px; background: rgba(10, 15, 26, .88); border: 1px solid #2c3b5c; color: #fff; opacity: 0; transition: .3s; pointer-events: none; overflow: hidden; }
+  #tripHud.show { opacity: 1; } #tripHud b { display: block; font: 800 14px var(--display); } #tripHud span { font-size: 12.5px; color: #b8c3d4; }
+  #tripHud i { position: absolute; left: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #d6202b, #ffcc33); }
   #hud.arch { display: none; }
   #archUI { position: fixed; inset: 0; z-index: 50; }
   #archUI .ar-c { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
@@ -9936,6 +9936,8 @@ function planDistrict(g, plan) {
   home('villager', 'student', -4, F + 7, -37, -3, -37, 5);
   teacher('noelia', 'Hola! S\u00f3c la Noelia. Seieu, que comencem la classe.', 2, F + 11, -43, 4);
   home('villager', 'student', -3, F, -55, 0, -55, 9);
+  teacher('laura', 'Hola! S\u00f3c la Laura Ta\u00f1\u00e1. Avui toca pr\u00e0ctica, obriu el projecte!', 3, F + 7, -43, 4);
+  teacher('ramon', 'Bon dia! S\u00f3c en Ramon Abad. Benvinguts a l\'aula d\'ordinadors!', 2, F + 15, -41, 4);
 
   // ---- west: the football pitch (its front towards the square) ----
   const campus = plan.campus = {};
@@ -15890,6 +15892,78 @@ SKINS.push(
   },
 );
 const PERSON_SKIN = {};
+// Laura Ta\u00f1\u00e1 and Ramon Abad (STUCOM teachers, asked for by the user from their photos)
+SKINS.push(
+  {
+    key: 't_laura', name: 'Laura Ta\u00f1\u00e1', icon: '', hidden: true, person: 'laura',
+    extras: [
+      { part: 'head', box: [-4.4, 21.5, -4.5, 4.4, 26, -3.2], color: 0x3e2a1e },         // straight hair to the shoulders
+      { part: 'head', box: [-4.45, 22, -3.2, -3.7, 25.5, 2.4], color: 0x3e2a1e },
+      { part: 'head', box: [3.7, 22, -3.2, 4.45, 25.5, 2.4], color: 0x3e2a1e },
+      { part: 'body', box: [-4.1, 16.2, 2.0, -1.6, 24, 2.35], color: 0x1c1c20 },         // blazer lapels over the white top
+      { part: 'body', box: [1.6, 16.2, 2.0, 4.1, 24, 2.35], color: 0x1c1c20 },
+    ],
+    paint(P) {
+      const sk = rgb(0xe6b394), hr = rgb(0x3e2a1e), hl = rgb(0x5a3e2a), jk = rgb(0x1c1c20), tee = rgb(0xf4f4f2);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'top') return (x + y) % 3 ? hr : hl;
+        if (f === 'front') {
+          if (y === 0) return hr;
+          if (y === 1) return x <= 4 ? (x % 2 ? hl : hr) : x === 7 ? hr : sk;             // fringe swept to one side
+          if (x === 0 || x === 7) return y % 2 ? hl : hr;
+          if (y === 2 && (x === 2 || x === 5)) return rgb(0x4a3426);                        // brows
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x3a2a1e);                        // eyes
+          if (y === 3 && (x === 1 || x === 6)) return rgb(0xfafafa);
+          if (y === 4 && (x === 3 || x === 4)) return shadec(sk, 0.9);                      // nose
+          if (y === 5 && x >= 3 && x <= 4) return rgb(0xc47a74);                            // soft smile
+          if (y === 5 && (x === 2 || x === 5)) return shadec(sk, 0.94);
+          return sk;
+        }
+        if (f === 'back') return (x + y) % 4 ? hr : hl;
+        return y < 7 || x < 2 ? ((x + y) % 3 ? hr : hl) : sk;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front' && x >= 2 && x <= 5 && y < h - 2) return y === 0 && (x === 2 || x === 5) ? shadec(tee, 0.85) : tee;   // white top
+        return y === h - 1 ? shadec(jk, 0.75) : jk;
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 2 ? sk : y === h - 3 ? shadec(jk, 0.7) : jk));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x141416) : rgb(0x24242a)));
+    },
+  },
+  {
+    key: 't_ramon', name: 'Ramon Abad', icon: '', hidden: true, person: 'ramon',
+    extras: [
+      { part: 'head', box: [-4.25, 31.6, -4.2, 4.25, 32.5, 3.2], color: 0x3a2618 },          // hair combed back
+    ],
+    paint(P) {
+      const sk = rgb(0xdca08a), hr = rgb(0x3a2618), hl = rgb(0x52361f), top = rgb(0x1e2436), red = rgb(0xc86a5c);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'top') return (x + y) % 3 ? hr : hl;
+        if (f === 'front') {
+          if (y === 0) return x === 0 || x === 7 ? hr : x === 3 || x === 4 ? shadec(sk, 0.95) : hr;   // a little receding
+          if (y === 1) return x === 0 || x === 7 ? hr : sk;
+          if (y === 2 && (x === 1 || x === 2 || x === 5 || x === 6)) return rgb(0x3a2618);  // thick brows
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x2a1c14);                       // eyes, smiling
+          if (y === 3 && (x === 1 || x === 6)) return shadec(sk, 0.85);
+          if (y === 4 && (x === 1 || x === 6)) return red;                                 // rosy cheeks
+          if (y === 4 && (x === 3 || x === 4)) return shadec(sk, 0.85);                    // nose
+          if (y === 5 && x >= 2 && x <= 5) return rgb(0x6a2a24);                           // big smile
+          if (y === 6 && x >= 3 && x <= 4) return rgb(0xf4f0dc);                           // teeth
+          if (y === 6 && (x === 2 || x === 5)) return rgb(0x6a2a24);
+          return sk;
+        }
+        if (f === 'back') return y < 6 ? ((x + y) % 3 ? hr : hl) : sk;
+        return y < 3 || (y < 5 && x > 4) ? hr : sk;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front' && (x === 3 || x === 4) && y === 0) return shadec(sk, 0.9);   // open neck
+        return y === h - 1 ? shadec(top, 0.8) : top;
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 2 ? sk : top));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x2a1a14) : rgb(0x3a3a44)));
+    },
+  },
+);
 SKINS.forEach((sk, i) => { if (sk.person) PERSON_SKIN[sk.person] = i; });
 const STUDENT_SKINS = [];
 SKINS.forEach((sk, i) => { if (sk.student) STUDENT_SKINS.push(i); });
@@ -35720,6 +35794,7 @@ const Airport = {
       this.mine = { d, F };
       this.step(F, 0);
       Vehicles.board(F.v);
+      G.player.yaw = F.v.yaw + Math.PI + 0.7; G.player.pitch = -0.22;
       G.ui.banner('\u2708\ufe0f', 'Blocklands Air BA to ' + d.name + ' \u00b7 fasten your seat belt');
       sfx('metro_chime', null, 0.8, 0.8);
       this.fade(false);
@@ -35768,9 +35843,9 @@ const Airport = {
   },
   updateHud() {
     const m = this.mine;
-    let el = $('flightHud');
+    let el = $('tripHud');
     if (!m) { if (el) el.classList.remove('show'); return; }
-    if (!el) { el = document.createElement('div'); el.id = 'flightHud'; document.body.append(el); }
+    if (!el) { el = document.createElement('div'); el.id = 'tripHud'; document.body.append(el); }
     const F = m.F, tot = FLIGHT_OUT[FLIGHT_OUT.length - 1][0], alt = Math.max(0, Math.round(F.v.pos[1] - F.pl.y));
     const phase = F.t < 17 ? 'Taxiing' : F.t < 32 ? 'Take-off' : 'Climbing';
     el.innerHTML = `<b>\u2708\ufe0f STUCOM \u2192 ${GPanel.esc(m.d.name)}</b><span>${phase} \u00b7 ${Math.round(F.v.speed * 3.6)} km/h \u00b7 ${alt} m</span><i style="width:${Math.min(100, F.t / tot * 100)}%"></i>`;
@@ -35842,6 +35917,16 @@ sprite('i_boarding_pass', (d) => {
   Vehicles.dismount = function (forced) {
     if (!forced && G.vehicle && G.vehicle.airliner && Airport.mine) { G.ui.toast('\u2708\ufe0f Please stay seated until we land'); return; }
     return dis.call(this, forced);
+  };
+  // the camera of airliners and ferries: behind where you look, never inside a building
+  const rcam = Rides.camera;
+  Rides.camera = function (v, dt) {
+    if (!v.airliner && !v.ferry) return rcam.call(this, v, dt);
+    const p = G.player, aim = p.lookDir(), dist = v.airliner ? 32 : 24;
+    const c = v.toWorld([0, v.def.h * 0.6, 0]);
+    const pos = [c[0] - aim[0] * dist, c[1] - aim[1] * dist + 3, c[2] - aim[2] * dist];
+    for (let k = 0; k < 60 && BLOCK_OPAQUE[G.world.getBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]))]; k++) pos[1] += 1;
+    return { pos, yaw: p.yaw, pitch: p.pitch, roll: 0, fov: G.settings.fov + 6 };
   };
   PC.add({ key: 'flights', icon: '\u2708\ufe0f', name: 'Flights', run() { Airport.open(); } });
   const run = Commands.run;

@@ -669,6 +669,78 @@ SKINS.push(
   },
 );
 const PERSON_SKIN = {};
+// Laura Tañá and Ramon Abad (STUCOM teachers, asked for by the user from their photos)
+SKINS.push(
+  {
+    key: 't_laura', name: 'Laura Tañá', icon: '', hidden: true, person: 'laura',
+    extras: [
+      { part: 'head', box: [-4.4, 21.5, -4.5, 4.4, 26, -3.2], color: 0x3e2a1e },         // straight hair to the shoulders
+      { part: 'head', box: [-4.45, 22, -3.2, -3.7, 25.5, 2.4], color: 0x3e2a1e },
+      { part: 'head', box: [3.7, 22, -3.2, 4.45, 25.5, 2.4], color: 0x3e2a1e },
+      { part: 'body', box: [-4.1, 16.2, 2.0, -1.6, 24, 2.35], color: 0x1c1c20 },         // blazer lapels over the white top
+      { part: 'body', box: [1.6, 16.2, 2.0, 4.1, 24, 2.35], color: 0x1c1c20 },
+    ],
+    paint(P) {
+      const sk = rgb(0xe6b394), hr = rgb(0x3e2a1e), hl = rgb(0x5a3e2a), jk = rgb(0x1c1c20), tee = rgb(0xf4f4f2);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'top') return (x + y) % 3 ? hr : hl;
+        if (f === 'front') {
+          if (y === 0) return hr;
+          if (y === 1) return x <= 4 ? (x % 2 ? hl : hr) : x === 7 ? hr : sk;             // fringe swept to one side
+          if (x === 0 || x === 7) return y % 2 ? hl : hr;
+          if (y === 2 && (x === 2 || x === 5)) return rgb(0x4a3426);                        // brows
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x3a2a1e);                        // eyes
+          if (y === 3 && (x === 1 || x === 6)) return rgb(0xfafafa);
+          if (y === 4 && (x === 3 || x === 4)) return shadec(sk, 0.9);                      // nose
+          if (y === 5 && x >= 3 && x <= 4) return rgb(0xc47a74);                            // soft smile
+          if (y === 5 && (x === 2 || x === 5)) return shadec(sk, 0.94);
+          return sk;
+        }
+        if (f === 'back') return (x + y) % 4 ? hr : hl;
+        return y < 7 || x < 2 ? ((x + y) % 3 ? hr : hl) : sk;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front' && x >= 2 && x <= 5 && y < h - 2) return y === 0 && (x === 2 || x === 5) ? shadec(tee, 0.85) : tee;   // white top
+        return y === h - 1 ? shadec(jk, 0.75) : jk;
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 2 ? sk : y === h - 3 ? shadec(jk, 0.7) : jk));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x141416) : rgb(0x24242a)));
+    },
+  },
+  {
+    key: 't_ramon', name: 'Ramon Abad', icon: '', hidden: true, person: 'ramon',
+    extras: [
+      { part: 'head', box: [-4.25, 31.6, -4.2, 4.25, 32.5, 3.2], color: 0x3a2618 },          // hair combed back
+    ],
+    paint(P) {
+      const sk = rgb(0xdca08a), hr = rgb(0x3a2618), hl = rgb(0x52361f), top = rgb(0x1e2436), red = rgb(0xc86a5c);
+      P.fill('head', (x, y, w, h, f) => {
+        if (f === 'top') return (x + y) % 3 ? hr : hl;
+        if (f === 'front') {
+          if (y === 0) return x === 0 || x === 7 ? hr : x === 3 || x === 4 ? shadec(sk, 0.95) : hr;   // a little receding
+          if (y === 1) return x === 0 || x === 7 ? hr : sk;
+          if (y === 2 && (x === 1 || x === 2 || x === 5 || x === 6)) return rgb(0x3a2618);  // thick brows
+          if (y === 3 && (x === 2 || x === 5)) return rgb(0x2a1c14);                       // eyes, smiling
+          if (y === 3 && (x === 1 || x === 6)) return shadec(sk, 0.85);
+          if (y === 4 && (x === 1 || x === 6)) return red;                                 // rosy cheeks
+          if (y === 4 && (x === 3 || x === 4)) return shadec(sk, 0.85);                    // nose
+          if (y === 5 && x >= 2 && x <= 5) return rgb(0x6a2a24);                           // big smile
+          if (y === 6 && x >= 3 && x <= 4) return rgb(0xf4f0dc);                           // teeth
+          if (y === 6 && (x === 2 || x === 5)) return rgb(0x6a2a24);
+          return sk;
+        }
+        if (f === 'back') return y < 6 ? ((x + y) % 3 ? hr : hl) : sk;
+        return y < 3 || (y < 5 && x > 4) ? hr : sk;
+      });
+      P.fill('body', (x, y, w, h, f) => {
+        if (f === 'front' && (x === 3 || x === 4) && y === 0) return shadec(sk, 0.9);   // open neck
+        return y === h - 1 ? shadec(top, 0.8) : top;
+      });
+      P.fill('arm', (x, y, w, h) => (y >= h - 2 ? sk : top));
+      P.fill('leg', (x, y, w, h) => (y >= h - 2 ? rgb(0x2a1a14) : rgb(0x3a3a44)));
+    },
+  },
+);
 SKINS.forEach((sk, i) => { if (sk.person) PERSON_SKIN[sk.person] = i; });
 const STUDENT_SKINS = [];
 SKINS.forEach((sk, i) => { if (sk.student) STUDENT_SKINS.push(i); });

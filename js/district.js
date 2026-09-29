@@ -108,6 +108,8 @@ function planDistrict(g, plan) {
   home('villager', 'student', -4, F + 7, -37, -3, -37, 5);
   teacher('noelia', 'Hola! Sóc la Noelia. Seieu, que comencem la classe.', 2, F + 11, -43, 4);
   home('villager', 'student', -3, F, -55, 0, -55, 9);
+  teacher('laura', 'Hola! Sóc la Laura Tañá. Avui toca pràctica, obriu el projecte!', 3, F + 7, -43, 4);
+  teacher('ramon', 'Bon dia! Sóc en Ramon Abad. Benvinguts a l\'aula d\'ordinadors!', 2, F + 15, -41, 4);
 
   // ---- west: the football pitch (its front towards the square) ----
   const campus = plan.campus = {};

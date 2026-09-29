@@ -161,6 +161,7 @@ const Airport = {
       this.mine = { d, F };
       this.step(F, 0);
       Vehicles.board(F.v);
+      G.player.yaw = F.v.yaw + Math.PI + 0.7; G.player.pitch = -0.22;
       G.ui.banner('✈️', 'Blocklands Air BA to ' + d.name + ' · fasten your seat belt');
       sfx('metro_chime', null, 0.8, 0.8);
       this.fade(false);
@@ -209,9 +210,9 @@ const Airport = {
   },
   updateHud() {
     const m = this.mine;
-    let el = $('flightHud');
+    let el = $('tripHud');
     if (!m) { if (el) el.classList.remove('show'); return; }
-    if (!el) { el = document.createElement('div'); el.id = 'flightHud'; document.body.append(el); }
+    if (!el) { el = document.createElement('div'); el.id = 'tripHud'; document.body.append(el); }
     const F = m.F, tot = FLIGHT_OUT[FLIGHT_OUT.length - 1][0], alt = Math.max(0, Math.round(F.v.pos[1] - F.pl.y));
     const phase = F.t < 17 ? 'Taxiing' : F.t < 32 ? 'Take-off' : 'Climbing';
     el.innerHTML = `<b>✈️ STUCOM → ${GPanel.esc(m.d.name)}</b><span>${phase} · ${Math.round(F.v.speed * 3.6)} km/h · ${alt} m</span><i style="width:${Math.min(100, F.t / tot * 100)}%"></i>`;
@@ -283,6 +284,16 @@ sprite('i_boarding_pass', (d) => {
   Vehicles.dismount = function (forced) {
     if (!forced && G.vehicle && G.vehicle.airliner && Airport.mine) { G.ui.toast('✈️ Please stay seated until we land'); return; }
     return dis.call(this, forced);
+  };
+  // the camera of airliners and ferries: behind where you look, never inside a building
+  const rcam = Rides.camera;
+  Rides.camera = function (v, dt) {
+    if (!v.airliner && !v.ferry) return rcam.call(this, v, dt);
+    const p = G.player, aim = p.lookDir(), dist = v.airliner ? 32 : 24;
+    const c = v.toWorld([0, v.def.h * 0.6, 0]);
+    const pos = [c[0] - aim[0] * dist, c[1] - aim[1] * dist + 3, c[2] - aim[2] * dist];
+    for (let k = 0; k < 60 && BLOCK_OPAQUE[G.world.getBlock(Math.floor(pos[0]), Math.floor(pos[1]), Math.floor(pos[2]))]; k++) pos[1] += 1;
+    return { pos, yaw: p.yaw, pitch: p.pitch, roll: 0, fov: G.settings.fov + 6 };
   };
   PC.add({ key: 'flights', icon: '✈️', name: 'Flights', run() { Airport.open(); } });
   const run = Commands.run;
