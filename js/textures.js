@@ -320,15 +320,13 @@ gen('birch_planks', (d, rng) => genPlanks(d, rng, [212, 192, 138]), { smooth: 0.
 gen('spruce_planks', (d, rng) => genPlanks(d, rng, [118, 86, 54]), { smooth: 0.24, bump: 1.4 });
 
 gen('glass', (d) => {
+  // clean glass: a thin frame, a faint tint in the corner and one soft reflection
   clearTile(d, [200, 230, 240]);
   fillTile(d, (x, y) => {
-    const b = x === 0 || y === 0 || x === TM || y === TM;
-    const b2 = x === 1 || y === 1 || x === TM - 1 || y === TM - 1;
-    if (b) put(d, x, y, [196, 222, 230]);
-    else if (b2 && (x + y) % 3 !== 0) put(d, x, y, [226, 242, 248]);
+    if (x === 0 || y === 0 || x === TM || y === TM) put(d, x, y, [206, 226, 234]);
   });
-  const streak = (x0, y0, n) => { for (let i = 0; i < n; i++) put(d, x0 + i, y0 - i, [240, 250, 254]); };
-  streak(6, 14, 7); streak(7, 16, 3); streak(16, 26, 9); streak(21, 11, 4);
+  for (let i = 0; i < 6; i++) put(d, 5 + i, 12 - i, [236, 246, 250]);
+  for (let i = 0; i < 3; i++) put(d, 8 + i, 13 - i, [236, 246, 250]);
 }, { smooth: 0.95, bump: 0 });
 
 function genOre(d, rng, ctx, ore, hi, dark) {

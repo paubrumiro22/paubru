@@ -461,6 +461,25 @@
   .ar-opts button { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: rgba(255,255,255,.08); color: #fff; cursor: pointer; font: 700 12px var(--body); }
   .ar-opts .ar-x { background: #2fbf71; border-color: #4fd58b; }
   .ar-help { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 99px; background: rgba(10, 15, 24, 0.8); color: #cfd8e6; font: 600 12px var(--body); white-space: nowrap; }
+  .gp-phone { width: 330px !important; height: min(660px, calc(100vh - 32px)); max-height: none; border-radius: 44px; padding: 10px; background: #0b0d12; border: 2px solid #2a2f3a; box-shadow: 0 30px 80px rgba(0,0,0,.6), inset 0 0 0 2px #1a1e27; }
+  .gp-phone .gp-bar { display: none; }
+  .gp-phone .gp-body { flex: 1; padding: 0; border-radius: 34px; overflow: hidden; background: var(--wall); display: flex; flex-direction: column; position: relative; }
+  .gp-phone .gp-body::before { content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 96px; height: 26px; border-radius: 99px; background: #000; z-index: 2; }
+  .ph-status { display: flex; justify-content: space-between; align-items: center; padding: 12px 22px 6px; color: #fff; font: 700 13px var(--body); text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+  .ph-lock { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 20px 14px 18px; color: #fff; }
+  .ph-time { font: 200 72px/1 system-ui, sans-serif; letter-spacing: -2px; text-shadow: 0 2px 20px rgba(0,0,0,.25); margin-top: 16px; } .ph-date { font: 600 14px var(--body); opacity: .9; margin: 6px 0 18px; text-align: center; }
+  .ph-notes { width: 100%; display: flex; flex-direction: column; gap: 6px; flex: 1; overflow: hidden; }
+  .ph-note { display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; border-radius: 16px; background: rgba(255,255,255,.2); backdrop-filter: blur(14px); font: 600 12.5px var(--body); animation: rise .3s both; }
+  .ph-note small { opacity: .7; font-size: 10.5px; } .ph-empty { text-align: center; opacity: .7; }
+  .ph-unlock { margin-top: 10px; border: 0; background: rgba(255,255,255,.18); color: #fff; font: 700 12px var(--body); padding: 8px 18px; border-radius: 99px; cursor: pointer; }
+  .ph-home { flex: 1; display: flex; flex-direction: column; padding: 10px 10px 12px; min-height: 0; }
+  .ph-grid { flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 2px; align-content: start; padding: 8px 0 10px; overflow-y: auto; min-height: 0; scrollbar-width: none; }
+  .ph-app { display: flex; flex-direction: column; align-items: center; gap: 5px; border: 0; background: none; color: #fff; cursor: pointer; font: 600 10.5px var(--body); text-shadow: 0 1px 3px rgba(0,0,0,.5); }
+  .ph-app i { font-style: normal; font-size: 24px; width: 50px; height: 50px; display: grid; place-items: center; border-radius: 15px; background: rgba(255,255,255,.22); backdrop-filter: blur(10px); box-shadow: 0 4px 12px rgba(0,0,0,.2); transition: transform .12s; }
+  .ph-app:hover i { transform: scale(1.08); } .ph-app span { max-width: 64px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ph-dock { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 10px 6px; border-radius: 26px; background: rgba(255,255,255,.2); backdrop-filter: blur(16px); }
+  .ph-dock .ph-app span { display: none; }
+  .ph-fcs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 10px; } .ph-fc { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0; border-radius: 12px; background: rgba(255,255,255,.05); } .ph-fc i { font-style: normal; font-size: 22px; }
   #dateTag { position: absolute; left: 14px; top: 12px; padding: 6px 12px; border-radius: 99px; background: rgba(11, 16, 24, 0.66); border: 1px solid var(--line); color: #e9eef5; font-size: 12.5px; text-shadow: 0 1px 2px #000; pointer-events: none; }
   #dateTag.hidden { display: none; }
   #paper { display: grid; place-items: center; z-index: 60; background: rgba(8, 10, 16, 0.6); backdrop-filter: blur(3px); overflow: auto; padding: 20px 0; }
@@ -1412,6 +1431,7 @@
 <script src="js/airport.js"></script>
 <script src="js/architect.js"></script>
 <script src="js/sea.js"></script>
+<script src="js/phone.js"></script>
 <script src="js/football.js"></script>
 <script src="js/pets.js"></script>
 <script src="js/music.js"></script>
