@@ -39853,6 +39853,11 @@ const Crazy = {
       const u = S.user && S.user.isUserAccountAvailable ? await S.user.getUser() : null;
       if (u && u.username && /^Player\d+$/.test(Net.name || '')) { Net.name = safeName(u.username); if (Net.saveProfile) Net.saveProfile(); }
     } catch (e) { /* guests */ }
+    // CrazyGames' own mute button
+    const applyMute = (st) => { this.muted = !!(st && st.muteAudio); if (!this.adOn) Sound.setVolume(this.muted ? 0 : (this.vol || Sound.volume || 0.7)); };
+    this.vol = Sound.volume;
+    this.call(() => applyMute(S.game.settings));
+    this.call(() => S.game.addSettingsChangeListener((st) => applyMute(st)));
     // an invite (a friend's server)
     const room = this.call(() => S.game.getInviteParam('roomId'));
     if (room && normServerCode(room) && !Net.on) { Net.joinCode(room); refreshGameUI(); if (G.onTitle) $('tWorld').textContent = worldLabel(); }
@@ -39897,7 +39902,7 @@ const Crazy = {
       if (ended) return;
       ended = true;
       this.adOn = false;
-      Sound.setVolume(vol);
+      Sound.setVolume(this.muted ? 0 : vol);
       void wasPlaying;
       if (done) done(ok);
     };
