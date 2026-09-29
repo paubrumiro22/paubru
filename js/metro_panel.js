@@ -76,9 +76,9 @@ PIC_BUILTIN.metro_cards = { w: 1, h: 1, draw(g, W, H) {
   g.fillStyle = '#f2f4f6'; g.fillRect(-24 * u, -14 * u, 48 * u, 30 * u);
   g.fillStyle = '#d6202b'; g.fillRect(-24 * u, -14 * u, 48 * u, 8 * u);
   g.fillStyle = '#e6b43c'; g.fillRect(10 * u, 6 * u, 9 * u, 7 * u); g.restore();
-  g.fillStyle = '#fff'; g.font = '800 ' + 17 * u + 'px Arial, sans-serif'; g.fillText('TARGETES', 50 * u, 60 * u);
+  g.fillStyle = '#fff'; g.font = '800 ' + 17 * u + 'px Arial, sans-serif'; g.fillText(ED('TARGETES', 'TICKETS'), 50 * u, 60 * u);
   g.fillStyle = '#b8c6e0'; g.font = '700 ' + 10 * u + 'px Arial, sans-serif'; g.fillText('Metro cards · 20', 50 * u, 74 * u);
-  g.fillStyle = '#ffd36b'; g.font = '900 ' + 11 * u + 'px Arial, sans-serif'; g.fillText('\u2193 a dins \u2193', 50 * u, 91 * u);
+  g.fillStyle = '#ffd36b'; g.font = '900 ' + 11 * u + 'px Arial, sans-serif'; g.fillText(ED('\u2193 a dins \u2193', '\u2193 inside \u2193'), 50 * u, 91 * u);
 } };
 
 // the lines players built and the station names they chose (saved with the world, extras.metro)

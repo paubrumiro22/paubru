@@ -350,7 +350,7 @@ const Architect = {
   }, true);
   window.addEventListener('keyup', (e) => { Architect.keys.delete(e.code); });
   window.addEventListener('blur', () => Architect.keys.clear());
-  PC.add({ key: 'architect', icon: '📐', name: 'Arquitecte', closes: true, run() { setTimeout(() => Architect.open(), 50); } });
+  PC.add({ key: 'architect', icon: '📐', name: ED('Arquitecte', 'Architect'), closes: true, run() { setTimeout(() => Architect.open(), 50); } });
   const run = Commands.run;
   Commands.run = function (text) { if (/^\/(architect|arquitecte)\b/i.test(text)) { setTimeout(() => Architect.open(), 50); return; } return run.call(this, text); };
 }

@@ -281,21 +281,21 @@ const Airport = {
 
 PIC_BUILTIN.airport_board = { w: 4, h: 2, draw(g, W, H) {
   g.fillStyle = '#0b0f18'; g.fillRect(0, 0, W, H);
-  g.fillStyle = '#ffcc33'; g.font = `800 ${H * 0.11}px Arial`; g.textBaseline = 'middle'; g.fillText('SORTIDES · DEPARTURES', W * 0.04, H * 0.1);
+  g.fillStyle = '#ffcc33'; g.font = `800 ${H * 0.11}px Arial`; g.textBaseline = 'middle'; g.fillText(ED('SORTIDES · DEPARTURES', 'DEPARTURES'), W * 0.04, H * 0.1);
   const rows = [['10:05', 'BA101', 'PARADISE BEACH', 'EMBARCANT'], ['10:20', 'BA108', 'VOLCANO', 'A HORA'], ['10:35', 'BA115', 'SNOWY PEAKS', 'A HORA'], ['10:50', 'BA122', 'RED CANYON', 'A HORA'], ['11:05', 'BA129', 'ARCHIPELAGO', 'A HORA']];
   g.font = `700 ${H * 0.085}px 'Courier New', monospace`;
   rows.forEach((r, i) => {
     const y = H * (0.26 + i * 0.16);
     g.fillStyle = '#ffcc33'; g.fillText(r[0], W * 0.04, y); g.fillText(r[1], W * 0.2, y);
     g.fillStyle = '#e8eef8'; g.fillText(r[2], W * 0.38, y);
-    g.fillStyle = r[3] === 'EMBARCANT' ? '#3cf2c0' : '#9fb0c8'; g.fillText(r[3], W * 0.78, y);
+    g.fillStyle = r[3] === 'EMBARCANT' ? '#3cf2c0' : '#9fb0c8'; g.fillText(CG ? (r[3] === 'EMBARCANT' ? 'BOARDING' : 'ON TIME') : r[3], W * 0.78, y);
   });
 } };
 PIC_BUILTIN.airport_sign = { w: 6, h: 2, draw(g, W, H) {
   const grd = g.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, '#1d2a44'); grd.addColorStop(1, '#0d1424');
   g.fillStyle = grd; g.fillRect(0, 0, W, H);
   g.font = `${H * 0.6}px serif`; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillText('✈️', H * 0.55, H * 0.5);
-  g.textAlign = 'left'; g.fillStyle = '#fff'; g.font = `900 ${H * 0.36}px Arial`; g.fillText('AEROPORT', H * 1.1, H * 0.36);
+  g.textAlign = 'left'; g.fillStyle = '#fff'; g.font = `900 ${H * 0.36}px Arial`; g.fillText(ED('AEROPORT', 'AIRPORT'), H * 1.1, H * 0.36);
   g.fillStyle = '#ffcc33'; g.font = `900 ${H * 0.26}px Arial`; g.fillText(CITY.toUpperCase() + ' · BLOCKLANDS AIR', H * 1.12, H * 0.72);
 } };
 sprite('i_boarding_pass', (d) => {

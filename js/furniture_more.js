@@ -84,8 +84,8 @@ const PC = {
     sfx('metro_chime', null, 0.3, 1.6);
   },
 };
-PC.add({ key: 'paper', icon: '📰', name: 'La Gaseta', closes: true, run() { if (typeof Newspaper !== 'undefined') Newspaper.show(); } });
-PC.add({ key: 'arcade', icon: '🐍', name: 'Serp Bloc', run() { Arcade.start(null); } });
+PC.add({ key: 'paper', icon: '📰', name: ED('La Gaseta', 'Newspaper'), closes: true, run() { if (typeof Newspaper !== 'undefined') Newspaper.show(); } });
+PC.add({ key: 'arcade', icon: '🐍', name: ED('Serp Bloc', 'Block Snake'), run() { Arcade.start(null); } });
 PC.add({ key: 'bank', icon: '🏦', name: 'My Account', run(pos, p) {
   const q = GPanel.open({ title: 'Banc Central · online', icon: '🏦', width: 420 });
   q.body.innerHTML = `<div class="gp-card"><div class="gp-big">🪙 ${G.mode === 'creative' ? '∞' : (G.money | 0)}</div><p>Coins in your pocket.</p>
@@ -99,7 +99,7 @@ const Arcade = {
   tvs: [],
   start(consolePos) {
     this.lightTVs(consolePos, true);
-    const p = GPanel.open({ title: 'Serp Bloc', sub: 'Arrows / WASD · P pause', icon: '🎮', cls: 'gp-arcade', width: 620,
+    const p = GPanel.open({ title: ED('Serp Bloc', 'Block Snake'), sub: 'Arrows / WASD · P pause', icon: '🎮', cls: 'gp-arcade', width: 620,
       onClose: () => { this.run = null; this.lightTVs(null, false); } });
     p.body.innerHTML = `<div class="arc-top"><span>Score <b class="arc-s">0</b></span><span>Best <b class="arc-b">0</b></span><span class="arc-l">Level 1</span></div>
       <canvas class="arc-c" width="576" height="384"></canvas>
@@ -134,7 +134,7 @@ const Arcade = {
       const m = p.body.querySelector('.arc-msg');
       m.innerHTML = `<b>${rec ? 'NEW RECORD!' : 'GAME OVER'}</b><span>${g.score} points · Space to play again</span>`;
       m.classList.remove('hide');
-      if (rec && g.score >= 20 && typeof Progress !== 'undefined' && Progress.toast) Progress.toast('🐍', 'Serp Bloc', 'New record: ' + g.score);
+      if (rec && g.score >= 20 && typeof Progress !== 'undefined' && Progress.toast) Progress.toast('🐍', ED('Serp Bloc', 'Block Snake'), 'New record: ' + g.score);
     };
     const turn = (d) => {
       const v = { u: [0, -1], d: [0, 1], l: [-1, 0], r: [1, 0] }[d];

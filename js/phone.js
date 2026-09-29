@@ -5,7 +5,7 @@
 // transport map...) plus a few of its own: Camera (photo mode), Map, Help (all the controls)
 // and Weather. The wallpaper follows the season and the time of day.
 
-const PHONE_KEYS = [
+const PHONE_KEYS = ED([
   ['Moure\'s', 'WASD · Espai saltar · Shift ajupir-se · R o doble W córrer'],
   ['Món', 'Clic esquerre picar · clic dret usar/posar · Q llençar · 1-9 barra · E inventari'],
   ['Mòbil i ciutat', 'L mòbil · U diari · O gent i amics · B mapa de transport · M mapa · J missions'],
@@ -14,7 +14,16 @@ const PHONE_KEYS = [
   ['Social', 'G gestos · clic dret a un jugador per saludar, abraçar, donar o fer-lo amic · Enter xat'],
   ['Altres', 'P mode foto · F5 càmera en 3a persona · F1 amagar HUD · T (creatiu) passar el temps'],
   ['Ordres', '/home /sethome /spawn /tp /taxi /market /flights /ferry /architect /friends /admin /help'],
-];
+], [
+  ['Move', 'WASD · Space jump · Shift sneak · R or double W sprint'],
+  ['World', 'Left click mine · right click use/place · Q drop · 1-9 hotbar · E inventory'],
+  ['Phone and city', 'L phone · U newspaper · O people and friends · B transport map · M map · J quests'],
+  ['Build', 'K architect mode (top view, Ctrl+Z undo, Ctrl+C/V copy)'],
+  ['Vehicles', 'Right click to get in · Shift get out · V camera · on buses and the metro you sit and watch'],
+  ['Social', 'G emotes · right click a player to wave, hug, give or add a friend · Enter chat'],
+  ['More', 'P photo mode · F5 third person · F1 hide HUD · T (creative) skip time'],
+  ['Commands', '/home /sethome /spawn /tp /taxi /market /flights /ferry /architect /friends /admin /help'],
+]);
 
 const Phone = {
   p: null, locked: true, notes: [],
@@ -29,10 +38,10 @@ const Phone = {
   apps() {
     const own = [
       { key: 'camera', icon: '📷', name: 'Camera', closes: true, run() { setTimeout(() => Photo.open(), 80); } },
-      { key: 'map', icon: '🗺️', name: 'Mapa', closes: true, run() { setTimeout(() => WorldMap.show(), 80); } },
-      { key: 'weather', icon: '⛅', name: 'Temps', run: () => this.weather() },
-      { key: 'help', icon: '❔', name: 'Ajuda', run: () => this.help() },
-      { key: 'quests', icon: '🏆', name: 'Missions', closes: true, run() { setTimeout(() => Progress.show(), 80); } },
+      { key: 'map', icon: '🗺️', name: ED('Mapa', 'Map'), closes: true, run() { setTimeout(() => WorldMap.show(), 80); } },
+      { key: 'weather', icon: '⛅', name: ED('Temps', 'Weather'), run: () => this.weather() },
+      { key: 'help', icon: '❔', name: ED('Ajuda', 'Help'), run: () => this.help() },
+      { key: 'quests', icon: '🏆', name: ED('Missions', 'Quests'), closes: true, run() { setTimeout(() => Progress.show(), 80); } },
     ];
     const keys = new Set(PC.apps.map((a) => a.key));
     return [...PC.apps, ...own.filter((a) => !keys.has(a.key))];
@@ -95,11 +104,11 @@ const Phone = {
     }));
   },
   help() {
-    const q = GPanel.open({ title: 'Ajuda', sub: 'Controls i dreceres', icon: '❔', width: 560 });
+    const q = GPanel.open({ title: ED('Ajuda', 'Help'), sub: ED('Controls i dreceres', 'Controls and shortcuts'), icon: '❔', width: 560 });
     q.body.innerHTML = PHONE_KEYS.map(([h, t]) => `<div class="gp-row"><div class="gp-grow"><b>${GPanel.esc(h)}</b><small>${GPanel.esc(t)}</small></div></div>`).join('');
   },
   weather() {
-    const q = GPanel.open({ title: 'El temps', icon: '⛅', width: 380 });
+    const q = GPanel.open({ title: ED('El temps', 'Weather'), icon: '⛅', width: 380 });
     const w = typeof Weather !== 'undefined' ? Weather.kind : 'clear';
     const s = typeof Calendar !== 'undefined' ? Calendar.season() : null;
     const icon = { clear: '☀️', rain: '🌧️', storm: '⛈️', snow: '❄️', fog: '🌫️' }[w] || '☀️';
@@ -126,7 +135,7 @@ SYNTH.phone_open = (ctx, o, t) => { [880, 1175, 1568].forEach((f, i) => Sound.to
     e.preventDefault();
     Phone.open();
   });
-  PC.add({ key: 'help', icon: '❔', name: 'Ajuda', run() { Phone.help(); } });
+  PC.add({ key: 'help', icon: '❔', name: ED('Ajuda', 'Help'), run() { Phone.help(); } });
   const run = Commands.run;
   Commands.run = function (text) { if (/^\/(help|ajuda|\?)$/i.test(text.trim())) { Phone.help(); return; } if (/^\/(phone|mobil)\b/i.test(text)) { setTimeout(() => Phone.open(), 50); return; } return run.call(this, text); };
 }

@@ -306,6 +306,10 @@
   .tworld { color: var(--muted); font-size: 12px; margin-top: 8px; text-shadow: 0 1px 4px #000; animation: fadein 1s 1s both; }
   .title-foot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; color: #c9d3de; font-size: 13px; text-shadow: 0 1px 4px #000; }
   .title-foot b { color: #fff; }
+  #cgBanner { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); width: 300px; height: 250px; display: none; }
+  #cgBanner.on { display: block; }
+  #death .cg-reward { background: linear-gradient(135deg, #3cf2c0, #1fb8e8); color: #04201a; font-weight: 800; border: 0; box-shadow: 0 6px 20px rgba(60, 242, 192, .35); }
+  #death .cg-reward span { display: inline-block; margin-right: 4px; } #death .cg-reward.hidden { display: none; }
   #tSupport { display: inline-flex; align-items: center; gap: 7px; padding: 7px 16px; font: 800 13px var(--body); color: #fff; border-radius: 99px; background: linear-gradient(135deg, #ff7a59, #ff4f8b); border: 0; box-shadow: 0 6px 20px rgba(255, 90, 110, .35); animation: spGlow 3s ease-in-out infinite; }
   #tSupport span { display: inline-block; animation: spCup 3s ease-in-out infinite; } #tSupport:hover { transform: translateY(-1px) scale(1.03); }
   @keyframes spGlow { 50% { box-shadow: 0 6px 28px rgba(255, 90, 110, .6); } } @keyframes spCup { 0%, 80%, 100% { transform: none; } 85% { transform: rotate(-14deg); } 92% { transform: rotate(10deg); } }
@@ -1474,5 +1478,6 @@
 <script src="js/music.js"></script>
 <script src="js/main.js"></script>
 <script src="js/touch.js"></script>
+<script src="js/crazy.js"></script>
 </body>
 </html>

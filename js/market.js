@@ -117,7 +117,7 @@ const Market = {
   open(tab) {
     if (this.p) { this.p.close(); return; }
     if (tab) this.tab = tab;
-    this.p = GPanel.open({ title: 'Mercat', sub: Net.on && Net.server ? Net.server.name : 'Your neighbourhood', icon: '🧺', cls: 'gp-shop', width: 680, onClose: () => { this.p = null; } });
+    this.p = GPanel.open({ title: ED('Mercat', 'Market'), sub: Net.on && Net.server ? Net.server.name : 'Your neighbourhood', icon: '🧺', cls: 'gp-shop', width: 680, onClose: () => { this.p = null; } });
     this.p.wrap.querySelector('.gp').style.setProperty('--shop', '#2fbf71');
     this.collect();
     this.render();
@@ -175,7 +175,7 @@ const Market = {
   };
   const fu = Furniture.update;
   Furniture.update = function (dt) { fu.call(this, dt); Market.update(dt || 0.016); };
-  PC.add({ key: 'market', icon: '🧺', name: 'Mercat', run() { Market.open(); } });
+  PC.add({ key: 'market', icon: '🧺', name: ED('Mercat', 'Market'), run() { Market.open(); } });
   const run = Commands.run;
   Commands.run = function (text) { if (/^\/(market|mercat)\b/i.test(text)) { Market.open(); return; } return run.call(this, text); };
   // the kiosk keeper also runs the market board

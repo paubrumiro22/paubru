@@ -214,8 +214,8 @@ SYNTH.shop_till = (ctx, o, t) => {
   };
   const fu = Furniture.update;
   Furniture.update = function (dt) { fu.call(this, dt); Shops.update(dt || 0.016); };
-  PC.add({ key: 'shop', icon: '🛒', name: 'Botiga online', run() {
-    const q = GPanel.open({ title: 'Botiga online', sub: 'Delivered to your inventory', icon: '🛒', width: 420 });
+  PC.add({ key: 'shop', icon: '🛒', name: ED('Botiga online', 'Online shop'), run() {
+    const q = GPanel.open({ title: ED('Botiga online', 'Online shop'), sub: 'Delivered to your inventory', icon: '🛒', width: 420 });
     q.body.innerHTML = `<div class="pp-grid">${Object.entries(SHOPS).filter(([k]) => k !== 'cotxes').map(([k, s]) => `<button class="gp-btn" data-s="${k}">${s.icon} ${GPanel.esc(s.name)}</button>`).join('')}</div>`;
     q.body.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => Shops.open(b.dataset.s, true)));
   } });

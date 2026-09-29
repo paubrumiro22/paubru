@@ -301,6 +301,10 @@
   .tworld { color: var(--muted); font-size: 12px; margin-top: 8px; text-shadow: 0 1px 4px #000; animation: fadein 1s 1s both; }
   .title-foot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; color: #c9d3de; font-size: 13px; text-shadow: 0 1px 4px #000; }
   .title-foot b { color: #fff; }
+  #cgBanner { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); width: 300px; height: 250px; display: none; }
+  #cgBanner.on { display: block; }
+  #death .cg-reward { background: linear-gradient(135deg, #3cf2c0, #1fb8e8); color: #04201a; font-weight: 800; border: 0; box-shadow: 0 6px 20px rgba(60, 242, 192, .35); }
+  #death .cg-reward span { display: inline-block; margin-right: 4px; } #death .cg-reward.hidden { display: none; }
   #tSupport { display: inline-flex; align-items: center; gap: 7px; padding: 7px 16px; font: 800 13px var(--body); color: #fff; border-radius: 99px; background: linear-gradient(135deg, #ff7a59, #ff4f8b); border: 0; box-shadow: 0 6px 20px rgba(255, 90, 110, .35); animation: spGlow 3s ease-in-out infinite; }
   #tSupport span { display: inline-block; animation: spCup 3s ease-in-out infinite; } #tSupport:hover { transform: translateY(-1px) scale(1.03); }
   @keyframes spGlow { 50% { box-shadow: 0 6px 28px rgba(255, 90, 110, .6); } } @keyframes spCup { 0%, 80%, 100% { transform: none; } 85% { transform: rotate(-14deg); } 92% { transform: rotate(10deg); } }
@@ -31193,9 +31197,9 @@ PIC_BUILTIN.metro_cards = { w: 1, h: 1, draw(g, W, H) {
   g.fillStyle = '#f2f4f6'; g.fillRect(-24 * u, -14 * u, 48 * u, 30 * u);
   g.fillStyle = '#d6202b'; g.fillRect(-24 * u, -14 * u, 48 * u, 8 * u);
   g.fillStyle = '#e6b43c'; g.fillRect(10 * u, 6 * u, 9 * u, 7 * u); g.restore();
-  g.fillStyle = '#fff'; g.font = '800 ' + 17 * u + 'px Arial, sans-serif'; g.fillText('TARGETES', 50 * u, 60 * u);
+  g.fillStyle = '#fff'; g.font = '800 ' + 17 * u + 'px Arial, sans-serif'; g.fillText(ED('TARGETES', 'TICKETS'), 50 * u, 60 * u);
   g.fillStyle = '#b8c6e0'; g.font = '700 ' + 10 * u + 'px Arial, sans-serif'; g.fillText('Metro cards \u00b7 20', 50 * u, 74 * u);
-  g.fillStyle = '#ffd36b'; g.font = '900 ' + 11 * u + 'px Arial, sans-serif'; g.fillText('\u2193 a dins \u2193', 50 * u, 91 * u);
+  g.fillStyle = '#ffd36b'; g.font = '900 ' + 11 * u + 'px Arial, sans-serif'; g.fillText(ED('\u2193 a dins \u2193', '\u2193 inside \u2193'), 50 * u, 91 * u);
 } };
 
 // the lines players built and the station names they chose (saved with the world, extras.metro)
@@ -33888,8 +33892,8 @@ const PC = {
     sfx('metro_chime', null, 0.3, 1.6);
   },
 };
-PC.add({ key: 'paper', icon: '\ud83d\udcf0', name: 'La Gaseta', closes: true, run() { if (typeof Newspaper !== 'undefined') Newspaper.show(); } });
-PC.add({ key: 'arcade', icon: '\ud83d\udc0d', name: 'Serp Bloc', run() { Arcade.start(null); } });
+PC.add({ key: 'paper', icon: '\ud83d\udcf0', name: ED('La Gaseta', 'Newspaper'), closes: true, run() { if (typeof Newspaper !== 'undefined') Newspaper.show(); } });
+PC.add({ key: 'arcade', icon: '\ud83d\udc0d', name: ED('Serp Bloc', 'Block Snake'), run() { Arcade.start(null); } });
 PC.add({ key: 'bank', icon: '\ud83c\udfe6', name: 'My Account', run(pos, p) {
   const q = GPanel.open({ title: 'Banc Central \u00b7 online', icon: '\ud83c\udfe6', width: 420 });
   q.body.innerHTML = `<div class="gp-card"><div class="gp-big">\ud83e\ude99 ${G.mode === 'creative' ? '\u221e' : (G.money | 0)}</div><p>Coins in your pocket.</p>
@@ -33903,7 +33907,7 @@ const Arcade = {
   tvs: [],
   start(consolePos) {
     this.lightTVs(consolePos, true);
-    const p = GPanel.open({ title: 'Serp Bloc', sub: 'Arrows / WASD \u00b7 P pause', icon: '\ud83c\udfae', cls: 'gp-arcade', width: 620,
+    const p = GPanel.open({ title: ED('Serp Bloc', 'Block Snake'), sub: 'Arrows / WASD \u00b7 P pause', icon: '\ud83c\udfae', cls: 'gp-arcade', width: 620,
       onClose: () => { this.run = null; this.lightTVs(null, false); } });
     p.body.innerHTML = `<div class="arc-top"><span>Score <b class="arc-s">0</b></span><span>Best <b class="arc-b">0</b></span><span class="arc-l">Level 1</span></div>
       <canvas class="arc-c" width="576" height="384"></canvas>
@@ -33938,7 +33942,7 @@ const Arcade = {
       const m = p.body.querySelector('.arc-msg');
       m.innerHTML = `<b>${rec ? 'NEW RECORD!' : 'GAME OVER'}</b><span>${g.score} points \u00b7 Space to play again</span>`;
       m.classList.remove('hide');
-      if (rec && g.score >= 20 && typeof Progress !== 'undefined' && Progress.toast) Progress.toast('\ud83d\udc0d', 'Serp Bloc', 'New record: ' + g.score);
+      if (rec && g.score >= 20 && typeof Progress !== 'undefined' && Progress.toast) Progress.toast('\ud83d\udc0d', ED('Serp Bloc', 'Block Snake'), 'New record: ' + g.score);
     };
     const turn = (d) => {
       const v = { u: [0, -1], d: [0, 1], l: [-1, 0], r: [1, 0] }[d];
@@ -35154,8 +35158,8 @@ SYNTH.shop_till = (ctx, o, t) => {
   };
   const fu = Furniture.update;
   Furniture.update = function (dt) { fu.call(this, dt); Shops.update(dt || 0.016); };
-  PC.add({ key: 'shop', icon: '\ud83d\uded2', name: 'Botiga online', run() {
-    const q = GPanel.open({ title: 'Botiga online', sub: 'Delivered to your inventory', icon: '\ud83d\uded2', width: 420 });
+  PC.add({ key: 'shop', icon: '\ud83d\uded2', name: ED('Botiga online', 'Online shop'), run() {
+    const q = GPanel.open({ title: ED('Botiga online', 'Online shop'), sub: 'Delivered to your inventory', icon: '\ud83d\uded2', width: 420 });
     q.body.innerHTML = `<div class="pp-grid">${Object.entries(SHOPS).filter(([k]) => k !== 'cotxes').map(([k, s]) => `<button class="gp-btn" data-s="${k}">${s.icon} ${GPanel.esc(s.name)}</button>`).join('')}</div>`;
     q.body.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => Shops.open(b.dataset.s, true)));
   } });
@@ -35638,7 +35642,7 @@ const Homes = {
       Homes.here = p;
     }
   };
-  PC.add({ key: 'homes', icon: '\ud83c\udfe0', name: 'Immobili\u00e0ria', run() { Homes.open(null); } });
+  PC.add({ key: 'homes', icon: '\ud83c\udfe0', name: ED('Immobili\u00e0ria', 'Real estate'), run() { Homes.open(null); } });
 }
 </script>
 <script>
@@ -35761,7 +35765,7 @@ const Market = {
   open(tab) {
     if (this.p) { this.p.close(); return; }
     if (tab) this.tab = tab;
-    this.p = GPanel.open({ title: 'Mercat', sub: Net.on && Net.server ? Net.server.name : 'Your neighbourhood', icon: '\ud83e\uddfa', cls: 'gp-shop', width: 680, onClose: () => { this.p = null; } });
+    this.p = GPanel.open({ title: ED('Mercat', 'Market'), sub: Net.on && Net.server ? Net.server.name : 'Your neighbourhood', icon: '\ud83e\uddfa', cls: 'gp-shop', width: 680, onClose: () => { this.p = null; } });
     this.p.wrap.querySelector('.gp').style.setProperty('--shop', '#2fbf71');
     this.collect();
     this.render();
@@ -35819,7 +35823,7 @@ const Market = {
   };
   const fu = Furniture.update;
   Furniture.update = function (dt) { fu.call(this, dt); Market.update(dt || 0.016); };
-  PC.add({ key: 'market', icon: '\ud83e\uddfa', name: 'Mercat', run() { Market.open(); } });
+  PC.add({ key: 'market', icon: '\ud83e\uddfa', name: ED('Mercat', 'Market'), run() { Market.open(); } });
   const run = Commands.run;
   Commands.run = function (text) { if (/^\/(market|mercat)\b/i.test(text)) { Market.open(); return; } return run.call(this, text); };
   // the kiosk keeper also runs the market board
@@ -36590,21 +36594,21 @@ const Airport = {
 
 PIC_BUILTIN.airport_board = { w: 4, h: 2, draw(g, W, H) {
   g.fillStyle = '#0b0f18'; g.fillRect(0, 0, W, H);
-  g.fillStyle = '#ffcc33'; g.font = `800 ${H * 0.11}px Arial`; g.textBaseline = 'middle'; g.fillText('SORTIDES \u00b7 DEPARTURES', W * 0.04, H * 0.1);
+  g.fillStyle = '#ffcc33'; g.font = `800 ${H * 0.11}px Arial`; g.textBaseline = 'middle'; g.fillText(ED('SORTIDES \u00b7 DEPARTURES', 'DEPARTURES'), W * 0.04, H * 0.1);
   const rows = [['10:05', 'BA101', 'PARADISE BEACH', 'EMBARCANT'], ['10:20', 'BA108', 'VOLCANO', 'A HORA'], ['10:35', 'BA115', 'SNOWY PEAKS', 'A HORA'], ['10:50', 'BA122', 'RED CANYON', 'A HORA'], ['11:05', 'BA129', 'ARCHIPELAGO', 'A HORA']];
   g.font = `700 ${H * 0.085}px 'Courier New', monospace`;
   rows.forEach((r, i) => {
     const y = H * (0.26 + i * 0.16);
     g.fillStyle = '#ffcc33'; g.fillText(r[0], W * 0.04, y); g.fillText(r[1], W * 0.2, y);
     g.fillStyle = '#e8eef8'; g.fillText(r[2], W * 0.38, y);
-    g.fillStyle = r[3] === 'EMBARCANT' ? '#3cf2c0' : '#9fb0c8'; g.fillText(r[3], W * 0.78, y);
+    g.fillStyle = r[3] === 'EMBARCANT' ? '#3cf2c0' : '#9fb0c8'; g.fillText(CG ? (r[3] === 'EMBARCANT' ? 'BOARDING' : 'ON TIME') : r[3], W * 0.78, y);
   });
 } };
 PIC_BUILTIN.airport_sign = { w: 6, h: 2, draw(g, W, H) {
   const grd = g.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, '#1d2a44'); grd.addColorStop(1, '#0d1424');
   g.fillStyle = grd; g.fillRect(0, 0, W, H);
   g.font = `${H * 0.6}px serif`; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillText('\u2708\ufe0f', H * 0.55, H * 0.5);
-  g.textAlign = 'left'; g.fillStyle = '#fff'; g.font = `900 ${H * 0.36}px Arial`; g.fillText('AEROPORT', H * 1.1, H * 0.36);
+  g.textAlign = 'left'; g.fillStyle = '#fff'; g.font = `900 ${H * 0.36}px Arial`; g.fillText(ED('AEROPORT', 'AIRPORT'), H * 1.1, H * 0.36);
   g.fillStyle = '#ffcc33'; g.font = `900 ${H * 0.26}px Arial`; g.fillText(CITY.toUpperCase() + ' \u00b7 BLOCKLANDS AIR', H * 1.12, H * 0.72);
 } };
 sprite('i_boarding_pass', (d) => {
@@ -37021,7 +37025,7 @@ const Architect = {
   }, true);
   window.addEventListener('keyup', (e) => { Architect.keys.delete(e.code); });
   window.addEventListener('blur', () => Architect.keys.clear());
-  PC.add({ key: 'architect', icon: '\ud83d\udcd0', name: 'Arquitecte', closes: true, run() { setTimeout(() => Architect.open(), 50); } });
+  PC.add({ key: 'architect', icon: '\ud83d\udcd0', name: ED('Arquitecte', 'Architect'), closes: true, run() { setTimeout(() => Architect.open(), 50); } });
   const run = Commands.run;
   Commands.run = function (text) { if (/^\/(architect|arquitecte)\b/i.test(text)) { setTimeout(() => Architect.open(), 50); return; } return run.call(this, text); };
 }
@@ -37377,7 +37381,7 @@ const board = Vehicles.board;
 // transport map...) plus a few of its own: Camera (photo mode), Map, Help (all the controls)
 // and Weather. The wallpaper follows the season and the time of day.
 
-const PHONE_KEYS = [
+const PHONE_KEYS = ED([
   ['Moure\'s', 'WASD \u00b7 Espai saltar \u00b7 Shift ajupir-se \u00b7 R o doble W c\u00f3rrer'],
   ['M\u00f3n', 'Clic esquerre picar \u00b7 clic dret usar/posar \u00b7 Q llen\u00e7ar \u00b7 1-9 barra \u00b7 E inventari'],
   ['M\u00f2bil i ciutat', 'L m\u00f2bil \u00b7 U diari \u00b7 O gent i amics \u00b7 B mapa de transport \u00b7 M mapa \u00b7 J missions'],
@@ -37386,7 +37390,16 @@ const PHONE_KEYS = [
   ['Social', 'G gestos \u00b7 clic dret a un jugador per saludar, abra\u00e7ar, donar o fer-lo amic \u00b7 Enter xat'],
   ['Altres', 'P mode foto \u00b7 F5 c\u00e0mera en 3a persona \u00b7 F1 amagar HUD \u00b7 T (creatiu) passar el temps'],
   ['Ordres', '/home /sethome /spawn /tp /taxi /market /flights /ferry /architect /friends /admin /help'],
-];
+], [
+  ['Move', 'WASD \u00b7 Space jump \u00b7 Shift sneak \u00b7 R or double W sprint'],
+  ['World', 'Left click mine \u00b7 right click use/place \u00b7 Q drop \u00b7 1-9 hotbar \u00b7 E inventory'],
+  ['Phone and city', 'L phone \u00b7 U newspaper \u00b7 O people and friends \u00b7 B transport map \u00b7 M map \u00b7 J quests'],
+  ['Build', 'K architect mode (top view, Ctrl+Z undo, Ctrl+C/V copy)'],
+  ['Vehicles', 'Right click to get in \u00b7 Shift get out \u00b7 V camera \u00b7 on buses and the metro you sit and watch'],
+  ['Social', 'G emotes \u00b7 right click a player to wave, hug, give or add a friend \u00b7 Enter chat'],
+  ['More', 'P photo mode \u00b7 F5 third person \u00b7 F1 hide HUD \u00b7 T (creative) skip time'],
+  ['Commands', '/home /sethome /spawn /tp /taxi /market /flights /ferry /architect /friends /admin /help'],
+]);
 
 const Phone = {
   p: null, locked: true, notes: [],
@@ -37401,10 +37414,10 @@ const Phone = {
   apps() {
     const own = [
       { key: 'camera', icon: '\ud83d\udcf7', name: 'Camera', closes: true, run() { setTimeout(() => Photo.open(), 80); } },
-      { key: 'map', icon: '\ud83d\uddfa\ufe0f', name: 'Mapa', closes: true, run() { setTimeout(() => WorldMap.show(), 80); } },
-      { key: 'weather', icon: '\u26c5', name: 'Temps', run: () => this.weather() },
-      { key: 'help', icon: '\u2754', name: 'Ajuda', run: () => this.help() },
-      { key: 'quests', icon: '\ud83c\udfc6', name: 'Missions', closes: true, run() { setTimeout(() => Progress.show(), 80); } },
+      { key: 'map', icon: '\ud83d\uddfa\ufe0f', name: ED('Mapa', 'Map'), closes: true, run() { setTimeout(() => WorldMap.show(), 80); } },
+      { key: 'weather', icon: '\u26c5', name: ED('Temps', 'Weather'), run: () => this.weather() },
+      { key: 'help', icon: '\u2754', name: ED('Ajuda', 'Help'), run: () => this.help() },
+      { key: 'quests', icon: '\ud83c\udfc6', name: ED('Missions', 'Quests'), closes: true, run() { setTimeout(() => Progress.show(), 80); } },
     ];
     const keys = new Set(PC.apps.map((a) => a.key));
     return [...PC.apps, ...own.filter((a) => !keys.has(a.key))];
@@ -37467,11 +37480,11 @@ const Phone = {
     }));
   },
   help() {
-    const q = GPanel.open({ title: 'Ajuda', sub: 'Controls i dreceres', icon: '\u2754', width: 560 });
+    const q = GPanel.open({ title: ED('Ajuda', 'Help'), sub: ED('Controls i dreceres', 'Controls and shortcuts'), icon: '\u2754', width: 560 });
     q.body.innerHTML = PHONE_KEYS.map(([h, t]) => `<div class="gp-row"><div class="gp-grow"><b>${GPanel.esc(h)}</b><small>${GPanel.esc(t)}</small></div></div>`).join('');
   },
   weather() {
-    const q = GPanel.open({ title: 'El temps', icon: '\u26c5', width: 380 });
+    const q = GPanel.open({ title: ED('El temps', 'Weather'), icon: '\u26c5', width: 380 });
     const w = typeof Weather !== 'undefined' ? Weather.kind : 'clear';
     const s = typeof Calendar !== 'undefined' ? Calendar.season() : null;
     const icon = { clear: '\u2600\ufe0f', rain: '\ud83c\udf27\ufe0f', storm: '\u26c8\ufe0f', snow: '\u2744\ufe0f', fog: '\ud83c\udf2b\ufe0f' }[w] || '\u2600\ufe0f';
@@ -37498,7 +37511,7 @@ SYNTH.phone_open = (ctx, o, t) => { [880, 1175, 1568].forEach((f, i) => Sound.to
     e.preventDefault();
     Phone.open();
   });
-  PC.add({ key: 'help', icon: '\u2754', name: 'Ajuda', run() { Phone.help(); } });
+  PC.add({ key: 'help', icon: '\u2754', name: ED('Ajuda', 'Help'), run() { Phone.help(); } });
   const run = Commands.run;
   Commands.run = function (text) { if (/^\/(help|ajuda|\?)$/i.test(text.trim())) { Phone.help(); return; } if (/^\/(phone|mobil)\b/i.test(text)) { setTimeout(() => Phone.open(), 50); return; } return run.call(this, text); };
 }
@@ -40027,4 +40040,246 @@ const Touch = {
   },
 };
 Touch.init();
+</script>
+<script>
+'use strict';
+// CrazyGames edition (CG): the CrazyGames SDK v3 (loaded by the page build.js writes). Nothing here
+// runs in the school edition. What it does:
+// - loading start/stop, and gameplay start/stop whenever the game is actually being played
+// - a mid-game ad only at natural breaks (respawning, back to the title screen), never more
+//   than one every 3 minutes, the game muted and paused while it plays
+// - rewarded ads the player chooses: keep your items when you die, or 100 free coins (phone)
+// - happy time on achievements, the player's CrazyGames name as their online name
+// - a banner beside the title menu (never in game), and the invite button for online servers
+// Without the SDK (local tests, ad blockers) every call is a no-op and the game plays the same.
+
+const Crazy = {
+  sdk: null, ready: false, playing: null, lastAd: 0, adOn: false, banner: false, invite: null, deathKit: null, bonusAt: 0,
+
+  async init() {
+    if (!CG) return;
+    const S = window.CrazyGames && window.CrazyGames.SDK;
+    if (!S) return;
+    try { await S.init(); } catch (e) { console.warn('Blocklands: CrazyGames SDK', e); return; }
+    this.sdk = S; this.ready = true;
+    this.call(() => S.game.loadingStart());
+    // the loading screen goes away when the world is ready
+    const iv = setInterval(() => { const el = $('loading'); if (el && el.classList.contains('hidden')) { clearInterval(iv); this.call(() => S.game.loadingStop()); this.afterLoad(); } }, 300);
+    setInterval(() => this.tick(), 500);
+  },
+  call(fn) { try { return fn(); } catch (e) { return undefined; } },
+
+  async afterLoad() {
+    const S = this.sdk;
+    // their name for online play, unless the player already chose one
+    try {
+      const u = S.user && S.user.isUserAccountAvailable ? await S.user.getUser() : null;
+      if (u && u.username && /^Player\d+$/.test(Net.name || '')) { Net.name = safeName(u.username); if (Net.saveProfile) Net.saveProfile(); }
+    } catch (e) { /* guests */ }
+    // an invite (a friend's server)
+    const room = this.call(() => S.game.getInviteParam('roomId'));
+    if (room && normServerCode(room) && !Net.on) { Net.joinCode(room); refreshGameUI(); if (G.onTitle) $('tWorld').textContent = worldLabel(); }
+  },
+
+  // is the game being played right now?
+  tick() {
+    const vis = (id) => { const el = $(id); return el && !el.classList.contains('hidden'); };
+    const on = !this.adOn && !!G.playing && !G.onTitle && !vis('menu') && !(G.stats && G.stats.dead);
+    if (on !== this.playing) {
+      this.playing = on;
+      this.call(() => (on ? this.sdk.game.gameplayStart() : this.sdk.game.gameplayStop()));
+    }
+    // the banner beside the title menu
+    const showBanner = G.onTitle && vis('title') && window.innerWidth >= 1000 && window.innerHeight >= 560;
+    if (showBanner !== this.banner) {
+      this.banner = showBanner;
+      const el = $('cgBanner');
+      if (el) el.classList.toggle('on', showBanner);
+      if (showBanner) this.call(() => this.sdk.banner.requestResponsiveBanner('cgBanner'));
+      else this.call(() => this.sdk.banner.clearAllBanners());
+    }
+    // the invite button while on a server
+    const code = Net.on && Net.server ? Net.server.code : null;
+    if (code !== this.invite) {
+      this.invite = code;
+      this.call(() => (code ? this.sdk.game.showInviteButton({ roomId: code }) : this.sdk.game.hideInviteButton()));
+    }
+  },
+
+  // an ad: the game muted and paused while it plays; done(ok) afterwards
+  ad(type, done) {
+    if (!this.ready || this.adOn) { if (done) done(false); return; }
+    this.adOn = true;
+    const vol = Sound.volume;
+    const wasPlaying = G.playing;
+    if (document.pointerLockElement) document.exitPointerLock();
+    G.playing = false;
+    this.tick();
+    let ended = false;
+    const end = (ok) => {
+      if (ended) return;
+      ended = true;
+      this.adOn = false;
+      Sound.setVolume(vol);
+      void wasPlaying;
+      if (done) done(ok);
+    };
+    try {
+      this.sdk.ad.requestAd(type, {
+        adStarted: () => { Sound.setVolume(0); },
+        adFinished: () => end(true),
+        adError: () => end(false),
+      });
+    } catch (e) { end(false); }
+  },
+  // a mid-game ad at a natural break (at most one every 3 minutes, never in the first 2 minutes)
+  breakAd(then) {
+    const now = Date.now();
+    if (!this.ready || now - this.lastAd < 180000 || now - (this.started || now) < 120000) { if (then) then(); return; }
+    this.lastAd = now;
+    this.ad('midgame', () => { if (then) then(); });
+  },
+  // a reward the player asked for
+  rewarded(give) {
+    if (!this.ready) { G.ui.toast('Ads are not available right now'); return; }
+    this.ad('rewarded', (ok) => { if (ok) { this.lastAd = Date.now(); give(); } else G.ui.toast('The video did not finish: no reward this time'); });
+  },
+  happy() { if (this.ready) this.call(() => this.sdk.game.happytime()); },
+};
+
+// ---------------------------------------------------------------- hooks ----
+if (CG) {
+  Crazy.started = Date.now();
+  // no Camp Nou in this edition; the credits in English
+  { const b = $('tCampNou'); if (b) b.style.display = 'none'; }
+  { const f = document.querySelector('#title .title-foot span'); if (f) f.innerHTML = 'Made by <b>Pau Bru</b>'; }
+  {
+    const r = $('creditsRoll');
+    if (r) r.innerHTML = `<h1 class="logo">BLOCK<span>LANDS</span></h1><div class="by">Made by</div><div class="who">PAU BRU</div>
+      <dl><dt>Idea, design and direction</dt><dd>Pau Bru</dd></dl>
+      <dl><dt>The city</dt><dd>Blockton: skyscrapers, metro, buses, taxis, an airport, a mall and houses for sale</dd></dl>
+      <dl><dt>Worlds and places</dt><dd>Paradise beach \u00b7 Volcano \u00b7 Oasis \u00b7 Snowy peaks<br>Ancient forest \u00b7 Red canyon \u00b7 Archipelago \u00b7 Flower meadow</dd></dl>
+      <dl><dt>Graphics engine</dt><dd>Hand-made WebGL2: atmospheric sky, shadows,<br>water reflections, volumetric clouds, light shafts and bloom</dd></dl>
+      <dl><dt>Art and sound</dt><dd>Textures, models, creatures and effects all generated by code.<br>Not a single external file.</dd></dl>
+      <dl><dt>Multiplayer</dt><dd>Servers with a code to play with your friends</dd></dl>
+      <div class="thanks">Thanks for playing!</div>`;
+  }
+  // the school's and the city's signs, without the real school
+  {
+    const plate = (g, W, H, bg, fg, lines) => {
+      g.fillStyle = bg; g.fillRect(0, 0, W, H);
+      g.textAlign = 'center'; g.fillStyle = fg;
+      for (const [txt, font, y] of lines) { g.font = font; g.fillText(txt, W / 2, y); }
+    };
+    const crest = (g, x, y, r) => {
+      g.save(); g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.clip();
+      g.fillStyle = '#1d4fa3'; g.fillRect(x - r, y - r, r * 2, r * 2);
+      g.fillStyle = '#ffc23a'; g.beginPath(); g.moveTo(x - r, y + r * 0.2); for (let i = 0; i <= 6; i++) g.lineTo(x - r + i * r / 3, y + r * 0.2 - [0, 0.55, 0.25, 0.8, 0.35, 0.6, 0][i] * r); g.lineTo(x + r, y + r); g.lineTo(x - r, y + r); g.fill();
+      g.restore();
+      g.fillStyle = '#fff'; g.font = `900 ${r * 0.9}px Arial Black, Arial, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('B', x, y - r * 0.1); g.textBaseline = 'alphabetic';
+    };
+    Object.assign(PIC_BUILTIN, {
+      stucom: { w: 4, h: 3, draw(g, W, H) {
+        g.fillStyle = '#f7f7f5'; g.fillRect(0, 0, W, H);
+        crest(g, W / 2, 110, 58);
+        g.fillStyle = '#1d2a44'; g.textAlign = 'center'; g.font = '800 64px Arial, sans-serif'; g.fillText('BLOCKTON', W / 2, 238);
+        g.font = '700 34px Arial, sans-serif'; g.fillStyle = '#1d4fa3'; g.fillText('HIGH SCHOOL', W / 2, 280);
+        g.fillStyle = '#c9c9c9'; g.fillRect(40, 300, W - 80, 3);
+        g.fillStyle = '#4a4a4e'; g.font = '500 24px Arial, sans-serif'; g.fillText('Science \u00b7 Arts \u00b7 Computing', W / 2, 340);
+      } },
+      plot: { w: 2, h: 2, draw(g, W, H) {
+        g.fillStyle = '#f4efe2'; g.fillRect(0, 0, W, H);
+        g.strokeStyle = '#8a6a3a'; g.lineWidth = 16; g.strokeRect(8, 8, W - 16, H - 16);
+        g.fillStyle = '#2f6d3a'; g.textAlign = 'center'; g.font = '800 70px Arial, sans-serif'; g.fillText('FREE', W / 2, H * 0.36); g.fillText('PLOT', W / 2, H * 0.52);
+        g.fillStyle = '#5a4a36'; g.font = '600 34px Arial, sans-serif'; g.fillText('For sale', W / 2, H * 0.7); g.fillText('build here!', W / 2, H * 0.82);
+      } },
+      campus: { w: 3, h: 2, draw(g, W, H) {
+        g.fillStyle = '#f6f5f1'; g.fillRect(0, 0, W, H);
+        g.fillStyle = '#1d4fa3'; g.fillRect(0, 0, W, 18); g.fillStyle = '#ffc23a'; g.fillRect(0, H - 18, W, 18);
+        crest(g, 70, 90, 40);
+        g.fillStyle = '#1d2a44'; g.textAlign = 'left'; g.font = '800 52px Arial, sans-serif'; g.fillText('BLOCKTON', 124, 96);
+        g.font = '600 24px Arial, sans-serif'; g.fillStyle = '#4a4a4e'; g.fillText('CITY CENTRE', 126, 126);
+        g.textAlign = 'center'; g.font = '500 20px Arial, sans-serif'; g.fillStyle = '#6a6a70';
+        g.fillText('Welcome \u00b7 Bienvenidos \u00b7 Bienvenue', W / 2, 176);
+        g.fillText('High School \u00b7 Library \u00b7 Sports \u00b7 Metro', W / 2, 206);
+        g.fillText('Free plots to build on', W / 2, 236);
+      } },
+      annex: { w: 7, h: 2, draw(g, W, H) {
+        g.fillStyle = '#1f2a44'; g.fillRect(0, 0, W, H); g.fillStyle = '#ffc23a'; g.fillRect(0, 0, 10, H);
+        g.fillStyle = '#fff'; g.textAlign = 'left'; g.font = '800 44px Arial, sans-serif'; g.fillText('BLOCKTON HIGH', 34, 62);
+        g.font = '500 19px Arial, sans-serif'; g.fillStyle = '#c9d3ea'; g.fillText('Library \u00b7 Computer lab \u00b7 Caf\u00e9', 34, 108);
+      } },
+      library: { w: 3, h: 2, draw(g, W, H) {
+        g.fillStyle = '#2d5a3d'; g.fillRect(0, 0, W, H);
+        for (let i = 0; i < 9; i++) { const x = 70 + i * 42, h = 90 + (i * 37) % 50; g.fillStyle = ['#e9d9b0', '#c85a4a', '#e0b050', '#6a8ec8', '#f2ead6'][i % 5]; g.fillRect(x, 190 - h, 30, h); }
+        g.fillStyle = '#f2ead6'; g.textAlign = 'center'; g.font = '800 54px Georgia, serif'; g.fillText('LIBRARY', W / 2, 260);
+        g.font = 'italic 24px Georgia, serif'; g.fillText('Quiet, please', W / 2, 300);
+      } },
+      computers: { w: 3, h: 1, draw(g, W, H) {
+        g.fillStyle = '#0e1726'; g.fillRect(0, 0, W, H);
+        g.fillStyle = '#7fe3ff'; g.font = '700 38px ui-monospace, Consolas, monospace'; g.textAlign = 'center'; g.fillText('> COMPUTER_LAB', W / 2, H / 2 + 6);
+        g.fillStyle = '#6ad08a'; g.font = '500 18px ui-monospace, Consolas, monospace'; g.fillText('code \u00b7 games \u00b7 web', W / 2, H - 22);
+      } },
+      gym: { w: 6, h: 1, draw(g, W, H) { plate(g, W, H, '#12161c', '#ffd24a', [['BLOCKTON SPORTS CENTRE', '800 40px Arial, sans-serif', 56]]); } },
+      timetable: { w: 1, h: 1, draw(g, W, H) {
+        g.fillStyle = '#f5f5f2'; g.fillRect(0, 0, W, H);
+        g.fillStyle = '#d8322a'; g.fillRect(0, 0, W, 80);
+        g.fillStyle = '#fff'; g.font = '800 46px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('BLOCKTON', W / 2, 56);
+        g.fillStyle = '#333'; g.font = '600 34px ui-monospace, Consolas, monospace'; g.textAlign = 'left';
+        ['L1  City loop     2\'', 'L2  Ring road     4\'', 'M   Metro        1\'', 'N7  Night         ..'].forEach((t, i) => g.fillText(t, 26, 150 + i * 80));
+      } },
+    });
+  }
+  // the banner's box beside the title menu
+  {
+    const t = $('title'), el = document.createElement('div');
+    el.id = 'cgBanner';
+    if (t) t.append(el);
+  }
+  // respawning and leaving to the title are natural breaks
+  const rb = $('respawnBtn');
+  if (rb) rb.addEventListener('click', () => { Crazy.deathKit = null; Crazy.breakAd(); }, true);
+  const st = showTitle;
+  showTitle = function () { const was = G.started && !G.onTitle; st.apply(this, arguments); if (was) Crazy.breakAd(); };
+  // dying: remember what dropped, so a rewarded ad can give it back
+  const die = Stats.prototype.die;
+  Stats.prototype.die = function (src) {
+    const kit = !G.rules.keepInventory && G.mode === 'survival' ? { slots: G.inv.slots.map((s) => s && cloneStack(s)), armor: G.inv.armor.map((s) => s && cloneStack(s)), items: [] } : null;
+    const spawn = Ents.spawnItem;
+    if (kit) Ents.spawnItem = function () { const e = spawn.apply(this, arguments); if (e) kit.items.push(e); return e; };
+    try { die.call(this, src); } finally { Ents.spawnItem = spawn; }
+    Crazy.deathKit = kit && kit.items.length ? kit : null;
+    const row = document.querySelector('#death .row');
+    let b = $('cgKeepBtn');
+    if (!b && row) { b = document.createElement('button'); b.id = 'cgKeepBtn'; b.className = 'cg-reward'; row.prepend(b); b.addEventListener('click', () => Crazy.keepItems()); }
+    if (b) { b.innerHTML = '<span>\u25b6</span> Watch an ad \u00b7 keep your items'; b.classList.toggle('hidden', !Crazy.deathKit || !Crazy.ready); }
+  };
+  Crazy.keepItems = function () {
+    const kit = this.deathKit;
+    if (!kit) return;
+    this.rewarded(() => {
+      for (const e of kit.items) { e.removed = true; const i = Ents.items.indexOf(e); if (i >= 0) Ents.items.splice(i, 1); }
+      kit.slots.forEach((s, i) => { G.inv.slots[i] = s; });
+      kit.armor.forEach((s, i) => { G.inv.armor[i] = s; });
+      this.deathKit = null;
+      G.ui.invDirty();
+      respawn();
+      requestLock();
+      G.ui.toast('\ud83c\udf92 Your items are back');
+    });
+  };
+  // achievements are happy moments
+  if (typeof Progress !== 'undefined' && Progress.unlock) {
+    const un = Progress.unlock;
+    Progress.unlock = function (k) { const pr = this.prog && this.prog(), had = pr && pr.ach && pr.ach[k]; const r = un.apply(this, arguments); if (!had) Crazy.happy(); return r; };
+  }
+  // the phone's Free coins app: a rewarded ad for 100 coins, every 5 minutes
+  PC.add({ key: 'bonus', icon: '\ud83c\udf81', name: 'Free coins', run() {
+    if (G.mode === 'creative') { G.ui.toast('Coins are unlimited in creative mode'); return; }
+    const wait = Crazy.bonusAt - Date.now();
+    if (wait > 0) { G.ui.toast('\ud83c\udf81 More free coins in ' + Math.ceil(wait / 60000) + ' min'); return; }
+    Crazy.rewarded(() => { Crazy.bonusAt = Date.now() + 300000; G.money = (G.money || 0) + 100; sfx('shop_till', null, 0.8, 1); G.ui.toast('\ud83c\udf81 +100 coins!'); });
+  } });
+  Crazy.init();
+}
 </script>

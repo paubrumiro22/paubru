@@ -401,5 +401,5 @@ const Homes = {
       Homes.here = p;
     }
   };
-  PC.add({ key: 'homes', icon: '🏠', name: 'Immobiliària', run() { Homes.open(null); } });
+  PC.add({ key: 'homes', icon: '🏠', name: ED('Immobiliària', 'Real estate'), run() { Homes.open(null); } });
 }
