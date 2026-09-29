@@ -1171,6 +1171,8 @@ async function boot() {
     if (text) $('loadStatus').textContent = text;
   };
   try {
+    // CrazyGames: their SDK first, and the saves kept in their cloud (crazy.js)
+    if (CG && typeof Crazy !== 'undefined') { setLoad(0.01, 'Connecting'); await Crazy.beforeBoot(); }
     loadSettings();
     Sound.volume = G.settings.volume;
     setLoad(0.03, 'Painting textures and compiling shaders');
@@ -1184,6 +1186,7 @@ async function boot() {
     Net.init();
     setLoad(0.05, 'Opening your worlds');
     await Saves.init();
+    if (CG && typeof Crazy !== 'undefined') await Crazy.pull();
     Worlds.load();
     const save = loadSave();
     const cw = Worlds.entry(Worlds.cur());
@@ -1213,4 +1216,6 @@ async function boot() {
   }
 }
 
-boot();
+// (the CrazyGames edition waits for every script, crazy.js last, before starting)
+if (CG && document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => boot());
+else boot();

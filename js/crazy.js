@@ -12,12 +12,18 @@
 const Crazy = {
   sdk: null, ready: false, playing: null, lastAd: 0, adOn: false, banner: false, invite: null, deathKit: null, bonusAt: 0,
 
+  // before the game starts (main.js boot): the SDK up (or given up on after a few seconds)
+  beforeBoot() {
+    if (!this.initP) this.initP = this.init();
+    return Promise.race([this.initP, new Promise((r) => setTimeout(r, 6000))]);
+  },
   async init() {
     if (!CG) return;
     const S = window.CrazyGames && window.CrazyGames.SDK;
     if (!S) return;
     try { await S.init(); } catch (e) { console.warn('Blocklands: CrazyGames SDK', e); return; }
     this.sdk = S; this.ready = true;
+    this.cloudOn = !!S.data;
     this.call(() => S.game.loadingStart());
     // the loading screen goes away when the world is ready
     const iv = setInterval(() => { const el = $('loading'); if (el && el.classList.contains('hidden')) { clearInterval(iv); this.call(() => S.game.loadingStop()); this.afterLoad(); } }, 300);
@@ -37,9 +43,67 @@ const Crazy = {
     this.vol = Sound.volume;
     this.call(() => applyMute(S.game.settings));
     this.call(() => S.game.addSettingsChangeListener((st) => applyMute(st)));
-    // an invite (a friend's server)
+    // an invite (a friend's server), or an instant multiplayer start (a party leader opens a
+    // server straight away and invites the party)
     const room = this.call(() => S.game.getInviteParam('roomId'));
     if (room && normServerCode(room) && !Net.on) { Net.joinCode(room); refreshGameUI(); if (G.onTitle) $('tWorld').textContent = worldLabel(); }
+    else if (this.call(() => S.game.isInstantMultiplayer) && !Net.on && Net.available !== false) {
+      Net.createServer(safeName(Net.name) + '\'s city', 'survival');
+      refreshGameUI();
+      if (G.onTitle) $('tWorld').textContent = worldLabel();
+      G.ui.toast('👫 Your server is ready: press Play and invite your friends', 5000);
+    }
+  },
+
+  // ---- saves in the CrazyGames cloud (the Data Module) ----
+  // Every blocklands.* key is kept there gzipped (base64) as 'bl:' + key, with 'bl:meta' holding
+  // when each was written; at start the newer copy wins (another device, or a cleared browser).
+  // The cloud is small, so very big worlds stay only on this device.
+  CLOUD_MAX: 450000, CLOUD_TOTAL: 950000,
+  cloudT() { try { return JSON.parse(localStorage.getItem('blocklands.cloudt') || '{}'); } catch (e) { return {}; } },
+  setCloudT(t) { try { localStorage.setItem('blocklands.cloudt', JSON.stringify(t)); } catch (e) { /* full */ } },
+  meta() { try { return JSON.parse(this.sdk.data.getItem('bl:meta') || '{}') || {}; } catch (e) { return {}; } },
+  async b64zip(str) { const buf = new Uint8Array(await Saves.zip(str)); let s = ''; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000)); return btoa(s); },
+  async unb64(b64) { const s = atob(b64), buf = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) buf[i] = s.charCodeAt(i); return Saves.unzip(buf.buffer); },
+  async pull() {
+    if (!this.cloudOn) return;
+    try {
+      const meta = this.meta(), local = this.cloudT();
+      this.pulling = true;
+      for (const [k, t] of Object.entries(meta)) {
+        if (!k.startsWith('blocklands.') || (local[k] || 0) >= t) continue;
+        const b64 = this.sdk.data.getItem('bl:' + k);
+        if (!b64) continue;
+        try { storageSet(k, JSON.parse(await this.unb64(b64))); local[k] = t; } catch (e) { /* damaged: keep the local one */ }
+      }
+      this.setCloudT(local);
+    } catch (e) { console.warn('Blocklands: cloud pull', e); } finally { this.pulling = false; }
+  },
+  queue: new Set(), pushT: 0,
+  wrote(key) {
+    if (!this.cloudOn || this.pulling || !key.startsWith('blocklands.') || key === 'blocklands.cloudt') return;
+    this.queue.add(key);
+    clearTimeout(this.pushT);
+    this.pushT = setTimeout(() => this.push(), 4000);
+  },
+  async push() {
+    const keys = [...this.queue];
+    this.queue.clear();
+    try {
+      const meta = this.meta(), local = this.cloudT(), sizes = this.sizes || (this.sizes = {});
+      for (const k of keys) {
+        const v = storageGet(k);
+        if (v === null || v === undefined) { this.sdk.data.removeItem('bl:' + k); delete meta[k]; continue; }
+        const b64 = await this.b64zip(JSON.stringify(v));
+        const others = Object.entries(sizes).reduce((a, [kk, n]) => a + (kk === k ? 0 : n), 0);
+        if (b64.length > this.CLOUD_MAX || others + b64.length > this.CLOUD_TOTAL) continue;
+        this.sdk.data.setItem('bl:' + k, b64);
+        sizes[k] = b64.length;
+        meta[k] = local[k] = Date.now();
+      }
+      this.sdk.data.setItem('bl:meta', JSON.stringify(meta));
+      this.setCloudT(local);
+    } catch (e) { console.warn('Blocklands: cloud push', e); }
   },
 
   // is the game being played right now?
@@ -241,5 +305,10 @@ if (CG) {
     if (wait > 0) { G.ui.toast('🎁 More free coins in ' + Math.ceil(wait / 60000) + ' min'); return; }
     Crazy.rewarded(() => { Crazy.bonusAt = Date.now() + 300000; G.money = (G.money || 0) + 100; sfx('shop_till', null, 0.8, 1); G.ui.toast('🎁 +100 coins!'); });
   } });
-  Crazy.init();
+  // every save also goes to the cloud; invite links are CrazyGames links
+  const ss = storageSet;
+  storageSet = function (key, value) { const r = ss(key, value); Crazy.wrote(key); return r; };
+  const sl = serverLink;
+  serverLink = function (code) { const u = Crazy.ready ? Crazy.call(() => Crazy.sdk.game.inviteLink({ roomId: code })) : null; return u || sl(code); };
+  Crazy.beforeBoot();
 }
