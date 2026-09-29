@@ -573,6 +573,7 @@ function planPort(g, cx, cz, rng, seaDir) {
   }
   plan.spawns.push({ kind: 'villager', prof: 'fisher', x: cx + sx * (len - 2) + 0.5, y: F + 1, z: cz + sz * (len - 2) + 0.5 });
   plan.name = 'Port ' + villageName(cx, cz, g.seed).replace(/^(Sant|Santa) /, '');
+  plan.pier = { x: cx, z: cz, sx, sz, len, deck: SEA + 1 };   // the ferry docks at its end (sea.js)
   return plan;
 }
 function buildPier(W, g, p0, dir, len, st) {
