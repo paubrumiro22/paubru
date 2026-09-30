@@ -476,6 +476,61 @@
   .cr-offer { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; margin-top: 12px; padding: 12px; border-radius: 14px; background: linear-gradient(120deg, rgba(58, 160, 232, .2), rgba(255, 204, 51, .08)); border: 1px solid rgba(58, 160, 232, .5); }
   .cr-ship { font-size: 40px; text-align: center; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .4)); } .cr-txt b { display: block; font: 800 14px var(--display); } .cr-txt span { font-size: 12px; color: #b8c9da; }
   .cr-card { text-align: center; padding: 8px; } .cr-card p { color: #c3cfdc; } .cr-big { font: 900 40px 'Courier New', monospace; color: #ffcc33; text-shadow: 0 0 20px rgba(255, 204, 51, .4); }
+  /* crews.js */
+  .cw-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 3px 4px; border-radius: 8px; background: linear-gradient(135deg, var(--a) 0 50%, var(--b) 50% 100%); box-shadow: inset 0 0 0 2px rgba(0,0,0,.25), 0 2px 8px rgba(0,0,0,.3); }
+  .cw-badge i { font-style: normal; font-size: 16px; filter: drop-shadow(0 1px 1px #000); } .cw-badge b { font: 900 12px var(--display); color: #fff; text-shadow: 0 1px 2px #000, 0 0 4px #000; letter-spacing: .06em; }
+  .cw-me { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 16px; border: 1px solid var(--line-strong); background: linear-gradient(120deg, color-mix(in srgb, var(--a) 26%, transparent), color-mix(in srgb, var(--b) 12%, transparent)); flex-wrap: wrap; }
+  .cw-me b { font: 800 16px var(--display); } .cw-me small { display: block; color: #b8c3d4; font-size: 12px; margin: 2px 0 6px; }
+  .cw-mems { display: flex; flex-wrap: wrap; gap: 4px; } .cw-mem { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.3); }
+  .cw-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cw-new { padding: 14px; border-radius: 16px; border: 1px dashed var(--line-strong); background: rgba(255,255,255,.03); display: grid; gap: 8px; }
+  .cw-form { display: grid; grid-template-columns: 1fr 90px; gap: 6px; } .cw-form input, .my-stand input { padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line-strong); background: #0a0d14; color: #fff; font: 600 13px var(--body); }
+  .cw-pick { display: flex; gap: 5px; flex-wrap: wrap; } .cw-pick button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(255,255,255,.2); cursor: pointer; } .cw-pick button.on { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.25); transform: scale(1.1); }
+  .cw-pick.em button { width: 32px; height: 32px; border-radius: 9px; background: rgba(255,255,255,.06); font-size: 17px; }
+  .cw-rank { display: grid; gap: 6px; } .cw-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid var(--line); }
+  .cw-row.me { border-color: #ffd34d; background: rgba(255,211,77,.08); } .cw-row > em { font: 900 16px var(--display); font-style: normal; width: 24px; text-align: center; color: #93a0b4; }
+  .cw-row:nth-child(1) > em { color: #ffd34d; } .cw-row:nth-child(2) > em { color: #d0d6e2; } .cw-row:nth-child(3) > em { color: #e0915a; }
+  .cw-row small { display: block; font-size: 11.5px; color: #93a0b4; } .cw-pts { font: 900 16px 'Courier New', monospace; color: #ffd34d; }
+  /* minigames.js */
+  .mg-cur { display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin-bottom: 12px; border-radius: 14px; background: rgba(60, 242, 154, .1); border: 1px solid rgba(60, 242, 154, .45); flex-wrap: wrap; }
+  .mg-cur b { font: 800 15px var(--display); } .mg-cur span { flex: 1; font-size: 12px; color: #b8c3d4; }
+  .mg-cards { display: grid; gap: 10px; }
+  .mg-card { display: grid; grid-template-columns: 54px 1fr auto; grid-template-rows: auto auto; gap: 2px 12px; align-items: center; padding: 14px; border-radius: 16px; border: 1px solid var(--line); color: #fff; text-align: left; cursor: pointer; background: linear-gradient(120deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); transition: .15s; }
+  .mg-card:hover:not(:disabled) { transform: translateY(-2px); border-color: #ffd34d; box-shadow: 0 8px 24px rgba(0,0,0,.35); } .mg-card:disabled { opacity: .45; cursor: default; }
+  .mg-card i { grid-row: 1 / span 2; font-style: normal; font-size: 40px; text-align: center; } .mg-card b { font: 800 16px var(--display); } .mg-card span { grid-column: 2; font-size: 12.5px; color: #b8c3d4; } .mg-card em { grid-row: 1; grid-column: 3; font: 700 11.5px var(--body); font-style: normal; color: #ffd34d; }
+  #mgHud { position: fixed; right: 14px; top: 250px; z-index: 30; width: 240px; padding: 10px 12px; border-radius: 14px; background: rgba(12, 16, 26, .9); border: 1px solid #ffd34d; color: #fff; opacity: 0; transform: translateX(20px); transition: .3s; pointer-events: none; }
+  #mgHud.show { opacity: 1; transform: none; } .mg-top { display: flex; justify-content: space-between; align-items: baseline; } .mg-top b { font: 800 13px var(--display); } .mg-top em { font: 900 18px 'Courier New', monospace; font-style: normal; color: #ffd34d; }
+  .mg-line { font-size: 13px; margin: 6px 0; font-weight: 700; } .mg-arrow { display: inline-block; font-style: normal; color: #ffd34d; transition: transform .15s; }
+  .mg-board { display: grid; gap: 2px; } .mg-board span { display: flex; justify-content: space-between; font-size: 12px; color: #b8c3d4; } .mg-board span.me { color: #fff; font-weight: 700; } .mg-board b { color: #ffd34d; }
+  #mgBlind { position: fixed; inset: 0; z-index: 60; background: radial-gradient(circle at 50% 50%, #151a2a, #020308); display: grid; place-items: center; color: #fff; text-align: center; pointer-events: none; }
+  #mgBlind i { display: block; font-style: normal; font-size: 64px; } #mgBlind b { display: block; font: 900 96px var(--display); color: #ffd34d; text-shadow: 0 0 40px rgba(255, 211, 77, .5); } #mgBlind span { font-size: 16px; color: #93a0b4; }
+  /* mayor.js */
+  .my-hero { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 18px; flex-wrap: wrap; background: radial-gradient(140% 120% at 0% 0%, rgba(255, 211, 77, .22), transparent 60%), linear-gradient(135deg, #1b2a4a, #121826); border: 1px solid rgba(255, 211, 77, .4); }
+  .my-medal { font-size: 44px; filter: drop-shadow(0 4px 10px rgba(0,0,0,.5)); } .my-hero small { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #ffd34d; }
+  .my-hero b { display: block; font: 800 20px var(--display); } .my-hero span { font-size: 12.5px; color: #c3cfdc; }
+  .my-pol { display: grid; justify-items: center; text-align: center; padding: 8px 12px; border-radius: 12px; background: rgba(0,0,0,.3); font-size: 26px; max-width: 170px; } .my-pol b { font: 800 12.5px var(--display); } .my-pol small { font-size: 11px; color: #b8c3d4; text-transform: none; letter-spacing: 0; }
+  .my-cands { display: grid; gap: 8px; } .my-cand { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid var(--line); }
+  .my-cand.voted { border-color: #3cf29a; } .my-cand b { font: 800 14px var(--display); } .my-cand small { display: block; font-size: 12px; color: #93a0b4; margin: 2px 0 5px; }
+  .my-bar { position: relative; height: 16px; border-radius: 8px; background: rgba(0,0,0,.35); overflow: hidden; } .my-bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #2a6ce0, #3cf2c0); } .my-bar span { position: relative; display: block; text-align: center; font: 700 10.5px/16px var(--body); }
+  .my-stand { display: grid; gap: 8px; } .my-pols { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; }
+  .my-pols button { display: grid; gap: 2px; padding: 8px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: #fff; cursor: pointer; text-align: center; } .my-pols button.on { border-color: #ffd34d; background: rgba(255,211,77,.12); }
+  .my-pols i { font-style: normal; font-size: 22px; } .my-pols b { font: 800 12px var(--display); } .my-pols small { font-size: 10.5px; color: #93a0b4; }
+  .my-hist { display: flex; flex-wrap: wrap; gap: 6px; } .my-hist span { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.05); }
+  /* radio.js */
+  #radioChip { position: fixed; left: 14px; bottom: 96px; z-index: 25; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 12px; background: rgba(12, 16, 26, .85); border: 1px solid #3a4a66; color: #fff; opacity: 0; transition: .3s; pointer-events: none; }
+  #radioChip.show { opacity: 1; } #radioChip i { font-style: normal; } #radioChip b { font: 900 13px 'Courier New', monospace; color: #ff9d3d; } #radioChip span { font-size: 12px; color: #c3cfdc; }
+  #radioChip em { display: flex; gap: 2px; align-items: flex-end; height: 14px; } #radioChip u { width: 3px; background: #3cf29a; animation: rdEq 0.9s ease-in-out infinite alternate; } #radioChip u:nth-child(2) { animation-delay: .3s; } #radioChip u:nth-child(3) { animation-delay: .6s; }
+  @keyframes rdEq { from { height: 3px; } to { height: 14px; } }
+  .rd-dial { padding: 18px 16px 10px; border-radius: 14px; background: linear-gradient(180deg, #2a1d10, #140e08); border: 1px solid #6b4a2a; margin-bottom: 12px; box-shadow: inset 0 0 20px rgba(255, 157, 61, .15); }
+  .rd-scale { position: relative; height: 26px; background: repeating-linear-gradient(90deg, rgba(255, 220, 170, .5) 0 1px, transparent 1px 10%); border-bottom: 2px solid rgba(255, 220, 170, .5); }
+  .rd-scale i { position: absolute; bottom: 0; width: 2px; height: 14px; background: #ffcf8a; } .rd-scale b { position: absolute; top: -6px; bottom: -4px; width: 3px; background: #ff4a3d; box-shadow: 0 0 10px #ff4a3d; transition: left .4s cubic-bezier(.3, 1.4, .5, 1); }
+  .rd-list { display: grid; gap: 6px; } .rd-st { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: #fff; cursor: pointer; text-align: left; }
+  .rd-st.on { border-color: #ff9d3d; background: rgba(255, 157, 61, .12); } .rd-st i { font-style: normal; font-size: 20px; } .rd-st b { font: 700 14px var(--body); } .rd-st em { font: 900 13px 'Courier New', monospace; font-style: normal; color: #ff9d3d; }
+  #voiceChip { position: fixed; left: 14px; bottom: 136px; z-index: 25; display: flex; align-items: center; gap: 6px; padding: 5px 12px 5px 8px; border-radius: 999px; background: rgba(12, 16, 26, .85); border: 1px solid #3a4a66; color: #c3cfdc; font-size: 12px; opacity: 0; transition: .2s; pointer-events: none; }
+  #voiceChip.show { opacity: 1; } #voiceChip.live { border-color: #3cf29a; color: #fff; box-shadow: 0 0 14px rgba(60, 242, 154, .45); } #voiceChip i { font-style: normal; }
+  .vc-modes { display: grid; gap: 8px; margin-bottom: 10px; } .vc-m { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; gap: 0 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: #fff; cursor: pointer; text-align: left; }
+  .vc-m.on { border-color: #3cf29a; background: rgba(60, 242, 154, .1); } .vc-m i { grid-row: 1 / span 2; font-style: normal; font-size: 22px; align-self: center; } .vc-m b { font: 800 14px var(--display); } .vc-m span { font-size: 12px; color: #93a0b4; }
+  .ntag.talk::after { content: ' &#x1f399;&#xfe0f;'; }
   #tripHud { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 30; min-width: 300px; padding: 10px 16px 14px; border-radius: 14px; background: rgba(10, 15, 26, .88); border: 1px solid #2c3b5c; color: #fff; opacity: 0; transition: .3s; pointer-events: none; overflow: hidden; }
   #tripHud.show { opacity: 1; } #tripHud b { display: block; font: 800 14px var(--display); } #tripHud span { font-size: 12.5px; color: #b8c3d4; }
   #tripHud i { position: absolute; left: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #d6202b, #ffcc33); }
@@ -41327,6 +41382,934 @@ const Music = {
 // the setting (its slider is in main.js, under Sound & HUD)
 DEFAULT_SETTINGS.music = 0.3;
 if (G.settings.music === undefined) G.settings.music = 0.3;
+</script>
+<script>
+'use strict';
+// Crews ("colles"): found one with a name, a short tag, two colours and an emblem, set its
+// headquarters where you stand (a flag in its colours waves there, on a tall pole) and friends
+// join it from the Crews app. Members show the tag before their name. Each player's points
+// (achievements, quests, homes, flats, businesses, money) add up to the crew's score, and the
+// ranking lists every crew on the server. Playing alone, three neighbourhood crews compete too.
+// World records in world.biz.crews / world.biz.cpts (SharedState crew:<id>, cpts:<owner>).
+
+const CREW_COLORS = ['#d6202b', '#2a6ce0', '#2fbf71', '#ffcc33', '#8a3fb0', '#1ec8c8', '#f07614', '#ee6aa7', '#16161a', '#f4f1ea'];
+const CREW_EMBLEMS = ['\ud83e\udd81', '\ud83d\udc09', '\ud83e\udd85', '\ud83d\udc3a', '\u26a1', '\ud83d\udd25', '\u2b50', '\ud83c\udf0a', '\ud83c\udf40', '\ud83d\udc51', '\ud83d\udef9', '\ud83c\udfb8'];
+const CREW_NPC = [
+  { id: 'npc1', name: ED('Colla del Raval', 'Harbour Crew'), tag: 'RVL', c: [0, 9], e: '\ud83d\udc3a', base: 420 },
+  { id: 'npc2', name: ED('Els Castellers', 'The Towers'), tag: 'CST', c: [1, 3], e: '\u2b50', base: 360 },
+  { id: 'npc3', name: ED('Gr\u00e0cia Rockers', 'Uptown Rockers'), tag: 'GRK', c: [4, 8], e: '\ud83c\udfb8', base: 300 },
+];
+
+const Crews = {
+  t: 0,
+  data() { const d = BZ.data(); if (!d.crews) d.crews = {}; if (!d.cpts) d.cpts = {}; return d; },
+  all() { return Object.values(this.data().crews).filter((c) => c && c.id && c.name); },
+  mine() { const id = G.prog && G.prog.crew, c = id && this.data().crews[id]; return c && c.m && c.m[Net.owner] ? c : null; },
+  put(c) { const d = this.data(); if (c.del) delete d.crews[c.id]; else d.crews[c.id] = c; if (G.world) G.world.editsDirty = true; SharedState.put('crew:' + c.id, c.del ? null : c); },
+  // my points: what I have done in this world
+  points() {
+    const pr = G.prog || {}, D = BZ.data();
+    let n = Object.keys(pr.ach || {}).length * 20 + ((pr.st && pr.st.quests) || 0) * 15;
+    n += Object.values(D.flats || {}).filter((r) => r && BZ.me(r.o)).length * 40;
+    n += Object.values((G.world && G.world.homes) || {}).filter((r) => r && BZ.me(r.o)).length * 60;
+    n += Object.values(D.shops || {}).filter((s) => s && BZ.me(s.o)).length * 50;
+    n += Math.floor((G.money | 0) / 100);
+    return n;
+  },
+  score(c) {
+    if (c.npc) { const days = ((G.prog && G.prog.day) | 0); return Math.round(c.base + days * 35 + hash3(days, c.base, 3, 97) * 60); }
+    let n = 0;
+    for (const o of Object.keys(c.m || {})) { const p = this.data().cpts[o]; n += o === Net.owner ? this.points() : p && p.c === c.id ? p.pts | 0 : 0; }
+    return n;
+  },
+  ranking() {
+    const list = this.all().map((c) => ({ ...c, pts: this.score(c) }));
+    if (!Net.on) for (const c of CREW_NPC) list.push({ ...c, npc: true, m: {}, pts: this.score({ ...c, npc: true }) });
+    return list.sort((a, b) => b.pts - a.pts);
+  },
+  tagOf(owner) { for (const c of this.all()) if (c.m && c.m[owner]) return c; return null; },
+
+  found(name, tag, c0, c1, e) {
+    if (this.mine()) { G.ui.toast('Leave your crew first'); return false; }
+    name = String(name || '').trim().slice(0, 24); tag = String(tag || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+    if (name.length < 3 || tag.length < 2) { G.ui.toast('A crew needs a name (3+ letters) and a tag (2-4 letters)'); return false; }
+    if (this.all().some((c) => c.tag === tag)) { G.ui.toast('That tag is taken'); return false; }
+    if (!Shops.pay(250)) { G.ui.toast('\ud83e\ude99 Founding a crew costs 250 coins'); return false; }
+    const c = { id: 'c' + Date.now().toString(36), name, tag, c: [c0 | 0, c1 | 0], e: CREW_EMBLEMS.includes(e) ? e : '\u2b50', o: Net.owner, m: { [Net.owner]: Net.name }, open: true, hq: null, t: Date.now() };
+    (G.prog || (G.prog = {})).crew = c.id;
+    this.put(c);
+    G.ui.banner(c.e, 'Crew founded: ' + name + ' [' + tag + ']');
+    sfx('achieve', null, 0.9, 1);
+    return true;
+  },
+  join(id) {
+    const c = this.data().crews[id];
+    if (!c || this.mine()) return;
+    if (!c.open) { G.ui.toast('This crew is invite-only: ask ' + (c.m[c.o] || 'its leader')); return; }
+    c.m = { ...c.m, [Net.owner]: Net.name };
+    (G.prog || (G.prog = {})).crew = id;
+    this.put(c);
+    G.ui.banner(c.e, 'You joined ' + c.name + ' [' + c.tag + ']');
+    sfx('pling', null, 0.8, 1);
+  },
+  leave() {
+    const c = this.mine();
+    if (!c) return;
+    const m = { ...c.m };
+    delete m[Net.owner];
+    G.prog.crew = null;
+    if (!Object.keys(m).length) { this.put({ id: c.id, del: true }); G.ui.toast('The crew is disbanded'); return; }
+    if (c.o === Net.owner) c.o = Object.keys(m)[0];
+    c.m = m;
+    this.put(c);
+    G.ui.toast('You left ' + c.name);
+  },
+  setHQ() {
+    const c = this.mine();
+    if (!c || c.o !== Net.owner) return;
+    const p = G.player.pos;
+    c.hq = [Math.floor(p[0]), Math.floor(p[1]), Math.floor(p[2])];
+    this.put(c);
+    G.ui.banner('\ud83d\udea9', c.name + ' headquarters \u00b7 the flag is up');
+    sfx('achieve', null, 0.8, 1.2);
+  },
+
+  update(dt) {
+    this.t -= dt;
+    if (this.t > 0 || !G.world || G.onTitle) return;
+    this.t = 20;
+    const c = this.mine();
+    if (Net.on && c) {
+      const pts = this.points(), old = this.data().cpts[Net.owner];
+      if (!old || old.pts !== pts || old.c !== c.id) { const v = { c: c.id, n: Net.name, pts, t: Date.now() }; this.data().cpts[Net.owner] = v; SharedState.put('cpts:' + Net.owner, v); }
+    }
+  },
+
+  // the flags over the headquarters
+  render(cp) {
+    const uv = () => Vehicles.swatchUV('white');
+    const hex = (h) => [parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255];
+    for (const c of this.all()) {
+      if (!Array.isArray(c.hq) || Math.abs(c.hq[0] - cp[0]) > 120 || Math.abs(c.hq[2] - cp[2]) > 120) continue;
+      const [x, y, z] = c.hq;
+      ER.lightAt(x + 0.5, y + 4, z + 0.5);
+      const m = XF.t(x + 0.5 - cp[0], y - cp[1], z + 0.5 - cp[2]);
+      ER.color = [0.75, 0.76, 0.8]; ER.box(m, -0.06, 0, -0.06, 0.06, 7, 0.06, uv);
+      ER.color = [0.95, 0.8, 0.2]; ER.box(m, -0.12, 7, -0.12, 0.12, 7.24, 0.12, uv);
+      ER.color = [0.3, 0.3, 0.33]; ER.box(m, -0.35, 0, -0.35, 0.35, 0.2, 0.35, uv);
+      // the cloth: strips that wave
+      const [a, b] = [hex(CREW_COLORS[c.c[0]] || '#d6202b'), hex(CREW_COLORS[c.c[1]] || '#fff')];
+      const N = 10, L = 3.2, H = 1.9, t = G.time;
+      for (let i = 0; i < N; i++) {
+        const u0 = i / N * L, u1 = (i + 1) / N * L, w0 = Math.sin(t * 3 + i * 0.7) * 0.18 * (i / N), w1 = Math.sin(t * 3 + (i + 1) * 0.7) * 0.18 * ((i + 1) / N);
+        const w = (w0 + w1) / 2;
+        // two halves: the hoist side in the first colour, the fly side in the second
+        ER.color = i < N * 0.4 ? a : b;
+        ER.box(m, 0.06 + u0, 6.95 - H, w - 0.03, 0.06 + u1, 6.95, w + 0.03, uv);
+      }
+    }
+    ER.color = [1, 1, 1];
+  },
+
+  // ---- the app ----
+  open() {
+    const q = GPanel.open({ title: ED('Colles', 'Crews'), sub: CITY, icon: '\ud83d\udea9', cls: 'gp-crews', width: 620 });
+    const draw = () => {
+      const e = BZ.esc, me = this.mine(), rank = this.ranking();
+      const badge = (c) => `<span class="cw-badge" style="--a:${CREW_COLORS[c.c[0]]};--b:${CREW_COLORS[c.c[1]]}"><i>${c.e}</i><b>${e(c.tag)}</b></span>`;
+      let top = '';
+      if (me) {
+        const members = Object.entries(me.m).map(([o, n]) => `<span class="cw-mem">${o === me.o ? '\ud83d\udc51 ' : ''}${e(n)}${o === Net.owner ? ' (you)' : ''}</span>`).join('');
+        top = `<div class="cw-me" style="--a:${CREW_COLORS[me.c[0]]};--b:${CREW_COLORS[me.c[1]]}">${badge(me)}<div class="gp-grow"><b>${e(me.name)}</b><small>${Object.keys(me.m).length} member${Object.keys(me.m).length > 1 ? 's' : ''} \u00b7 ${this.score(me)} points \u00b7 ${me.hq ? 'HQ at ' + People.dist(me.hq) : 'no headquarters yet'}</small><div class="cw-mems">${members}</div></div>
+          <div class="cw-acts">${me.o === Net.owner ? `<button class="gp-btn" data-a="hq">\ud83d\udea9 HQ here</button><button class="gp-btn" data-a="open">${me.open ? '\ud83d\udd13 Open' : '\ud83d\udd12 Invite-only'}</button>` : ''}<button class="gp-btn bad" data-a="leave">Leave</button></div></div>`;
+      } else {
+        top = `<div class="cw-new"><b>Found a crew</b> <span class="gp-dim">\u00b7 \ud83e\ude99 250</span>
+          <div class="cw-form"><input data-f="name" maxlength="24" placeholder="Name (e.g. Els Llamps)"><input data-f="tag" maxlength="4" placeholder="TAG"></div>
+          <div class="cw-pick" data-p="c0">${CREW_COLORS.map((c, i) => `<button data-v="${i}" style="background:${c}" class="${i === 0 ? 'on' : ''}"></button>`).join('')}</div>
+          <div class="cw-pick" data-p="c1">${CREW_COLORS.map((c, i) => `<button data-v="${i}" style="background:${c}" class="${i === 9 ? 'on' : ''}"></button>`).join('')}</div>
+          <div class="cw-pick em" data-p="e">${CREW_EMBLEMS.map((m, i) => `<button data-v="${m}" class="${i === 0 ? 'on' : ''}">${m}</button>`).join('')}</div>
+          <button class="gp-btn ok" data-a="found">Found it</button></div>`;
+      }
+      q.body.innerHTML = top + `<h4 class="bz-h">Ranking <span>points: achievements, quests, homes, businesses and savings of every member</span></h4>
+        <div class="cw-rank">${rank.map((c, i) => `<div class="cw-row${me && c.id === me.id ? ' me' : ''}"><em>${i + 1}</em>${badge(c)}<div class="gp-grow"><b>${e(c.name)}</b><small>${c.npc ? 'Neighbourhood crew' : Object.keys(c.m || {}).length + ' members' + (c.open ? ' \u00b7 open' : ' \u00b7 invite-only')}</small></div><b class="cw-pts">${c.pts}</b>${!me && !c.npc && c.open ? `<button class="gp-btn" data-join="${c.id}">Join</button>` : ''}</div>`).join('') || '<p class="gp-dim">No crews yet: found the first one!</p>'}</div>`;
+      const pick = {};
+      q.body.querySelectorAll('.cw-pick').forEach((row) => {
+        pick[row.dataset.p] = row.querySelector('.on').dataset.v;
+        row.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { row.querySelectorAll('button').forEach((x) => x.classList.remove('on')); b.classList.add('on'); pick[row.dataset.p] = b.dataset.v; }));
+      });
+      const act = (a) => {
+        if (a === 'found') { const f = (k) => q.body.querySelector(`[data-f="${k}"]`).value; if (this.found(f('name'), f('tag'), Number(pick.c0), Number(pick.c1), pick.e)) draw(); }
+        if (a === 'hq') { this.setHQ(); draw(); }
+        if (a === 'open') { me.open = !me.open; this.put(me); draw(); }
+        if (a === 'leave' && confirm('Leave ' + me.name + '?')) { this.leave(); draw(); }
+      };
+      q.body.querySelectorAll('[data-a]').forEach((b) => b.addEventListener('click', () => act(b.dataset.a)));
+      q.body.querySelectorAll('[data-join]').forEach((b) => b.addEventListener('click', () => { this.join(b.dataset.join); draw(); }));
+    };
+    draw();
+  },
+};
+
+{
+  // the tag travels with each player's presence: [TAG] Name over their head
+  const pd = Net.presenceData;
+  Net.presenceData = function () { const d = pd.call(this); const c = Crews.mine(); if (c) d.cw = c.tag; return d; };
+  const op = Net.onPresence;
+  Net.onPresence = function (peer, pr) {
+    op.call(this, peer, pr);
+    const r = this.peers.get(peer);
+    if (r && pr) { const tag = typeof pr.cw === 'string' ? pr.cw.replace(/[^A-Z0-9]/g, '').slice(0, 4) : ''; if (tag && !r.name.startsWith('[')) r.name = '[' + tag + '] ' + r.name; }
+  };
+  const apply = SharedState.apply;
+  SharedState.apply = function (k, v) {
+    if (k.startsWith('crew:')) { const d = Crews.data(), id = k.slice(5); if (v && typeof v === 'object' && v.name && v.m && JSON.stringify(v).length < 3000) d.crews[id] = v; else if (!v) delete d.crews[id]; return; }
+    if (k.startsWith('cpts:')) { const d = Crews.data(); if (v && typeof v === 'object' && Number.isFinite(v.pts)) d.cpts[k.slice(5)] = v; return; }
+    return apply.call(this, k, v);
+  };
+  const fu = Furniture.update;
+  Furniture.update = function (dt) { fu.call(this, dt); try { Crews.update(dt || 0.016); } catch (e) { console.warn('Blocklands: crews', e); } };
+  const wr = Weather.render;
+  Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Crews.render(cp); } catch (e) { /* ignore */ } return r; };
+  PC.add({ key: 'crews', icon: '\ud83d\udea9', name: ED('Colles', 'Crews'), run() { Crews.open(); } });
+}
+</script>
+<script>
+'use strict';
+// Group minigames (the Minigames app). One game at a time on a server: whoever starts it hosts it
+// (SharedState 'mg' carries the state, the players' moves reach the host as op 'MG').
+// - Treasure hunt: six golden chests hidden around; a hot/cold meter points to the nearest one
+//   and they shine when you are close. Walk into one to take it. Most chests wins.
+// - Hide and seek: the seeker counts to 45 with the screen dark while everybody hides (their
+//   name tags vanish for the seeker); whoever is caught joins the seekers. Alone, five kids
+//   from the neighbourhood hide and you look for them.
+// - City race: a place in the city is drawn (a metro station, the airport, the AVE, the bank...)
+//   with a beam of light over it. Get there first, by any means: run, metro, bus, taxi, car.
+// The winners get coins; the HUD shows the time and the scores.
+
+const MG_KINDS = {
+  hunt: { icon: '\ud83d\udcb0', name: ED('Ca\u00e7a del tresor', 'Treasure hunt'), desc: ED('Sis cofres d\'or amagats al voltant. El detector diu fred o calent.', 'Six golden chests hidden around. The detector says hot or cold.'), dur: 300 },
+  hide: { icon: '\ud83d\ude48', name: ED('Fet i amagar', 'Hide and seek'), desc: ED('Qui para compta fins a 45; els atrapats tamb\u00e9 paren. Sol: troba cinc nens amagats.', 'The seeker counts to 45; whoever is caught seeks too. Alone: find five hidden kids.'), dur: 285 },
+  race: { icon: '\ud83c\udfc1', name: ED('Cursa per la ciutat', 'City race'), desc: ED('Surt un lloc de la ciutat amb un feix de llum: arriba-hi primer, com vulguis.', 'A place in the city lights up: get there first, any way you like.'), dur: 300 },
+};
+
+const Mini = {
+  g: null, t: 0, dirty: false, kids: [], blindEl: null, hudEl: null, lastSeen: null,
+  me() { return Net.owner; },
+  host() { return this.g && this.g.host === Net.owner; },
+  in() { return !!(this.g && this.g.players[Net.owner]); },
+  now() { return Date.now(); },
+  left() { const g = this.g; return g ? Math.max(0, g.t0 + g.dur * 1000 - this.now()) / 1000 : 0; },
+  send(ev, ...a) { if (this.host()) this.event(Net.owner, Net.name, [ev, ...a]); else if (Net.on) Net.op(['MG', this.g.id, ev, ...a]); },
+  save() { this.dirty = false; if (Net.on) SharedState.put('mg', this.g); },
+
+  // ---- starting ----
+  start(kind) {
+    if (this.g && !this.g.over) { G.ui.toast('A game is already on: ' + MG_KINDS[this.g.kind].name); return; }
+    const K = MG_KINDS[kind], p = G.player.pos;
+    const g = this.g = { id: 'g' + Date.now().toString(36), kind, host: Net.owner, hn: Net.name, t0: this.now() + 8000, dur: K.dur, seed: (Math.random() * 1e9) | 0, players: { [Net.owner]: { n: Net.name, s: 0, role: 'player' } }, data: {}, over: false, at: [Math.round(p[0]), Math.round(p[2])] };
+    if (kind === 'hunt') g.data.spots = this.hideSpots(p, 6, 26, 75).map((q) => [...q, null]);
+    if (kind === 'race') g.data.target = this.raceTarget(p);
+    if (kind === 'hide') { g.players[Net.owner].role = 'seek'; g.data.hideEnd = g.t0 + 45000; g.t0 += 0; }
+    if (kind === 'race' && !g.data.target) { this.g = null; G.ui.toast('No place to race to around here'); return; }
+    if (kind === 'hunt' && g.data.spots.length < 4) { this.g = null; G.ui.toast('Not enough open ground around here'); return; }
+    this.save();
+    if (Net.on) Net.op(['MG', g.id, 'invite', kind]);
+    G.ui.banner(K.icon, K.name + ' starts in 8 seconds!');
+    sfx('ave_ding', null, 0.8, 1);
+  },
+  join() {
+    if (!this.g || this.g.over || this.in()) return;
+    this.send('join', Net.name);
+    if (!this.host()) { this.g.players[Net.owner] = { n: Net.name, s: 0, role: this.g.kind === 'hide' ? 'hide' : 'player' }; }
+    G.ui.toast(MG_KINDS[this.g.kind].icon + ' You are in!');
+  },
+  quit() {
+    if (!this.g) return;
+    if (this.host()) { this.g.over = true; this.g.result = 'stopped'; this.save(); this.cleanup(); this.g = null; G.ui.toast('Game stopped'); return; }
+    this.send('quit');
+    delete this.g.players[Net.owner];
+    this.g = null;
+    this.cleanup();
+  },
+
+  // spots on open ground round (x, z), not too close together
+  hideSpots(p, n, r0, r1) {
+    const w = G.world, out = [];
+    for (let tries = 0; tries < 400 && out.length < n; tries++) {
+      const a = Math.random() * Math.PI * 2, r = r0 + Math.random() * (r1 - r0);
+      const x = Math.floor(p[0] + Math.cos(a) * r), z = Math.floor(p[2] + Math.sin(a) * r);
+      if (!w.isLoaded(x, z)) continue;
+      let y = -1;
+      for (let yy = Math.min(CH - 3, Math.floor(p[1]) + 20); yy > Math.floor(p[1]) - 20; yy--) {
+        const id = w.getBlock(x, yy, z);
+        if (BLOCK_SOLID[id] && BLOCK_RT[id] !== RT_CROSS && !IS_LIQUID(id)) { y = yy + 1; break; }
+        if (IS_LIQUID(id)) break;
+      }
+      if (y < 0 || BLOCK_SOLID[w.getBlock(x, y, z)] || BLOCK_SOLID[w.getBlock(x, y + 1, z)]) continue;
+      if (out.some((q) => Math.hypot(q[0] - x, q[2] - z) < 14)) continue;
+      out.push([x, y, z]);
+    }
+    return out;
+  },
+  raceTarget(p) {
+    const list = [];
+    const st = typeof City !== 'undefined' ? City.plan() : null;
+    if (st) {
+      const m = st.metro;
+      if (m) for (const s of m.line.stops) list.push({ name: ED('Metro ', 'Metro ') + s.name, x: s.at[0], y: st.y, z: s.at[2] });
+      if (st.campus && st.campus.bank) list.push({ name: ED('Banc Central', 'Central Bank'), x: st.campus.bank.x0 - 3, y: st.y, z: (st.campus.bank.z0 + st.campus.bank.z1) / 2 });
+      if (st.airport) list.push({ name: ED('Aeroport', 'Airport'), x: st.x + 94, y: st.y, z: st.z });
+      if (st.campus && st.campus.pitch) list.push({ name: ED('Camp de futbol', 'Football pitch'), x: (st.campus.pitch.x0 + st.campus.pitch.x1) / 2, y: st.y, z: st.campus.pitch.z0 - 2 });
+      for (const pl of (st.plots || []).filter((_, i) => i % 5 === 0)) list.push({ name: ED('Solar ', 'Plot ') + pl.id.slice(1), x: pl.sign[0], y: st.y, z: pl.sign[1] });
+      const L = typeof Ave !== 'undefined' ? Ave.line() : null;
+      if (L) list.push({ name: ED('Estaci\u00f3 AVE', 'AVE station'), x: (L.xs + L.xe) / 2, y: L.F, z: L.z + 10 });
+    }
+    const far = list.filter((q) => Math.hypot(q.x - p[0], q.z - p[2]) > 90);
+    const pick = (far.length ? far : list)[Math.floor(Math.random() * Math.max(1, (far.length ? far : list).length))];
+    return pick ? { ...pick, x: Math.round(pick.x), z: Math.round(pick.z) } : null;
+  },
+
+  // ---- the host decides ----
+  event(owner, name, ev) {
+    const g = this.g;
+    if (!g || g.over) return;
+    const P = g.players, [k] = ev;
+    if (k === 'join' && !P[owner]) { P[owner] = { n: String(name || 'Player').slice(0, 16), s: 0, role: g.kind === 'hide' ? (this.now() < g.data.hideEnd ? 'hide' : 'seek') : 'player' }; this.dirty = true; }
+    if (!P[owner]) return;
+    if (k === 'quit') { delete P[owner]; this.dirty = true; }
+    if (k === 'take' && g.kind === 'hunt') {
+      const s = g.data.spots[ev[1] | 0];
+      if (s && !s[3]) { s[3] = owner; P[owner].s++; this.dirty = true; if (g.data.spots.every((q) => q[3])) this.finish(); }
+    }
+    if (k === 'catch' && g.kind === 'hide' && P[owner].role === 'seek') {
+      const h = P[ev[1]];
+      if (h && h.role === 'hide') { h.role = 'seek'; h.caughtAt = this.now(); P[owner].s += 1; this.dirty = true; if (!Object.values(P).some((q) => q.role === 'hide')) this.finish(); }
+    }
+    if (k === 'done' && g.kind === 'race' && !P[owner].time) {
+      P[owner].time = Math.max(1, Number(ev[1]) || 0); this.dirty = true;
+      if (Object.values(P).every((q) => q.time)) this.finish();
+    }
+  },
+  finish() {
+    const g = this.g;
+    if (!g || g.over) return;
+    g.over = true;
+    const P = g.players;
+    if (g.kind === 'hide') for (const q of Object.values(P)) if (q.role === 'hide') q.s += 3;
+    let best = null;
+    for (const [o, q] of Object.entries(P)) {
+      const v = g.kind === 'race' ? (q.time ? 1e6 - q.time : -1) : q.s;
+      if (v > 0 && (!best || v > best[1])) best = [o, v];
+    }
+    g.win = best ? best[0] : null;
+    this.save();
+  },
+
+  tick(dt) {
+    const g = this.g;
+    if (!g) { this.hud(); return; }
+    const now = this.now(), P = g.players, me = P[Net.owner], p = G.player.pos;
+    if (this.host() && !g.over) {
+      if (now > g.t0 + g.dur * 1000) this.finish();
+      if (this.dirty) this.save();
+    }
+    if (g.over) {
+      if (!this.ended) {
+        this.ended = g.id;
+        const won = g.win === Net.owner;
+        const K = MG_KINDS[g.kind];
+        if (me) {
+          if (won) { Shops.earn(120); G.ui.banner('\ud83c\udfc6', K.name + ' \u00b7 you win! +120 coins'); sfx('achieve', null, 1, 1); if (typeof Football !== 'undefined' && Football.fireworks) Football.fireworks(p.slice()); }
+          else G.ui.banner(K.icon, K.name + ' \u00b7 ' + (g.win ? (P[g.win] ? P[g.win].n : 'someone') + ' wins' : 'nobody wins') + (me.s ? ' \u00b7 you got ' + me.s : ''));
+          if (!won && me.s) Shops.earn(me.s * 15);
+        }
+        this.cleanup();
+        setTimeout(() => { if (this.g && this.g.id === this.ended) this.g = null; }, 12000);
+      }
+      this.hud();
+      return;
+    }
+    if (!me) { this.hud(); return; }
+    const started = now >= g.t0;
+    // treasure hunt: take a chest by walking into it
+    if (g.kind === 'hunt' && started) g.data.spots.forEach((s, i) => { if (!s[3] && Math.hypot(s[0] + 0.5 - p[0], s[2] + 0.5 - p[2]) < 1.6 && Math.abs(s[1] - p[1]) < 2.5 && this.lastTake !== g.id + i) { this.lastTake = g.id + i; this.send('take', i); sfx('achieve', null, 0.7, 1.4); G.ui.toast('\ud83d\udcb0 Treasure!'); Particles.poof && Particles.poof(s[0] + 0.5, s[1] + 0.8, s[2] + 0.5, 1.5, 1); } });
+    // hide and seek
+    if (g.kind === 'hide') {
+      const counting = me.role === 'seek' && now < g.data.hideEnd && !me.caughtAt;
+      this.blind(counting ? Math.ceil((g.data.hideEnd - now) / 1000) : 0);
+      if (me.role === 'seek' && now >= g.data.hideEnd) {
+        for (const r of Net.peers.values()) {
+          const q = r.owner && P[r.owner];
+          if (q && q.role === 'hide' && Math.hypot(r.pos[0] - p[0], r.pos[2] - p[2]) < 2.3 && Math.abs(r.pos[1] - p[1]) < 2.5 && this.caughtT !== r.owner) {
+            this.caughtT = r.owner; this.send('catch', r.owner); G.ui.toast('\ud83d\ude48 Caught ' + q.n + '!'); sfx('pling', null, 0.8, 1.2);
+          }
+        }
+        // alone: the hidden kids
+        for (const m of this.kids) if (!m.removed && !m.found && Math.hypot(m.pos[0] - p[0], m.pos[2] - p[2]) < 2.3 && Math.abs(m.pos[1] - p[1]) < 2.5) {
+          m.found = true; me.s++; this.dirty = true; sfx('villager_yes', m.pos, 0.9, 1.4); G.ui.toast('\ud83d\ude48 Found ' + m.name + '! (' + me.s + '/5)');
+          Particles.poof && Particles.poof(m.pos[0], m.pos[1] + 1, m.pos[2], 1, 1);
+          setTimeout(() => { m.removed = true; }, 1200);
+          if (this.kids.every((k) => k.found)) this.finish();
+        }
+      }
+      if (this.host() && !Net.peers.size && !this.kids.length && now >= g.t0 - 7000) this.spawnKids(g);
+    }
+    // race
+    if (g.kind === 'race' && started && !me.time && g.data.target) {
+      const T = g.data.target;
+      if (Math.hypot(T.x - p[0], T.z - p[2]) < 5 && Math.abs(T.y - p[1]) < 8) { const t = (now - g.t0) / 1000; me.time = t; this.send('done', t); G.ui.toast('\ud83c\udfc1 ' + t.toFixed(1) + ' s!'); sfx('achieve', null, 0.9, 1.1); }
+    }
+    if (started && !this.goSaid) { this.goSaid = g.id; G.ui.banner(MG_KINDS[g.kind].icon, g.kind === 'hide' ? (me.role === 'seek' ? 'Count to 45\u2026' : 'Hide!') : 'Go!'); sfx('ave_ding', null, 0.9, 1.3); }
+    this.hud();
+  },
+  spawnKids(g) {
+    const spots = this.hideSpots(G.player.pos, 5, 12, 42);
+    for (const s of spots) {
+      const m = Ents.spawnMob('villager', s[0] + 0.5, s[1] + 0.01, s[2] + 0.5);
+      if (!m) continue;
+      m.persistent = true; m.mgKid = true; m.prof = 'student';
+      m.skin = STUDENT_SKINS.length ? STUDENT_SKINS[Math.floor(Math.random() * STUDENT_SKINS.length)] : 0;
+      m.name = VILLAGER_NAMES[Math.floor(Math.random() * VILLAGER_NAMES.length)];
+      m.home = [s[0] + 0.5, s[2] + 0.5]; m.homeR = 0.2; m.sneak = true;
+      this.kids.push(m);
+    }
+    g.data.kids = this.kids.length;
+  },
+  cleanup() { for (const m of this.kids) m.removed = true; this.kids = []; this.blind(0); },
+  blind(n) {
+    if (!n) { if (this.blindEl) { this.blindEl.remove(); this.blindEl = null; } return; }
+    if (!this.blindEl) { this.blindEl = document.createElement('div'); this.blindEl.id = 'mgBlind'; document.body.append(this.blindEl); }
+    const h = `<div><i>\ud83d\ude48</i><b>${n}</b><span>Counting\u2026 no peeking!</span></div>`;
+    if (this.blindEl.innerHTML !== h) this.blindEl.innerHTML = h;
+  },
+
+  hud() {
+    const g = this.g;
+    let el = this.hudEl;
+    if (!g || (!this.in() && g.over) || G.onTitle) { if (el) el.classList.remove('show'); return; }
+    if (!el) { el = this.hudEl = document.createElement('div'); el.id = 'mgHud'; document.body.append(el); }
+    const K = MG_KINDS[g.kind], me = g.players[Net.owner], now = this.now(), p = G.player.pos;
+    const secs = g.over ? 0 : now < g.t0 ? Math.ceil((g.t0 - now) / 1000) : Math.ceil(this.left());
+    let line = '';
+    if (!me) line = '\ud83d\udcf1 Minigames to join';
+    else if (now < g.t0) line = 'Starting in ' + secs + ' s';
+    else if (g.kind === 'hunt') {
+      let d = Infinity;
+      for (const s of g.data.spots) if (!s[3]) d = Math.min(d, Math.hypot(s[0] - p[0], s[2] - p[2]));
+      const heat = d < 8 ? '\ud83d\udd25 Burning!' : d < 18 ? '\u2668\ufe0f Hot' : d < 35 ? '\ud83c\udf24\ufe0f Warm' : d < 60 ? '\u2744\ufe0f Cold' : '\ud83e\uddca Freezing';
+      line = heat + ' \u00b7 ' + g.data.spots.filter((s) => !s[3]).length + ' left';
+    } else if (g.kind === 'hide') line = me.role === 'seek' ? (now < g.data.hideEnd ? 'Counting\u2026' : '\ud83d\udc40 Seek! ' + (this.kids.length ? this.kids.filter((k) => !k.found).length + ' kids hidden' : Object.values(g.players).filter((q) => q.role === 'hide').length + ' still hiding')) : '\ud83e\udd2b Hide! ' + (now < g.data.hideEnd ? Math.ceil((g.data.hideEnd - now) / 1000) + ' s before they look' : 'they are looking');
+    else if (g.kind === 'race') {
+      const T = g.data.target, d = Math.hypot(T.x - p[0], T.z - p[2]);
+      const ang = Math.atan2(T.x - p[0], T.z - p[2]) - Math.atan2(-Math.sin(G.player.yaw), -Math.cos(G.player.yaw));
+      line = me.time ? '\ud83c\udfc1 ' + me.time.toFixed(1) + ' s' : `<i class="mg-arrow" style="transform:rotate(${(-ang).toFixed(2)}rad)">\u2b06</i> ${BZ.esc(T.name)} \u00b7 ${Math.round(d)} m`;
+    }
+    const board = Object.entries(g.players).sort((a, b) => g.kind === 'race' ? (a[1].time || 1e9) - (b[1].time || 1e9) : b[1].s - a[1].s).slice(0, 4)
+      .map(([o, q]) => `<span class="${o === Net.owner ? 'me' : ''}">${g.kind === 'hide' ? (q.role === 'seek' ? '\ud83d\udc40' : '\ud83e\udd2b') : ''}${BZ.esc(q.n)} <b>${g.kind === 'race' ? (q.time ? q.time.toFixed(1) + 's' : '\u2026') : q.s}</b></span>`).join('');
+    el.innerHTML = `<div class="mg-top"><b>${K.icon} ${K.name}</b><em>${g.over ? 'Finished' : Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0')}</em></div><div class="mg-line">${line}</div><div class="mg-board">${board}</div>`;
+    el.classList.add('show');
+  },
+
+  render(cp) {
+    const g = this.g;
+    if (!g || g.over || !this.in()) return;
+    const uv = () => Vehicles.swatchUV('white');
+    if (g.kind === 'hunt' && this.now() >= g.t0) for (const s of g.data.spots) {
+      if (s[3] || Math.hypot(s[0] - cp[0], s[2] - cp[2]) > 30) continue;
+      const m = XF.chain(XF.t(s[0] + 0.5 - cp[0], s[1] - cp[1] + 0.15 + Math.sin(G.time * 2 + s[0]) * 0.08, s[2] + 0.5 - cp[2]), XF.ry(G.time * 0.8 + s[2]));
+      ER.lightAt(s[0] + 0.5, s[1] + 1, s[2] + 0.5);
+      ER.color = [0.55, 0.32, 0.12]; ER.box(m, -0.4, 0, -0.28, 0.4, 0.42, 0.28, uv);
+      ER.color = [0.62, 0.36, 0.14]; ER.box(m, -0.42, 0.42, -0.3, 0.42, 0.62, 0.3, uv);
+      ER.ov = 3; ER.color = [1, 0.82, 0.2];
+      ER.box(m, -0.43, 0.36, -0.31, 0.43, 0.46, 0.31, uv); ER.box(m, -0.06, 0.22, 0.3, 0.06, 0.46, 0.33, uv);
+      ER.box(m, -0.3, 0.63, -0.2, 0.3, 0.72, 0.2, uv);
+      ER.ov = 0;
+      if (Math.random() < 0.08) Particles.poof && Particles.poof(s[0] + 0.5 + rand(-0.4, 0.4), s[1] + 0.9, s[2] + 0.5 + rand(-0.4, 0.4), 0.3, 1);
+    }
+    if (g.kind === 'race' && g.data.target) {
+      const T = g.data.target;
+      const m = XF.t(T.x + 0.5 - cp[0], T.y - cp[1], T.z + 0.5 - cp[2]);
+      ER.ov = 3; ER.color = [1, 0.85, 0.2];
+      ER.box(m, -0.35, 0, -0.35, 0.35, 90, 0.35, uv);
+      ER.color = [1, 1, 1]; ER.box(m, -0.12, 0, -0.12, 0.12, 92, 0.12, uv);
+      ER.ov = 0;
+    }
+    ER.color = [1, 1, 1];
+  },
+
+  open() {
+    const q = GPanel.open({ title: ED('Minijocs', 'Minigames'), sub: Net.on ? 'Everyone on the server can join' : 'Playing alone', icon: '\ud83c\udfaf', cls: 'gp-mg', width: 560 });
+    const draw = () => {
+      const g = this.g, e = BZ.esc;
+      const cur = g && !g.over ? `<div class="mg-cur"><b>${MG_KINDS[g.kind].icon} ${MG_KINDS[g.kind].name}</b><span>Hosted by ${e(g.hn)} \u00b7 ${Object.keys(g.players).length} playing</span>
+        ${this.in() ? `<button class="gp-btn bad" data-a="quit">${this.host() ? 'Stop the game' : 'Leave'}</button>` : '<button class="gp-btn ok" data-a="join">Join</button>'}</div>` : '';
+      q.body.innerHTML = cur + `<div class="mg-cards">${Object.entries(MG_KINDS).map(([k, K]) => `<button class="mg-card" data-k="${k}" ${g && !g.over ? 'disabled' : ''}><i>${K.icon}</i><b>${K.name}</b><span>${K.desc}</span><em>${Math.round(K.dur / 60)} min \u00b7 \ud83c\udfc6 120</em></button>`).join('')}</div>`;
+      q.body.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => { q.close(); this.start(b.dataset.k); }));
+      q.body.querySelectorAll('[data-a]').forEach((b) => b.addEventListener('click', () => { if (b.dataset.a === 'join') this.join(); else this.quit(); draw(); }));
+    };
+    draw();
+  },
+};
+
+{
+  const ap = Net.applyOp;
+  Net.applyOp = function (r, o) {
+    if (o[1] === 'MG') {
+      const g = Mini.g, owner = r && r.owner;
+      if (o[3] === 'invite') { const K = MG_KINDS[o[4]]; if (K && r) G.ui.toast(K.icon + ' ' + r.name + ' started ' + K.name + ' \u00b7 \ud83d\udcf1 Minigames to join', 5000); return; }
+      if (g && g.id === o[2] && Mini.host() && owner) Mini.event(owner, r.name, o.slice(3));
+      return;
+    }
+    return ap.call(this, r, o);
+  };
+  const apply = SharedState.apply;
+  SharedState.apply = function (k, v) {
+    if (k === 'mg') {
+      if (!v || typeof v !== 'object' || !MG_KINDS[v.kind] || !v.players) { if (Mini.g && !Mini.host()) { Mini.cleanup(); Mini.g = null; } return; }
+      if (Mini.host() && Mini.g && !Mini.g.over && v.id !== Mini.g.id) return;
+      const mine = Mini.g && Mini.g.id === v.id ? Mini.g.players[Net.owner] : null;
+      Mini.g = v;
+      if (mine && !v.players[Net.owner] && !v.over) v.players[Net.owner] = mine;
+      return;
+    }
+    return apply.call(this, k, v);
+  };
+  // the seeker does not see where the hiders are
+  const dt = Net.drawTags;
+  Net.drawTags = function () {
+    dt.call(this);
+    const g = Mini.g, me = g && g.players[Net.owner];
+    if (!g || g.over || g.kind !== 'hide' || !me || me.role !== 'seek') return;
+    for (const r of this.peers.values()) { const q = r.owner && g.players[r.owner]; if (q && q.role === 'hide' && r.tag) r.tag.style.display = 'none'; }
+  };
+  // no moving while you count
+  const upd = Player.prototype.update;
+  Player.prototype.update = function (dt2, input) {
+    if (this === G.player && Mini.blindEl) { this.vel[0] = this.vel[2] = 0; return; }
+    return upd.call(this, dt2, input);
+  };
+  const kp = Ents.keepable;
+  Ents.keepable = function (m) { if (m.mgKid) return false; return kp.call(this, m); };
+  const fu = Furniture.update;
+  Furniture.update = function (d) { fu.call(this, d); try { Mini.tick(d || 0.016); } catch (e) { console.warn('Blocklands: minigames', e); } };
+  const wr = Weather.render;
+  Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Mini.render(cp); } catch (e) { /* ignore */ } return r; };
+  PC.add({ key: 'minigames', icon: '\ud83c\udfaf', name: ED('Minijocs', 'Minigames'), run() { Mini.open(); } });
+}
+</script>
+<script>
+'use strict';
+// Mayor elections (the City Hall app). Every term lasts 45 real minutes. Anyone can stand with a
+// slogan and a programme; every player votes (and can change it until the polls close), and the
+// neighbours vote too: they lean towards whoever they know (achievements, homes, businesses, the
+// crew) and whoever campaigned among them (talk to the neighbours while you are a candidate).
+// Playing alone you run against two neighbourhood candidates. The winner rules the next term:
+// their programme applies to everybody, they get a salary and can make announcements, and a
+// medal shows by their name.
+// World record in world.biz.mayor (SharedState 'mayor' from the host, 'cand:<owner>' and
+// 'vote:<owner>' from each player).
+
+const MAYOR_TERM = 45 * 60 * 1000;
+const MAYOR_POLICIES = {
+  transit: { icon: '\ud83d\ude84', name: ED('Transport gratis', 'Free transport'), text: ED('AVE gratis i vols a meitat de preu', 'Free AVE, half-price flights') },
+  festa: { icon: '\ud83c\udf86', name: ED('Ciutat de festa', 'Party city'), text: ED('Concert cada vespre i focs a les 22 h', 'A concert every evening, fireworks at 10 pm') },
+  eco: { icon: '\ud83c\udf33', name: ED('Ciutat segura i verda', 'Safe green city'), text: ED('Sense incendis ni apagades', 'No fires, no blackouts') },
+  business: { icon: '\ud83d\udcbc', name: ED('Ciutat de negocis', 'Business city'), text: ED('Els negocis guanyen un 25 % m\u00e9s', 'Businesses earn 25% more') },
+};
+const MAYOR_NPC = [
+  { o: 'npc:marta', n: 'Marta Puig', m: ED('M\u00e9s parcs, menys fum', 'More parks, less smoke'), p: 'eco' },
+  { o: 'npc:jordi', n: 'Jordi Vila', m: ED('Transport per a tothom', 'Transport for everyone'), p: 'transit' },
+  { o: 'npc:carme', n: 'Carme Soler', m: ED('Una ciutat que balla', 'A city that dances'), p: 'festa' },
+  { o: 'npc:pere', n: 'Pere Roig', m: ED('Feina i botigues obertes', 'Jobs and open shops'), p: 'business' },
+];
+
+const Mayor = {
+  t: 0, lastHour: -1,
+  st() {
+    const d = BZ.data();
+    if (!d.mayor || typeof d.mayor !== 'object') d.mayor = { term: 1, ends: Date.now() + MAYOR_TERM, mayor: null, cands: {}, hist: [] };
+    if (!d.votes) d.votes = {};
+    return d.mayor;
+  },
+  votes() { this.st(); return BZ.data().votes; },
+  policy() { const m = this.st().mayor; return m && MAYOR_POLICIES[m.p] ? m.p : null; },
+  isMayor() { const m = this.st().mayor; return !!m && m.o === Net.owner; },
+  npcs() { const s = this.st(), i = s.term % MAYOR_NPC.length; return [MAYOR_NPC[i], MAYOR_NPC[(i + 1) % MAYOR_NPC.length]]; },
+  cands() {
+    const s = this.st(), list = Object.values(s.cands).filter((c) => c && c.o && c.term === s.term);
+    if (!Net.on || list.length < 2) for (const n of this.npcs()) list.push({ ...n, term: s.term, npc: true });
+    return list;
+  },
+  // how the neighbours see a candidate
+  appeal(c) {
+    if (c.npc) return 1 + hash3(this.st().term, c.o.length, 7, 98) * 1.2;
+    let a = 0.5 + Math.min(2.5, (c.pts || 0) / 400) + Math.min(1.5, (c.camp || 0) * 0.1);
+    return a;
+  },
+  tally() {
+    const s = this.st(), cands = this.cands(), V = this.votes(), res = {};
+    for (const c of cands) res[c.o] = 0;
+    for (const [voter, c] of Object.entries(V)) if (res[c] !== undefined) res[c] += 1;
+    // 30 neighbours
+    const tot = cands.reduce((n, c) => n + this.appeal(c), 0) || 1;
+    for (const c of cands) res[c.o] += Math.round(30 * this.appeal(c) / tot);
+    return res;
+  },
+  close() {
+    const s = this.st(), res = this.tally(), cands = this.cands();
+    let best = null;
+    for (const c of cands) if (!best || res[c.o] > res[best.o] || (res[c.o] === res[best.o] && c.o < best.o)) best = c;
+    const total = Object.values(res).reduce((a, b) => a + b, 0) || 1;
+    s.hist = [{ term: s.term, n: best ? best.n : '\u2014', p: best && best.p, pct: best ? Math.round(res[best.o] / total * 100) : 0 }, ...(s.hist || [])].slice(0, 6);
+    s.mayor = best ? { o: best.o, n: best.n, m: best.m, p: best.p, npc: !!best.npc, pct: Math.round(res[best.o] / total * 100) } : null;
+    s.term++; s.ends = Date.now() + MAYOR_TERM; s.cands = {};
+    BZ.data().votes = {};
+    if (G.world) G.world.editsDirty = true;
+    if (Net.on) SharedState.put('mayor', s);
+    this.announce();
+  },
+  announce() {
+    const m = this.st().mayor;
+    if (!m) return;
+    const P = MAYOR_POLICIES[m.p];
+    if (m.o === Net.owner) { Shops.earn(300); G.ui.banner('\ud83c\udf96\ufe0f', 'You are the new mayor of ' + CITY + '! +300 coins \u00b7 ' + P.name); sfx('achieve', null, 1, 1); if (typeof Football !== 'undefined' && Football.fireworks) Football.fireworks(G.player.pos.slice()); }
+    else G.ui.banner('\ud83c\udfdb\ufe0f', m.n + ' is the new mayor (' + m.pct + '%) \u00b7 ' + P.icon + ' ' + P.name);
+  },
+
+  stand(motto, p) {
+    const s = this.st();
+    if (!MAYOR_POLICIES[p]) return;
+    if (!s.cands[Net.owner] && !Shops.pay(100)) { G.ui.toast('\ud83e\ude99 Standing costs 100 coins'); return; }
+    const c = { o: Net.owner, n: Net.name, m: String(motto || '').slice(0, 40) || 'For a better ' + CITY, p, term: s.term, pts: typeof Crews !== 'undefined' ? Crews.points() : 0, camp: (s.cands[Net.owner] && s.cands[Net.owner].camp) || 0 };
+    s.cands[Net.owner] = c;
+    SharedState.put('cand:' + Net.owner, c);
+    this.vote(Net.owner);
+    G.ui.banner('\ud83d\uddf3\ufe0f', 'You are a candidate! Talk to the neighbours to win their votes');
+  },
+  vote(o) {
+    this.votes()[Net.owner] = o;
+    SharedState.put('vote:' + Net.owner, { c: o, term: this.st().term });
+    sfx('pling', null, 0.6, 1);
+  },
+  // campaigning: every neighbour you talk to while standing
+  canvass(m) {
+    const s = this.st(), c = s.cands[Net.owner];
+    if (!c || c.term !== s.term || m.canvassed === s.term) return false;
+    m.canvassed = s.term;
+    c.camp = Math.min(15, (c.camp || 0) + 1);
+    SharedState.put('cand:' + Net.owner, c);
+    G.ui.toast('\ud83d\uddf3\ufe0f ' + m.name + ': "I might vote for you!" \u00b7 ' + c.camp + '/15 neighbours', 2600);
+    return true;
+  },
+
+  update(dt) {
+    this.t -= dt;
+    if (this.t > 0 || !G.world || G.onTitle) return;
+    this.t = 2;
+    const s = this.st();
+    if (Date.now() > s.ends && (!Net.on || Net.isHost())) this.close();
+    const p = this.policy();
+    // the programme in force
+    if (p === 'eco' && typeof CityEvents !== 'undefined') CityEvents.fireT = Math.max(CityEvents.fireT, 60);
+    if (p === 'festa' && typeof CityAlive !== 'undefined') {
+      const h = Math.floor(CityAlive.hour());
+      if (h === 22 && this.lastHour !== 22) { const plan = CityAlive.district(); if (plan && CityAlive.near(plan, 200) && typeof Football !== 'undefined') for (let i = 0; i < 4; i++) setTimeout(() => Football.fireworks([plan.x + rand(-12, 12), plan.y + 2, plan.z + rand(-12, 12)]), i * 1400); }
+      this.lastHour = h;
+    }
+    // the mayor's salary, once a game day
+    if (this.isMayor()) { const d = (G.prog && G.prog.day) | 0; if (G.prog && G.prog.mayorPaid !== d) { G.prog.mayorPaid = d; if (d) { Shops.earn(60); G.ui.toast('\ud83c\udf96\ufe0f Mayor\'s salary \u00b7 +60'); } } }
+  },
+
+  open() {
+    const q = GPanel.open({ title: ED('Ajuntament de ', '') + CITY + ED('', ' City Hall'), sub: 'Term ' + this.st().term, icon: '\ud83c\udfdb\ufe0f', cls: 'gp-mayor', width: 640 });
+    let iv = 0;
+    q.onClose = () => clearInterval(iv);
+    const draw = () => {
+      const s = this.st(), e = BZ.esc, m = s.mayor, res = this.tally(), total = Object.values(res).reduce((a, b) => a + b, 0) || 1, my = this.votes()[Net.owner];
+      const left = Math.max(0, s.ends - Date.now()), mm = Math.floor(left / 60000), ss = Math.floor(left / 1000) % 60;
+      const P = m && MAYOR_POLICIES[m.p];
+      q.body.innerHTML = `
+        <div class="my-hero">${m ? `<div class="my-medal">\ud83c\udf96\ufe0f</div><div class="gp-grow"><small>Mayor of ${e(CITY)}</small><b>${e(m.n)}${m.o === Net.owner ? ' (you)' : ''}</b><span>\u201c${e(m.m)}\u201d \u00b7 ${m.pct}% of the votes</span></div><div class="my-pol">${P.icon}<b>${e(P.name)}</b><small>${e(P.text)}</small></div>` : `<div class="my-medal">\ud83c\udfdb\ufe0f</div><div class="gp-grow"><b>No mayor yet</b><span>The first election closes soon</span></div>`}</div>
+        <h4 class="bz-h">Election \u00b7 term ${s.term} <span data-left>polls close in ${mm}:${String(ss).padStart(2, '0')}</span></h4>
+        <div class="my-cands">${this.cands().map((c) => { const pc = Math.round((res[c.o] || 0) / total * 100), CP = MAYOR_POLICIES[c.p]; return `<div class="my-cand${my === c.o ? ' voted' : ''}"><div class="gp-grow"><b>${e(c.n)}${c.o === Net.owner ? ' (you)' : c.npc ? ' \u00b7 neighbour' : ''}</b><small>\u201c${e(c.m)}\u201d \u00b7 ${CP.icon} ${e(CP.name)}</small><div class="my-bar"><i style="width:${pc}%"></i><span>${pc}% in the polls</span></div></div><button class="gp-btn ${my === c.o ? 'ok' : ''}" data-vote="${e(c.o)}">${my === c.o ? '\u2713 Your vote' : 'Vote'}</button></div>`; }).join('')}</div>
+        <h4 class="bz-h">Stand for mayor <span>\ud83e\ude99 100 \u00b7 then talk to the neighbours to win votes</span></h4>
+        <div class="my-stand"><input data-f="m" maxlength="40" placeholder="Your slogan" value="${e((s.cands[Net.owner] && s.cands[Net.owner].m) || '')}">
+          <div class="my-pols">${Object.entries(MAYOR_POLICIES).map(([k, Q], i) => `<button data-p="${k}" class="${(s.cands[Net.owner] ? s.cands[Net.owner].p === k : i === 0) ? 'on' : ''}"><i>${Q.icon}</i><b>${e(Q.name)}</b><small>${e(Q.text)}</small></button>`).join('')}</div>
+          <button class="gp-btn pri" data-a="stand">${s.cands[Net.owner] ? 'Update my candidacy' : 'Stand'}</button></div>
+        ${this.isMayor() ? `<h4 class="bz-h">Mayor's office</h4><div class="my-stand"><input data-f="a" maxlength="80" placeholder="An announcement for everybody"><button class="gp-btn" data-a="say">\ud83d\udce3 Announce</button></div>` : ''}
+        ${(s.hist || []).length ? `<h4 class="bz-h">Past mayors</h4><div class="my-hist">${s.hist.map((h) => `<span>Term ${h.term}: <b>${e(h.n)}</b> ${h.p ? MAYOR_POLICIES[h.p].icon : ''} ${h.pct}%</span>`).join('')}</div>` : ''}`;
+      let pol = (s.cands[Net.owner] && s.cands[Net.owner].p) || Object.keys(MAYOR_POLICIES)[0];
+      q.body.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => { q.body.querySelectorAll('[data-p]').forEach((x) => x.classList.remove('on')); b.classList.add('on'); pol = b.dataset.p; }));
+      q.body.querySelectorAll('[data-vote]').forEach((b) => b.addEventListener('click', () => { this.vote(b.dataset.vote); draw(); }));
+      const st = q.body.querySelector('[data-a="stand"]');
+      if (st) st.addEventListener('click', () => { this.stand(q.body.querySelector('[data-f="m"]').value, pol); draw(); });
+      const say = q.body.querySelector('[data-a="say"]');
+      if (say) say.addEventListener('click', () => {
+        const t = q.body.querySelector('[data-f="a"]').value.trim().slice(0, 80);
+        if (!t) return;
+        G.ui.banner('\ud83d\udce3', 'Mayor ' + Net.name + ': ' + t);
+        if (Net.on) Net.op(['MY', t]);
+        q.body.querySelector('[data-f="a"]').value = '';
+      });
+    };
+    draw();
+    iv = setInterval(() => {
+      if (!q.wrap.isConnected) { clearInterval(iv); return; }
+      const el = q.body.querySelector('[data-left]'), left = Math.max(0, this.st().ends - Date.now());
+      if (el) el.textContent = 'polls close in ' + Math.floor(left / 60000) + ':' + String(Math.floor(left / 1000) % 60).padStart(2, '0');
+    }, 1000);
+  },
+};
+
+{
+  const apply = SharedState.apply;
+  SharedState.apply = function (k, v) {
+    if (k === 'mayor') {
+      if (v && typeof v === 'object' && Number.isFinite(v.term)) {
+        const d = BZ.data(), old = d.mayor, changed = !old || old.term !== v.term;
+        d.mayor = v;
+        if (changed && old) { d.votes = {}; Mayor.announce(); }
+      }
+      return;
+    }
+    if (k.startsWith('cand:')) { if (v && typeof v === 'object' && MAYOR_POLICIES[v.p]) Mayor.st().cands[k.slice(5)] = { ...v, o: k.slice(5), n: String(v.n || 'Someone').slice(0, 16) }; return; }
+    if (k.startsWith('vote:')) { if (v && v.term === Mayor.st().term && typeof v.c === 'string') Mayor.votes()[k.slice(5)] = v.c; return; }
+    return apply.call(this, k, v);
+  };
+  const ap = Net.applyOp;
+  Net.applyOp = function (r, o) {
+    if (o[1] === 'MY') { const m = Mayor.st().mayor; if (m && r && r.owner === m.o && typeof o[2] === 'string') G.ui.banner('\ud83d\udce3', 'Mayor ' + m.n + ': ' + o[2].slice(0, 80)); return; }
+    return ap.call(this, r, o);
+  };
+  // the mayor's medal travels with the presence
+  const pd = Net.presenceData;
+  Net.presenceData = function () { const d = pd.call(this); if (Mayor.isMayor()) d.my = 1; return d; };
+  const onp = Net.onPresence;
+  Net.onPresence = function (peer, pr) { onp.call(this, peer, pr); const r = this.peers.get(peer); if (r && pr && pr.my === 1 && !r.name.startsWith('\ud83c\udf96\ufe0f')) r.name = '\ud83c\udf96\ufe0f ' + r.name; };
+  // canvassing: talking to a neighbour while you stand
+  if (typeof Citizens !== 'undefined') {
+    const talk = Citizens.talk;
+    Citizens.talk = function (m) { talk.call(this, m); Mayor.canvass(m); };
+  }
+  // the programmes
+  const nb = Blackout.start;
+  Blackout.start = function (plan) { if (Mayor.policy() === 'eco') return; return nb.call(this, plan); };
+  const today = CityEvents.today;
+  CityEvents.today = function () { const e = today.call(this); if (Mayor.policy() === 'festa' && e.kind !== 'concert') return { d: e.d, kind: 'concert', win: [18.5, 22.5] }; return e; };
+  if (typeof Biz !== 'undefined') { const gr = Biz.gross; Biz.gross = function (s, b) { return gr.call(this, s, b) * (Mayor.policy() === 'business' ? 1.25 : 1); }; }
+  if (typeof Ave !== 'undefined') { const ds = Ave.dests; Ave.dests = function () { const l = ds.call(this); return Mayor.policy() === 'transit' ? l.map((d) => ({ ...d, price: 0 })) : l; }; }
+  const ad = Airport.dests;
+  Airport.dests = function () { const l = ad.call(this); return Mayor.policy() === 'transit' ? l.map((d) => ({ ...d, price: Math.ceil(d.price / 2) })) : l; };
+  const fu = Furniture.update;
+  Furniture.update = function (dt) { fu.call(this, dt); try { Mayor.update(dt || 0.016); } catch (e) { console.warn('Blocklands: mayor', e); } };
+  PC.add({ key: 'cityhall', icon: '\ud83c\udfdb\ufe0f', name: ED('Ajuntament', 'City Hall'), run() { Mayor.open(); } });
+}
+</script>
+<script>
+'use strict';
+// Radio and voice.
+// - Radio (the Radio app): four stations made by the music composer (music.js) \u2014 Pop, Chill,
+//   Classical and Rumba \u2014 that play without the usual silences while switched on, plus the News
+//   station: soft music under spoken bulletins (the browser's voice) about the weather, the
+//   stock market, today's event in the city and the mayor. Same quiet level as the music.
+// - Proximity voice (servers with a direct connection): the Voice app turns the microphone on
+//   as push-to-talk (hold X) or open mic. Everyone hears you louder the closer they are, from
+//   the side you are on, and up to 40 blocks away; a \ud83c\udf99\ufe0f shows over whoever is talking.
+
+Object.assign(MOODS, {
+  radio_pop: { root: 62, scale: 'major', bpm: 108, progs: [[0, 4, 5, 3], [0, 5, 3, 4], [3, 4, 0, 5]], parts: { pad: 0.35, bass: 0.8, lead: 0.7, drums: 0.6, arp: 0.25 }, rest: null, bars: [16, 16] },
+  radio_chill: { root: 57, scale: 'dorian', bpm: 76, progs: [[0, 3, 6, 4], [1, 4, 0, 5], [0, 5, 3, 4]], parts: { pad: 0.7, bass: 0.55, piano: 0.9, drums: 0.3, bell: 0.3 }, rest: null, bars: [16, 16] },
+  radio_classic: { root: 60, scale: 'major', bpm: 84, progs: [[0, 3, 4, 0], [0, 5, 3, 4], [5, 3, 4, 0]], parts: { pad: 0.6, piano: 1, bass: 0.35, choir: 0.2 }, rest: null, bars: [16, 24] },
+  radio_rumba: { root: 64, scale: 'phrygian', bpm: 118, progs: [[0, 6, 5, 0], [0, 1, 0, 6], [3, 1, 0, 0]], parts: { bass: 0.9, brass: 0.45, drums: 0.7, arp: 0.5, pad: 0.25 }, rest: null, bars: [16, 16] },
+  radio_news: { root: 55, scale: 'major', bpm: 70, progs: [[0, 4, 5, 3]], parts: { pad: 0.45, piano: 0.3 }, rest: null, bars: [8, 8] },
+});
+const RADIO_STATIONS = [
+  { k: 'pop', mood: 'radio_pop', icon: '\ud83c\udfa4', name: 'Blocklands Pop', fm: '98.1' },
+  { k: 'chill', mood: 'radio_chill', icon: '\ud83c\udf19', name: 'Chill FM', fm: '101.4' },
+  { k: 'classic', mood: 'radio_classic', icon: '\ud83c\udfbb', name: ED('Cl\u00e0ssica', 'Classical'), fm: '93.7' },
+  { k: 'rumba', mood: 'radio_rumba', icon: '\ud83d\udc83', name: ED('R\u00e0dio Rumba', 'Rumba Radio'), fm: '105.9' },
+  { k: 'news', mood: 'radio_news', icon: '\ud83d\udcf0', name: ED('Not\u00edcies ', 'News ') + CITY, fm: '88.2' },
+];
+
+const Radio = {
+  st: null, newsT: 8, chip: null,
+  station() { return RADIO_STATIONS.find((s) => s.k === this.st) || null; },
+  tune(k) {
+    this.st = k || null;
+    if (G.prog) G.prog.radio = this.st;
+    if (!k && window.speechSynthesis) speechSynthesis.cancel();
+    this.newsT = 3;
+    const s = this.station();
+    G.ui.toast(s ? '\ud83d\udcfb ' + s.fm + ' \u00b7 ' + s.name : '\ud83d\udcfb Radio off', 1800);
+    this.drawChip();
+  },
+  bulletin() {
+    const out = [];
+    const h = typeof CityAlive !== 'undefined' ? Math.floor(CityAlive.hour()) : 12;
+    out.push(ED('S\u00f3n les ' + h + ' a ' + CITY + '.', 'It is ' + h + " o'clock in " + CITY + '.'));
+    const w = typeof Weather !== 'undefined' ? Weather.kind : 'clear';
+    out.push({ clear: ED('Cel ser\u00e8.', 'Clear skies.'), rain: ED('Pluja a la ciutat, agafeu el paraigua.', 'Rain over the city, take an umbrella.'), storm: ED('Alerta per tempesta.', 'Storm warning.'), snow: ED('Neva!', 'It is snowing!'), hail: ED('Compte amb la calamarsa.', 'Watch out for hail.') }[w] || '');
+    if (typeof CityEvents !== 'undefined') { const e = CityEvents.today(); out.push({ concert: ED('Aquest vespre, concert a la pla\u00e7a.', 'Tonight, a concert in the square.'), market: ED('Aquesta nit, mercat nocturn.', 'Tonight, the night market.'), race: ED('Avui hi ha cursa de cotxes pel centre.', 'Street race in the centre today.') }[e.kind]); }
+    if (typeof Stocks !== 'undefined') { const n = Stocks.news()[0]; if (n) out.push(ED('Borsa: ', 'Markets: ') + n.text + '.'); }
+    if (typeof Mayor !== 'undefined') { const m = Mayor.st().mayor; if (m) out.push(ED('L\'alcalde ', 'Mayor ') + m.n + ED(' diu: ', ' says: ') + m.m + '.'); }
+    return out.filter(Boolean).join(' ');
+  },
+  update(dt) {
+    const s = this.station();
+    if (!s || !window.speechSynthesis || s.k !== 'news') return;
+    this.newsT -= dt;
+    if (this.newsT > 0 || speechSynthesis.speaking) return;
+    this.newsT = 50;
+    const u = new SpeechSynthesisUtterance(this.bulletin());
+    u.lang = CG ? 'en-GB' : 'ca-ES';
+    u.rate = 1; u.pitch = 1;
+    u.volume = clamp((G.settings.music === undefined ? 0.3 : G.settings.music) * 1.6, 0.1, 0.8);
+    const v = speechSynthesis.getVoices().find((x) => x.lang && x.lang.toLowerCase().startsWith(u.lang.slice(0, 2)));
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
+  },
+  drawChip() {
+    const s = this.station();
+    if (!this.chip) { this.chip = document.createElement('div'); this.chip.id = 'radioChip'; document.body.append(this.chip); }
+    this.chip.classList.toggle('show', !!s && !G.onTitle);
+    if (s) this.chip.innerHTML = `<i>\ud83d\udcfb</i><b>${s.fm}</b><span>${s.icon} ${GPanel.esc(s.name)}</span><em><u></u><u></u><u></u></em>`;
+  },
+  open() {
+    const q = GPanel.open({ title: ED('R\u00e0dio', 'Radio'), sub: 'FM', icon: '\ud83d\udcfb', cls: 'gp-radio', width: 420 });
+    const draw = () => {
+      q.body.innerHTML = `<div class="rd-dial"><div class="rd-scale">${RADIO_STATIONS.map((s) => `<i style="left:${((parseFloat(s.fm) - 87) / 20 * 100).toFixed(1)}%"></i>`).join('')}<b style="left:${this.station() ? ((parseFloat(this.station().fm) - 87) / 20 * 100).toFixed(1) : 0}%"></b></div></div>
+        <div class="rd-list">${RADIO_STATIONS.map((s) => `<button class="rd-st${s.k === this.st ? ' on' : ''}" data-k="${s.k}"><i>${s.icon}</i><b>${GPanel.esc(s.name)}</b><em>${s.fm}</em></button>`).join('')}
+        <button class="rd-st off${!this.st ? ' on' : ''}" data-k=""><i>\u23fb</i><b>Off</b><em></em></button></div>
+        <p class="gp-dim">The radio plays at the music volume (Options \u203a Sound).</p>`;
+      q.body.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => { this.tune(b.dataset.k); draw(); }));
+    };
+    draw();
+  },
+};
+
+// ---------------------------------------------------------------- voice ----
+const Voice = {
+  mode: 'off', stream: null, sent: new Set(), peers: new Map(), talking: false, chip: null, hooked: null, keyDown: false,
+  room() { return Net.p2p && Net.p2p.room; },
+  async set(mode) {
+    if (mode !== 'off' && !(Net.on && Net.server)) { G.ui.toast('\ud83c\udf99\ufe0f Voice chat works on servers (Online \u203a Servers)'); return; }
+    if (mode !== 'off' && !this.stream) {
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      } catch (e) { G.ui.toast('\ud83c\udf99\ufe0f No microphone (or permission denied)'); return; }
+    }
+    this.mode = mode;
+    if (mode === 'off' && this.stream) {
+      const room = this.room();
+      if (room && room.removeStream) try { room.removeStream(this.stream); } catch (e) { /* ignore */ }
+      for (const t of this.stream.getTracks()) t.stop();
+      this.stream = null; this.sent.clear();
+    }
+    this.apply();
+    G.ui.toast(mode === 'off' ? '\ud83c\udf99\ufe0f Voice off' : mode === 'ptt' ? '\ud83c\udf99\ufe0f Hold X to talk' : '\ud83c\udf99\ufe0f Open mic: everyone near hears you', 2600);
+  },
+  apply() {
+    const on = this.mode === 'open' || (this.mode === 'ptt' && this.keyDown);
+    this.talking = !!this.stream && on;
+    if (this.stream) for (const t of this.stream.getAudioTracks()) t.enabled = on;
+    this.drawChip();
+  },
+  hook(room) {
+    if (this.hooked === room) return;
+    this.hooked = room;
+    this.sent.clear();
+    const onStream = (stream, peerId) => this.addPeer(stream, peerId);
+    try { if (typeof room.onPeerStream === 'function') room.onPeerStream(onStream); else room.onPeerStream = onStream; } catch (e) { room.onPeerStream = onStream; }
+  },
+  addPeer(stream, tid) {
+    const ctx = Sound.ctx;
+    if (!ctx) return;
+    const old = this.peers.get(tid);
+    if (old) { try { old.src.disconnect(); } catch (e) { /* ignore */ } old.el.remove(); }
+    // Chrome only feeds WebAudio from a remote stream that is also attached to a (muted) element
+    const el = document.createElement('audio');
+    el.srcObject = stream; el.muted = true; el.play().catch(() => {});
+    el.style.display = 'none'; document.body.append(el);
+    const src = ctx.createMediaStreamSource(stream), gain = ctx.createGain(), pan = ctx.createStereoPanner();
+    gain.gain.value = 0;
+    src.connect(gain); gain.connect(pan); pan.connect(Sound.master);
+    this.peers.set(tid, { el, src, gain, pan });
+  },
+  update() {
+    const room = this.room();
+    if (!room) { if (this.peers.size) { for (const p of this.peers.values()) { try { p.src.disconnect(); } catch (e) { /* ignore */ } p.el.remove(); } this.peers.clear(); } return; }
+    this.hook(room);
+    // our voice to everyone connected (newcomers too)
+    if (this.stream && room.addStream) {
+      let ids = [];
+      try { ids = Object.keys(room.getPeers ? room.getPeers() : {}); } catch (e) { ids = []; }
+      for (const id of ids) if (!this.sent.has(id)) { this.sent.add(id); try { room.addStream(this.stream, id); } catch (e) { /* ignore */ } }
+    }
+    // everybody else: louder the closer, from their side
+    const ctx = Sound.ctx, me = G.player;
+    for (const [tid, p] of this.peers) {
+      const r = Net.peers.get(Net.uidOf.get(tid) || tid);
+      let g = 0, pn = 0;
+      if (r) {
+        const dx = r.pos[0] - me.pos[0], dz = r.pos[2] - me.pos[2], d = Math.hypot(dx, dz, r.pos[1] - me.pos[1]);
+        g = d > 40 ? 0 : Math.pow(1 - d / 40, 1.6) * 1.4;
+        const ang = Math.atan2(dx, dz) - Math.atan2(-Math.sin(me.yaw), -Math.cos(me.yaw));
+        pn = clamp(-Math.sin(ang), -0.85, 0.85);
+      }
+      if (ctx) { p.gain.gain.setTargetAtTime(g, ctx.currentTime, 0.1); p.pan.pan.setTargetAtTime(pn, ctx.currentTime, 0.1); }
+    }
+  },
+  drawChip() {
+    if (!this.chip) { this.chip = document.createElement('div'); this.chip.id = 'voiceChip'; document.body.append(this.chip); }
+    this.chip.classList.toggle('show', this.mode !== 'off' && !G.onTitle);
+    this.chip.classList.toggle('live', this.talking);
+    this.chip.innerHTML = `<i>${this.talking ? '\ud83c\udf99\ufe0f' : '\ud83d\udd07'}</i><span>${this.mode === 'ptt' ? (this.talking ? 'Talking\u2026' : 'Hold X') : this.mode === 'open' ? 'Open mic' : ''}</span>`;
+  },
+  open() {
+    const q = GPanel.open({ title: ED('Veu', 'Voice'), sub: Net.on && Net.server ? 'Proximity chat \u00b7 up to 40 blocks' : 'Only on servers', icon: '\ud83c\udf99\ufe0f', cls: 'gp-voice', width: 400 });
+    const draw = () => {
+      q.body.innerHTML = `<div class="vc-modes">${[['off', '\ud83d\udd07', 'Off', 'Nobody hears you'], ['ptt', '\u2328\ufe0f', 'Push to talk', 'Hold X while you speak'], ['open', '\ud83c\udf99\ufe0f', 'Open mic', 'Always on: best with headphones']].map(([k, i, n, d]) => `<button class="vc-m${this.mode === k ? ' on' : ''}" data-m="${k}"><i>${i}</i><b>${n}</b><span>${d}</span></button>`).join('')}</div>
+        <p class="gp-dim">Players hear you louder the closer they are, from the side you are on. Voice needs a direct connection between players (not over the relay). ${this.peers.size} voice${this.peers.size === 1 ? '' : 's'} connected.</p>`;
+      q.body.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', async () => { await this.set(b.dataset.m); draw(); }));
+    };
+    draw();
+  },
+};
+
+{
+  const pick = Music.pickMood;
+  Music.pickMood = function (dt) {
+    const s = Radio.station();
+    if (s && G.started && !G.onTitle && !G.dimension) return s.mood;
+    return pick.call(this, dt);
+  };
+  // the \ud83c\udf99\ufe0f over whoever talks
+  const pd = Net.presenceData;
+  Net.presenceData = function () { const d = pd.call(this); if (Voice.talking) d.vt = 1; return d; };
+  const dt0 = Net.drawTags;
+  Net.drawTags = function () {
+    dt0.call(this);
+    for (const r of this.peers.values()) if (r.tag) r.tag.classList.toggle('talk', !!r.vt);
+  };
+  const onp = Net.onPresence;
+  Net.onPresence = function (peer, pr) { onp.call(this, peer, pr); const r = this.peers.get(peer); if (r) r.vt = !!(pr && pr.vt); };
+  const typing = () => document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  window.addEventListener('keydown', (e) => { if (e.code === 'KeyX' && Voice.mode === 'ptt' && !e.repeat && !typing() && !G.screenOpen) { Voice.keyDown = true; Voice.apply(); } });
+  window.addEventListener('keyup', (e) => { if (e.code === 'KeyX' && Voice.keyDown) { Voice.keyDown = false; Voice.apply(); } });
+  window.addEventListener('blur', () => { if (Voice.keyDown) { Voice.keyDown = false; Voice.apply(); } });
+  const fu = Furniture.update;
+  Furniture.update = function (dt) {
+    fu.call(this, dt);
+    try {
+      if (Radio.st === null && G.prog && G.prog.radio && !Radio.restored) { Radio.restored = true; Radio.st = G.prog.radio; }
+      Radio.update(dt || 0.016); Voice.update();
+      if (Radio.chip) Radio.chip.classList.toggle('show', !!Radio.station() && !G.onTitle);
+      else if (Radio.station()) Radio.drawChip();
+    } catch (e) { console.warn('Blocklands: radio', e); }
+  };
+  PC.add({ key: 'radio', icon: '\ud83d\udcfb', name: ED('R\u00e0dio', 'Radio'), run() { Radio.open(); } });
+  PC.add({ key: 'voice', icon: '\ud83c\udf99\ufe0f', name: ED('Veu', 'Voice'), run() { Voice.open(); } });
+}
 </script>
 <script>
 'use strict';

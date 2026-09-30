@@ -481,6 +481,61 @@
   .cr-offer { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; margin-top: 12px; padding: 12px; border-radius: 14px; background: linear-gradient(120deg, rgba(58, 160, 232, .2), rgba(255, 204, 51, .08)); border: 1px solid rgba(58, 160, 232, .5); }
   .cr-ship { font-size: 40px; text-align: center; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .4)); } .cr-txt b { display: block; font: 800 14px var(--display); } .cr-txt span { font-size: 12px; color: #b8c9da; }
   .cr-card { text-align: center; padding: 8px; } .cr-card p { color: #c3cfdc; } .cr-big { font: 900 40px 'Courier New', monospace; color: #ffcc33; text-shadow: 0 0 20px rgba(255, 204, 51, .4); }
+  /* crews.js */
+  .cw-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 3px 4px; border-radius: 8px; background: linear-gradient(135deg, var(--a) 0 50%, var(--b) 50% 100%); box-shadow: inset 0 0 0 2px rgba(0,0,0,.25), 0 2px 8px rgba(0,0,0,.3); }
+  .cw-badge i { font-style: normal; font-size: 16px; filter: drop-shadow(0 1px 1px #000); } .cw-badge b { font: 900 12px var(--display); color: #fff; text-shadow: 0 1px 2px #000, 0 0 4px #000; letter-spacing: .06em; }
+  .cw-me { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 16px; border: 1px solid var(--line-strong); background: linear-gradient(120deg, color-mix(in srgb, var(--a) 26%, transparent), color-mix(in srgb, var(--b) 12%, transparent)); flex-wrap: wrap; }
+  .cw-me b { font: 800 16px var(--display); } .cw-me small { display: block; color: #b8c3d4; font-size: 12px; margin: 2px 0 6px; }
+  .cw-mems { display: flex; flex-wrap: wrap; gap: 4px; } .cw-mem { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.3); }
+  .cw-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cw-new { padding: 14px; border-radius: 16px; border: 1px dashed var(--line-strong); background: rgba(255,255,255,.03); display: grid; gap: 8px; }
+  .cw-form { display: grid; grid-template-columns: 1fr 90px; gap: 6px; } .cw-form input, .my-stand input { padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line-strong); background: #0a0d14; color: #fff; font: 600 13px var(--body); }
+  .cw-pick { display: flex; gap: 5px; flex-wrap: wrap; } .cw-pick button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(255,255,255,.2); cursor: pointer; } .cw-pick button.on { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.25); transform: scale(1.1); }
+  .cw-pick.em button { width: 32px; height: 32px; border-radius: 9px; background: rgba(255,255,255,.06); font-size: 17px; }
+  .cw-rank { display: grid; gap: 6px; } .cw-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid var(--line); }
+  .cw-row.me { border-color: #ffd34d; background: rgba(255,211,77,.08); } .cw-row > em { font: 900 16px var(--display); font-style: normal; width: 24px; text-align: center; color: #93a0b4; }
+  .cw-row:nth-child(1) > em { color: #ffd34d; } .cw-row:nth-child(2) > em { color: #d0d6e2; } .cw-row:nth-child(3) > em { color: #e0915a; }
+  .cw-row small { display: block; font-size: 11.5px; color: #93a0b4; } .cw-pts { font: 900 16px 'Courier New', monospace; color: #ffd34d; }
+  /* minigames.js */
+  .mg-cur { display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin-bottom: 12px; border-radius: 14px; background: rgba(60, 242, 154, .1); border: 1px solid rgba(60, 242, 154, .45); flex-wrap: wrap; }
+  .mg-cur b { font: 800 15px var(--display); } .mg-cur span { flex: 1; font-size: 12px; color: #b8c3d4; }
+  .mg-cards { display: grid; gap: 10px; }
+  .mg-card { display: grid; grid-template-columns: 54px 1fr auto; grid-template-rows: auto auto; gap: 2px 12px; align-items: center; padding: 14px; border-radius: 16px; border: 1px solid var(--line); color: #fff; text-align: left; cursor: pointer; background: linear-gradient(120deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); transition: .15s; }
+  .mg-card:hover:not(:disabled) { transform: translateY(-2px); border-color: #ffd34d; box-shadow: 0 8px 24px rgba(0,0,0,.35); } .mg-card:disabled { opacity: .45; cursor: default; }
+  .mg-card i { grid-row: 1 / span 2; font-style: normal; font-size: 40px; text-align: center; } .mg-card b { font: 800 16px var(--display); } .mg-card span { grid-column: 2; font-size: 12.5px; color: #b8c3d4; } .mg-card em { grid-row: 1; grid-column: 3; font: 700 11.5px var(--body); font-style: normal; color: #ffd34d; }
+  #mgHud { position: fixed; right: 14px; top: 250px; z-index: 30; width: 240px; padding: 10px 12px; border-radius: 14px; background: rgba(12, 16, 26, .9); border: 1px solid #ffd34d; color: #fff; opacity: 0; transform: translateX(20px); transition: .3s; pointer-events: none; }
+  #mgHud.show { opacity: 1; transform: none; } .mg-top { display: flex; justify-content: space-between; align-items: baseline; } .mg-top b { font: 800 13px var(--display); } .mg-top em { font: 900 18px 'Courier New', monospace; font-style: normal; color: #ffd34d; }
+  .mg-line { font-size: 13px; margin: 6px 0; font-weight: 700; } .mg-arrow { display: inline-block; font-style: normal; color: #ffd34d; transition: transform .15s; }
+  .mg-board { display: grid; gap: 2px; } .mg-board span { display: flex; justify-content: space-between; font-size: 12px; color: #b8c3d4; } .mg-board span.me { color: #fff; font-weight: 700; } .mg-board b { color: #ffd34d; }
+  #mgBlind { position: fixed; inset: 0; z-index: 60; background: radial-gradient(circle at 50% 50%, #151a2a, #020308); display: grid; place-items: center; color: #fff; text-align: center; pointer-events: none; }
+  #mgBlind i { display: block; font-style: normal; font-size: 64px; } #mgBlind b { display: block; font: 900 96px var(--display); color: #ffd34d; text-shadow: 0 0 40px rgba(255, 211, 77, .5); } #mgBlind span { font-size: 16px; color: #93a0b4; }
+  /* mayor.js */
+  .my-hero { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 18px; flex-wrap: wrap; background: radial-gradient(140% 120% at 0% 0%, rgba(255, 211, 77, .22), transparent 60%), linear-gradient(135deg, #1b2a4a, #121826); border: 1px solid rgba(255, 211, 77, .4); }
+  .my-medal { font-size: 44px; filter: drop-shadow(0 4px 10px rgba(0,0,0,.5)); } .my-hero small { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #ffd34d; }
+  .my-hero b { display: block; font: 800 20px var(--display); } .my-hero span { font-size: 12.5px; color: #c3cfdc; }
+  .my-pol { display: grid; justify-items: center; text-align: center; padding: 8px 12px; border-radius: 12px; background: rgba(0,0,0,.3); font-size: 26px; max-width: 170px; } .my-pol b { font: 800 12.5px var(--display); } .my-pol small { font-size: 11px; color: #b8c3d4; text-transform: none; letter-spacing: 0; }
+  .my-cands { display: grid; gap: 8px; } .my-cand { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid var(--line); }
+  .my-cand.voted { border-color: #3cf29a; } .my-cand b { font: 800 14px var(--display); } .my-cand small { display: block; font-size: 12px; color: #93a0b4; margin: 2px 0 5px; }
+  .my-bar { position: relative; height: 16px; border-radius: 8px; background: rgba(0,0,0,.35); overflow: hidden; } .my-bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #2a6ce0, #3cf2c0); } .my-bar span { position: relative; display: block; text-align: center; font: 700 10.5px/16px var(--body); }
+  .my-stand { display: grid; gap: 8px; } .my-pols { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; }
+  .my-pols button { display: grid; gap: 2px; padding: 8px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: #fff; cursor: pointer; text-align: center; } .my-pols button.on { border-color: #ffd34d; background: rgba(255,211,77,.12); }
+  .my-pols i { font-style: normal; font-size: 22px; } .my-pols b { font: 800 12px var(--display); } .my-pols small { font-size: 10.5px; color: #93a0b4; }
+  .my-hist { display: flex; flex-wrap: wrap; gap: 6px; } .my-hist span { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.05); }
+  /* radio.js */
+  #radioChip { position: fixed; left: 14px; bottom: 96px; z-index: 25; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 12px; background: rgba(12, 16, 26, .85); border: 1px solid #3a4a66; color: #fff; opacity: 0; transition: .3s; pointer-events: none; }
+  #radioChip.show { opacity: 1; } #radioChip i { font-style: normal; } #radioChip b { font: 900 13px 'Courier New', monospace; color: #ff9d3d; } #radioChip span { font-size: 12px; color: #c3cfdc; }
+  #radioChip em { display: flex; gap: 2px; align-items: flex-end; height: 14px; } #radioChip u { width: 3px; background: #3cf29a; animation: rdEq 0.9s ease-in-out infinite alternate; } #radioChip u:nth-child(2) { animation-delay: .3s; } #radioChip u:nth-child(3) { animation-delay: .6s; }
+  @keyframes rdEq { from { height: 3px; } to { height: 14px; } }
+  .rd-dial { padding: 18px 16px 10px; border-radius: 14px; background: linear-gradient(180deg, #2a1d10, #140e08); border: 1px solid #6b4a2a; margin-bottom: 12px; box-shadow: inset 0 0 20px rgba(255, 157, 61, .15); }
+  .rd-scale { position: relative; height: 26px; background: repeating-linear-gradient(90deg, rgba(255, 220, 170, .5) 0 1px, transparent 1px 10%); border-bottom: 2px solid rgba(255, 220, 170, .5); }
+  .rd-scale i { position: absolute; bottom: 0; width: 2px; height: 14px; background: #ffcf8a; } .rd-scale b { position: absolute; top: -6px; bottom: -4px; width: 3px; background: #ff4a3d; box-shadow: 0 0 10px #ff4a3d; transition: left .4s cubic-bezier(.3, 1.4, .5, 1); }
+  .rd-list { display: grid; gap: 6px; } .rd-st { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: #fff; cursor: pointer; text-align: left; }
+  .rd-st.on { border-color: #ff9d3d; background: rgba(255, 157, 61, .12); } .rd-st i { font-style: normal; font-size: 20px; } .rd-st b { font: 700 14px var(--body); } .rd-st em { font: 900 13px 'Courier New', monospace; font-style: normal; color: #ff9d3d; }
+  #voiceChip { position: fixed; left: 14px; bottom: 136px; z-index: 25; display: flex; align-items: center; gap: 6px; padding: 5px 12px 5px 8px; border-radius: 999px; background: rgba(12, 16, 26, .85); border: 1px solid #3a4a66; color: #c3cfdc; font-size: 12px; opacity: 0; transition: .2s; pointer-events: none; }
+  #voiceChip.show { opacity: 1; } #voiceChip.live { border-color: #3cf29a; color: #fff; box-shadow: 0 0 14px rgba(60, 242, 154, .45); } #voiceChip i { font-style: normal; }
+  .vc-modes { display: grid; gap: 8px; margin-bottom: 10px; } .vc-m { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; gap: 0 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: #fff; cursor: pointer; text-align: left; }
+  .vc-m.on { border-color: #3cf29a; background: rgba(60, 242, 154, .1); } .vc-m i { grid-row: 1 / span 2; font-style: normal; font-size: 22px; align-self: center; } .vc-m b { font: 800 14px var(--display); } .vc-m span { font-size: 12px; color: #93a0b4; }
+  .ntag.talk::after { content: ' 🎙️'; }
   #tripHud { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 30; min-width: 300px; padding: 10px 16px 14px; border-radius: 14px; background: rgba(10, 15, 26, .88); border: 1px solid #2c3b5c; color: #fff; opacity: 0; transition: .3s; pointer-events: none; overflow: hidden; }
   #tripHud.show { opacity: 1; } #tripHud b { display: block; font: 800 14px var(--display); } #tripHud span { font-size: 12.5px; color: #b8c3d4; }
   #tripHud i { position: absolute; left: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #d6202b, #ffcc33); }
@@ -1555,6 +1610,10 @@
 <script src="js/football.js"></script>
 <script src="js/pets.js"></script>
 <script src="js/music.js"></script>
+<script src="js/crews.js"></script>
+<script src="js/minigames.js"></script>
+<script src="js/mayor.js"></script>
+<script src="js/radio.js"></script>
 <script src="js/main.js"></script>
 <script src="js/touch.js"></script>
 <script src="js/crazy.js"></script>
