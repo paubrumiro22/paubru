@@ -4,8 +4,8 @@
 // - loading start/stop, and gameplay start/stop whenever the game is actually being played
 // - a mid-game ad only at natural breaks (respawning, back to the title screen), never more
 //   than one every 3 minutes, the game muted and paused while it plays
-// - rewarded ads the player chooses: revive where you died with everything, or free coins (the phone,
-//   a button by the coins, an offer when a till says you are short)
+// - rewarded ads the player chooses (ads.js: revive where you died, free coins) go through
+//   Crazy.rewarded
 // - happy time on achievements, the player's CrazyGames name as their online name
 // - a banner beside the title menu (never in game), and the invite button for online servers
 // Without the SDK (local tests, ad blockers) every call is a no-op and the game plays the same.
@@ -266,105 +266,13 @@ if (CG) {
   }
   // respawning and leaving to the title are natural breaks
   const rb = $('respawnBtn');
-  if (rb) rb.addEventListener('click', () => { Crazy.deathKit = null; Crazy.breakAd(); }, true);
+  if (rb) rb.addEventListener('click', () => { if (typeof Ads !== 'undefined') Ads.deathKit = null; Crazy.breakAd(); }, true);
   const st = showTitle;
   showTitle = function () { const was = G.started && !G.onTitle; st.apply(this, arguments); if (was) Crazy.breakAd(); };
-  // dying: a rewarded ad revives you right there, with everything you had
-  const die = Stats.prototype.die;
-  Stats.prototype.die = function (src) {
-    const p = G.player;
-    const kit = { slots: G.inv.slots.map((s) => s && cloneStack(s)), armor: G.inv.armor.map((s) => s && cloneStack(s)), items: [], money: G.money | 0,
-      at: p.pos.slice(), safe: Crazy.safe && Math.hypot(Crazy.safe[0] - p.pos[0], Crazy.safe[2] - p.pos[2]) < 80 ? Crazy.safe.slice() : null };
-    const spawn = Ents.spawnItem;
-    Ents.spawnItem = function () { const e = spawn.apply(this, arguments); if (e) kit.items.push(e); return e; };
-    try { die.call(this, src); } finally { Ents.spawnItem = spawn; }
-    Crazy.deathKit = G.mode === 'survival' ? kit : null;
-    const row = document.querySelector('#death .row');
-    let b = $('cgKeepBtn');
-    if (!b && row) { b = document.createElement('button'); b.id = 'cgKeepBtn'; b.className = 'cg-reward'; row.prepend(b); b.addEventListener('click', () => Crazy.revive()); }
-    if (b) { b.innerHTML = '<span>▶</span> Watch an ad · revive here' + (kit.items.length ? ' with your items' : ''); b.classList.toggle('hidden', !Crazy.deathKit || !Crazy.ready); }
-  };
-  Crazy.revive = function () {
-    const kit = this.deathKit;
-    if (!kit) return;
-    this.rewarded(() => {
-      for (const e of kit.items) { e.removed = true; const i = Ents.items.indexOf(e); if (i >= 0) Ents.items.splice(i, 1); }
-      kit.slots.forEach((s, i) => { G.inv.slots[i] = s; });
-      kit.armor.forEach((s, i) => { G.inv.armor[i] = s; });
-      if ((G.money | 0) < kit.money) G.money = kit.money;
-      this.deathKit = null;
-      // back on your feet where you fell (or the last safe ground just before), a few seconds untouchable
-      G.stats.reset();
-      const p = G.player, at = kit.safe || kit.at;
-      p.pos = [at[0], at[1], at[2]]; p.vel = [0, 0, 0]; p.fallStart = null; p.landed = 0;
-      G.ui.hideDeath(); G.ui.invDirty();
-      prepareArea(p.pos[0], p.pos[2], 1);
-      liftOutOfBlocks(p);
-      this.shield = Date.now() + 5000;
-      Net.teleported && Net.teleported();
-      requestLock();
-      G.ui.banner('💖', 'Revived! 5 seconds of protection');
-      sfx('achieve', null, 0.8, 1.2);
-    });
-  };
-  Crazy.keepItems = Crazy.revive;
-  // the shield after a revive
-  const dmg = Stats.prototype.damage;
-  Stats.prototype.damage = function (amount, src) { if (Crazy.shield && Date.now() < Crazy.shield) return; return dmg.call(this, amount, src); };
-  // the last safe ground: on your feet, dry, out of lava, not falling
-  setInterval(() => {
-    const p = G.player;
-    if (!p || G.stats.dead || !p.onGround || p.inLava || p.inWater || G.vehicle || G.onTitle) return;
-    const w = G.world, x = Math.floor(p.pos[0]), y = Math.floor(p.pos[1]), z = Math.floor(p.pos[2]);
-    if (!w || IS_LIQUID(w.getBlock(x, y, z)) || IS_LIQUID(w.getBlock(x, y - 1, z))) return;
-    Crazy.safe = p.pos.slice();
-  }, 700);
   // achievements are happy moments
   if (typeof Progress !== 'undefined' && Progress.unlock) {
     const un = Progress.unlock;
     Progress.unlock = function (k) { const pr = this.prog && this.prog(), had = pr && pr.ach && pr.ach[k]; const r = un.apply(this, arguments); if (!had) Crazy.happy(); return r; };
-  }
-  // coins for a video: the phone app, a button by the coins, and an offer when you are short
-  Crazy.COINS = 150; Crazy.COIN_WAIT = 180000;
-  Crazy.coinsReady = function () { return this.ready && G.mode === 'survival' && Date.now() >= this.bonusAt; };
-  Crazy.freeCoins = function () {
-    if (G.mode === 'creative') { G.ui.toast('Coins are unlimited in creative mode'); return; }
-    const wait = this.bonusAt - Date.now();
-    if (wait > 0) { G.ui.toast('🎁 More free coins in ' + Math.ceil(wait / 60000) + ' min'); return; }
-    this.rewarded(() => {
-      this.bonusAt = Date.now() + this.COIN_WAIT;
-      G.money = (G.money | 0) + this.COINS;
-      if (typeof Bank !== 'undefined' && Bank.refresh) Bank.refresh();
-      const m = $('money'); if (m) { m.classList.remove('bump'); void m.offsetWidth; m.classList.add('bump'); }
-      sfx('shop_till', null, 0.8, 1); G.ui.banner('🎁', '+' + this.COINS + ' coins!');
-    });
-  };
-  PC.add({ key: 'bonus', icon: '🎁', name: 'Free coins', run() { Crazy.freeCoins(); } });
-  {
-    const btn = document.createElement('button');
-    btn.id = 'cgCoins'; btn.innerHTML = '<span>▶</span> +' + Crazy.COINS;
-    btn.title = 'Watch a short video for free coins';
-    btn.addEventListener('click', (e) => { e.stopPropagation(); Crazy.freeCoins(); });
-    document.body.append(btn);
-    setInterval(() => btn.classList.toggle('show', Crazy.coinsReady() && !G.onTitle && G.started && !G.stats.dead), 1000);
-  }
-  // short of coins at a till or in an app: offer a video (at most every 2 minutes)
-  if (typeof Shops !== 'undefined') {
-    const pay = Shops.pay;
-    Shops.pay = function (n) {
-      const ok = pay.call(this, n);
-      if (!ok && G.screenOpen && Crazy.coinsReady() && Date.now() - (Crazy.offerAt || 0) > 120000 && n - (G.money | 0) <= Crazy.COINS * 3) {
-        Crazy.offerAt = Date.now();
-        setTimeout(() => {
-          const q = GPanel.open({ title: 'Need more coins?', icon: '🎁', width: 360 });
-          q.body.innerHTML = `<div class="gp-card"><div class="gp-big">🪙</div><p>You need <b>${n}</b> and have <b>${G.money | 0}</b>.</p><p class="gp-dim">Watch a short video and get <b>${Crazy.COINS}</b> coins.</p>
-            <div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><button class="gp-btn ok" data-a="y">▶ Watch · +${Crazy.COINS}</button><button class="gp-btn" data-a="n">No thanks</button></div></div>`;
-          q.body.querySelector('[data-a="y"]').addEventListener('click', () => { q.close(); Crazy.freeCoins(); });
-          q.body.querySelector('[data-a="n"]').addEventListener('click', () => q.close());
-        }, 300);
-      }
-      return ok;
-    };
   }
   // the chat: bad words masked (their players are often young), off when CrazyGames says so
   const BAD = ['fuck', 'fck', 'fuk', 'shit', 'bitch', 'cunt', 'dick', 'cock', 'pussy', 'asshole', 'bastard', 'slut', 'whore', 'fag', 'faggot', 'nigga', 'nigger', 'retard', 'rape', 'porn', 'sex', 'nazi', 'hitler',

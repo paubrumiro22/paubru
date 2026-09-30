@@ -309,6 +309,8 @@
   #cgBanner { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); width: 300px; height: 250px; display: none; }
   #cgBanner.on { display: block; }
   #death .cg-reward { background: linear-gradient(135deg, #3cf2c0, #1fb8e8); color: #04201a; font-weight: 800; border: 0; box-shadow: 0 6px 20px rgba(60, 242, 192, .35); }
+  #applixir-ad-container { position: fixed; inset: 0; z-index: 95; display: none; place-items: center; background: rgba(0, 0, 0, .85); }
+  #applixir-ad-container.on { display: grid; }
   #cgCoins { position: fixed; left: calc(50% + 78px); top: 10px; z-index: 26; padding: 5px 11px; border-radius: 999px; border: 0; background: linear-gradient(135deg, #3cf2c0, #1fb8e8); color: #04201a; font: 800 12.5px var(--body); cursor: pointer; box-shadow: 0 4px 14px rgba(60, 242, 192, .4); display: none; animation: cgPulse 2.4s ease-in-out infinite; }
   #cgCoins.show { display: block; } #cgCoins span { margin-right: 3px; } @keyframes cgPulse { 50% { transform: scale(1.07); box-shadow: 0 4px 22px rgba(60, 242, 192, .7); } }
   #death .cg-reward span { display: inline-block; margin-right: 4px; } #death .cg-reward.hidden { display: none; }
@@ -1651,5 +1653,6 @@
 <script src="js/main.js"></script>
 <script src="js/touch.js"></script>
 <script src="js/crazy.js"></script>
+<script src="js/ads.js"></script>
 </body>
 </html>
