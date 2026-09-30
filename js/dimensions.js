@@ -7,7 +7,7 @@
 //   Deep Dark  z >= 150 000   local z = z - 200 000   1 block = 4 in the Overworld
 // Only "default" worlds have them. Generation is deterministic from the seed like the rest.
 
-const DIM_OVER = 0, DIM_NETHER = 1, DIM_END = 2, DIM_DEEP = 3;
+const DIM_OVER = 0, DIM_NETHER = 1, DIM_END = 2, DIM_DEEP = 3, DIM_MOON = 4;
 const DIM_EDGE = 150000, DIM_C = 200000;
 const NETHER_LAVA = 31, DEEP_WATER = 20;
 
@@ -15,13 +15,14 @@ function dimAt(x, z) {
   if (x >= DIM_EDGE) return DIM_NETHER;
   if (x <= -DIM_EDGE) return DIM_END;
   if (z >= DIM_EDGE) return DIM_DEEP;
+  if (z <= -DIM_EDGE) return DIM_MOON;
   return DIM_OVER;
 }
 function dimLocal(d, x, z) {
-  return d === DIM_NETHER ? [x - DIM_C, z] : d === DIM_END ? [x + DIM_C, z] : d === DIM_DEEP ? [x, z - DIM_C] : [x, z];
+  return d === DIM_NETHER ? [x - DIM_C, z] : d === DIM_END ? [x + DIM_C, z] : d === DIM_DEEP ? [x, z - DIM_C] : d === DIM_MOON ? [x, z + DIM_C] : [x, z];
 }
 function dimWorld(d, lx, lz) {
-  return d === DIM_NETHER ? [lx + DIM_C, lz] : d === DIM_END ? [lx - DIM_C, lz] : d === DIM_DEEP ? [lx, lz + DIM_C] : [lx, lz];
+  return d === DIM_NETHER ? [lx + DIM_C, lz] : d === DIM_END ? [lx - DIM_C, lz] : d === DIM_DEEP ? [lx, lz + DIM_C] : d === DIM_MOON ? [lx, lz - DIM_C] : [lx, lz];
 }
 // Where a portal at (x, z) in dimension `from` leads in dimension `to` (world x, z).
 function dimTarget(from, to, x, z) {

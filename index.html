@@ -536,6 +536,35 @@
   .vc-modes { display: grid; gap: 8px; margin-bottom: 10px; } .vc-m { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; gap: 0 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: #fff; cursor: pointer; text-align: left; }
   .vc-m.on { border-color: #3cf29a; background: rgba(60, 242, 154, .1); } .vc-m i { grid-row: 1 / span 2; font-style: normal; font-size: 22px; align-self: center; } .vc-m b { font: 800 14px var(--display); } .vc-m span { font-size: 12px; color: #93a0b4; }
   .ntag.talk::after { content: ' 🎙️'; }
+  /* rocket.js */
+  #rocketHud { position: fixed; left: 50%; top: 18%; transform: translateX(-50%); z-index: 30; text-align: center; color: #fff; opacity: 0; transition: .3s; pointer-events: none; text-shadow: 0 2px 12px rgba(0,0,0,.7); }
+  #rocketHud.show { opacity: 1; } #rocketHud b { display: block; font: 900 30px var(--display); } #rocketHud span { font: 700 14px 'Courier New', monospace; color: #ffcc33; }
+  #rocketHud .rk-count { font: 900 120px var(--display); color: #fff; line-height: 1; text-shadow: 0 0 40px rgba(255, 140, 60, .8); }
+  #spaceFx { position: fixed; inset: 0; z-index: 89; }
+  .rk-card { text-align: center; padding: 6px; } .rk-card b { display: block; font: 800 18px var(--display); margin-top: 10px; } .rk-card p { color: #b8c3d4; font-size: 13px; margin: 8px 0 14px; }
+  .rk-route { display: flex; align-items: center; justify-content: center; gap: 14px; font-size: 44px; } .rk-route i { width: 140px; height: 2px; background: repeating-linear-gradient(90deg, #ffcc33 0 6px, transparent 6px 12px); position: relative; }
+  .rk-route i::after { content: '🚀'; position: absolute; left: 50%; top: -14px; font-size: 22px; font-style: normal; transform: translateX(-50%) rotate(45deg); animation: rkFly 2.4s ease-in-out infinite; }
+  @keyframes rkFly { 0% { left: 5%; } 100% { left: 95%; } }
+  /* classes.js */
+  #classChip { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); z-index: 25; display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; margin-top: 44px; border-radius: 12px; background: rgba(14, 22, 40, .88); border: 1px solid #c8102e; color: #fff; opacity: 0; transition: .3s; pointer-events: none; white-space: nowrap; }
+  #classChip.show { opacity: 1; } #classChip i { font-style: normal; font-size: 18px; } #classChip b { font: 800 13px var(--display); } #classChip span { font-size: 12px; color: #c3cfdc; }
+  .cl-top { display: flex; justify-content: space-between; align-items: center; color: #93a0b4; font-size: 12px; } .cl-dots { display: flex; gap: 4px; } .cl-dots i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.12); } .cl-dots i.d { background: #3cf29a; } .cl-dots i.n { background: #ffcc33; }
+  .cl-q { font: 800 19px var(--display); margin: 14px 0; line-height: 1.35; } .cl-opts { display: grid; gap: 8px; }
+  .cl-opts button { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-strong); background: rgba(255,255,255,.05); color: #fff; font: 600 14px var(--body); cursor: pointer; text-align: left; transition: .12s; }
+  .cl-opts button:hover:not(:disabled) { background: rgba(255,255,255,.1); transform: translateX(3px); } .cl-opts b { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: #c8102e; font: 900 13px var(--display); flex: none; }
+  .cl-opts button.ok { border-color: #3cf29a; background: rgba(60, 242, 154, .18); } .cl-opts button.ko { border-color: #ff6b6b; background: rgba(255, 107, 107, .18); }
+  .cl-res { text-align: center; padding: 10px; } .cl-mark { font: 900 72px var(--display); } .cl-mark.ok { color: #3cf29a; } .cl-mark.ko { color: #ff6b6b; } .cl-res p { font-size: 16px; font-style: italic; } .cl-res small { display: block; color: #93a0b4; margin-bottom: 14px; }
+  .rp-sheet { background: #fbfaf6; color: #1b1f2a; border-radius: 10px; padding: 18px 20px; font-family: Georgia, serif; box-shadow: inset 0 0 0 1px #e2ddd0; }
+  .rp-head { display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #c8102e; padding-bottom: 10px; } .rp-logo { background: #c8102e; color: #fff; font: 900 16px Arial; padding: 8px 10px; border-radius: 6px; letter-spacing: .04em; }
+  .rp-head b { display: block; font-size: 16px; } .rp-head small { display: block; font-size: 11px; color: #6b6f7a; } .rp-who { margin-left: auto; text-align: right; }
+  .rp-t { width: 100%; border-collapse: collapse; margin: 12px 0; font: 13px Arial; } .rp-t th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #6b6f7a; border-bottom: 1px solid #d8d2c4; padding: 6px; }
+  .rp-t td { padding: 7px 6px; border-bottom: 1px solid #ece7dc; } .rp-t td.n { font: 800 15px 'Courier New', monospace; } .rp-t td.ok { color: #1a7f45; font-weight: 700; } .rp-t td.ko { color: #c8102e; font-weight: 700; }
+  .rp-comments p { font-size: 12.5px; margin: 4px 0; color: #3b404c; } .rp-foot { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; border-top: 1px solid #d8d2c4; padding-top: 10px; }
+  .rp-foot small { display: block; font: 11px Arial; color: #6b6f7a; text-transform: uppercase; } .rp-foot b { font: 900 30px Georgia, serif; color: #c8102e; } .rp-foot span { display: block; font: 700 13px Arial; }
+  .rp-sign { text-align: center; } .rp-sign i { display: block; font: italic 20px 'Brush Script MT', cursive; color: #243a8a; border-bottom: 1px solid #999; padding: 0 16px; }
+  .tt { width: 100%; border-collapse: separate; border-spacing: 4px; font-size: 12px; } .tt th { font: 800 12px var(--display); color: #93a0b4; padding: 4px; } .tt th.on { color: #ffcc33; }
+  .tt td { background: rgba(255,255,255,.05); border-radius: 8px; padding: 6px; vertical-align: top; } .tt td:first-child { background: none; color: #93a0b4; font: 700 12px 'Courier New', monospace; } .tt td b { display: block; font-size: 11.5px; } .tt td small { color: #93a0b4; }
+  .tt td.now { background: rgba(200, 16, 46, .35); box-shadow: inset 0 0 0 1px #ff6b6b; } .tt tr.brk td { background: rgba(255, 204, 51, .08); text-align: center; color: #ffcc33; }
   #tripHud { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 30; min-width: 300px; padding: 10px 16px 14px; border-radius: 14px; background: rgba(10, 15, 26, .88); border: 1px solid #2c3b5c; color: #fff; opacity: 0; transition: .3s; pointer-events: none; overflow: hidden; }
   #tripHud.show { opacity: 1; } #tripHud b { display: block; font: 800 14px var(--display); } #tripHud span { font-size: 12.5px; color: #b8c3d4; }
   #tripHud i { position: absolute; left: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #d6202b, #ffcc33); }
@@ -1540,6 +1569,7 @@
 <script src="js/ave_gen.js" data-w></script>
 <script src="js/campnou.js" data-w></script>
 <script src="js/dimensions.js" data-w></script>
+<script src="js/moon_gen.js" data-w></script>
 <script src="js/mesher.js" data-w></script>
 <script src="js/workers.js"></script>
 <script src="js/atmosphere.js"></script>
@@ -1614,6 +1644,8 @@
 <script src="js/minigames.js"></script>
 <script src="js/mayor.js"></script>
 <script src="js/radio.js"></script>
+<script src="js/rocket.js"></script>
+<script src="js/classes.js"></script>
 <script src="js/main.js"></script>
 <script src="js/touch.js"></script>
 <script src="js/crazy.js"></script>

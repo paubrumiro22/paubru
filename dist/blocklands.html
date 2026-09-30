@@ -531,6 +531,35 @@
   .vc-modes { display: grid; gap: 8px; margin-bottom: 10px; } .vc-m { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; gap: 0 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: #fff; cursor: pointer; text-align: left; }
   .vc-m.on { border-color: #3cf29a; background: rgba(60, 242, 154, .1); } .vc-m i { grid-row: 1 / span 2; font-style: normal; font-size: 22px; align-self: center; } .vc-m b { font: 800 14px var(--display); } .vc-m span { font-size: 12px; color: #93a0b4; }
   .ntag.talk::after { content: ' &#x1f399;&#xfe0f;'; }
+  /* rocket.js */
+  #rocketHud { position: fixed; left: 50%; top: 18%; transform: translateX(-50%); z-index: 30; text-align: center; color: #fff; opacity: 0; transition: .3s; pointer-events: none; text-shadow: 0 2px 12px rgba(0,0,0,.7); }
+  #rocketHud.show { opacity: 1; } #rocketHud b { display: block; font: 900 30px var(--display); } #rocketHud span { font: 700 14px 'Courier New', monospace; color: #ffcc33; }
+  #rocketHud .rk-count { font: 900 120px var(--display); color: #fff; line-height: 1; text-shadow: 0 0 40px rgba(255, 140, 60, .8); }
+  #spaceFx { position: fixed; inset: 0; z-index: 89; }
+  .rk-card { text-align: center; padding: 6px; } .rk-card b { display: block; font: 800 18px var(--display); margin-top: 10px; } .rk-card p { color: #b8c3d4; font-size: 13px; margin: 8px 0 14px; }
+  .rk-route { display: flex; align-items: center; justify-content: center; gap: 14px; font-size: 44px; } .rk-route i { width: 140px; height: 2px; background: repeating-linear-gradient(90deg, #ffcc33 0 6px, transparent 6px 12px); position: relative; }
+  .rk-route i::after { content: '&#x1f680;'; position: absolute; left: 50%; top: -14px; font-size: 22px; font-style: normal; transform: translateX(-50%) rotate(45deg); animation: rkFly 2.4s ease-in-out infinite; }
+  @keyframes rkFly { 0% { left: 5%; } 100% { left: 95%; } }
+  /* classes.js */
+  #classChip { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); z-index: 25; display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; margin-top: 44px; border-radius: 12px; background: rgba(14, 22, 40, .88); border: 1px solid #c8102e; color: #fff; opacity: 0; transition: .3s; pointer-events: none; white-space: nowrap; }
+  #classChip.show { opacity: 1; } #classChip i { font-style: normal; font-size: 18px; } #classChip b { font: 800 13px var(--display); } #classChip span { font-size: 12px; color: #c3cfdc; }
+  .cl-top { display: flex; justify-content: space-between; align-items: center; color: #93a0b4; font-size: 12px; } .cl-dots { display: flex; gap: 4px; } .cl-dots i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.12); } .cl-dots i.d { background: #3cf29a; } .cl-dots i.n { background: #ffcc33; }
+  .cl-q { font: 800 19px var(--display); margin: 14px 0; line-height: 1.35; } .cl-opts { display: grid; gap: 8px; }
+  .cl-opts button { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-strong); background: rgba(255,255,255,.05); color: #fff; font: 600 14px var(--body); cursor: pointer; text-align: left; transition: .12s; }
+  .cl-opts button:hover:not(:disabled) { background: rgba(255,255,255,.1); transform: translateX(3px); } .cl-opts b { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: #c8102e; font: 900 13px var(--display); flex: none; }
+  .cl-opts button.ok { border-color: #3cf29a; background: rgba(60, 242, 154, .18); } .cl-opts button.ko { border-color: #ff6b6b; background: rgba(255, 107, 107, .18); }
+  .cl-res { text-align: center; padding: 10px; } .cl-mark { font: 900 72px var(--display); } .cl-mark.ok { color: #3cf29a; } .cl-mark.ko { color: #ff6b6b; } .cl-res p { font-size: 16px; font-style: italic; } .cl-res small { display: block; color: #93a0b4; margin-bottom: 14px; }
+  .rp-sheet { background: #fbfaf6; color: #1b1f2a; border-radius: 10px; padding: 18px 20px; font-family: Georgia, serif; box-shadow: inset 0 0 0 1px #e2ddd0; }
+  .rp-head { display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #c8102e; padding-bottom: 10px; } .rp-logo { background: #c8102e; color: #fff; font: 900 16px Arial; padding: 8px 10px; border-radius: 6px; letter-spacing: .04em; }
+  .rp-head b { display: block; font-size: 16px; } .rp-head small { display: block; font-size: 11px; color: #6b6f7a; } .rp-who { margin-left: auto; text-align: right; }
+  .rp-t { width: 100%; border-collapse: collapse; margin: 12px 0; font: 13px Arial; } .rp-t th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #6b6f7a; border-bottom: 1px solid #d8d2c4; padding: 6px; }
+  .rp-t td { padding: 7px 6px; border-bottom: 1px solid #ece7dc; } .rp-t td.n { font: 800 15px 'Courier New', monospace; } .rp-t td.ok { color: #1a7f45; font-weight: 700; } .rp-t td.ko { color: #c8102e; font-weight: 700; }
+  .rp-comments p { font-size: 12.5px; margin: 4px 0; color: #3b404c; } .rp-foot { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; border-top: 1px solid #d8d2c4; padding-top: 10px; }
+  .rp-foot small { display: block; font: 11px Arial; color: #6b6f7a; text-transform: uppercase; } .rp-foot b { font: 900 30px Georgia, serif; color: #c8102e; } .rp-foot span { display: block; font: 700 13px Arial; }
+  .rp-sign { text-align: center; } .rp-sign i { display: block; font: italic 20px 'Brush Script MT', cursive; color: #243a8a; border-bottom: 1px solid #999; padding: 0 16px; }
+  .tt { width: 100%; border-collapse: separate; border-spacing: 4px; font-size: 12px; } .tt th { font: 800 12px var(--display); color: #93a0b4; padding: 4px; } .tt th.on { color: #ffcc33; }
+  .tt td { background: rgba(255,255,255,.05); border-radius: 8px; padding: 6px; vertical-align: top; } .tt td:first-child { background: none; color: #93a0b4; font: 700 12px 'Courier New', monospace; } .tt td b { display: block; font-size: 11.5px; } .tt td small { color: #93a0b4; }
+  .tt td.now { background: rgba(200, 16, 46, .35); box-shadow: inset 0 0 0 1px #ff6b6b; } .tt tr.brk td { background: rgba(255, 204, 51, .08); text-align: center; color: #ffcc33; }
   #tripHud { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 30; min-width: 300px; padding: 10px 16px 14px; border-radius: 14px; background: rgba(10, 15, 26, .88); border: 1px solid #2c3b5c; color: #fff; opacity: 0; transition: .3s; pointer-events: none; overflow: hidden; }
   #tripHud.show { opacity: 1; } #tripHud b { display: block; font: 800 14px var(--display); } #tripHud span { font-size: 12.5px; color: #b8c3d4; }
   #tripHud i { position: absolute; left: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #d6202b, #ffcc33); }
@@ -9405,7 +9434,8 @@ function placeStructures(g, chunk) {
   const x0 = chunk.cx * CS, z0 = chunk.cz * CS;
   const plans = structuresIn(g, x0, z0, x0 + CS - 1, z0 + CS - 1);
   const ave = typeof aveChunk === 'function' ? aveChunk(g, x0, z0) : null;
-  if (!plans.length && !ave) return;
+  const space = typeof spaceChunk === 'function' ? spaceChunk(g, x0, z0) : null;
+  if (!plans.length && !ave && !space) return;
   const W = structWriter(chunk);
   for (const p of plans) for (const piece of p.pieces) {
     const b = piece.box;
@@ -9414,6 +9444,7 @@ function placeStructures(g, chunk) {
   }
   // the high-speed line runs further out than any plan reaches (ave_gen.js)
   if (ave) ave(W);
+  if (space) space(W);
 }
 </script>
 <script data-w>
@@ -11873,7 +11904,7 @@ WORLD_PRESETS.campnou = {
 //   Deep Dark  z >= 150 000   local z = z - 200 000   1 block = 4 in the Overworld
 // Only "default" worlds have them. Generation is deterministic from the seed like the rest.
 
-const DIM_OVER = 0, DIM_NETHER = 1, DIM_END = 2, DIM_DEEP = 3;
+const DIM_OVER = 0, DIM_NETHER = 1, DIM_END = 2, DIM_DEEP = 3, DIM_MOON = 4;
 const DIM_EDGE = 150000, DIM_C = 200000;
 const NETHER_LAVA = 31, DEEP_WATER = 20;
 
@@ -11881,13 +11912,14 @@ function dimAt(x, z) {
   if (x >= DIM_EDGE) return DIM_NETHER;
   if (x <= -DIM_EDGE) return DIM_END;
   if (z >= DIM_EDGE) return DIM_DEEP;
+  if (z <= -DIM_EDGE) return DIM_MOON;
   return DIM_OVER;
 }
 function dimLocal(d, x, z) {
-  return d === DIM_NETHER ? [x - DIM_C, z] : d === DIM_END ? [x + DIM_C, z] : d === DIM_DEEP ? [x, z - DIM_C] : [x, z];
+  return d === DIM_NETHER ? [x - DIM_C, z] : d === DIM_END ? [x + DIM_C, z] : d === DIM_DEEP ? [x, z - DIM_C] : d === DIM_MOON ? [x, z + DIM_C] : [x, z];
 }
 function dimWorld(d, lx, lz) {
-  return d === DIM_NETHER ? [lx + DIM_C, lz] : d === DIM_END ? [lx - DIM_C, lz] : d === DIM_DEEP ? [lx, lz + DIM_C] : [lx, lz];
+  return d === DIM_NETHER ? [lx + DIM_C, lz] : d === DIM_END ? [lx - DIM_C, lz] : d === DIM_DEEP ? [lx, lz + DIM_C] : d === DIM_MOON ? [lx, lz - DIM_C] : [lx, lz];
 }
 // Where a portal at (x, z) in dimension `from` leads in dimension `to` (world x, z).
 function dimTarget(from, to, x, z) {
@@ -12418,6 +12450,227 @@ function buildAncientCity(g, P, chunk) {
       if (d === DIM_END) { const [lx, lz] = dimLocal(d, x, z); const c = endColumn(dimNoise(this), lx, lz); return c ? c[0] : 0; }
       if (d) return d === DIM_NETHER ? 40 : 30;
     }
+    return h0.call(this, x, z);
+  };
+}
+</script>
+<script data-w>
+'use strict';
+// The Moon and the spaceport. Deterministic, loaded in the chunk workers too (data-w).
+// - The Moon is a band of the same world like the other dimensions (z <= -150 000, local
+//   z = z + 200 000, DIM_MOON in dimensions.js): grey regolith (calcite over tuff and andesite)
+//   with rolling hills, craters with raised rims, boulders and bedrock. In the middle (local 0, 0)
+//   the Moon base: a landing pad, three glass domes joined by corridors \u2014 the living quarters,
+//   the lab and the greenhouse \u2014 solar panel fields and a radio mast.
+// - The spaceport on Earth, south of the district: a levelled apron, the launch pad with its
+//   flame trench and service tower, a control building with ticket machines and a lit path back
+//   to the district. rocket.js flies the rocket between the two pads.
+
+const MOON_BASE_Y = 64;
+
+// ---------------------------------------------------------------- the Moon ----
+function moonHeight(g, lx, lz) {
+  const N = dimNoise(g);
+  let h = MOON_BASE_Y + N.a.fbm2(lx * 0.006, lz * 0.006, 4) * 14 + N.b.fbm2(lx * 0.03, lz * 0.03, 2) * 2.5;
+  // craters: at most one per 56-block cell
+  const ci = Math.floor(lx / 56), cj = Math.floor(lz / 56);
+  for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+    const i = ci + di, j = cj + dj;
+    if (hash3(i, 3, j, g.seed + 401) > 0.55) continue;
+    const cx = i * 56 + 10 + hash3(i, 4, j, g.seed + 402) * 36, cz = j * 56 + 10 + hash3(i, 5, j, g.seed + 403) * 36;
+    const r = 7 + hash3(i, 6, j, g.seed + 404) * 20, d = Math.hypot(lx - cx, lz - cz) / r;
+    if (d < 1) h -= (1 - d * d) * r * 0.42;
+    else if (d < 1.5) h += Math.sin((d - 1) / 0.5 * Math.PI) * r * 0.12;
+  }
+  // the base sits on flat ground
+  const base = Math.hypot(lx, lz);
+  if (base < 70) h = MOON_BASE_Y + (h - MOON_BASE_Y) * smoothstep(48, 70, base);
+  return Math.floor(h);
+}
+
+function genMoon(g, chunk) {
+  const b = chunk.blocks, ox = chunk.cx * CS, oz = chunk.cz * CS, loz = oz + DIM_C;
+  const at = (x, y, z) => (y * CS + z) * CS + x;
+  for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+    const lx = ox + x, lz = loz + z, h = Math.min(CH - 4, moonHeight(g, lx, lz));
+    b[at(x, 0, z)] = B.BEDROCK;
+    for (let y = 1; y <= h; y++) b[at(x, y, z)] = y > h - 2 ? B.CALCITE : y > h - 6 ? (hash3(lx, y, lz, 7) < 0.3 ? B.ANDESITE : B.TUFF) : y < 8 ? B.BASALT : B.STONE;
+    // boulders
+    const r = hash3(lx, 9, lz, g.seed + 405);
+    if (r < 0.004 && Math.hypot(lx, lz) > 70) { b[at(x, h + 1, z)] = B.ANDESITE; if (r < 0.0015) b[at(x, h + 2, z)] = B.TUFF; }
+  }
+  const W = moonWriter(chunk);
+  if (Math.abs(ox) < 90 && Math.abs(loz) < 90) buildMoonBase(g, W);
+  dimFinish(chunk, WATER_STYLE.river);
+}
+
+// a writer in the Moon's local coordinates
+function moonWriter(chunk) {
+  const W = structWriter(chunk), dz = -DIM_C;
+  return {
+    x0: W.x0, x1: W.x1, z0: W.z0 + DIM_C, z1: W.z1 + DIM_C,
+    set(x, y, z, id, f) { W.set(x, y, z + dz, id, f); },
+    get(x, y, z) { return W.get(x, y, z + dz); },
+    has(x, z) { return W.has(x, z + dz); },
+    pic(x, y, z, f, w, h, builtin) { W.pic(x, y, z + dz, f, w, h, builtin); },
+  };
+}
+
+// A dome of glass round (cx, cz) of radius R on the floor Y, with a terrazzo floor and a ring of lights.
+function moonDome(W, cx, cz, R, Y, floor) {
+  cityRect(W, cx - R, cz - R, cx + R, cz + R, (x, z) => {
+    const d = Math.hypot(x - cx, z - cz);
+    if (d > R + 0.5) return;
+    W.set(x, Y - 1, z, d > R - 0.5 ? B.POLISHED_ANDESITE : floor);
+    for (let y = Y; y <= Y + R; y++) {
+      const rr = Math.hypot(d, (y - Y) * 1.15);
+      W.set(x, y, z, rr > R - 0.6 && rr <= R + 0.5 ? (y === Y ? B.POLISHED_ANDESITE : (Math.round(Math.atan2(z - cz, x - cx) * 8) % 4 === 0 && y < Y + R - 1 ? B.STEEL_PLATE : B.GLASS)) : rr <= R - 0.6 ? B.AIR : W.get(x, y, z));
+    }
+    if (d > R - 1.6 && d <= R - 0.6 && Math.round(Math.atan2(z - cz, x - cx) * 5) % 2 === 0) W.set(x, Y, z, B.SEA_LANTERN);
+  });
+}
+
+function buildMoonBase(g, W) {
+  const Y = MOON_BASE_Y + 1;
+  // the landing pad at (0, 0): concrete with a yellow ring and lights
+  cityRect(W, -9, -9, 9, 9, (x, z) => {
+    const d = Math.hypot(x, z);
+    W.set(x, Y - 1, z, d > 6 && d < 7.2 ? B.CONCRETE + 4 : (x === 0 || z === 0) && d < 3 ? B.CONCRETE + 4 : B.CONCRETE + 7);
+    for (let y = Y; y < Y + 6; y++) W.set(x, y, z, B.AIR);
+    if (Math.abs(x) === 9 && Math.abs(z) === 9) W.set(x, Y, z, B.SEA_LANTERN);
+  });
+  // three domes north of the pad, joined by glass corridors
+  const domes = [[0, -34, 11, B.TERRAZZO, 'home'], [-26, -52, 8, B.CHECKER_TILE, 'lab'], [26, -52, 8, B.MOSS_BLOCK, 'garden']];
+  // corridors: pad \u2192 main dome, main dome \u2192 the other two
+  const corridor = (x0, z0, x1, z1) => {
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(z1 - z0));
+    for (let i = 0; i <= n; i++) {
+      const x = Math.round(x0 + (x1 - x0) * i / n), z = Math.round(z0 + (z1 - z0) * i / n);
+      for (let a = -2; a <= 2; a++) for (let c = -2; c <= 2; c++) {
+        const px = x + a, pz = z + c;
+        if (!W.has(px, pz)) continue;
+        const edge = Math.max(Math.abs(a), Math.abs(c)) === 2;
+        W.set(px, Y - 1, pz, B.POLISHED_ANDESITE);
+        for (let y = Y; y <= Y + 3; y++) {
+          const cur = W.get(px, y, pz);
+          if (edge && cur !== B.AIR) { if (cur !== B.GLASS && cur !== B.STEEL_PLATE && cur !== B.POLISHED_ANDESITE) W.set(px, y, pz, y === Y + 3 ? B.STEEL_PLATE : B.GLASS); }
+          else if (!edge) W.set(px, y, pz, y === Y + 3 ? (i % 6 === 0 ? B.GLASS_LAMP : B.GLASS) : B.AIR);
+          else W.set(px, y, pz, y === Y + 3 ? B.STEEL_PLATE : B.GLASS);
+        }
+      }
+    }
+  };
+  for (const [cx, cz, R, floor] of domes) moonDome(W, cx, cz, R, Y, floor);
+  corridor(0, -10, 0, -23);
+  corridor(-10, -40, -19, -47);
+  corridor(10, -40, 19, -47);
+  // the airlock doors at the pad end
+  placeADoors(W, [[-1, -10], [0, -10], [1, -10]].filter(([x, z]) => W.has(x, z)), Y, 5);
+  // the living dome: beds, sofas, a kitchen, a big window on the Earth
+  const put = (x, y, z, id, f) => { if (W.has(x, z)) W.set(x, y, z, id, f); };
+  for (const x of [-5, -4, -3]) put(x, Y, -37, B.SOFA_GRAY, 4);
+  put(-4, Y, -35, B.COFFEE_TABLE, 0); put(-4, Y, -33, B.TV_ON, 5);
+  for (const [x, id] of [[4, B.KITCHEN_COUNTER], [5, B.STOVE], [6, B.KITCHEN_SINK], [7, B.FRIDGE]]) put(x, Y, -40, id, 4);
+  put(7, Y + 1, -40, B.FRIDGE_TOP, 4);
+  for (const x of [3, 6]) { put(x, Y, -30, B.TABLE, 0); put(x, Y, -29, B.CHAIR, 5); put(x, Y, -31, B.CHAIR, 4); }
+  for (const [x, z] of [[-8, -30], [8, -30]]) { put(x, Y, z, B.PODZOL); put(x, Y + 1, z, B.BUSH); }
+  put(0, Y, -34, B.VENDING_MACHINE, 5);
+  if (W.has(-2, -44)) W.pic(-2, Y + 2, -44, 4, 4, 2, 'moon_sign');
+  // the lab: computers and boards
+  for (const [x, z] of [[-29, -52], [-26, -55], [-23, -52], [-26, -49]]) { put(x, Y, z, B.TABLE, 0); put(x, Y + 1, z, B.DESKTOP_PC, 4); }
+  put(-26, Y, -52, B.IRON_BLOCK); put(-26, Y + 1, -52, B.SEA_LANTERN);
+  // the greenhouse: soil, crops, trees
+  cityRect(W, 21, -57, 31, -47, (x, z) => {
+    const d = Math.hypot(x - 26, z + 52);
+    if (d > 6.5) return;
+    if ((x + z) % 3 === 0) { W.set(x, Y - 1, z, B.FARMLAND); W.set(x, Y, z, B.WHEAT_CROP || B.AIR); }
+    else if (d < 2) W.set(x, Y, z, B.BUSH);
+  });
+  campusTree(W, 26, Y, -52, 'cherry', 4);
+  // solar panel fields east and west of the pad, a radio mast, a flag
+  for (const sx of [-1, 1]) cityRect(W, sx > 0 ? 16 : -28, 4, sx > 0 ? 28 : -16, 16, (x, z) => {
+    if ((z - 4) % 4 === 3) return;
+    W.set(x, Y, z, B.IRON_BARS); W.set(x, Y + 1, z, B.SOLAR_PANEL);
+  });
+  for (let y = Y; y <= Y + 22; y++) put(34, y, -30, B.IRON_BARS);
+  put(34, Y + 23, -30, B.LED_RED);
+  for (let y = Y; y <= Y + 6; y++) put(12, y, -8, B.IRON_BARS);
+}
+
+// ---------------------------------------------------------------- the spaceport ----
+function spacePort(g) {
+  if (!g || !g.structs || typeof stucomVillage !== 'function') return null;
+  if (g._space !== undefined) return g._space;
+  const st = stucomVillage(g);
+  if (!st || !st.district) { g._space = null; return null; }
+  const D = st.district;
+  g._space = { x: D.cx, z: D.cz + DOUT + 44, F: D.F, pathEnd: D.cz + DHALF + 14 };
+  return g._space;
+}
+function spaceChunk(g, x0, z0) {
+  const S = spacePort(g);
+  if (!S) return null;
+  if (x0 + CS - 1 < S.x - 34 || x0 > S.x + 34 || z0 + CS - 1 < S.pathEnd || z0 > S.z + 30) return null;
+  return (W) => buildSpacePort(W, g, S);
+}
+function buildSpacePort(W, g, S) {
+  const { x: X, z: Z, F } = S;
+  // the apron: levelled, cleared
+  cityRect(W, X - 30, Z - 26, X + 30, Z + 26, (x, z) => {
+    const h = g.height(x, z);
+    for (let y = Math.min(h, F - 2); y <= F - 2; y++) W.set(x, y, z, y >= F - 3 ? B.DIRT : B.STONE);
+    const a = x - X, b = z - Z;
+    W.set(x, F - 1, z, Math.abs(a) <= 10 && Math.abs(b) <= 10 ? B.CONCRETE + 7 : (a + b) % 9 === 0 ? B.POLISHED_ANDESITE : B.CONCRETE + 8);
+    for (let y = F; y <= Math.max(h + 6, F + 48) && y < CH; y++) if (W.get(x, y, z) !== B.AIR) W.set(x, y, z, B.AIR);
+  });
+  // the launch pad: a raised plinth with a yellow ring, the flame trench running south
+  cityRect(W, X - 8, Z - 8, X + 8, Z + 8, (x, z) => {
+    const a = x - X, b = z - Z, d = Math.hypot(a, b);
+    W.set(x, F, z, d > 5.5 && d < 6.6 ? B.CONCRETE + 4 : B.CONCRETE + 7);
+    if (d < 2.5) W.set(x, F, z, B.STEEL_PLATE);
+    if (Math.abs(a) === 8 && Math.abs(b) === 8) W.set(x, F + 1, z, B.SEA_LANTERN);
+  });
+  cityRect(W, X - 2, Z + 9, X + 2, Z + 24, (x, z) => { for (let y = F - 5; y < F; y++) W.set(x, y, z, B.AIR); W.set(x, F - 6, z, B.BASALT); });
+  // the service tower: a steel lattice to the west with arms to the rocket
+  cityRect(W, X - 12, Z - 2, X - 10, Z + 2, (x, z) => {
+    for (let y = F + 1; y <= F + 40; y++) {
+      const edge = x === X - 12 || x === X - 10 || Math.abs(z - Z) === 2;
+      W.set(x, y, z, edge ? ((y + x + z) % 4 === 0 ? B.STEEL_PLATE : B.IRON_BARS) : B.AIR);
+    }
+    W.set(x, F + 41, z, B.STEEL_PLATE);
+  });
+  for (const y of [F + 14, F + 26, F + 36]) cityRect(W, X - 9, Z - 1, X - 3, Z + 1, (x, z) => { W.set(x, y, z, B.STEEL_PLATE); if (z !== Z) W.set(x, y + 1, z, B.IRON_BARS); });
+  if (W.has(X - 11, Z)) W.set(X - 11, F + 42, Z, B.LED_RED);
+  // the control building to the north-east: glass, ticket machines, the big sign
+  const bx0 = X + 14, bz0 = Z - 22, bx1 = X + 28, bz1 = Z - 12;
+  cityRect(W, bx0, bz0, bx1, bz1, (x, z) => {
+    const edge = x === bx0 || x === bx1 || z === bz0 || z === bz1;
+    W.set(x, F - 1, z, B.TERRAZZO);
+    for (let y = F; y <= F + 5; y++) W.set(x, y, z, y === F + 5 ? B.CONCRETE + 8 : edge ? ((x - bx0) % 4 === 0 || z === bz0 && x % 3 === 0 ? B.CONCRETE + 7 : B.GLASS) : B.AIR);
+    if (!edge && z === bz0 + 1 && x % 3 === 0) W.set(x, F, z, B.VENDING_MACHINE, 4);
+    if (!edge && z === bz1 - 2 && x > bx0 + 2 && x < bx1 - 2) { W.set(x, F, z, B.TABLE); W.set(x, F + 1, z, B.DESKTOP_PC, 5); }
+  });
+  placeADoors(W, [[bx0 + 6, bz1], [bx0 + 7, bz1], [bx0 + 8, bz1]].filter(([x, z]) => W.has(x, z)), F, 4);
+  if (W.has(bx0 + 3, bz1 + 1)) W.pic(bx0 + 3, F + 3, bz1 + 1, 4, 8, 2, 'space_sign');
+  // lamps round the apron and a path to the district
+  cityRect(W, X - 30, Z - 26, X + 30, Z + 26, (x, z) => { const a = x - X, b = z - Z; if ((Math.abs(a) === 30 || Math.abs(b) === 26) && (a + b) % 12 === 0) campusLamp(W, x, F, z); });
+  cityRect(W, X + 18, S.pathEnd, X + 22, Z - 27, (x, z) => {
+    let y = F + 20;
+    while (y > 2 && (W.get(x, y, z) <= 0 || !BLOCK_SOLID[W.get(x, y, z)] || BLOCK_RT[W.get(x, y, z)] === RT_CROSS || BLOCK_RT[W.get(x, y, z)] === RT_CUTOUT || AVE_LOGS.has(W.get(x, y, z)))) y--;
+    W.set(x, y, z, x === X + 18 || x === X + 22 ? B.POLISHED_ANDESITE : B.PANOT);
+    for (let yy = y + 1; yy <= y + 5; yy++) if (W.get(x, yy, z) > 0) W.set(x, yy, z, B.AIR);
+    if (x === X + 22 && (z - Z) % 14 === 0) campusLamp(W, x, y + 1, z);
+  });
+}
+
+{
+  const gen0 = WorldGen.prototype.generate, h0 = WorldGen.prototype.height;
+  WorldGen.prototype.generate = function (chunk) {
+    if (this.type === 'default' && dimAt(chunk.cx * CS + 8, chunk.cz * CS + 8) === DIM_MOON) return genMoon(this, chunk);
+    return gen0.call(this, chunk);
+  };
+  WorldGen.prototype.height = function (x, z) {
+    if (this.type === 'default' && dimAt(x, z) === DIM_MOON) return moonHeight(this, x, z + DIM_C);
     return h0.call(this, x, z);
   };
 }
@@ -24853,6 +25106,7 @@ const DIM_INFO = [
   { key: 'nether', name: 'The Nether', icon: '\ud83d\udd25', fog: [0.32, 0.07, 0.04], fogD: 0.016, amb: [0.1, 0.055, 0.04], day: 0.27 },
   { key: 'end', name: 'The End', icon: '\ud83c\udf0c', fog: [0.07, 0.04, 0.1], fogD: 0.0035, amb: [0.11, 0.1, 0.13], day: 0.78 },
   { key: 'deep', name: 'The Deep Dark', icon: '\ud83d\udd6f\ufe0f', fog: [0.016, 0.032, 0.042], fogD: 0.022, amb: [0.04, 0.056, 0.072], day: 0.27 },
+  { key: 'moon', name: ED('La Lluna', 'The Moon'), icon: '\ud83c\udf15', fog: [0.012, 0.012, 0.02], fogD: 0.0018, amb: [0.2, 0.2, 0.22], day: 0.27, rocket: true },
 ];
 // the dimension of a world position (only default worlds have dimensions)
 function dimOf(x, z) { return G.world && G.world.gen.type === 'default' ? dimAt(x, z) : DIM_OVER; }
@@ -25357,7 +25611,7 @@ function dimAtmosphere(r, dim) {
   A.dimAmb = info.amb.map((v) => v * (1 - dark * 0.85));
   A.fogDensity = info.fogD * (1 + dark * 2.5);
   A.sunColor = [0, 0, 0];
-  A.lightColor = dim === DIM_END ? [0.12, 0.1, 0.16] : [0, 0, 0];
+  A.lightColor = dim === DIM_END ? [0.12, 0.1, 0.16] : dim === DIM_MOON ? [0.55, 0.55, 0.52] : [0, 0, 0];
   A.cloudCover = 0;
 }
 {
@@ -42309,6 +42563,566 @@ const Voice = {
   };
   PC.add({ key: 'radio', icon: '\ud83d\udcfb', name: ED('R\u00e0dio', 'Radio'), run() { Radio.open(); } });
   PC.add({ key: 'voice', icon: '\ud83c\udf99\ufe0f', name: ED('Veu', 'Voice'), run() { Voice.open(); } });
+}
+</script>
+<script>
+'use strict';
+// The rocket to the Moon. It stands on the launch pad of the spaceport (moon_gen.js builds it
+// south of the district) and on the pad of the Moon base. Buy a seat at the control building,
+// the rocket or the Space app: ten seconds of countdown with smoke building up, ignition,
+// lift-off on a column of fire, the sky going dark, a few seconds among the stars with the Moon
+// growing ahead, and a powered landing on the other pad. On the Moon gravity is a third (jumps
+// go high), the sky is black with the Earth hanging in it, and no monsters walk.
+
+const ROCKET_PRICE = 500;
+{
+  const WH = [0.95, 0.95, 0.96], DK = [0.14, 0.15, 0.18], RED = [0.84, 0.12, 0.16], GRY = [0.6, 0.62, 0.66];
+  const parts = [
+    // the core stage
+    [-1.6, 3, -1.6, 1.6, 20, 1.6, 'white', { c: WH }], [-1.62, 12, -1.62, 1.62, 13.5, 1.62, 'white', { c: DK }],
+    [-1.62, 3, -1.62, 1.62, 4.2, 1.62, 'white', { c: DK }], [-1.63, 16, -1.63, 1.63, 16.4, 1.63, 'white', { c: RED }],
+    // the upper stage and the capsule
+    [-1.3, 20, -1.3, 1.3, 26, 1.3, 'white', { c: WH }], [-1.32, 22.5, -1.32, 1.32, 23, 1.32, 'white', { c: RED }],
+    [-1.05, 26, -1.05, 1.05, 28.2, 1.05, 'white', { c: WH }], [-0.75, 28.2, -0.75, 0.75, 29.6, 0.75, 'white', { c: WH }],
+    [-0.4, 29.6, -0.4, 0.4, 30.6, 0.4, 'white', { c: WH }], [-0.08, 30.6, -0.08, 0.08, 32.4, 0.08, 'metal'],
+    [-1.07, 26.6, 0.5, 1.07, 27.4, 1.07, 'glass'],
+    // side boosters
+    [1.6, 1.5, -0.7, 3.0, 15, 0.7, 'white', { c: WH, m: true }], [1.7, 15, -0.55, 2.9, 16.4, 0.55, 'white', { c: WH, m: true }],
+    [1.75, 16.4, -0.35, 2.85, 17.2, 0.35, 'white', { c: RED, m: true }], [1.6, 1.5, -0.72, 3.02, 2.4, 0.72, 'white', { c: DK, m: true }],
+    // fins and the engine bells
+    [3.0, 1.5, -0.12, 4.1, 4.5, 0.12, 'white', { c: RED, m: true }], [-0.12, 1.5, 1.6, 0.12, 4.5, 2.8, 'white', { c: RED }], [-0.12, 1.5, -2.8, 0.12, 4.5, -1.6, 'white', { c: RED }],
+    [-1.2, 1.4, -1.2, 1.2, 3, 1.2, 'metal'], [-0.9, 0.4, -0.9, 0.9, 1.4, 0.9, 'hullDark'], [1.9, 0.6, -0.5, 2.7, 1.5, 0.5, 'hullDark', { m: true }],
+    // windows and lights
+    [1.31, 24, -0.4, 1.33, 24.8, 0.4, 'glass', { m: true }], [-0.1, 32.4, -0.1, 0.1, 32.6, 0.1, 'navRed', { glow: 2 }],
+  ];
+  RIDE_KINDS.rocket = {
+    item: I.AVE_TICKET, name: 'Rocket', type: 'air', max: 200, rev: 0, acc: 0, brake: 0, steer: 0, base: 8, step: 1.05, h: 33, len: 8, w: 8,
+    seat: [0, 26.2, 0.2], eye: [0, 27.2, 0.7], cam: 44, sit: true, hide: true, sound: 'heli', paintDefault: 0,
+    parts, hit: [[-3, 0, -3, 3, 32, 3]],
+  };
+  RIDE_KEYS.push('rocket');
+  const d = RIDE_KINDS.rocket;
+  d.key = 'rocket';
+  const out = [];
+  for (const [x0, y0, z0, x1, y1, z1, sw, o = {}] of d.parts) {
+    out.push({ box: [x0, y0, z0, x1, y1, z1], sw, o });
+    if (o.m) out.push({ box: [-x1, y0, z0, -x0, y1, z1], sw, o: Object.assign({}, o) });
+  }
+  d.model = out;
+}
+
+const Rocket = {
+  v: null, at: null, trip: null, fx: null, hint: {},
+  pads() {
+    const g = G.world && G.world.gen, S = g && spacePort(g);
+    const out = [];
+    if (S) out.push({ k: 'earth', x: S.x + 0.5, y: S.F + 1, z: S.z + 0.5, name: ED('Cosm\u00f2drom ', 'Spaceport ') + CITY });
+    if (g && g.type === 'default') { const [x, z] = dimWorld(DIM_MOON, 0, 0); out.push({ k: 'moon', x: x + 0.5, y: MOON_BASE_Y + 1, z: z + 0.5, name: ED('Base Lunar Tranquil\u00b7litat', 'Tranquility Moon Base') }); }
+    return out;
+  },
+  pad(k) { return this.pads().find((p) => p.k === k) || null; },
+  nearPad() { const p = G.player.pos; return this.pads().find((q) => Math.hypot(q.x - p[0], q.z - p[2]) < 220 && Math.abs(q.y - p[1]) < 140) || null; },
+  onMoon() { const p = G.player.pos; return dimOf(p[0], p[2]) === DIM_MOON; },
+  spawn(P) {
+    if (this.v && !this.v.removed) this.v.removed = true;
+    const v = this.v = Rides.spawn('rocket', P.x, P.y, P.z, 0, 0);
+    v.scripted = true; v.rocket = true; v.onGround = true;
+    this.at = P.k;
+    return v;
+  },
+
+  update(dt) {
+    if (this.trip) { this.fly(dt); return; }
+    const P = this.nearPad();
+    if (!P) { if (this.v) { this.v.removed = true; this.v = null; } return; }
+    if (!this.v || this.v.removed || this.at !== P.k) this.spawn(P);
+    const v = this.v;
+    v.pos = [P.x, P.y, P.z]; v.yaw = 0; v.pitch = 0; v.roll = 0; v.speed = 0;
+    if (v.basis) v.basis();
+    // steam venting while it waits
+    if (Math.random() < dt * 2) Particles.smoke && Particles.smoke(P.x + rand(-1.5, 1.5), P.y + rand(4, 14), P.z + rand(-1.5, 1.5), 1, 0.4);
+    const p = G.player.pos;
+    if (!this.hint[P.k] && Math.hypot(P.x - p[0], P.z - p[2]) < 40) { this.hint[P.k] = true; G.ui.banner('\ud83d\ude80', P.name + (P.k === 'earth' ? ' \u00b7 seats to the Moon at the control building' : ' \u00b7 the rocket home is on the pad')); }
+  },
+
+  open() {
+    const P = this.nearPad();
+    if (!P) { this.find(); return; }
+    const to = P.k === 'earth' ? 'moon' : 'earth';
+    const q = GPanel.open({ title: P.name, sub: to === 'moon' ? 'Next launch: now' : 'Flight home', icon: '\ud83d\ude80', cls: 'gp-rocket', width: 480 });
+    const price = to === 'moon' ? ROCKET_PRICE : 0;
+    q.body.innerHTML = `<div class="rk-card"><div class="rk-route"><span>${P.k === 'earth' ? '\ud83c\udf0d' : '\ud83c\udf15'}</span><i></i><span>${to === 'moon' ? '\ud83c\udf15' : '\ud83c\udf0d'}</span></div>
+      <b>${to === 'moon' ? 'To the Moon \u00b7 Tranquility base' : 'Back to ' + BZ.esc(CITY)}</b>
+      <p>${to === 'moon' ? 'Countdown, lift-off, a few minutes among the stars and a landing next to the domes. Low gravity, black sky, the Earth overhead.' : 'The flight home is included with your seat.'}</p>
+      <button class="gp-btn ok rk-go">${price ? '\ud83e\ude99 ' + price + ' \u00b7 ' : ''}Board the rocket</button></div>`;
+    q.body.querySelector('.rk-go').addEventListener('click', () => {
+      if (this.trip || Ave.trip || Airport.mine || Cruise.trip) { G.ui.toast('You are already travelling'); return; }
+      if (price && !Shops.pay(price)) { G.ui.toast('\ud83e\ude99 A seat costs ' + price + ' coins'); sfx('gate_no', null, 0.6, 1); return; }
+      q.close();
+      this.launch(P, to);
+    });
+  },
+  find() {
+    const S = this.pad('earth');
+    if (!S) { G.ui.toast('This world has no spaceport'); return; }
+    G.markers = G.markers || [];
+    if (!G.markers.some((m) => m.x === Math.round(S.x) && m.z === Math.round(S.z))) G.markers.push({ x: Math.round(S.x), z: Math.round(S.z), name: '\ud83d\ude80 Spaceport', color: '#ff7a3d' });
+    const p = G.player.pos, d = Math.hypot(S.x - p[0], S.z - p[2]);
+    G.ui.banner('\ud83d\ude80', 'Spaceport \u00b7 ' + Math.round(d) + ' blocks south of the district \u00b7 marked on your map (M)');
+  },
+
+  launch(P, to) {
+    const v = this.v && !this.v.removed && this.at === P.k ? this.v : this.spawn(P);
+    this.trip = { from: P, to, phase: 'count', t: 0, v };
+    Airport.fade(true, () => {
+      boardRocket.call(Vehicles, v);
+      G.player.yaw = Math.PI * 0.75; G.player.pitch = -0.35;
+      G.ui.banner('\ud83d\ude80', 'Strap in: launch in 10 seconds');
+      Airport.fade(false);
+    }, 700);
+  },
+  fly(dt) {
+    const T = this.trip, v = T.v;
+    if (!v || v.removed) { this.trip = null; return; }
+    T.t += dt;
+    const P = T.phase === 'down' ? T.dest : T.from;
+    let y = P.y;
+    if (T.phase === 'count') {
+      const n = Math.ceil(10 - T.t);
+      if (n !== T.said && n > 0) { T.said = n; sfx('click', null, 0.8, 0.7 + (10 - n) * 0.04); }
+      if (T.t > 6) for (let i = 0; i < 3; i++) Particles.smoke && Particles.smoke(P.x + rand(-3, 3), P.y + rand(0, 2), P.z + rand(-3, 3), 2, 0.8);
+      if (T.t > 8.5 && Math.random() < 0.6) Particles.flame && Particles.flame(P.x + rand(-1, 1), P.y + 0.5, P.z + rand(-1, 1));
+      if (T.t >= 10) { T.phase = 'up'; T.t = 0; sfx('rocket_roar', null, 1, 1); G.ui.banner('\ud83d\udd25', 'Lift-off!'); }
+    } else if (T.phase === 'up') {
+      y = P.y + 0.5 * 3.6 * T.t * T.t;
+      this.exhaust(v, 1);
+      if (Math.random() < dt * 2) sfx('rocket_roar', null, 0.7, 0.9 + T.t * 0.02);
+      if (T.t > 11 && !T.busy) { T.busy = true; this.space(T); }
+    } else if (T.phase === 'down') {
+      const k = Math.min(1, T.t / 12);
+      y = P.y + 180 * (1 - k) * (1 - k);
+      this.exhaust(v, 0.6);
+      if (T.t >= 12 && !T.busy) { T.busy = true; this.landed(T); }
+    }
+    v.pos = [P.x, y, P.z]; v.yaw = 0; v.pitch = 0; v.roll = T.phase === 'up' ? Math.sin(T.t * 30) * 0.002 * T.t : 0;
+    v.speed = T.phase === 'up' ? 3.6 * T.t : T.phase === 'down' ? 30 * (1 - T.t / 12) : 0;
+    if (v.basis) v.basis();
+    this.hud();
+  },
+  exhaust(v, k) {
+    for (let i = 0; i < 4; i++) {
+      Particles.flame && Particles.flame(v.pos[0] + rand(-0.8, 0.8), v.pos[1] + rand(-1.5, 0.5), v.pos[2] + rand(-0.8, 0.8));
+      if (Math.random() < k) Particles.smoke && Particles.smoke(v.pos[0] + rand(-2, 2), v.pos[1] - rand(1, 6), v.pos[2] + rand(-2, 2), 2, 0.8);
+    }
+  },
+  // the cruise between the two worlds
+  space(T) {
+    Airport.fade(true, () => {
+      const dest = this.pad(T.to);
+      this.stars(true, T.to);
+      setTimeout(() => {
+        const p = G.player;
+        T.dest = dest; T.phase = 'down'; T.t = 0; T.busy = false;
+        T.v.pos = [dest.x, dest.y + 180, dest.z];
+        p.pos = [dest.x, dest.y + 180, dest.z]; p.vel = [0, 0, 0]; p.fallStart = null;
+        prepareArea(dest.x, dest.z, 2);
+        Net.teleported();
+        this.stars(false);
+        Airport.fade(false);
+        G.ui.banner(T.to === 'moon' ? '\ud83c\udf15' : '\ud83c\udf0d', T.to === 'moon' ? 'Moon in sight \u00b7 landing burn' : 'Re-entry \u00b7 welcome home');
+      }, 5200);
+    }, 900);
+  },
+  landed(T) {
+    Airport.fade(true, () => {
+      const v = T.v, dest = T.dest, p = G.player;
+      this.trip = null;
+      if (G.vehicle === v) Vehicles.dismount(true);
+      this.at = dest.k;
+      p.pos = [dest.x + 5.5, dest.y + 0.01, dest.z + 0.5]; p.vel = [0, 0, 0]; p.fallStart = null; p.yaw = Math.PI / 2;
+      liftOutOfBlocks(p);
+      Net.teleported();
+      if (dest.k === 'moon') {
+        const pr = G.prog || (G.prog = {});
+        if (!pr.moon) { pr.moon = Date.now(); Shops.earn(100); }
+        G.ui.banner('\ud83c\udf15', 'Tranquility base \u00b7 one small step\u2026 \u00b7 low gravity: jump!');
+      } else G.ui.banner('\ud83c\udf0d', 'Back on Earth \u00b7 ' + CITY + ' spaceport');
+      sfx('achieve', null, 0.9, 1);
+      Airport.fade(false);
+      this.hud();
+    }, 900);
+  },
+  stars(on, to) {
+    if (!on) { if (this.fx) { this.fx.remove(); this.fx = null; } return; }
+    const c = this.fx = document.createElement('canvas');
+    c.id = 'spaceFx'; c.width = innerWidth; c.height = innerHeight;
+    document.body.append(c);
+    const g = c.getContext('2d'), W = c.width, H = c.height, t0 = performance.now();
+    const st = Array.from({ length: 420 }, () => ({ x: rand(-1, 1), y: rand(-1, 1), z: rand(0.1, 1) }));
+    const frame = () => {
+      if (this.fx !== c) return;
+      const t = Math.min(1, (performance.now() - t0) / 5200);
+      g.fillStyle = '#02030a'; g.fillRect(0, 0, W, H);
+      for (const s of st) {
+        s.z -= 0.012; if (s.z <= 0.02) { s.z = 1; s.x = rand(-1, 1); s.y = rand(-1, 1); }
+        const sx = W / 2 + s.x / s.z * W * 0.25, sy = H / 2 + s.y / s.z * H * 0.25, r = (1 - s.z) * 2.4;
+        g.fillStyle = `rgba(255,255,255,${(1 - s.z).toFixed(2)})`; g.fillRect(sx, sy, r, r * (1 + (1 - s.z) * 3));
+      }
+      // the world behind shrinking, the one ahead growing
+      const ahead = to === 'moon', R1 = Math.max(2, H * (0.05 + 0.35 * t * t)), R0 = Math.max(2, H * 0.5 * (1 - t) + 10);
+      const disc = (x, y, R, a, b) => { const gr = g.createRadialGradient(x - R * 0.3, y - R * 0.3, R * 0.1, x, y, R); gr.addColorStop(0, a); gr.addColorStop(1, b); g.fillStyle = gr; g.beginPath(); g.arc(x, y, R, 0, 7); g.fill(); };
+      disc(W * 0.12, H * 1.05, R0, ahead ? '#6fb6ff' : '#e8e8e8', ahead ? '#123b7a' : '#6b6b70');
+      disc(W / 2, H / 2, R1, ahead ? '#f2f2f0' : '#7fc0ff', ahead ? '#7a7a80' : '#1b4f9a');
+      g.fillStyle = '#fff'; g.font = `800 ${Math.round(H * 0.035)}px system-ui`; g.textAlign = 'center';
+      g.fillText(ahead ? ED('Rumb a la Lluna', 'Heading for the Moon') : ED('Tornant a la Terra', 'Heading home'), W / 2, H * 0.12);
+      g.font = `600 ${Math.round(H * 0.022)}px system-ui`; g.fillStyle = '#9fb0c8';
+      g.fillText(Math.round(384400 * (ahead ? t : 1 - t)).toLocaleString() + ' km', W / 2, H * 0.17);
+      requestAnimationFrame(frame);
+    };
+    frame();
+  },
+  hud() {
+    const T = this.trip;
+    let el = $('rocketHud');
+    if (!T) { if (el) el.classList.remove('show'); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'rocketHud'; document.body.append(el); }
+    const big = T.phase === 'count' ? Math.max(0, Math.ceil(10 - T.t)) : '';
+    const alt = Math.max(0, Math.round((T.v.pos[1] - (T.phase === 'down' ? T.dest.y : T.from.y)) * 10));
+    el.innerHTML = big !== '' ? `<b class="rk-count">${big || 'IGNITION'}</b><span>T-${big}</span>` : `<b>${T.phase === 'up' ? '\ud83d\ude80 Ascent' : '\ud83d\udeec Powered descent'}</b><span>${alt} m \u00b7 ${Math.round(T.v.speed * 3.6 * 6)} km/h</span>`;
+    el.classList.add('show');
+  },
+
+  // the Moon's sky: stars and the Earth
+  render(cp) {
+    if (dimOf(cp[0], cp[2]) !== DIM_MOON) return;
+    const uv = () => Vehicles.swatchUV('white');
+    ER.ov = 3;
+    if (!this.sky) this.sky = Array.from({ length: 260 }, (_, i) => { const a = hash3(i, 1, 2, 3) * Math.PI * 2, e = 0.08 + hash3(i, 4, 5, 6) * 1.35; return [Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e), 0.25 + hash3(i, 7, 8, 9) * 0.45]; });
+    const D = 140;
+    for (const [x, y, z, s] of this.sky) {
+      const m = XF.t(x * D, y * D, z * D);
+      ER.color = [0.8, 0.82, 0.9]; ER.box(m, -s, -s, -s, s, s, s, uv);
+    }
+    // the Earth: a blue ball with green land and white clouds, always in the same place
+    const E = XF.t(-0.45 * D, 0.62 * D, -0.64 * D), R = 11;
+    for (let i = -R; i <= R; i += 1.4) for (let j = -R; j <= R; j += 1.4) {
+      const d = Math.hypot(i, j);
+      if (d > R) continue;
+      const land = Math.sin(i * 0.35) + Math.cos(j * 0.3 + i * 0.1) > 0.9, cloud = Math.sin(i * 0.8 + j * 0.2) > 0.85;
+      const shade = 0.55 + 0.45 * (1 - (i + R) / (2 * R));
+      ER.color = cloud ? [shade, shade, shade] : land ? [0.25 * shade, 0.55 * shade, 0.25 * shade] : [0.15 * shade, 0.38 * shade, 0.9 * shade];
+      ER.box(E, i - 0.7, j - 0.7, -Math.sqrt(R * R - d * d) * 0.2, i + 0.7, j + 0.7, 0.4, uv);
+    }
+    ER.ov = 0; ER.color = [1, 1, 1];
+  },
+};
+
+PIC_BUILTIN.space_sign = { w: 8, h: 2, draw(g, W, H) {
+  const grd = g.createLinearGradient(0, 0, W, 0); grd.addColorStop(0, '#0b1230'); grd.addColorStop(1, '#241a52');
+  g.fillStyle = grd; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 60; i++) { g.fillStyle = `rgba(255,255,255,${Math.random() * 0.8})`; g.fillRect(Math.random() * W, Math.random() * H, 1.5, 1.5); }
+  g.font = `${H * 0.6}px serif`; g.textBaseline = 'middle'; g.fillText('\ud83d\ude80', H * 0.2, H * 0.52);
+  g.fillStyle = '#fff'; g.font = `900 ${H * 0.3}px Arial`; g.fillText(ED('COSM\u00d2DROM ', 'SPACEPORT ') + CITY.toUpperCase(), H * 1.1, H * 0.38);
+  g.fillStyle = '#ff9d3d'; g.font = `700 ${H * 0.17}px Arial`; g.fillText(ED('Vols a la Lluna \u00b7 base Tranquil\u00b7litat', 'Flights to the Moon \u00b7 Tranquility base'), H * 1.12, H * 0.7);
+} };
+PIC_BUILTIN.moon_sign = { w: 4, h: 2, draw(g, W, H) {
+  g.fillStyle = '#10141e'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = '#ffcc33'; g.lineWidth = H * 0.03; g.strokeRect(W * 0.04, H * 0.06, W * 0.92, H * 0.88);
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `${H * 0.3}px serif`; g.fillText('\ud83c\udf15', W / 2, H * 0.3);
+  g.fillStyle = '#fff'; g.font = `900 ${H * 0.15}px Arial`; g.fillText(ED('BASE LUNAR', 'MOON BASE'), W / 2, H * 0.6);
+  g.fillStyle = '#ffcc33'; g.font = `700 ${H * 0.11}px Arial`; g.fillText(ED('TRANQUIL\u00b7LITAT', 'TRANQUILITY'), W / 2, H * 0.78);
+} };
+SYNTH.rocket_roar = (ctx, o, t) => { Sound.noise(ctx, o, t, 2.2, { type: 'lowpass', freq: 380, gain: 0.35 }); Sound.tone(ctx, o, t, 2, { wave: 'sawtooth', f0: 48, f1: 40, gain: 0.05 }); };
+
+const boardRocket = Vehicles.board;
+{
+  Vehicles.board = function (v) {
+    if (v && v.rocket) { if (Rocket.trip && Rocket.trip.v === v) return boardRocket.call(this, v); if (!Rocket.trip) Rocket.open(); return; }
+    return boardRocket.call(this, v);
+  };
+  const ser = Vehicles.serialize;
+  Vehicles.serialize = function () { const keep = this.list; this.list = keep.filter((v) => !v.rocket); try { return ser.call(this); } finally { this.list = keep; } };
+  const hit = Vehicles.hit;
+  if (hit) Vehicles.hit = function (v) { if (v && v.rocket) return; return hit.call(this, v); };
+  const pk = Vehicles.pickUp;
+  Vehicles.pickUp = function (v) { if (v && v.rocket) return; return pk.call(this, v); };
+  const idle = Ride.prototype.updateIdle;
+  Ride.prototype.updateIdle = function (dt) { if (this.rocket) { if (this.basis) this.basis(); return; } return idle.call(this, dt); };
+  const pilot = Rides.pilot;
+  Rides.pilot = function (v, dt, input, horn) {
+    if (!v.rocket) return pilot.call(this, v, dt, input, horn);
+    const p = G.player, at = v.toWorld(v.def.seat);
+    p.pos = [at[0], at[1] - 0.75, at[2]];
+    p.vel = [0, 0, 0]; p.onGround = true; p.fallStart = null; p.landed = 0;
+    this.updateMotor(v);
+  };
+  const dis = Vehicles.dismount;
+  Vehicles.dismount = function (forced) { if (!forced && G.vehicle && G.vehicle.rocket && Rocket.trip) { G.ui.toast('\ud83d\ude80 Stay strapped in'); return; } return dis.call(this, forced); };
+  // low gravity on the Moon
+  const upd = Player.prototype.update;
+  Player.prototype.update = function (dt, input) {
+    const r = upd.call(this, dt, input);
+    if (this === G.player && !this.flying && !G.vehicle && dimOf(this.pos[0], this.pos[2]) === DIM_MOON) { this.vel[1] += GRAVITY * 0.66 * dt; this.fallStart = null; }
+    return r;
+  };
+  // no creatures on the Moon
+  const sp = Ents.spawn;
+  Ents.spawn = function (dt) { const p = G.player; if (dimOf(p.pos[0], p.pos[2]) === DIM_MOON) return; return sp.call(this, dt); };
+  // the creative jump to the Moon (Places) and back
+  const tr = Portals.travel;
+  Portals.travel = function (kind, force) {
+    const p = G.player, from = dimOf(p.pos[0], p.pos[2]), to = force;
+    if (to === DIM_MOON || (from === DIM_MOON && to !== undefined)) {
+      const dest = Rocket.pad(to === DIM_MOON ? 'moon' : 'earth');
+      if (!dest) return;
+      if (G.vehicle) Vehicles.dismount(true);
+      p.pos = [dest.x + 5.5, dest.y + 0.5, dest.z + 0.5]; p.vel = [0, 0, 0]; p.fallStart = null;
+      prepareArea(p.pos[0], p.pos[2], 2); liftOutOfBlocks(p); Net.teleported();
+      G.ui.banner(to === DIM_MOON ? '\ud83c\udf15' : '\ud83c\udf0d', dest.name);
+      return;
+    }
+    return tr.call(this, kind, force);
+  };
+  const use = Act.useItem;
+  Act.useItem = function (initial) {
+    const t = this.target, b = t && t.block;
+    if (initial && b && b.id === B.VENDING_MACHINE && !G.player.sneaking) {
+      const P = Rocket.nearPad();
+      if (P && Math.hypot(b.pos[0] - P.x, b.pos[2] - P.z) < 60) { Rocket.open(); this.swingHand(); return true; }
+    }
+    return use.call(this, initial);
+  };
+  const fu = Furniture.update;
+  Furniture.update = function (dt) { fu.call(this, dt); try { Rocket.update(dt || 0.016); } catch (e) { console.warn('Blocklands: rocket', e); } };
+  const wr = Weather.render;
+  Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Rocket.render(cp); } catch (e) { /* ignore */ } return r; };
+  PC.add({ key: 'space', icon: '\ud83d\ude80', name: ED('Espai', 'Space'), run() { Rocket.open(); } });
+}
+</script>
+<script>
+'use strict';
+// Classes at STUCOM (the school edition only). School runs 8:00-14:30 of game time in periods
+// of an hour with a break at 11:00; each day of the week has its own timetable and each subject
+// its teacher and classroom: Programaci\u00f3 with Noelia, Projectes with Laura Ta\u00f1\u00e1, Sistemes with
+// Ramon Abad, Xarxes with Pedro Porcuna and Tutoria with Joan Zarzuela. The bell rings at every
+// change (near the school), a chip says what is on now and where, and during a class you
+// right-click its teacher to take it: five questions, a mark out of 10 and coins for it. The
+// report card (Butllet\u00ed app) keeps the marks, the attendance and each teacher's comment.
+
+const SUBJECTS = {
+  prog: { name: 'Programaci\u00f3', teacher: 'noelia', tn: 'Noelia Gonz\u00e1lez', icon: '\ud83d\udcbb', room: 'aula de la 2a planta' },
+  proj: { name: 'Projectes', teacher: 'laura', tn: 'Laura Ta\u00f1\u00e1', icon: '\ud83e\udde9', room: 'aula de la 1a planta' },
+  sist: { name: 'Sistemes', teacher: 'ramon', tn: 'Ramon Abad', icon: '\ud83d\udda5\ufe0f', room: "aula d'ordinadors (3a planta)" },
+  xarx: { name: 'Xarxes', teacher: 'pedro', tn: 'Pedro Porcuna', icon: '\ud83c\udf10', room: "l'annex, al parc" },
+  tut: { name: 'Tutoria', teacher: 'joan', tn: 'Joan Zarzuela', icon: '\ud83c\udf93', room: 'el vest\u00edbul' },
+};
+// start hours of the periods, and the timetable of the five days
+const PERIODS = [8, 9, 10, 11.5, 12.5, 13.5];
+const TIMETABLE = [
+  ['prog', 'prog', 'xarx', 'proj', 'sist', 'tut'],
+  ['sist', 'sist', 'prog', 'xarx', 'proj', 'proj'],
+  ['xarx', 'prog', 'prog', 'sist', 'tut', 'proj'],
+  ['proj', 'proj', 'sist', 'prog', 'xarx', 'xarx'],
+  ['tut', 'xarx', 'proj', 'prog', 'prog', 'sist'],
+];
+const QUESTIONS = {
+  prog: [
+    ['Qu\u00e8 mostra console.log(2 + "2") en JavaScript?', ['22', '4', 'Error', 'NaN'], 0],
+    ['Quin bucle fa servir una condici\u00f3 i pot no executar-se mai?', ['while', 'do\u2026while', 'Cap', 'switch'], 0],
+    ['Com es declara una constant en JavaScript?', ['const', 'let', 'var', 'static'], 0],
+    ['Quin \u00e9s l\'\u00edndex del primer element d\'un array?', ['0', '1', '-1', 'Dep\u00e8n'], 0],
+    ['Qu\u00e8 retorna "hola".length?', ['4', '5', '3', 'undefined'], 0],
+    ['En Python, com comen\u00e7a un comentari d\'una l\u00ednia?', ['#', '//', '--', '/*'], 0],
+    ['Quin operador compara valor i tipus en JavaScript?', ['===', '==', '=', '!='], 0],
+    ['Qu\u00e8 \u00e9s una funci\u00f3 recursiva?', ['Una que es crida a si mateixa', 'Una sense par\u00e0metres', 'Una que no retorna res', 'Una as\u00edncrona'], 0],
+    ['Quin tipus t\u00e9 true?', ['boolean', 'string', 'number', 'object'], 0],
+    ['Qu\u00e8 fa Array.push()?', ['Afegeix al final', 'Treu el primer', 'Ordena', 'Inverteix'], 0],
+  ],
+  proj: [
+    ['Com es diu la reuni\u00f3 di\u00e0ria curta de Scrum?', ['Daily', 'Sprint review', 'Retrospectiva', 'Planning'], 0],
+    ['Quina ordre de git desa els canvis al repositori local?', ['git commit', 'git push', 'git pull', 'git clone'], 0],
+    ['Qu\u00e8 \u00e9s un MVP?', ['Producte m\u00ednim viable', 'Pla de m\u00e0xim valor', 'Model de vista p\u00fablica', 'Millor versi\u00f3 possible'], 0],
+    ['Qu\u00e8 \u00e9s un sprint?', ['Un per\u00edode curt de feina', 'Un error greu', 'Un servidor', 'Un diagrama'], 0],
+    ['Quin diagrama mostra les tasques en el temps?', ['Gantt', 'UML de classes', 'Flux de dades', 'Venn'], 0],
+    ['Quina ordre porta els canvis del remot?', ['git pull', 'git add', 'git init', 'git log'], 0],
+    ['Qu\u00e8 \u00e9s el backlog?', ['La llista de feines pendents', 'Un registre d\'errors del servidor', 'La c\u00f2pia de seguretat', 'El pressupost'], 0],
+    ['Un requisit "l\'app ha de carregar en 2 s" \u00e9s\u2026', ['No funcional', 'Funcional', 'Legal', 'Opcional'], 0],
+  ],
+  sist: [
+    ['Quina pe\u00e7a executa les instruccions?', ['La CPU', 'La RAM', 'El disc', 'La font'], 0],
+    ['La mem\u00f2ria RAM \u00e9s\u2026', ['Vol\u00e0til', 'Permanent', '\u00d2ptica', 'Magn\u00e8tica'], 0],
+    ['Quin d\'aquests \u00e9s un sistema operatiu?', ['Linux', 'Chrome', 'Word', 'Java'], 0],
+    ['Quants bits t\u00e9 un byte?', ['8', '4', '16', '10'], 0],
+    ['Qu\u00e8 \u00e9s el BIOS/UEFI?', ['El firmware que arrenca l\'ordinador', 'Un antivirus', 'Un navegador', 'Un disc'], 0],
+    ['Quina ordre llista fitxers a Linux?', ['ls', 'dir /s', 'list', 'show'], 0],
+    ['Un SSD guarda les dades en\u2026', ['Mem\u00f2ria flash', 'Plats magn\u00e8tics', 'Cinta', 'Discos \u00f2ptics'], 0],
+    ['Qu\u00e8 fa un sistema de fitxers?', ['Organitza les dades al disc', 'Refreda la CPU', 'Connecta a internet', 'Imprimeix'], 0],
+  ],
+  xarx: [
+    ['Quin protocol d\u00f3na adreces IP autom\u00e0ticament?', ['DHCP', 'DNS', 'HTTP', 'FTP'], 0],
+    ['Qu\u00e8 tradueix noms com stucom.com a IP?', ['DNS', 'DHCP', 'SMTP', 'ARP'], 0],
+    ['Quants bits t\u00e9 una adre\u00e7a IPv4?', ['32', '64', '128', '16'], 0],
+    ['Quin port fa servir HTTPS?', ['443', '80', '21', '25'], 0],
+    ['Quin aparell connecta xarxes diferents?', ['El router', 'El switch', 'El cable', 'El hub'], 0],
+    ['192.168.1.10 \u00e9s una adre\u00e7a\u2026', ['Privada', 'P\u00fablica', 'IPv6', 'De broadcast'], 0],
+    ['Quina capa OSI \u00e9s la de transport?', ['La 4', 'La 3', 'La 2', 'La 7'], 0],
+    ['TCP, a difer\u00e8ncia d\'UDP\u2026', ['Garanteix l\'entrega', '\u00c9s m\u00e9s r\u00e0pid', 'No fa servir ports', 'Nom\u00e9s va per wifi'], 0],
+  ],
+  tut: [
+    ['A quina hora comencen les classes a STUCOM (al joc)?', ['8:00', '9:30', '7:00', '10:00'], 0],
+    ['Quan hi ha el pati?', ['A les 11', 'A les 13', 'A les 9', 'No n\'hi ha'], 0],
+    ['Qu\u00e8 cal fer si no entens una cosa a classe?', ['Preguntar al professor', 'Callar', 'Marxar', 'Copiar'], 0],
+    ['On \u00e9s l\'aula d\'ordinadors?', ['A la 3a planta', 'Al soterrani', 'A l\'annex', 'Al pati'], 0],
+    ['Quina \u00e9s una bona manera d\'estudiar?', ['Repassar cada dia una mica', 'Tot la nit abans', 'Mai', 'Nom\u00e9s mirar v\u00eddeos'], 0],
+    ['Qu\u00e8 \u00e9s el butllet\u00ed?', ['El document amb les notes', 'El diari de la ciutat', 'L\'horari del metro', 'Un examen'], 0],
+    ['Si arribes tard a classe\u2026', ['Demanes perm\u00eds per entrar', 'Crides fort', 'Te\'n vas a casa', 'Entres corrent'], 0],
+  ],
+};
+
+const Classes = {
+  t: 0, lastKey: null, chip: null,
+  on() { return !CG && typeof City !== 'undefined' && !!City.plan(); },
+  rec() {
+    const pr = G.prog || (G.prog = {});
+    const s = pr.school || (pr.school = { marks: {}, att: {}, done: {} });
+    for (const k of Object.keys(SUBJECTS)) { if (!s.marks[k]) s.marks[k] = []; if (!s.att[k]) s.att[k] = 0; }
+    return s;
+  },
+  weekday() { return ((G.prog && G.prog.day) | 0) % 5; },
+  // what is on now: { i (period), subject, start, end } or break / out
+  now() {
+    const h = CityAlive.hour();
+    if (h >= 11 && h < 11.5) return { brk: true, start: 11, end: 11.5 };
+    for (let i = 0; i < PERIODS.length; i++) if (h >= PERIODS[i] && h < PERIODS[i] + 1) return { i, s: TIMETABLE[this.weekday()][i], start: PERIODS[i], end: PERIODS[i] + 1 };
+    return null;
+  },
+  key(n) { return ((G.prog && G.prog.day) | 0) + ':' + (n ? (n.brk ? 'b' : n.i) : 'x'); },
+  nearSchool() { const st = City.plan(), p = G.player.pos; return st && Math.hypot(p[0] - st.x, p[2] - (st.z - 40)) < 160 && Math.abs(p[1] - st.y) < 40; },
+  personOf(m) {
+    if (!m || m.prof !== 'teacher') return null;
+    for (const [k, i] of Object.entries(PERSON_SKIN)) if (m.skin === i) return k;
+    const S = Object.values(SUBJECTS).find((q) => q.tn === m.name);
+    return S ? S.teacher : null;
+  },
+
+  update(dt) {
+    if (!this.on() || !G.world || G.onTitle) return;
+    this.t -= dt;
+    if (this.t > 0) return;
+    this.t = 1;
+    const n = this.now(), k = this.key(n), near = this.nearSchool();
+    if (k !== this.lastKey) {
+      const first = this.lastKey === null;
+      this.lastKey = k;
+      if (!first && near) {
+        sfx('school_bell', null, 0.7, 1);
+        if (n && !n.brk) { const S = SUBJECTS[n.s]; G.ui.toast('\ud83d\udd14 ' + S.icon + ' ' + S.name + ' amb ' + S.tn + ' \u00b7 ' + S.room, 5000); }
+        else if (n && n.brk) G.ui.toast('\ud83d\udd14 Pati! 30 minuts', 3500);
+        else if (CityAlive.hour() >= 14.5 && CityAlive.hour() < 15) G.ui.toast('\ud83d\udd14 Fi de les classes per avui', 3500);
+      }
+    }
+    this.drawChip(n, near);
+  },
+  drawChip(n, near) {
+    if (!this.chip) { this.chip = document.createElement('div'); this.chip.id = 'classChip'; document.body.append(this.chip); }
+    const show = near && !G.onTitle && n;
+    this.chip.classList.toggle('show', !!show);
+    if (!show) return;
+    const h = CityAlive.hour(), left = Math.max(0, Math.round((n.end - h) * 60));
+    const html = n.brk ? `<i>\ud83e\udd6a</i><b>Pati</b><span>${left} min</span>` : (() => { const S = SUBJECTS[n.s], done = this.rec().done[this.key(n)]; return `<i>${S.icon}</i><b>${S.name}</b><span>${S.tn.split(' ')[0]} \u00b7 ${S.room} \u00b7 ${done ? '\u2705 feta' : left + ' min'}</span>`; })();
+    if (this.chip.dataset.h !== html) { this.chip.innerHTML = html; this.chip.dataset.h = html; }
+  },
+
+  // a class: five questions
+  take(sk, m) {
+    const S = SUBJECTS[sk], R = this.rec(), n = this.now(), key = this.key(n);
+    if (R.done[key]) { G.ui.toast('\ud83d\udcac ' + S.tn.split(' ')[0] + ': "Ja has fet la classe d\'avui, molt b\u00e9!"', 3000); return; }
+    const bank = QUESTIONS[sk].slice(), qs = [];
+    while (qs.length < 5 && bank.length) qs.push(bank.splice(Math.floor(Math.random() * bank.length), 1)[0]);
+    let i = 0, ok = 0;
+    const late = n && (CityAlive.hour() - n.start) > 0.25;
+    const q = GPanel.open({ title: S.name, sub: 'amb ' + S.tn + (late ? ' \u00b7 has arribat tard' : ''), icon: S.icon, cls: 'gp-class', width: 560 });
+    const draw = () => {
+      if (i >= qs.length) {
+        const mark = Math.max(0, Math.round((ok / qs.length * 10 - (late ? 0.5 : 0)) * 10) / 10);
+        R.marks[sk].push(mark); R.att[sk]++; R.done[key] = mark;
+        if (R.marks[sk].length > 40) R.marks[sk].shift();
+        const coins = Math.round(mark * 5);
+        Shops.earn(coins);
+        const cm = mark >= 9 ? 'Excel\u00b7lent! Aix\u00ed m\'agrada.' : mark >= 7 ? 'Molt b\u00e9, notable.' : mark >= 5 ? 'Aprovat, per\u00f2 pots fer-ho millor.' : 'Cal repassar, dem\u00e0 ho tornem a mirar.';
+        q.body.innerHTML = `<div class="cl-res"><div class="cl-mark ${mark >= 5 ? 'ok' : 'ko'}">${mark.toFixed(1)}</div><p>\u201c${cm}\u201d</p><small>${ok} de ${qs.length} correctes${late ? ' \u00b7 \u22120,5 per arribar tard' : ''} \u00b7 +${coins} monedes</small><button class="gp-btn ok" data-a="ok">Gr\u00e0cies, ${S.tn.split(' ')[0]}!</button></div>`;
+        q.body.querySelector('[data-a="ok"]').addEventListener('click', () => q.close());
+        sfx(mark >= 5 ? 'achieve' : 'gate_no', null, 0.7, 1);
+        return;
+      }
+      const [text, opts] = qs[i], order = opts.map((o, j) => j).sort(() => Math.random() - 0.5);
+      q.body.innerHTML = `<div class="cl-top"><span>Pregunta ${i + 1} de ${qs.length}</span><div class="cl-dots">${qs.map((_, j) => `<i class="${j < i ? 'd' : j === i ? 'n' : ''}"></i>`).join('')}</div></div>
+        <h3 class="cl-q">${GPanel.esc(text)}</h3><div class="cl-opts">${order.map((j, k) => `<button data-j="${j}"><b>${'ABCD'[k]}</b>${GPanel.esc(opts[j])}</button>`).join('')}</div>`;
+      q.body.querySelectorAll('[data-j]').forEach((b) => b.addEventListener('click', () => {
+        const right = Number(b.dataset.j) === qs[i][2];
+        if (right) ok++;
+        b.classList.add(right ? 'ok' : 'ko');
+        if (!right) q.body.querySelector(`[data-j="${qs[i][2]}"]`).classList.add('ok');
+        q.body.querySelectorAll('[data-j]').forEach((x) => { x.disabled = true; });
+        sfx(right ? 'pling' : 'gate_no', null, 0.5, right ? 1.2 : 1);
+        setTimeout(() => { i++; draw(); }, 900);
+      }));
+    };
+    draw();
+  },
+
+  // the report card
+  report() {
+    const R = this.rec(), e = GPanel.esc;
+    const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
+    const word = (v) => (v === null ? '\u2014' : v >= 9 ? 'Excel\u00b7lent' : v >= 7 ? 'Notable' : v >= 6 ? 'B\u00e9' : v >= 5 ? 'Suficient' : 'Insuficient');
+    const comment = (k, v) => (v === null ? 'Encara no ha vingut a cap classe.' : v >= 9 ? 'Treball excel\u00b7lent i molt constant. Felicitats!' : v >= 7 ? 'Molt bona feina, segueix aix\u00ed.' : v >= 5 ? 'Aprova, per\u00f2 pot donar m\u00e9s de si.' : 'Ha de repassar i venir m\u00e9s a classe.');
+    const rows = Object.entries(SUBJECTS).map(([k, S]) => { const v = avg(R.marks[k]); return { k, S, v, att: R.att[k] }; });
+    const all = rows.filter((r) => r.v !== null), total = all.length ? all.reduce((a, r) => a + r.v, 0) / all.length : null;
+    const tri = Math.floor(((G.prog && G.prog.day) | 0) / 4) % 3 + 1;
+    const q = GPanel.open({ title: 'Butllet\u00ed de notes', sub: tri + 'r trimestre', icon: '\ud83d\udccb', cls: 'gp-report', width: 640 });
+    q.body.innerHTML = `<div class="rp-sheet">
+      <div class="rp-head"><div class="rp-logo">STUCOM</div><div><b>STUCOM Centre d'Estudis</b><small>Carrer de Pelai \u00b7 Barcelona</small></div><div class="rp-who"><small>Alumne/a</small><b>${e(Net.name || 'Alumne')}</b><small>${tri}r trimestre \u00b7 DAM 1r</small></div></div>
+      <table class="rp-t"><thead><tr><th>Assignatura</th><th>Professor/a</th><th>Classes</th><th>Nota</th><th>Qualificaci\u00f3</th></tr></thead><tbody>
+      ${rows.map((r) => `<tr><td>${r.S.icon} ${r.S.name}</td><td>${e(r.S.tn)}</td><td>${r.att}</td><td class="n">${r.v === null ? '\u2014' : r.v.toFixed(1)}</td><td class="${r.v === null ? '' : r.v >= 5 ? 'ok' : 'ko'}">${word(r.v)}</td></tr>`).join('')}
+      </tbody></table>
+      <div class="rp-comments">${rows.map((r) => `<p><b>${e(r.S.tn)}:</b> ${comment(r.k, r.v)}</p>`).join('')}</div>
+      <div class="rp-foot"><div><small>Mitjana</small><b>${total === null ? '\u2014' : total.toFixed(2)}</b><span>${word(total)}</span></div><div class="rp-sign"><i>J. Zarzuela</i><small>Direcci\u00f3</small></div></div>
+    </div>`;
+  },
+};
+
+SYNTH.school_bell = (ctx, o, t) => {
+  for (let i = 0; i < 6; i++) { Sound.tone(ctx, o, t + i * 0.28, 0.25, { wave: 'triangle', f0: 1318, gain: 0.07 }); Sound.tone(ctx, o, t + i * 0.28 + 0.14, 0.2, { wave: 'triangle', f0: 1046, gain: 0.06 }); }
+};
+
+if (!CG) {
+  const use = Act.useItem;
+  Act.useItem = function (initial) {
+    const t = this.target;
+    if (initial && t && t.mob && !t.mob.dead && !G.player.sneaking && Classes.on()) {
+      const who = Classes.personOf(t.mob);
+      if (who) {
+        const n = Classes.now(), sk = Object.keys(SUBJECTS).find((k) => SUBJECTS[k].teacher === who);
+        if (n && !n.brk && n.s === sk) { Classes.take(sk, t.mob); this.swingHand(); return true; }
+        if (sk) {
+          const next = TIMETABLE[Classes.weekday()].map((s, i) => [s, PERIODS[i]]).find(([s, h]) => s === sk && h > CityAlive.hour());
+          G.ui.toast('\ud83d\udcac ' + SUBJECTS[sk].tn.split(' ')[0] + ': "' + (next ? 'Avui tenim classe a les ' + Math.floor(next[1]) + ':' + (next[1] % 1 ? '30' : '00') : 'Avui ja no tenim classe, fins dem\u00e0!') + '" (Shift + clic per comprar)', 3500);
+        }
+      }
+    }
+    return use.call(this, initial);
+  };
+  const fu = Furniture.update;
+  Furniture.update = function (dt) { fu.call(this, dt); try { Classes.update(dt || 0.016); } catch (e) { console.warn('Blocklands: classes', e); } };
+  PC.add({ key: 'report', icon: '\ud83d\udccb', name: 'Butllet\u00ed', run() { Classes.report(); } });
+  PC.add({ key: 'timetable', icon: '\ud83d\uddd3\ufe0f', name: 'Horari', run() {
+    const q = GPanel.open({ title: 'Horari', sub: 'DAM 1r \u00b7 STUCOM', icon: '\ud83d\uddd3\ufe0f', cls: 'gp-tt', width: 640 });
+    const days = ['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres'], wd = Classes.weekday(), n = Classes.now();
+    q.body.innerHTML = `<table class="tt"><thead><tr><th></th>${days.map((d, i) => `<th class="${i === wd ? 'on' : ''}">${d}</th>`).join('')}</tr></thead><tbody>
+      ${PERIODS.map((h, i) => (i === 3 ? `<tr class="brk"><td>11:00</td><td colspan="5">\ud83e\udd6a Pati</td></tr>` : '') + `<tr><td>${Math.floor(h)}:${h % 1 ? '30' : '00'}</td>${days.map((_, d) => { const S = SUBJECTS[TIMETABLE[d][i]]; return `<td class="${d === wd && n && n.i === i ? 'now' : ''}"><b>${S.icon} ${S.name}</b><small>${S.tn.split(' ')[0]}</small></td>`; }).join('')}</tr>`).join('')}
+      </tbody></table><p class="gp-dim">Durant la classe, clic dret al professor per fer-la. Avui \u00e9s ${days[wd].toLowerCase()}.</p>`;
+  } });
 }
 </script>
 <script>
