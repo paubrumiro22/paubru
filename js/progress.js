@@ -190,7 +190,7 @@ const Progress = {
     if (q.kind === 'bring' && G.mode !== 'creative') G.inv.remove(q.target, q.n);
     pr.quests = pr.quests.filter((x) => x !== q);
     G.money = (G.money | 0) + q.coins;
-    if (q.item) { const left = G.inv.add(mkStack(q.item, q.itemN)); if (left > 0) Ents.spawnItem(mkStack(q.item, left), G.player.pos[0], G.player.pos[1] + 1, G.player.pos[2]); }
+    if (q.item) { const rs = mkStack(q.item, q.itemN); if (q.item === I.ENCHANTED_BOOK) rs.ench = randomBookEnch(Math.random); const left = G.inv.add(rs); if (left > 0) Ents.spawnItem(withCount(rs, left), G.player.pos[0], G.player.pos[1] + 1, G.player.pos[2]); }
     this.count('quests');
     this.unlock('quest');
     sfx('villager_yes', m.pos, 1, 1.2);

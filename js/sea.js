@@ -113,7 +113,7 @@ const Fishing = {
       [0.98, [I.EMERALD, I.GOLD_INGOT, I.IRON_INGOT][Math.floor(Math.random() * 3)]], [1, I.ENCHANTED_BOOK || I.EMERALD]];
     const id = luck.find(([k]) => r < k)[1];
     const st = mkStack(id, 1);
-    if (id === I.ENCHANTED_BOOK && typeof randomEnchant === 'function') try { randomEnchant(st); } catch (e) { /* plain book */ }
+    if (id === I.ENCHANTED_BOOK) st.ench = randomBookEnch(Math.random);
     const left = G.inv.add(st);
     if (left) Ents.spawnItem(st, G.player.pos[0], G.player.pos[1] + 1, G.player.pos[2]);
     if (G.mode === 'survival' && G.inv.damageHeld(1)) sfx('tool_break', null, 0.8, 1);

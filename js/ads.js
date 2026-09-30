@@ -5,7 +5,7 @@
 // - coins: +150 every 3 minutes from the Free coins app, a button by the coins, or an offer when
 //   a till or an app says you are short (at most every 2 minutes).
 // The video comes from CrazyGames in that edition (crazy.js), and from AppLixir in the normal one
-// once ADS_CONFIG has a key (nothing loads or shows until then). The script is loaded the first
+// once ADS_CONFIG has a key; without one, Monetag's Direct Link (a new tab, rewarded when you come back). The script is loaded the first
 // time an ad is needed; AppLixir's older (invokeApplixirVideoUnit) and newer
 // (initializeAndOpenPlayer) players are both handled.
 
@@ -87,39 +87,56 @@ const Ads = {
   // Direct Link: a new tab with the ad; back after directSeconds = rewarded
   direct(give) {
     if (this.busy) return;
-    const need = ADS_CONFIG.directSeconds * 1000;
-    const w = window.open(ADS_CONFIG.directLink, '_blank');
-    if (!w) { G.ui.toast('The browser blocked the ad tab: allow pop-ups for this site and try again', 4500); return; }
-    try { w.opener = null; } catch (e) { /* ignore */ }
-    this.busy = true;
+    const link = ADS_CONFIG.directLink, need = ADS_CONFIG.directSeconds * 1000;
     if (document.pointerLockElement) document.exitPointerLock();
+    // try a new tab straight away; if the browser blocks it, the card's own link (a real click) opens it
+    let w = null;
+    try { w = window.open(link, '_blank'); } catch (e) { w = null; }
+    if (w) try { w.opener = null; } catch (e) { /* ignore */ }
+    this.busy = true;
     const t0 = Date.now();
-    let away = 0, hiddenAt = document.hidden ? t0 : 0, done = false;
-    const card = GPanel.open({ title: 'Sponsored', icon: '🎁', width: 360, onClose: () => finish() });
+    let away = 0, hiddenAt = document.hidden ? t0 : 0, done = false, opened = !!w;
+    const card = GPanel.open({ title: 'Sponsored', icon: '🎁', width: 380, onClose: () => finish() });
+    const seen = () => away + (hiddenAt ? Date.now() - hiddenAt : 0);
     const draw = () => {
       if (done) return;
-      const seen = away + (hiddenAt ? Date.now() - hiddenAt : 0), left = Math.max(0, Math.ceil((need - seen) / 1000));
-      card.body.innerHTML = `<div class="gp-card"><div class="gp-big">${left ? '⏳' : '✅'}</div><p>${left ? 'The ad opened in a new tab.<br>Have a look for <b>' + left + ' s</b> and come back here.' : 'Thanks! Your reward is ready.'}</p>
+      const left = Math.max(0, Math.ceil((need - seen()) / 1000));
+      const stuck = opened && !away && !hiddenAt && Date.now() - t0 > 7000, key = (opened ? 'o' : 'c') + left + (stuck ? 's' : '');
+      if (card.body.dataset.state === key) return;
+      card.body.dataset.state = key;
+      let msg;
+      if (!opened) msg = 'Open the ad in a new tab, have a look for <b>' + Math.ceil(need / 1000) + ' s</b> and come back here.';
+      else if (left) msg = 'The ad opened in a new tab.<br>Have a look for <b>' + left + ' s</b> and come back here.';
+      else msg = 'Thanks! Your reward is ready.';
+      card.body.innerHTML = `<div class="gp-card ad-card"><div class="gp-big">${!opened ? '📺' : left ? '⏳' : '✅'}</div><p>${msg}</p>
+        ${left ? `<a class="gp-btn ${opened ? '' : 'ok'} ad-open" href="${link}" target="_blank" rel="noopener">▶ ${opened ? 'Open the ad again' : 'Open the ad'}</a>` : ''}
+        ${stuck ? '<p class="gp-dim ad-hint">No ad? An ad blocker, a strict browser or the school network may block it. Try another browser or network.</p>' : ''}
         <button class="gp-btn ${left ? '' : 'ok'}" data-a="x">${left ? 'Cancel' : 'Collect'}</button></div>`;
+      const a = card.body.querySelector('.ad-open');
+      if (a) a.addEventListener('click', () => { opened = true; setTimeout(draw, 50); });
       card.body.querySelector('[data-a="x"]').addEventListener('click', () => card.close());
     };
     const vis = () => {
-      if (document.hidden) { if (!hiddenAt) hiddenAt = Date.now(); }
+      if (document.hidden) { if (!hiddenAt) hiddenAt = Date.now(); opened = true; }
       else if (hiddenAt) { away += Date.now() - hiddenAt; hiddenAt = 0; draw(); }
     };
+    const blur = () => { if (opened && !hiddenAt && !document.hidden) hiddenAt = Date.now(); };
+    const focus = () => { if (hiddenAt && !document.hidden) { away += Date.now() - hiddenAt; hiddenAt = 0; draw(); } };
     const finish = () => {
       if (done) return;
       done = true; this.busy = false;
       clearInterval(iv);
       document.removeEventListener('visibilitychange', vis);
-      window.removeEventListener('focus', vis);
-      const seen = away + (hiddenAt ? Date.now() - hiddenAt : 0);
-      if (seen >= need) give();
+      window.removeEventListener('blur', blur);
+      window.removeEventListener('focus', focus);
+      if (seen() >= need) give();
       else G.ui.toast('🎁 Stay on the ad a little longer to get the reward', 3500);
     };
     document.addEventListener('visibilitychange', vis);
-    window.addEventListener('focus', vis);
-    const iv = setInterval(draw, 1000);
+    // a popup window (not a tab) leaves the page visible but takes the focus
+    window.addEventListener('blur', blur);
+    window.addEventListener('focus', focus);
+    const iv = setInterval(draw, 500);
     draw();
   },
 
@@ -201,6 +218,12 @@ const Ads = {
   btn.addEventListener('click', (e) => { e.stopPropagation(); Ads.freeCoins(); });
   document.body.append(btn);
   setInterval(() => btn.classList.toggle('show', Ads.coinsReady() && !G.onTitle && G.started && !G.stats.dead), 1000);
+  // the same offer in the pause menu (with the mouse captured, the HUD button cannot be clicked)
+  const acts = document.querySelector('#menu .opt-actions'), mb = document.createElement('button');
+  mb.id = 'menuCoins'; mb.className = 'hidden'; mb.innerHTML = '🎁 +' + ADS_CONFIG.coins + ' coins';
+  mb.addEventListener('click', () => Ads.freeCoins());
+  if (acts) acts.insertBefore(mb, $('journalBtn'));
+  setInterval(() => mb.classList.toggle('hidden', !Ads.coinsReady() || !G.started), 1000);
   if (typeof Shops !== 'undefined') {
     const pay = Shops.pay;
     Shops.pay = function (n) {
