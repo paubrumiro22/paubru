@@ -980,11 +980,14 @@ function structZone(g, x, z) {
 function placeStructures(g, chunk) {
   const x0 = chunk.cx * CS, z0 = chunk.cz * CS;
   const plans = structuresIn(g, x0, z0, x0 + CS - 1, z0 + CS - 1);
-  if (!plans.length) return;
+  const ave = typeof aveChunk === 'function' ? aveChunk(g, x0, z0) : null;
+  if (!plans.length && !ave) return;
   const W = structWriter(chunk);
   for (const p of plans) for (const piece of p.pieces) {
     const b = piece.box;
     if (b[2] < W.x0 - 3 || b[0] > W.x1 + 3 || b[3] < W.z0 - 3 || b[1] > W.z1 + 3) continue;
     piece.build(W);
   }
+  // the high-speed line runs further out than any plan reaches (ave_gen.js)
+  if (ave) ave(W);
 }

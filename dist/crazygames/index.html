@@ -468,6 +468,19 @@
   .dep-row { display: grid; grid-template-columns: 60px 64px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid #1a2336; font: 700 13px 'Courier New', monospace; color: #e8eef8; }
   .dep-row:last-child { border-bottom: 0; } .dep-t, .dep-f { color: #ffcc33; } .dep-d { font-family: var(--body); font-weight: 800; } .dep-g { color: #8b9ab4; font-size: 11.5px; }
   #flightFade { position: fixed; inset: 0; z-index: 90; background: #000; opacity: 0; pointer-events: none; transition: opacity .7s; } #flightFade.on { opacity: 1; }
+  #aveHud { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 30; min-width: 320px; padding: 10px 92px 14px 16px; border-radius: 14px; background: linear-gradient(90deg, rgba(40, 12, 56, .92), rgba(12, 14, 26, .92)); border: 1px solid #8a3fb0; color: #fff; opacity: 0; transition: .3s; pointer-events: none; overflow: hidden; }
+  #aveHud.show { opacity: 1; } #aveHud b { display: block; font: 800 14px var(--display); } #aveHud span { font-size: 12.5px; color: #d7c3e6; }
+  #aveHud em { position: absolute; right: 14px; top: 8px; font: 900 26px 'Courier New', monospace; font-style: normal; color: #ffcc33; text-align: right; line-height: 1; } #aveHud em small { display: block; font: 700 10px var(--body); color: #c9b4da; }
+  #aveHud i { position: absolute; left: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #8a3fb0, #d6202b, #ffcc33); transition: width .3s; }
+  .ave-board .dep-t, .ave-board .dep-f { color: #c58bff; }
+  #cruiseHud { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 30; min-width: 320px; padding: 10px 16px 12px; border-radius: 14px; background: linear-gradient(90deg, rgba(8, 40, 74, .92), rgba(10, 16, 30, .92)); border: 1px solid #3aa0e8; color: #fff; opacity: 0; transition: .3s; pointer-events: none; }
+  #cruiseHud.show { opacity: 1; } #cruiseHud b { display: block; font: 800 14px var(--display); } #cruiseHud span { font-size: 12.5px; color: #bcd8f0; }
+  .cr-dots { display: flex; align-items: center; gap: 4px; margin-top: 6px; } .cr-dots i { font-style: normal; font-size: 15px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .15); opacity: .55; }
+  .cr-dots i.done { opacity: .9; background: rgba(60, 242, 154, .18); border-color: #3cf29a; } .cr-dots i.now { opacity: 1; background: rgba(255, 204, 51, .22); border-color: #ffcc33; box-shadow: 0 0 12px rgba(255, 204, 51, .45); }
+  .cr-dots u { flex: 1; height: 2px; min-width: 14px; background: repeating-linear-gradient(90deg, #6fb6ea 0 4px, transparent 4px 8px); }
+  .cr-offer { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; margin-top: 12px; padding: 12px; border-radius: 14px; background: linear-gradient(120deg, rgba(58, 160, 232, .2), rgba(255, 204, 51, .08)); border: 1px solid rgba(58, 160, 232, .5); }
+  .cr-ship { font-size: 40px; text-align: center; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .4)); } .cr-txt b { display: block; font: 800 14px var(--display); } .cr-txt span { font-size: 12px; color: #b8c9da; }
+  .cr-card { text-align: center; padding: 8px; } .cr-card p { color: #c3cfdc; } .cr-big { font: 900 40px 'Courier New', monospace; color: #ffcc33; text-shadow: 0 0 20px rgba(255, 204, 51, .4); }
   #tripHud { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 30; min-width: 300px; padding: 10px 16px 14px; border-radius: 14px; background: rgba(10, 15, 26, .88); border: 1px solid #2c3b5c; color: #fff; opacity: 0; transition: .3s; pointer-events: none; overflow: hidden; }
   #tripHud.show { opacity: 1; } #tripHud b { display: block; font: 800 14px var(--display); } #tripHud span { font-size: 12.5px; color: #b8c3d4; }
   #tripHud i { position: absolute; left: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #d6202b, #ffcc33); }
@@ -9269,13 +9282,16 @@ function structZone(g, x, z) {
 function placeStructures(g, chunk) {
   const x0 = chunk.cx * CS, z0 = chunk.cz * CS;
   const plans = structuresIn(g, x0, z0, x0 + CS - 1, z0 + CS - 1);
-  if (!plans.length) return;
+  const ave = typeof aveChunk === 'function' ? aveChunk(g, x0, z0) : null;
+  if (!plans.length && !ave) return;
   const W = structWriter(chunk);
   for (const p of plans) for (const piece of p.pieces) {
     const b = piece.box;
     if (b[2] < W.x0 - 3 || b[0] > W.x1 + 3 || b[3] < W.z0 - 3 || b[1] > W.z1 + 3) continue;
     piece.build(W);
   }
+  // the high-speed line runs further out than any plan reaches (ave_gen.js)
+  if (ave) ave(W);
 }
 </script>
 <script data-w>
@@ -11107,6 +11123,178 @@ function cityEixample(W, X0, Z0, F, seed) {
       }
     }
   }
+}
+</script>
+<script data-w>
+'use strict';
+// The high-speed line (AVE): from a station just outside the district's west edge a viaduct runs
+// straight west for 900 blocks and into a tunnel under a hill. The station: a glass hall at
+// ground level under the tracks (ticket machines, departure boards, benches), stairs and a lift up
+// through the deck to an island platform between two tracks, a steel and glass canopy, a plaza
+// and a lit path back towards the district. Catenary masts every 24 blocks, pillars every 16,
+// tunnels where the ground rises over the deck. Deterministic: loaded in the chunk workers too
+// (data-w); structures.js calls aveChunk for every chunk. ave.js runs the trains.
+//
+// Coordinates: w is the offset across the line (z - L.z); the tracks are at w = \u00b15, the island
+// platform w = -3..3, the deck w = -7..7 at y = L.y, the ground under the station at L.F.
+
+const AVE_LEN = 900;
+
+function aveLine(g) {
+  if (!g || !g.structs || typeof stucomVillage !== 'function') return null;
+  if (g._ave !== undefined) return g._ave;
+  const st = stucomVillage(g);
+  if (!st || !st.district) { g._ave = null; return null; }
+  const D = st.district, xe = D.cx - DOUT - 8;
+  g._ave = { z: D.cz, y: D.F + 9, F: D.F, xe, xs: xe - 64, xw: xe - AVE_LEN, cx: D.cx, cz: D.cz, pathEnd: D.cx - DHALF - 14 };
+  const L = g._ave;
+  L.sx = L.xs + 22;          // foot of the stairs up to the platform
+  L.lift = L.sx - 4;         // the lift shaft (on the island, w = 0)
+  L.stop = L.xe - 33;        // where a train's middle stops at the platform
+  return L;
+}
+
+// a builder for this chunk, or null
+function aveChunk(g, x0, z0) {
+  const L = aveLine(g);
+  if (!L) return null;
+  if (x0 + CS - 1 < L.xw - 30 || x0 > L.pathEnd + 2 || z0 + CS - 1 < L.z - 18 || z0 > L.z + 20) return null;
+  return (W) => buildAve(W, g, L);
+}
+
+const AVE_LOGS = new Set([B.LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.PALM_LOG, B.ACACIA_LOG, B.CHERRY_LOG, B.DARK_OAK_LOG]);
+
+function buildAve(W, g, L) {
+  const { z: lz, y: Y, F, xs, xe, xw } = L;
+  const C = B.CONCRETE + 8, DARK = B.CONCRETE + 7;
+  const inSt = (x) => x >= xs && x <= xe + 1;
+  const rect = (xa, xb, wa, wb, fn) => cityRect(W, xa, lz + wa, xb, lz + wb, (x, z) => fn(x, z - lz, z));
+  const top = (x, z) => {
+    for (let y = Math.min(CH - 2, Y + 24); y > 1; y--) {
+      const id = W.get(x, y, z);
+      if (id <= 0 || !BLOCK_SOLID[id] || BLOCK_RT[id] === RT_CROSS || BLOCK_RT[id] === RT_CUTOUT || IS_LIQUID(id) || AVE_LOGS.has(id)) continue;
+      return y;
+    }
+    return g.height(x, z);
+  };
+
+  // ---- the station pad: levelled ground, clear up to the sky ----
+  rect(xs - 4, xe + 4, -16, 18, (x, w, z) => {
+    const h = g.height(x, z);
+    for (let y = Math.min(h, F - 2); y <= F - 2; y++) W.set(x, y, z, y >= F - 3 ? B.DIRT : B.STONE);
+    W.set(x, F - 1, z, Math.abs(w) <= 8 && x > xs + 1 && x < xe - 1 ? B.TERRAZZO : (w + x) % 7 === 0 ? B.POLISHED_ANDESITE : B.PANOT);
+    for (let y = F; y <= Math.max(h + 8, Y + 12) && y < CH; y++) if (W.get(x, y, z) !== B.AIR) W.set(x, y, z, B.AIR);
+  });
+
+  // ---- the hill over the tunnel mouth ----
+  rect(xw - 30, xw + 8, -18, 18, (x, w, z) => {
+    const h = g.height(x, z);
+    const t = Math.round(Y + 12 - Math.max(0, Math.abs(w) - 9) * 1.3 - Math.max(0, x - (xw - 4)) * 1.4);
+    for (let y = h + 1; y <= t; y++) W.set(x, y, z, y === t ? B.GRASS : y > t - 3 ? B.DIRT : B.STONE);
+  });
+
+  // ---- the viaduct ----
+  rect(xw - 26, xe + 1, -9, 9, (x, w, z) => {
+    const h = g.height(x, z), aw = Math.abs(w), st = inSt(x), mouth = x < xw;
+    const tunnel = mouth || (!st && h >= Y + 3);
+    if (aw === 9) { if (tunnel && !mouth) for (let y = Y; y <= Y + 9; y++) W.set(x, y, z, DARK); return; }
+    if (aw === 8) {
+      if (tunnel) { for (let y = Y; y <= Y + 9; y++) W.set(x, y, z, mouth ? B.CONCRETE + 15 : C); }
+      return;
+    }
+    // deck, rails, parapets, the island
+    W.set(x, Y, z, x > xe ? C : aw === 5 ? B.GRAVEL : C);
+    for (let y = Y + 1; y <= Y + 8; y++) W.set(x, y, z, B.AIR);
+    if (aw === 5) W.set(x, Y + 1, z, x >= xe ? B.CONCRETE + 14 : B.RAIL_EW);
+    if (aw === 5 && x >= xe) W.set(x, Y + 2, z, B.CONCRETE + 14);
+    if (aw === 7) { W.set(x, Y + 1, z, C); if (!st && !tunnel) W.set(x, Y + 2, z, B.GLASS_PANE); }
+    if (x === xe + 1) for (let y = Y + 1; y <= Y + 2; y++) W.set(x, y, z, C);
+    if (st && aw <= 3 && x <= xe) W.set(x, Y + 1, z, aw === 3 ? B.CONCRETE + 4 : B.TERRAZZO);
+    if (tunnel) {
+      W.set(x, Y + 9, z, (x % 8 === 0 && w === 0) ? B.GLASS_LAMP : mouth ? B.CONCRETE + 15 : C);
+      if (x === xw - 26) for (let y = Y + 1; y <= Y + 8; y++) W.set(x, y, z, B.CONCRETE + 15);
+    }
+    // pillars (the hall holds the deck in the station)
+    if (!st && !tunnel && x % 16 === 0 && aw <= 2) for (let y = Math.max(1, h - 3); y < Y; y++) W.set(x, y, z, aw === 2 ? DARK : C);
+    // catenary masts
+    if (!tunnel && x % 24 === 0) {
+      if (aw === 7) for (let y = Y + 2; y <= Y + 7; y++) W.set(x, y, z, B.IRON_BARS);
+      W.set(x, Y + 8, z, B.IRON_BARS);
+    }
+  });
+  // the tunnel portal
+  rect(xw - 1, xw - 1, -12, 12, (x, w, z) => {
+    for (let y = Y; y <= Y + 12; y++) if (Math.abs(w) > 7 || y > Y + 8) W.set(x, y, z, y === Y + 12 || Math.abs(w) === 12 ? DARK : C);
+  });
+
+  // ---- the hall under the tracks ----
+  const hx0 = xs + 2, hx1 = xe - 2, mid = (hx0 + hx1) >> 1;
+  rect(hx0, hx1, -8, 8, (x, w, z) => {
+    const aw = Math.abs(w), edge = aw === 8 || x === hx0 || x === hx1;
+    for (let y = F; y < Y; y++) {
+      let id = B.AIR;
+      if (edge) {
+        const post = aw === 8 ? (x - hx0) % 6 === 0 || x === hx1 : aw % 4 === 0;
+        id = post ? DARK : y === F + 4 ? B.STEEL_PLATE : B.GLASS;
+      } else if (y === Y - 1 && (x - hx0) % 6 === 3 && (w === -4 || w === 4)) id = B.GLASS_LAMP;
+      W.set(x, y, z, id);
+    }
+  });
+  // doors: the south side, and both ends
+  placeADoors(W, [[mid - 1, lz + 8], [mid, lz + 8], [mid + 1, lz + 8]].filter(([x, z]) => W.has(x, z)), F, 4);
+  placeADoors(W, [[hx1, lz - 1], [hx1, lz], [hx1, lz + 1]].filter(([x, z]) => W.has(x, z)), F, 0);
+  // inside: ticket machines, benches, plants
+  rect(hx0 + 1, hx1 - 1, -7, 7, (x, w, z) => {
+    const r = x - hx0;
+    if (w === -7 && [6, 8, 34, 36, 50, 52].includes(r)) W.set(x, F, z, B.VENDING_MACHINE, 4);
+    if (w === 5 && ((r >= 8 && r <= 11) || (r >= 42 && r <= 45))) W.set(x, F, z, B.SOFA_GRAY, 5);
+    if ((w === -7 || w === 7) && (r === 1 || r === hx1 - hx0 - 1)) { W.set(x, F, z, B.PODZOL); W.set(x, F + 1, z, B.BUSH); }
+  });
+  for (const r of [12, 42]) if (W.has(hx0 + r, lz - 7)) W.pic(hx0 + r, F + 3, lz - 7, 4, 4, 2, 'ave_board');
+  if (W.has(mid - 4, lz + 9)) W.pic(mid - 4, Y - 3, lz + 9, 4, 8, 2, 'ave_sign');
+
+  // ---- stairs up through the deck to the island ----
+  const sx = L.sx;
+  rect(sx - 1, sx + 11, -2, 2, (x, w, z) => {
+    const k = x - sx, aw = Math.abs(w);
+    if (aw <= 1 && k >= 0 && k <= 10) {
+      for (let y = F; y < F + k; y++) W.set(x, y, z, B.TERRAZZO);
+      W.set(x, F + k, z, shapeId('terrazzo', 'stairs'), 0);
+      for (let y = F + k + 1; y <= F + k + 3; y++) if (y !== Y + 1 || k < 10) W.set(x, y, z, B.AIR);
+      if (k < 6) for (let y = F + k + 4; y < Y; y++) if (W.get(x, y, z) === B.AIR) W.set(x, y, z, B.AIR);
+    }
+    // railings round the opening in the island
+    if (aw === 2 && k >= 6 && k <= 10) W.set(x, Y + 2, z, B.GLASS_PANE);
+    if (aw <= 1 && k === 6) W.set(x, Y + 2, z, B.GLASS_PANE);
+  });
+  // ---- the lift: a plate in the hall and one on the island, a glass shaft ----
+  rect(L.lift - 1, L.lift + 1, -1, 1, (x, w, z) => {
+    const shaft = x === L.lift && w === 0;
+    for (let y = F - 1; y <= Y + 4; y++) {
+      let id;
+      if (shaft) id = y === F - 1 || y === Y + 1 ? B.LIFT_FLOOR : B.AIR;
+      else if (y === Y + 4) id = B.GLASS;
+      else if (y < F || y === Y + 1) continue;
+      else if ((x === L.lift + 1 && w === 0 && (y <= F + 1 || (y >= Y + 2 && y <= Y + 3)))) id = B.AIR;
+      else id = B.GLASS;
+      W.set(x, y, z, id);
+    }
+  });
+  // ---- the canopy over the platform ----
+  rect(xs, xe, -8, 8, (x, w, z) => {
+    const r = x - xs, aw = Math.abs(w);
+    if (w === 0 && r % 12 === 6 && Math.abs(x - L.lift) > 1 && (x < sx + 5 || x > sx + 11)) for (let y = Y + 2; y <= Y + 7; y++) W.set(x, y, z, B.STEEL_PLATE);
+    W.set(x, Y + 8, z, r % 6 === 0 || aw === 8 ? B.STEEL_PLATE : aw <= 1 ? B.GLASS_LAMP : B.GLASS);
+  });
+
+  // ---- the plaza and a lit path back towards the district ----
+  rect(xs, xe, 15, 15, (x, w, z) => { if ((x - xs) % 12 === 4) campusLamp(W, x, F, z); });
+  rect(xe + 5, L.pathEnd, 10, 14, (x, w, z) => {
+    const y = top(x, z);
+    W.set(x, y, z, w === 10 || w === 14 ? B.POLISHED_ANDESITE : B.PANOT);
+    for (let yy = y + 1; yy <= y + 5; yy++) { const id = W.get(x, yy, z); if (id > 0 && id !== B.AIR) W.set(x, yy, z, B.AIR); }
+    if (w === 14 && (x - xe) % 16 === 0) campusLamp(W, x, y + 1, z);
+  });
 }
 </script>
 <script data-w>
@@ -38088,6 +38276,619 @@ SYNTH.cash_up = (ctx, o, t) => { Sound.tone(ctx, o, t, 0.12, { wave: 'triangle',
   PC.add({ key: 'biz', icon: '\ud83d\udcbc', name: ED('Negocis', 'Business'), run() { Biz.panel(); } });
   PC.add({ key: 'stocks', icon: '\ud83d\udcc8', name: ED('Borsa', 'Stocks'), run() { Stocks.open(); } });
   PC.add({ key: 'rent', icon: '\ud83d\udd11', name: ED('Lloguers', 'Rentals'), run() { Rent.open(); } });
+}
+</script>
+<script>
+'use strict';
+// The high-speed trains on the line ave_gen.js builds. While you are near the station a train
+// comes in from the west every couple of minutes, waits at the platform and leaves again, and
+// one is always waiting at the south track for you: right-click it, a ticket machine in the hall
+// or the AVE app. Pick a destination (the themed places on land): the doors close, it pulls out,
+// crosses the viaduct at full speed and you arrive. The ticket brings you back: right-click with
+// it anywhere and you ride into the station on the evening train.
+
+Object.assign(I, { AVE_TICKET: 452 });
+defItem(I.AVE_TICKET, 'AVE Ticket \u00b7 back to ' + CITY, { sprite: 'i_ave_ticket', stack: 16, cat: 'transport' });
+sprite('i_ave_ticket', (d) => {
+  sprRect(d, 3, 9, 29, 23, [248, 248, 250]);
+  sprRect(d, 3, 9, 29, 12, [120, 40, 150]);
+  sprRect(d, 3, 20, 29, 23, [214, 32, 43]);
+  sprRect(d, 6, 14, 15, 15, [60, 60, 70]); sprRect(d, 6, 17, 12, 18, [60, 60, 70]);
+  sprRect(d, 20, 13, 26, 19, [30, 30, 40]);
+});
+
+// ---- the train: two power cars with long noses and two coaches, white with purple and red ----
+{
+  const WH = [0.97, 0.97, 0.98], PUR = [0.45, 0.14, 0.58], RED = [0.84, 0.12, 0.16], GRY = [0.55, 0.58, 0.63];
+  const parts = [], CAR = 12, GAP = 0.4, N = 4, half = (N * CAR + (N - 1) * GAP) / 2;
+  for (let c = 0; c < N; c++) {
+    const z0 = -half + c * (CAR + GAP), z1 = z0 + CAR;
+    parts.push(
+      [-1.35, 0.55, z0, 1.35, 3.05, z1, 'white', { c: WH }],
+      [-1.36, 1.2, z0, 1.36, 1.42, z1, 'white', { c: PUR }],
+      [-1.365, 1.42, z0, 1.365, 1.52, z1, 'white', { c: RED }],
+      [-1.37, 1.95, z0 + 0.6, 1.37, 2.55, z1 - 0.6, 'glass'],
+      [-1.2, 0.2, z0 + 0.8, 1.2, 0.55, z0 + 3, 'hullDark'], [-1.2, 0.2, z1 - 3, 1.2, 0.55, z1 - 0.8, 'hullDark'],
+      [-1.1, 3.05, z0 + 0.3, 1.1, 3.3, z1 - 0.3, 'metal'],
+    );
+    for (const dz of [-3.5, 3.5]) parts.push([1.37, 0.7, (z0 + z1) / 2 + dz - 0.55, 1.39, 2.6, (z0 + z1) / 2 + dz + 0.55, 'white', { c: GRY, m: true }]);
+    if (c < N - 1) parts.push([-1.0, 0.6, z1, 1.0, 2.9, z1 + GAP, 'hullDark']);
+  }
+  // the noses, both ends
+  for (const s of [1, -1]) {
+    const e = half * s, Z = (a, b) => (s > 0 ? [e + a, e + b] : [e - b, e - a]);
+    const box = (x, y0, y1, a, b, sw, o) => { const [p, q] = Z(a, b); parts.push([-x, y0, p, x, y1, q, sw, o]); };
+    box(1.3, 0.55, 2.7, 0, 1.4, 'white', { c: WH });
+    box(1.15, 0.55, 2.25, 1.4, 2.8, 'white', { c: WH });
+    box(0.95, 0.55, 1.75, 2.8, 4.0, 'white', { c: WH });
+    box(0.65, 0.55, 1.25, 4.0, 4.9, 'white', { c: WH });
+    box(1.31, 1.2, 1.42, 0, 2.8, 'white', { c: PUR });
+    box(1.16, 2.25, 2.72, 0.2, 1.5, 'glass');
+    box(0.97, 1.75, 2.26, 1.45, 2.7, 'glass');
+    box(0.66, 0.9, 1.1, 4.85, 4.95, 'white', { c: RED });
+    const [p, q] = Z(3.2, 3.5);
+    parts.push([0.6, 0.9, p, 0.9, 1.15, q, s > 0 ? 'navWhite' : 'navRed', { m: true, glow: 2 }]);
+    // pantograph
+    const [a, b] = Z(-5, -2);
+    parts.push([-0.5, 3.3, a, 0.5, 3.4, b, 'metal'], [-0.05, 3.4, a + 0.5, 0.05, 4.2, b - 0.5, 'metal']);
+  }
+  RIDE_KINDS.ave = {
+    item: I.AVE_TICKET, name: 'AVE', type: 'rail', max: 90, rev: 0, acc: 0, brake: 0, steer: 0, base: 8, step: 1.05, h: 4.2, len: 2 * half + 10, w: 2.8,
+    seat: [0.65, 0.9, half - 16], eye: [0.65, 2.3, half - 16], cam: 34, sit: true, hide: true, sound: 'bus', paintDefault: 0,
+    parts, hit: [[-1.4, 0, -half - 5, 1.4, 3.3, half + 5]],
+  };
+  RIDE_KEYS.push('ave');
+  const d = RIDE_KINDS.ave;
+  d.key = 'ave';
+  const out = [];
+  for (const [x0, y0, z0, x1, y1, z1, sw, o = {}] of d.parts) {
+    out.push({ box: [x0, y0, z0, x1, y1, z1], sw, o });
+    if (o.m) out.push({ box: [-x1, y0, z0, -x0, y1, z1], sw, o: Object.assign({}, o) });
+  }
+  d.model = out;
+}
+
+const AVE_ACC = 2.4, AVE_TOP = 62;      // blocks/s\u00b2 and blocks/s (shown \u00d71.4 on the speedometer)
+const Ave = {
+  trains: [], ambientT: 20, trip: null, hint: false,
+  line() { return G.world && G.world.gen ? aveLine(G.world.gen) : null; },
+  near(L, r = 260) { const p = G.player.pos; return p[0] > L.xs - 420 && p[0] < L.xe + r && Math.abs(p[2] - L.z) < r && Math.abs(p[1] - L.y) < 120; },
+  inStation(L, x, z) { return x >= L.xs - 4 && x <= L.xe + 4 && Math.abs(z - L.z) <= 18; },
+  track(L, s) { return L.z + 5.5 * s; },
+
+  // a train on a track (s = +1 south, -1 north); x(t) given by `move`
+  spawn(L, s, x, faceWest) {
+    const v = Rides.spawn('ave', x, L.y + 1.12, this.track(L, s), faceWest ? -Math.PI / 2 : Math.PI / 2, 0);
+    v.scripted = true; v.ave = true; v.onGround = true;
+    const T = { v, s, x, state: 'wait', t: 0, speed: 0 };
+    this.trains.push(T);
+    return T;
+  },
+  place(L, T) {
+    const v = T.v;
+    v.pos = [T.x, L.y + 1.12, this.track(L, T.s)];
+    v.yaw = T.west ? -Math.PI / 2 : Math.PI / 2; v.pitch = 0; v.roll = 0;
+    v.speed = T.speed; v.rpm = clamp(0.2 + T.speed / AVE_TOP, 0, 1);
+    if (v.basis) v.basis();
+  },
+  drop(T) { if (G.vehicle !== T.v) T.v.removed = true; this.trains.splice(this.trains.indexOf(T), 1); },
+
+  update(dt) {
+    const L = this.line();
+    for (const T of this.trains.slice()) if (T.v.removed) this.trains.splice(this.trains.indexOf(T), 1);
+    if (!L) return;
+    const near = this.near(L);
+    if (!near && !this.trip) { for (const T of this.trains.slice()) this.drop(T); return; }
+    // the one waiting for you at the south platform
+    if (near && !this.trains.some((T) => T.boarding) && !this.trip) {
+      const T = this.spawn(L, 1, L.stop, true);
+      T.boarding = true; T.west = true;
+    }
+    // now and then one comes in on the north track, waits and goes
+    this.ambientT -= dt;
+    if (near && this.ambientT <= 0 && !this.trains.some((T) => T.ambient)) {
+      this.ambientT = 110 + Math.random() * 60;
+      const T = this.spawn(L, -1, L.stop - 600, false);
+      T.ambient = true; T.state = 'in'; T.west = false; T.t = 0;
+    }
+    for (const T of this.trains.slice()) this.run(L, T, dt);
+    // the first time you walk into the hall
+    const p = G.player.pos;
+    if (!this.hint && this.inStation(L, p[0], p[2]) && Math.abs(p[1] - L.F) < 12) { this.hint = true; G.ui.banner('\ud83d\ude84', 'AVE ' + CITY + ' \u00b7 tickets at the machines, or right-click the train on the platform'); }
+  },
+  // arriving: brakes all the way in; leaving: speeds up to the top and away
+  run(L, T, dt) {
+    T.t += dt;
+    if (T.state === 'in') {
+      const D = 600, dur = Math.sqrt(2 * D / 1.1);
+      const k = Math.max(0, dur - T.t);
+      T.x = L.stop - 0.5 * 1.1 * k * k; T.speed = 1.1 * k;
+      if (T.t >= dur) { T.state = 'wait'; T.t = 0; T.speed = 0; if (T.player) this.arrived(L, T); else sfx('ave_ding', [L.stop, L.y + 2, L.z], 0.6, 1); }
+    } else if (T.state === 'wait') {
+      T.x = L.stop; T.speed = 0;
+      if (T.ambient && T.t > 30) { T.state = 'out'; T.t = 0; T.west = true; sfx('ave_ding', [L.stop, L.y + 2, L.z], 0.6, 1); }
+    } else if (T.state === 'out') {
+      const t = Math.max(0, T.t - 2), tTop = AVE_TOP / AVE_ACC;
+      const dist = t < tTop ? 0.5 * AVE_ACC * t * t : 0.5 * AVE_ACC * tTop * tTop + AVE_TOP * (t - tTop);
+      T.x = L.stop - dist; T.speed = t < tTop ? AVE_ACC * t : AVE_TOP;
+      if (T.player && T.t > 19 && !T.gone) { T.gone = true; this.away(T); }
+      if (!T.player && T.x < L.xw - 10) this.drop(T);
+    }
+    this.place(L, T);
+    if (T.speed > 20 && G.vehicle !== T.v && Math.random() < dt * 2) sfx('ave_whoosh', T.v.pos, 0.5, 0.9 + Math.random() * 0.2);
+  },
+
+  dests() {
+    return Airport.dests().filter((d) => d.key !== 'islands').map((d) => ({ ...d, price: 30 + Math.round(d.d / 45), mins: Math.max(1, Math.round(d.d / 900)) }));
+  },
+  open() {
+    const L = this.line();
+    if (!L) { G.ui.toast('This world has no AVE line'); return; }
+    const p = G.player.pos;
+    if (!this.inStation(L, p[0], p[2])) { this.find(); return; }
+    const q = GPanel.open({ title: 'AVE \u00b7 ' + CITY, sub: 'High-speed departures \u00b7 platform 2', icon: '\ud83d\ude84', cls: 'gp-shop gp-ave', width: 660 });
+    q.wrap.querySelector('.gp').style.setProperty('--shop', '#6a1f86');
+    const now = new Date(), list = this.dests();
+    q.body.innerHTML = `<div class="dep-board ave-board">${list.map((d, i) => {
+      const m = now.getMinutes() + 3 + i * 9, h = (now.getHours() + Math.floor(m / 60)) % 24;
+      return `<div class="dep-row"><span class="dep-t">${String(h).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}</span><span class="dep-f">AVE ${3101 + i * 12}</span>
+        <span class="dep-d">${d.icon} ${GPanel.esc(d.name)}</span><span class="dep-g">${Math.round(d.d)} blocks \u00b7 ${d.mins} min \u00b7 via 2</span>
+        <button class="gp-btn ok" data-go="${d.key}">\ud83e\ude99 ${d.price}</button></div>`;
+    }).join('') || '<div class="gp-empty">No destinations in this world</div>'}</div>
+      <p class="gp-dim" style="margin:10px 0 0">The train leaves as soon as you are seated: 300 km/h over the viaduct. A return ticket comes with every journey.</p>`;
+    q.body.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => {
+      const d = list.find((x) => x.key === b.dataset.go);
+      if (!d || this.trip) return;
+      if (!Shops.pay(d.price)) { G.ui.toast('\ud83e\ude99 The ticket costs ' + d.price + ' coins'); sfx('gate_no', null, 0.6, 1); return; }
+      q.close();
+      this.board(L, d);
+    }));
+  },
+  // the station on the map, from anywhere
+  find() {
+    const L = this.line();
+    if (!L) { G.ui.toast('This world has no AVE line'); return; }
+    const x = (L.xs + L.xe) / 2, z = L.z + 12, p = G.player.pos;
+    G.markers = G.markers || [];
+    if (!G.markers.some((m) => m.x === Math.round(x) && m.z === z)) G.markers.push({ x: Math.round(x), z, name: '\ud83d\ude84 AVE station', color: '#8a3fb0' });
+    const d = Math.hypot(x - p[0], z - p[2]), dir = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round((Math.atan2(x - p[0], -(z - p[2])) / (Math.PI / 4) + 8)) % 8];
+    G.ui.banner('\ud83d\ude84', 'AVE station \u00b7 ' + Math.round(d) + ' blocks ' + dir + ' \u00b7 marked on your map (M) \u00b7 follow the lit path west of the district');
+  },
+
+  board(L, d) {
+    const T = this.trains.find((q) => q.boarding) || this.spawn(L, 1, L.stop, true);
+    T.boarding = false; T.player = true; T.west = true; T.state = 'wait'; T.t = 0;
+    this.trip = { d, T };
+    sfx('shop_till', null, 0.7, 1);
+    Airport.fade(true, () => {
+      boardAve.call(Vehicles, T.v);
+      G.player.yaw = -Math.PI; G.player.pitch = -0.1;
+      G.ui.banner('\ud83d\ude84', 'AVE to ' + d.name + ' \u00b7 doors closing');
+      sfx('ave_ding', null, 0.8, 1);
+      setTimeout(() => { if (this.trip && this.trip.T === T) { T.state = 'out'; T.t = 0; } }, 2500);
+      Airport.fade(false);
+    }, 700);
+  },
+  away(T) {
+    const d = this.trip && this.trip.d;
+    if (!d) return;
+    Airport.fade(true, () => {
+      this.trip = null;
+      if (G.vehicle === T.v) Vehicles.dismount(true);
+      this.drop(T);
+      const pr = G.prog || (G.prog = {});
+      pr.found = pr.found || {}; pr.found[d.key] = true;
+      travelTo(d.key);
+      const left = G.inv.add(mkStack(I.AVE_TICKET, 1));
+      if (left) Ents.spawnItem(mkStack(I.AVE_TICKET, 1), G.player.pos[0], G.player.pos[1] + 1, G.player.pos[2]);
+      G.ui.invDirty();
+      G.ui.banner(d.icon, 'Welcome to ' + d.name + '! Your AVE ticket takes you back to ' + CITY);
+      Airport.fade(false);
+    }, 1200);
+  },
+  // the way back: you are aboard as it brakes into the station
+  home() {
+    const L = this.line();
+    if (!L) { G.ui.toast('This world has no AVE line'); return false; }
+    if (this.trip || Airport.mine || Police.jail) return false;
+    Airport.fade(true, () => {
+      if (G.vehicle) Vehicles.dismount(true);
+      for (const T of this.trains.slice()) if (T.s === -1) this.drop(T);
+      const T = this.spawn(L, -1, L.stop - 600, false);
+      T.state = 'in'; T.t = Math.sqrt(2 * 600 / 1.1) - 14; T.player = true; T.west = false;
+      this.trip = { d: { name: CITY, icon: '\ud83c\udfd9\ufe0f' }, T, home: true };
+      this.run(L, T, 0);
+      const p = G.player;
+      p.pos = T.v.pos.slice(); p.vel = [0, 0, 0]; p.fallStart = null;
+      prepareArea(L.stop, L.z, 3);
+      boardAve.call(Vehicles, T.v);
+      p.yaw = 0; p.pitch = -0.1;
+      Net.teleported();
+      G.ui.banner('\ud83d\ude84', 'AVE to ' + CITY + ' \u00b7 arriving in a few seconds');
+      Airport.fade(false);
+    }, 1200);
+    return true;
+  },
+  arrived(L, T) {
+    Airport.fade(true, () => {
+      this.trip = null;
+      if (G.vehicle === T.v) Vehicles.dismount(true);
+      const p = G.player;
+      p.pos = [L.stop + 0.5, L.y + 2, L.z + 0.5]; p.vel = [0, 0, 0]; p.fallStart = null; p.yaw = Math.PI / 2;
+      Net.teleported();
+      T.ambient = true; T.player = false; T.t = 0;
+      G.ui.banner('\ud83d\ude84', 'Welcome to ' + CITY + ' \u00b7 the stairs and the lift go down to the hall');
+      Airport.fade(false);
+    }, 900);
+  },
+  updateHud() {
+    const m = this.trip;
+    let el = $('aveHud');
+    if (!m) { if (el) el.classList.remove('show'); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'aveHud'; document.body.append(el); }
+    const T = m.T, kmh = Math.round(T.speed * 3.6 * 1.4);
+    const phase = m.home ? (T.state === 'in' ? 'Arriving \u00b7 platform 1' : 'At the platform') : T.state === 'wait' ? 'Doors closing' : kmh < 200 ? 'Leaving ' + CITY : 'Cruising over the viaduct';
+    el.innerHTML = `<b>\ud83d\ude84 AVE \u00b7 ${m.home ? '\u2192 ' + CITY : CITY + ' \u2192 ' + GPanel.esc(m.d.name)}</b><span>${phase}</span><em>${kmh}<small> km/h</small></em><i style="width:${Math.min(100, kmh / 3.1)}%"></i>`;
+    el.classList.add('show');
+  },
+};
+
+PIC_BUILTIN.ave_sign = { w: 8, h: 2, draw(g, W, H) {
+  const grd = g.createLinearGradient(0, 0, W, 0); grd.addColorStop(0, '#5b1a78'); grd.addColorStop(1, '#8a2fb0');
+  g.fillStyle = grd; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#d6202b'; g.fillRect(0, H * 0.84, W, H * 0.16);
+  g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.font = `italic 900 ${H * 0.5}px Arial`; g.fillText('AVE', H * 0.3, H * 0.44);
+  g.font = `800 ${H * 0.22}px Arial`; g.fillText(ED('ESTACI\u00d3 ', 'STATION \u00b7 ') + CITY.toUpperCase(), H * 1.55, H * 0.32);
+  g.fillStyle = '#e9d6f5'; g.font = `600 ${H * 0.16}px Arial`; g.fillText(ED('Alta velocitat \u00b7 300 km/h \u00b7 Andanes 1 i 2', 'High speed \u00b7 300 km/h \u00b7 Platforms 1 and 2'), H * 1.56, H * 0.6);
+} };
+PIC_BUILTIN.ave_board = { w: 4, h: 2, draw(g, W, H) {
+  g.fillStyle = '#0b0f18'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#b36bff'; g.font = `800 ${H * 0.1}px Arial`; g.textBaseline = 'middle'; g.fillText(ED('SORTIDES AVE', 'AVE DEPARTURES'), W * 0.04, H * 0.1);
+  const rows = [['10:12', '3101', 'SNOWY PEAKS', '2'], ['10:21', '3113', 'VOLCANO', '2'], ['10:30', '3125', 'RED CANYON', '2'], ['10:39', '3137', 'FOREST', '2'], ['10:48', '3149', 'DESERT OASIS', '2']];
+  g.font = `700 ${H * 0.085}px 'Courier New', monospace`;
+  rows.forEach((r, i) => {
+    const y = H * (0.27 + i * 0.16);
+    g.fillStyle = '#ffcc33'; g.fillText(r[0], W * 0.04, y); g.fillText(r[1], W * 0.2, y);
+    g.fillStyle = '#e8eef8'; g.fillText(r[2], W * 0.36, y);
+    g.fillStyle = '#3cf2c0'; g.fillText(ED('VIA ', 'PL ') + r[3], W * 0.82, y);
+  });
+} };
+
+SYNTH.ave_ding = (ctx, o, t) => {
+  for (const [dt, f] of [[0, 784], [0.28, 988], [0.56, 1175]]) Sound.tone(ctx, o, t + dt, 0.8, { wave: 'sine', f0: f, gain: 0.07 });
+};
+SYNTH.ave_whoosh = (ctx, o, t) => { Sound.noise(ctx, o, t, 1.4, { type: 'lowpass', freq: 600, gain: 0.14 }); };
+
+const boardAve = Vehicles.board;
+{
+  Vehicles.board = function (v) {
+    if (v && v.ave) {
+      if (Ave.trip && Ave.trip.T.v === v) return boardAve.call(this, v);
+      Ave.open();
+      return;
+    }
+    return boardAve.call(this, v);
+  };
+  const ser = Vehicles.serialize;
+  Vehicles.serialize = function () { const keep = this.list; this.list = keep.filter((v) => !v.ave); try { return ser.call(this); } finally { this.list = keep; } };
+  const hit = Vehicles.hit;
+  if (hit) Vehicles.hit = function (v) { if (v && v.ave) return; return hit.call(this, v); };
+  const pk = Vehicles.pickUp;
+  Vehicles.pickUp = function (v) { if (v && v.ave) return; return pk.call(this, v); };
+  const idle = Ride.prototype.updateIdle;
+  Ride.prototype.updateIdle = function (dt) { if (this.ave) { if (this.basis) this.basis(); return; } return idle.call(this, dt); };
+  const pilot = Rides.pilot;
+  Rides.pilot = function (v, dt, input, horn) {
+    if (!v.ave) return pilot.call(this, v, dt, input, horn);
+    const p = G.player, at = v.toWorld(v.def.seat);
+    p.pos = [at[0], at[1] - 0.75, at[2]];
+    p.vel = [0, 0, 0]; p.onGround = true; p.fallStart = null; p.landed = 0;
+    this.updateMotor(v);
+  };
+  const dis = Vehicles.dismount;
+  Vehicles.dismount = function (forced) { if (!forced && G.vehicle && G.vehicle.ave && Ave.trip) { G.ui.toast('\ud83d\ude84 We are at 300 km/h: stay seated'); return; } return dis.call(this, forced); };
+  const use = Act.useItem;
+  Act.useItem = function (initial) {
+    const held = G.inv.held, t = this.target, b = t && t.block;
+    if (initial && held && held.id === I.AVE_TICKET && !(t && (t.mob || t.vehicle))) { if (Ave.home()) { Act.consume(); this.swingHand(); } return true; }
+    if (initial && b && b.id === B.VENDING_MACHINE && !G.player.sneaking) {
+      const L = Ave.line();
+      if (L && Ave.inStation(L, b.pos[0], b.pos[2])) { Ave.open(); this.swingHand(); return true; }
+    }
+    return use.call(this, initial);
+  };
+  const fu = Furniture.update;
+  Furniture.update = function (dt) { fu.call(this, dt); try { Ave.update(dt || 0.016); Ave.updateHud(); } catch (e) { console.warn('Blocklands: AVE', e); } };
+  PC.add({ key: 'ave', icon: '\ud83d\ude84', name: 'AVE', run() { Ave.open(); } });
+  const run = Commands.run;
+  Commands.run = function (text) { if (/^\/(ave|train|tren)\b/i.test(text)) { Ave.find(); return; } return run.call(this, text); };
+}
+</script>
+<script>
+'use strict';
+// Island cruise: the Blocklands Star, a white cruise ship with three decks of cabins, a pool on
+// top, lifeboats and a red funnel, lies at anchor off every port (sea.js finds the ports). Buy a
+// cruise at the ferry office or with the Cruise app: you are taken aboard, it sails out and
+// calls at the islands and the beach, three minutes ashore at each (the horn warns you, the app
+// takes you back early or lets you stay), and then home to the port it left from.
+
+const CRUISE_PRICE = 160, CRUISE_ASHORE = 180, CRUISE_SAIL = 22;
+const CRUISE_ROUTE = ['islands', 'beach'];
+
+{
+  const NAVY = [0.1, 0.16, 0.34], WH = [0.97, 0.97, 0.98], RED = [0.82, 0.12, 0.14], WOOD = [0.64, 0.46, 0.28], ORANGE = [0.98, 0.5, 0.1], POOL = [0.22, 0.68, 0.95];
+  const parts = [
+    // hull
+    [-6.5, -3, -34, 6.5, 1.3, 30, 'white', { c: NAVY }], [-6.52, 1.3, -34, 6.52, 1.6, 30, 'white', { c: RED }], [-6.5, 1.6, -34, 6.5, 5, 30, 'white', { c: WH }],
+    [-5.6, -2.6, 30, 5.6, 1.3, 33.5, 'white', { c: NAVY }], [-5.6, 1.3, 30, 5.6, 5.2, 33.5, 'white', { c: WH }],
+    [-4.2, -2, 33.5, 4.2, 1.3, 36.5, 'white', { c: NAVY }], [-4.2, 1.3, 33.5, 4.2, 5.4, 36.5, 'white', { c: WH }],
+    [-2.4, -1, 36.5, 2.4, 1.3, 39, 'white', { c: NAVY }], [-2.4, 1.3, 36.5, 2.4, 5.6, 39, 'white', { c: WH }],
+    [-6, -2.4, -37, 6, 1.3, -34, 'white', { c: NAVY }], [-6, 1.3, -37, 6, 5, -34, 'white', { c: WH }],
+    [6.5, 2.4, -32, 6.56, 3.1, 28, 'glass', { m: true }],                                   // portholes band
+    // the promenade deck and three decks of cabins
+    [-6.4, 5, -33, 6.4, 5.2, 29, 'white', { c: WOOD }],
+    [-6, 5.2, -30, 6, 8, 24, 'white', { c: WH }], [6, 6.2, -29, 6.06, 7.3, 23, 'glass', { m: true }],
+    [-5.6, 8, -28, 5.6, 10.8, 22, 'white', { c: WH }], [5.6, 8.9, -27, 5.66, 10.1, 21, 'glass', { m: true }], [5.6, 8, -27, 6.2, 8.15, 21, 'metal', { m: true }],
+    [-5.2, 10.8, -26, 5.2, 13.6, 20, 'white', { c: WH }], [5.2, 11.7, -25, 5.26, 12.9, 19, 'glass', { m: true }], [5.2, 10.8, -25, 5.8, 10.95, 19, 'metal', { m: true }],
+    [-5.2, 13.6, -26, 5.2, 13.8, 20, 'white', { c: WOOD }],
+    // lights along the decks (they glow at night)
+    [6.06, 7.9, -29, 6.12, 8.0, 23, 'navWhite', { glow: 1.2, m: true }], [5.66, 10.7, -27, 5.72, 10.8, 21, 'navWhite', { glow: 1.2, m: true }], [5.26, 13.5, -25, 5.32, 13.6, 19, 'navWhite', { glow: 1.2, m: true }],
+    // the pool, deck chairs, a water slide
+    [-2.6, 13.8, -11, 2.6, 14.0, -2, 'white', { c: [0.9, 0.9, 0.92] }], [-2.2, 13.8, -10.6, 2.2, 14.05, -2.4, 'white', { c: POOL }],
+    [3.2, 13.8, -9, 4.4, 14.3, -8.3, 'white', { c: WH, m: true }], [3.2, 13.8, -6.5, 4.4, 14.3, -5.8, 'white', { c: WH, m: true }], [3.2, 13.8, -4, 4.4, 14.3, -3.3, 'white', { c: WH, m: true }],
+    [-4.4, 13.8, -16, -3.6, 18, -15.2, 'white', { c: [0.98, 0.8, 0.1] }], [-4.4, 17.2, -15.2, -3.6, 18, -11, 'white', { c: RED }], [-4.4, 15.2, -11, -3.6, 16, -8, 'white', { c: [0.2, 0.7, 0.3] }],
+    // the bridge
+    [-5.8, 13.8, 14, 5.8, 16.4, 19, 'white', { c: WH }], [-5.6, 15, 19, 5.6, 16.1, 19.06, 'glass'], [5.8, 15, 15, 7, 16.2, 18, 'white', { c: WH, m: true }],
+    [6.9, 15.4, 16, 7.02, 15.8, 16.4, 'navGreen', { glow: 1.4 }], [-7.02, 15.4, 16, -6.9, 15.8, 16.4, 'navRed', { glow: 1.4 }],
+    [-0.1, 16.4, 16, 0.1, 21, 16.3, 'metal'], [-0.15, 21, 16, 0.15, 21.25, 16.3, 'navWhite', { strobe: true }],
+    // the funnel
+    [-1.9, 13.8, -24, 1.9, 20, -18.5, 'white', { c: RED }], [-1.95, 20, -24.05, 1.95, 21, -18.45, 'hullDark'], [-1.96, 17.5, -24.06, 1.96, 18, -18.44, 'white', { c: WH }],
+  ];
+  for (const z of [-21, -13, -5, 3, 11]) parts.push([6.1, 6.4, z, 6.9, 7.5, z + 5, 'white', { c: ORANGE, m: true }], [6.0, 7.5, z + 0.4, 6.2, 7.8, z + 4.6, 'metal', { m: true }]);
+  RIDE_KINDS.cruise = {
+    item: I.FERRY_TICKET, name: 'Cruise ship', type: 'water', max: 10, rev: 0, acc: 0, brake: 0, steer: 0, base: 8, step: 0.3, h: 21, len: 76, w: 14,
+    seat: [3.4, 13.95, 3], eye: [3.4, 15.5, 3], cam: 70, sit: true, sound: 'boat', paintDefault: 3,
+    parts, hit: [[-6.5, -3, -37, 6.5, 14, 39]],
+  };
+  RIDE_KEYS.push('cruise');
+  const d = RIDE_KINDS.cruise;
+  d.key = 'cruise';
+  const out = [];
+  for (const [x0, y0, z0, x1, y1, z1, sw, o = {}] of d.parts) {
+    out.push({ box: [x0, y0, z0, x1, y1, z1], sw, o });
+    if (o.m) out.push({ box: [-x1, y0, z0, -x0, y1, z1], sw, o: Object.assign({}, o) });
+  }
+  d.model = out;
+}
+
+const Cruise = {
+  v: null, port: null, trip: null, hornT: 40,
+  anchorOf(port) {
+    const D = Ferry.dock(port);
+    return { x: D.x + D.out[0] * 85, z: D.z + D.out[1] * 85, yaw: D.yaw };
+  },
+  ship(x, z, yaw) {
+    if (this.v && !this.v.removed) this.v.removed = true;
+    const v = this.v = Rides.spawn('cruise', x, SEA + 0.1, z, yaw, 3);
+    v.scripted = true; v.cruise = true; v.onGround = true;
+    v.anchor = [x, z];
+    return v;
+  },
+  bob(v) {
+    v.pos[1] = SEA + 0.1 + Math.sin(G.time * 0.5) * 0.08;
+    v.roll = Math.sin(G.time * 0.37) * 0.012; v.pitch = Math.sin(G.time * 0.29) * 0.006;
+    if (v.basis) v.basis();
+  },
+  // deep water near (x, z), the ship's bow pointing away from the shore
+  findSea(x, z) {
+    const g = G.world.gen;
+    for (let r = 50; r <= 260; r += 15) for (let k = 0; k < 24; k++) {
+      const a = k / 24 * Math.PI * 2, sx = x + Math.cos(a) * r, sz = z + Math.sin(a) * r;
+      let ok = true;
+      for (const [dx, dz] of [[0, 0], [30, 0], [-30, 0], [0, 30], [0, -30], [20, 20], [-20, -20]]) if (g.height(Math.floor(sx + dx), Math.floor(sz + dz)) > SEA - 4) { ok = false; break; }
+      if (ok) return { x: sx, z: sz, yaw: Math.atan2(sx - x, sz - z) };
+    }
+    return null;
+  },
+
+  update(dt) {
+    if (this.trip) { this.run(dt); return; }
+    const port = Ferry.port;
+    if (port !== this.port) { if (this.v) this.v.removed = true; this.v = null; this.port = port; }
+    if (!port) return;
+    const A = this.anchorOf(port);
+    if (!this.v || this.v.removed) this.ship(A.x, A.z, A.yaw);
+    this.bob(this.v);
+    this.hornT -= dt;
+    if (this.hornT <= 0) { this.hornT = 90 + Math.random() * 60; sfx('horn', this.v.pos, 1.2, 0.35); }
+  },
+
+  // ---- the cruise ----
+  route(port) {
+    const g = G.world.gen;
+    return CRUISE_ROUTE.map((k) => g.regions && g.regions.find((r) => r.key === k)).filter(Boolean).map((r) => ({ key: r.key, name: r.p.name, icon: r.p.icon, x: r.x, z: r.z }))
+      .sort((a, b) => Math.hypot(a.x - port.x, a.z - port.z) - Math.hypot(b.x - port.x, b.z - port.z));
+  },
+  book() {
+    const port = this.port || Ferry.port;
+    if (!port) { Ferry.find(); return; }
+    const stops = this.route(port);
+    if (!stops.length) { G.ui.toast('No islands to sail to in this world'); return; }
+    if (this.trip || Ave.trip || Airport.mine) { G.ui.toast('You are already travelling'); return; }
+    if (!Shops.pay(CRUISE_PRICE)) { G.ui.toast('\ud83e\ude99 The cruise costs ' + CRUISE_PRICE + ' coins'); sfx('gate_no', null, 0.6, 1); return; }
+    sfx('shop_till', null, 0.7, 1);
+    this.trip = { port: { x: port.x, y: port.y, z: port.z, name: port.name, pier: port.pier }, stops, i: 0, phase: 'sail', t: 0, speed: 0 };
+    Airport.fade(true, () => {
+      if (G.vehicle) Vehicles.dismount(true);
+      if (!this.v || this.v.removed) { const A = this.anchorOf(port); this.ship(A.x, A.z, A.yaw); }
+      this.aboard();
+      G.ui.banner('\ud83d\udef3\ufe0f', 'Welcome aboard the Blocklands Star! Next stop: ' + stops[0].name);
+      sfx('horn', this.v.pos, 1.3, 0.35);
+      Airport.fade(false);
+    }, 900);
+  },
+  aboard() {
+    const v = this.v, p = G.player, at = v.toWorld(v.def.seat);
+    p.pos = [at[0], at[1] - 0.75, at[2]]; p.vel = [0, 0, 0]; p.fallStart = null;
+    boardCruise.call(Vehicles, v);
+    p.yaw = v.yaw + Math.PI * 0.75; p.pitch = -0.15;
+    Net.teleported();
+  },
+  run(dt) {
+    const T = this.trip, v = this.v;
+    T.t += dt;
+    if (T.phase === 'sail') {
+      if (!v || v.removed) { this.trip = null; return; }
+      T.speed = Math.min(9, T.speed + dt * 0.7);
+      const f = [Math.sin(v.yaw), Math.cos(v.yaw)];
+      v.pos[0] += f[0] * T.speed * dt; v.pos[2] += f[1] * T.speed * dt;
+      v.speed = T.speed; v.rpm = 0.3 + T.speed / 12;
+      this.bob(v);
+      if (Math.random() < dt * 3) Particles.poof && Particles.poof(v.pos[0] + f[0] * 36, SEA + 0.5, v.pos[2] + f[1] * 36, 1.5, 1);
+      if (T.t > CRUISE_SAIL && !T.busy) { T.busy = true; T.i >= T.stops.length ? this.goHome() : this.call(T.stops[T.i]); }
+    } else if (T.phase === 'ashore') {
+      if (v && !v.removed) this.bob(v);
+      const left = CRUISE_ASHORE - T.t;
+      if (left < 30 && !T.warned) { T.warned = true; sfx('horn', v ? v.pos : null, 1.4, 0.35); G.ui.toast('\ud83d\udef3\ufe0f All aboard in 30 seconds!', 3500); }
+      if (left <= 0 && !T.busy) this.reboard();
+    }
+  },
+  // arriving at a stop: you go ashore, the ship waits offshore
+  call(stop) {
+    const T = this.trip;
+    Airport.fade(true, () => {
+      if (G.vehicle) Vehicles.dismount(true);
+      const pr = G.prog || (G.prog = {});
+      pr.found = pr.found || {}; pr.found[stop.key] = true;
+      travelTo(stop.key);
+      const p = G.player.pos, sea = this.findSea(p[0], p[2]);
+      if (sea) this.ship(sea.x, sea.z, sea.yaw); else if (this.v) { this.v.removed = true; this.v = null; }
+      T.phase = 'ashore'; T.t = 0; T.busy = false; T.warned = false;
+      G.ui.banner(stop.icon, 'Stop ' + (T.i + 1) + ' of ' + T.stops.length + ': ' + stop.name + ' \u00b7 three minutes ashore \u00b7 \ud83d\udcf1 Cruise app to go back early');
+      Airport.fade(false);
+    }, 1200);
+  },
+  reboard() {
+    const T = this.trip;
+    if (!T || T.phase !== 'ashore') return;
+    T.busy = true;
+    Airport.fade(true, () => {
+      if (G.vehicle) Vehicles.dismount(true);
+      if (!this.v || this.v.removed) { const p = G.player.pos, sea = this.findSea(p[0], p[2]) || { x: p[0] + 120, z: p[2], yaw: Math.PI / 2 }; this.ship(sea.x, sea.z, sea.yaw); }
+      T.i++; T.phase = 'sail'; T.t = 0; T.speed = 0; T.busy = false;
+      this.aboard();
+      const next = T.stops[T.i];
+      G.ui.banner('\ud83d\udef3\ufe0f', next ? 'Next stop: ' + next.name : 'Heading home to ' + (T.port.name || 'the port'));
+      sfx('horn', this.v.pos, 1.3, 0.35);
+      Airport.fade(false);
+    }, 900);
+  },
+  goHome() {
+    const T = this.trip;
+    Airport.fade(true, () => {
+      if (G.vehicle) Vehicles.dismount(true);
+      this.trip = null;
+      this.land(T.port);
+      G.ui.banner('\ud83d\udef3\ufe0f', 'Back at ' + (T.port.name || 'the port') + ' \u00b7 thank you for sailing with the Blocklands Star');
+      Airport.fade(false);
+    }, 1200);
+  },
+  land(port) {
+    const p = G.player, q = port.pier;
+    const x = q ? q.x + q.sx * Math.max(2, q.len - 3) : port.x, z = q ? q.z + q.sz * Math.max(2, q.len - 3) : port.z;
+    p.pos = [x + 0.5, port.y + 1, z + 0.5]; p.vel = [0, 0, 0]; p.fallStart = null;
+    prepareArea(p.pos[0], p.pos[2], 2);
+    liftOutOfBlocks(p);
+    Net.teleported();
+    if (this.v) { this.v.removed = true; this.v = null; }
+    this.port = null;
+  },
+  stay() {
+    const T = this.trip;
+    if (!T) return;
+    this.trip = null;
+    const pr = G.prog || (G.prog = {});
+    pr.ferryPort = [T.port.x, T.port.y, T.port.z, T.port.name];
+    const left = G.inv.add(mkStack(I.FERRY_TICKET, 1));
+    if (left) Ents.spawnItem(mkStack(I.FERRY_TICKET, 1), G.player.pos[0], G.player.pos[1] + 1, G.player.pos[2]);
+    G.ui.invDirty();
+    if (this.v) { sfx('horn', this.v.pos, 1.2, 0.35); this.v.removed = true; this.v = null; }
+    G.ui.banner('\ud83d\udef3\ufe0f', 'You stay here \u00b7 a ferry ticket takes you back to ' + (T.port.name || 'the port'));
+  },
+
+  // the app: book, or (ashore) go back early / stay
+  open() {
+    const T = this.trip, e = GPanel.esc;
+    if (!T && !Ferry.port) { Ferry.find(); return; }
+    const q = GPanel.open({ title: 'Blocklands Star', sub: T ? 'Island cruise \u00b7 stop ' + Math.min(T.i + 1, T.stops.length) + ' of ' + T.stops.length : 'Island cruise from ' + (Ferry.port.name || 'the port'), icon: '\ud83d\udef3\ufe0f', cls: 'gp-cruise', width: 520 });
+    if (T && T.phase === 'ashore') {
+      const left = Math.max(0, Math.ceil(CRUISE_ASHORE - T.t));
+      q.body.innerHTML = `<div class="cr-card"><div class="cr-big">\u23f1\ufe0f ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</div><p>The ship sails ${T.i + 1 < T.stops.length ? 'on to <b>' + e(T.stops[T.i + 1].name) + '</b>' : 'home to <b>' + e(T.port.name || 'the port') + '</b>'} when the time is up.</p>
+        <div class="fl-act" style="justify-content:center"><button class="gp-btn ok" data-a="back">\ud83d\udef3\ufe0f Back on board now</button><button class="gp-btn" data-a="stay">\ud83c\udfd6\ufe0f Stay here</button></div></div>`;
+      q.body.querySelector('[data-a="back"]').addEventListener('click', () => { q.close(); this.reboard(); });
+      q.body.querySelector('[data-a="stay"]').addEventListener('click', () => { q.close(); this.stay(); });
+      return;
+    }
+    if (T) { q.body.innerHTML = '<div class="cr-card"><p>We are at sea. Enjoy the view from the pool deck!</p></div>'; return; }
+    this.card(q.body);
+  },
+  card(host) {
+    const port = this.port || Ferry.port, stops = port ? this.route(port) : [], e = GPanel.esc;
+    const el = document.createElement('div');
+    el.className = 'cr-offer';
+    el.innerHTML = `<div class="cr-ship">\ud83d\udef3\ufe0f</div><div class="cr-txt"><b>Island cruise \u00b7 Blocklands Star</b><span>${stops.map((s) => s.icon + ' ' + e(s.name)).join(' \u2192 ')} \u2192 \u2693 back here \u00b7 ${Math.round(CRUISE_ASHORE / 60)} min ashore at each stop \u00b7 pool deck</span></div>
+      <button class="gp-btn ok" ${stops.length ? '' : 'disabled'}>\ud83e\ude99 ${CRUISE_PRICE}</button>`;
+    el.querySelector('button').addEventListener('click', () => { const top = GPanel.top(); if (top) top.close(); this.book(); });
+    host.append(el);
+  },
+  updateHud() {
+    const T = this.trip;
+    let el = $('cruiseHud');
+    if (!T) { if (el) el.classList.remove('show'); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'cruiseHud'; document.body.append(el); }
+    const next = T.stops[T.i];
+    let line;
+    if (T.phase === 'ashore') { const left = Math.max(0, Math.ceil(CRUISE_ASHORE - T.t)); line = `Ashore at ${GPanel.esc(next.name)} \u00b7 all aboard in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} \u00b7 \ud83d\udcf1 Cruise`; }
+    else line = (next ? 'Sailing to ' + GPanel.esc(next.name) : 'Sailing home') + ' \u00b7 ' + Math.round(T.speed * 1.94 * 1.6) + ' knots';
+    el.innerHTML = `<b>\ud83d\udef3\ufe0f Blocklands Star</b><span>${line}</span><div class="cr-dots">${T.stops.map((s, i) => `<i class="${i < T.i ? 'done' : i === T.i ? 'now' : ''}">${s.icon}</i>`).join('<u></u>')}<u></u><i class="${T.i >= T.stops.length ? 'now' : ''}">\u2693</i></div>`;
+    el.classList.add('show');
+  },
+};
+
+const boardCruise = Vehicles.board;
+{
+  Vehicles.board = function (v) {
+    if (v && v.cruise) { if (Cruise.trip && G.vehicle !== v) return boardCruise.call(this, v); if (!Cruise.trip) Cruise.open(); return; }
+    return boardCruise.call(this, v);
+  };
+  const ser = Vehicles.serialize;
+  Vehicles.serialize = function () { const keep = this.list; this.list = keep.filter((v) => !v.cruise); try { return ser.call(this); } finally { this.list = keep; } };
+  const hit = Vehicles.hit;
+  if (hit) Vehicles.hit = function (v) { if (v && v.cruise) return; return hit.call(this, v); };
+  const pk = Vehicles.pickUp;
+  Vehicles.pickUp = function (v) { if (v && v.cruise) return; return pk.call(this, v); };
+  const idle = Ride.prototype.updateIdle;
+  Ride.prototype.updateIdle = function (dt) { if (this.cruise) { if (this.basis) this.basis(); return; } return idle.call(this, dt); };
+  const pilot = Rides.pilot;
+  Rides.pilot = function (v, dt, input, horn) {
+    if (!v.cruise) return pilot.call(this, v, dt, input, horn);
+    const p = G.player, at = v.toWorld(v.def.seat);
+    p.pos = [at[0], at[1] - 0.75, at[2]];
+    p.vel = [0, 0, 0]; p.onGround = true; p.fallStart = null; p.landed = 0;
+    this.updateMotor(v);
+  };
+  const dis = Vehicles.dismount;
+  Vehicles.dismount = function (forced) { if (!forced && G.vehicle && G.vehicle.cruise && Cruise.trip) { G.ui.toast('\ud83d\udef3\ufe0f We are at sea: enjoy the trip'); return; } return dis.call(this, forced); };
+  // the ferry office sells cruises too
+  const fo = Ferry.open;
+  Ferry.open = function () {
+    fo.call(this);
+    const q = GPanel.top();
+    if (q && Ferry.port && q.wrap.querySelector('.gp-t').textContent.startsWith('Ferry')) Cruise.card(q.body);
+  };
+  const fu = Furniture.update;
+  Furniture.update = function (dt) { fu.call(this, dt); try { Cruise.update(dt || 0.016); Cruise.updateHud(); } catch (e) { console.warn('Blocklands: cruise', e); } };
+  PC.add({ key: 'cruise', icon: '\ud83d\udef3\ufe0f', name: ED('Creuer', 'Cruise'), run() { Cruise.open(); } });
 }
 </script>
 <script>
