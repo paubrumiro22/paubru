@@ -44849,6 +44849,8 @@ const ADS_CONFIG = {
     sdk: 'https://cdn.applixir.com/applixir.app.v6.0.1.js',
     sdkOld: 'https://cdn.applixir.com/applixir.sdk3.0m.js',
   },
+  // Monetag Direct Link: the ad opens in a new tab; the reward comes when you are back after a while
+  directLink: 'https://omg10.com/4/11930130', directSeconds: 12,
   coins: 150, coinWait: 180000, offerWait: 120000,
 };
 
@@ -44857,7 +44859,8 @@ const Ads = {
   provider() {
     if (CG) return typeof Crazy !== 'undefined' && Crazy.ready ? 'crazy' : null;
     const A = ADS_CONFIG.applixir;
-    return A.apiKey || (A.zoneId && A.accountId) ? 'applixir' : null;
+    if (A.apiKey || (A.zoneId && A.accountId)) return 'applixir';
+    return ADS_CONFIG.directLink ? 'direct' : null;
   },
   ready() { return !!this.provider(); },
   load(src) {
@@ -44869,6 +44872,7 @@ const Ads = {
     const p = this.provider();
     if (!p) { G.ui.toast('Ads are not available right now'); return; }
     if (p === 'crazy') { Crazy.rewarded(give); return; }
+    if (p === 'direct') { this.direct(give); return; }
     if (this.busy) return;
     this.busy = true;
     if (document.pointerLockElement) document.exitPointerLock();
@@ -44911,6 +44915,45 @@ const Ads = {
     }
     // never leave the game muted if the player closes it in some way we do not hear about
     setTimeout(() => { if (!done) end(false); }, 120000);
+  },
+
+  // Direct Link: a new tab with the ad; back after directSeconds = rewarded
+  direct(give) {
+    if (this.busy) return;
+    const need = ADS_CONFIG.directSeconds * 1000;
+    const w = window.open(ADS_CONFIG.directLink, '_blank');
+    if (!w) { G.ui.toast('The browser blocked the ad tab: allow pop-ups for this site and try again', 4500); return; }
+    try { w.opener = null; } catch (e) { /* ignore */ }
+    this.busy = true;
+    if (document.pointerLockElement) document.exitPointerLock();
+    const t0 = Date.now();
+    let away = 0, hiddenAt = document.hidden ? t0 : 0, done = false;
+    const card = GPanel.open({ title: 'Sponsored', icon: '\ud83c\udf81', width: 360, onClose: () => finish() });
+    const draw = () => {
+      if (done) return;
+      const seen = away + (hiddenAt ? Date.now() - hiddenAt : 0), left = Math.max(0, Math.ceil((need - seen) / 1000));
+      card.body.innerHTML = `<div class="gp-card"><div class="gp-big">${left ? '\u23f3' : '\u2705'}</div><p>${left ? 'The ad opened in a new tab.<br>Have a look for <b>' + left + ' s</b> and come back here.' : 'Thanks! Your reward is ready.'}</p>
+        <button class="gp-btn ${left ? '' : 'ok'}" data-a="x">${left ? 'Cancel' : 'Collect'}</button></div>`;
+      card.body.querySelector('[data-a="x"]').addEventListener('click', () => card.close());
+    };
+    const vis = () => {
+      if (document.hidden) { if (!hiddenAt) hiddenAt = Date.now(); }
+      else if (hiddenAt) { away += Date.now() - hiddenAt; hiddenAt = 0; draw(); }
+    };
+    const finish = () => {
+      if (done) return;
+      done = true; this.busy = false;
+      clearInterval(iv);
+      document.removeEventListener('visibilitychange', vis);
+      window.removeEventListener('focus', vis);
+      const seen = away + (hiddenAt ? Date.now() - hiddenAt : 0);
+      if (seen >= need) give();
+      else G.ui.toast('\ud83c\udf81 Stay on the ad a little longer to get the reward', 3500);
+    };
+    document.addEventListener('visibilitychange', vis);
+    window.addEventListener('focus', vis);
+    const iv = setInterval(draw, 1000);
+    draw();
   },
 
   // ---- coming back to life ----
