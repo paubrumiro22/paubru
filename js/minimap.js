@@ -211,8 +211,8 @@ function drawMapMarks(ctx, wx, wz, px, py, k, W, H, dpr, full, clampRad) {
     if (!placeFound(r)) continue;
     const s = pin(r.x, r.z, 9 * dpr);
     if (!clampRad && !inside(s)) continue;
-    ctx.fillText(r.p.icon, s[0], s[1]);
-    if (full) { label(ctx, r.p.name, s[0], s[1] + 16 * dpr, dpr); }
+    ctx.fillText(placeIcon(r), s[0], s[1]);
+    if (full) { label(ctx, placeName(r), s[0], s[1] + 16 * dpr, dpr); }
   }
   if (g && g.structs && full) {
     const bx0 = wx - px / k, bz0 = wz - py / k, bx1 = wx + (W - px) / k, bz1 = wz + (H - py) / k;

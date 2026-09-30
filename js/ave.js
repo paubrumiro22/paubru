@@ -263,7 +263,7 @@ PIC_BUILTIN.ave_sign = { w: 8, h: 2, draw(g, W, H) {
 PIC_BUILTIN.ave_board = { w: 4, h: 2, draw(g, W, H) {
   g.fillStyle = '#0b0f18'; g.fillRect(0, 0, W, H);
   g.fillStyle = '#b36bff'; g.font = `800 ${H * 0.1}px Arial`; g.textBaseline = 'middle'; g.fillText(ED('SORTIDES AVE', 'AVE DEPARTURES'), W * 0.04, H * 0.1);
-  const rows = [['10:12', '3101', 'SNOWY PEAKS', '2'], ['10:21', '3113', 'VOLCANO', '2'], ['10:30', '3125', 'RED CANYON', '2'], ['10:39', '3137', 'FOREST', '2'], ['10:48', '3149', 'DESERT OASIS', '2']];
+  const rows = [['10:12', '3101', 'peaks', '2'], ['10:21', '3113', 'volcano', '2'], ['10:30', '3125', 'canyon', '2'], ['10:39', '3137', 'forest', '2'], ['10:48', '3149', 'oasis', '2']].map((r) => [r[0], r[1], REGION_TOWNS[r[2]].name.toUpperCase(), r[3]]);
   g.font = `700 ${H * 0.085}px 'Courier New', monospace`;
   rows.forEach((r, i) => {
     const y = H * (0.27 + i * 0.16);

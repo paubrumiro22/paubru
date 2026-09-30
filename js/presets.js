@@ -416,10 +416,30 @@ function regionBlend(g, x, z) {
   return t >= 1 ? null : { r: best, t };
 }
 
-// Where to stand when travelling to a place, in world coordinates.
+// The town in each themed place (structures.js builds it where the ground is flattest): the places
+// themselves have no name on screen, the towns do, and travelling to a place lands you in its town.
+const REGION_TOWNS = {
+  beach: { name: ED('Cala Blava', 'Bluecove'), icon: '🏖️', style: 'tropical', what: ED('Poble de platja', 'Beach town') },
+  meadow: { name: ED('Prats de Flors', 'Flowerfield'), icon: '🌷', style: 'temperate', what: ED('Poble de pagès', 'Farming village') },
+  volcano: { name: ED('Roca Negra', 'Blackrock'), icon: '🪨', style: 'snowy', what: ED('Poble de pedra', 'Stone village') },
+  forest: { name: ED('Boscvell', 'Oldwood'), icon: '🌲', style: 'forest', what: ED('Poble del bosc', 'Forest village') },
+  peaks: { name: ED('Neu Alta', 'Highsnow'), icon: '⛷️', style: 'snowy', what: ED('Poble de muntanya', 'Mountain village') },
+  islands: { name: ED('Port de les Illes', 'Islesport'), icon: '⚓', style: 'tropical', what: ED('Port de pescadors', 'Fishing port') },
+  canyon: { name: ED('Roca Roja', 'Redrock'), icon: '🤠', style: 'desert', what: ED('Poble del desert', 'Desert town') },
+  oasis: { name: ED('Palmera', 'Palmwell'), icon: '🌴', style: 'desert', what: ED('Vila del mercat', 'Market town') },
+};
+function placeName(r) { const t = r && REGION_TOWNS[r.key]; return t ? t.name : r ? r.p.name : ''; }
+function placeIcon(r) { const t = r && REGION_TOWNS[r.key]; return t ? t.icon : r ? r.p.icon : '📍'; }
+
+// Where to stand when travelling to a place, in world coordinates: the town's square if it has one.
 function regionSpawn(g, key) {
   const r = g.regions.find((q) => q.key === key);
   if (!r) return null;
+  const town = typeof regionTown === 'function' ? regionTown(g, r) : null;
+  if (town) {
+    const x = town.x + 3, z = town.z + 3;
+    return { pos: [x + 0.5, g.height(x, z) + 1, z + 0.5], yaw: Math.atan2(-(r.x - x), -(r.z - z)), pitch: 0, time: r.p.time, region: r, town };
+  }
   const sp = r.p.spawn(g);
   return { pos: [sp.pos[0] + r.x, sp.pos[1], sp.pos[2] + r.z], yaw: sp.yaw, pitch: sp.pitch, time: r.p.time, region: r };
 }

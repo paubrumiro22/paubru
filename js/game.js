@@ -688,9 +688,7 @@ function updateRegion(dt) {
   if (key !== G.region) {
     G.region = key;
     G.regionOwn = own;
-    if (key && !G.world.gen.preset) G.ui.banner(WORLD_PRESETS[key].icon, WORLD_PRESETS[key].name);
   } else G.regionOwn = own;
-}
 
 // On a survival server nobody can switch to creative (the server keeps its mode).
 function serverLocksMode() { return !!(typeof Net !== 'undefined' && Net.on && Net.server && Net.server.mode !== 'creative'); }

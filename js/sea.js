@@ -225,7 +225,7 @@ const Ferry = {
     if (!this.port || this.state !== 'docked') { G.ui.toast('⛴️ The ferry is at sea: wait for it at the end of the pier'); return; }
     const g = G.world.gen, list = FERRY_DESTS.map((k) => g.regions && g.regions.find((r) => r.key === k)).filter(Boolean).map((r) => {
       const dd = Math.hypot(r.x - this.port.x, r.z - this.port.z);
-      return { key: r.key, name: r.p.name, icon: r.p.icon, d: dd, price: 20 + Math.round(dd / 60) };
+      return { key: r.key, name: placeName(r), icon: placeIcon(r), d: dd, price: 20 + Math.round(dd / 60) };
     });
     const q = GPanel.open({ title: 'Ferry · ' + (this.port.name || 'Port'), sub: 'Leaves when you board', icon: '⛴️', cls: 'gp-shop', width: 480 });
     q.wrap.querySelector('.gp').style.setProperty('--shop', '#1a3f8a');

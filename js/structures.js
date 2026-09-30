@@ -264,7 +264,7 @@ function buildChapel(W, g, x0, z0, F, st, door) {
 }
 
 // ---- villages ----
-function planVillage(g, cx, cz, rng, style) {
+function planVillage(g, cx, cz, rng, style, town) {
   const st = VSTYLE[style];
   const F0 = g.height(cx, cz) + 1;
   const plan = { type: 'village', style, x: cx, z: cz, y: F0, pieces: [], zones: [], spawns: [], radius: 0 };
@@ -274,7 +274,7 @@ function planVillage(g, cx, cz, rng, style) {
     let lo = 1e9, hi = -1e9;
     for (const [x, z] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1], [(x0 + x1) >> 1, (z0 + z1) >> 1]]) {
       const h = g.height(x, z);
-      if (h < SEA || regionNear(g, x, z, 0)) return false;
+      if (h < SEA || (!town && regionNear(g, x, z, 0))) return false;
       lo = Math.min(lo, h); hi = Math.max(hi, h);
     }
     return hi - lo <= 6;
@@ -284,13 +284,18 @@ function planVillage(g, cx, cz, rng, style) {
   plan.pieces.push({ box: [cx - 3, cz - 3, cx + 3, cz + 3], build: (W) => buildWell(W, g, cx, cz, F0, st) });
   // roads
   const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  const nRoads = 2 + (rng() < 0.7 ? 1 : 0) + (rng() < 0.4 ? 1 : 0);
+  const nRoads = town ? 4 : 2 + (rng() < 0.7 ? 1 : 0) + (rng() < 0.4 ? 1 : 0);
+  // a town: its name on a board at the corner of the square
+  if (town) {
+    zones.push([cx + 3, cz - 7, cx + 7, cz - 5]);
+    plan.pieces.push({ box: [cx + 3, cz - 7, cx + 7, cz - 5], build: (W) => buildTownSign(W, g, cx + 4, cz - 6, F0, st, town) });
+  }
   const start = Math.floor(rng() * 4);
   const road = [];
   let profI = Math.floor(rng() * PROFESSIONS.length), chapel = rng() < 0.6, farms = 0, pens = 0, stalls = 0;
   for (let ri = 0; ri < nRoads; ri++) {
     const [dx, dz] = dirs[(start + ri) % 4];
-    const len = 26 + Math.floor(rng() * 22);
+    const len = town ? 40 + Math.floor(rng() * 16) : 26 + Math.floor(rng() * 22);
     for (let t = 4; t <= len; t++) {
       const px = cx + dx * t, pz = cz + dz * t;
       for (let w = -1; w <= 1; w++) road.push([px + (dz ? w : 0), pz + (dx ? w : 0)]);
@@ -301,7 +306,7 @@ function planVillage(g, cx, cz, rng, style) {
     // lots on both sides of the road
     for (let t = 7; t <= len - 2; t += 8 + Math.floor(rng() * 2)) {
       for (const side of [-1, 1]) {
-        if (rng() < 0.1) continue;
+        if (rng() < (town ? 0.03 : 0.1)) continue;
         const px = cx + dx * t, pz = cz + dz * t;
         // perpendicular offset from the road centre line
         const ox = dz * side, oz = dx * side;
@@ -312,7 +317,7 @@ function planVillage(g, cx, cz, rng, style) {
         else if (kind < 0.18 && farms < 3) { type = 'farm'; w = 9; d = 7; farms++; }
         else if (kind < 0.26 && pens < 2) { type = 'pen'; w = 7; d = 7; pens++; }
         else if (kind < 0.33 && stalls < 3) { type = 'stall'; w = 3; d = 3; stalls++; }
-        else if (kind > 0.85) { w = 7; d = 7; floors = 2; }
+        else if (kind > (town ? 0.6 : 0.85)) { w = 7; d = 7; floors = 2; }
         // footprint: near edge 3 blocks from the road centre
         const along = dx ? [px - (w >> 1), px - (w >> 1) + w - 1] : [pz - (w >> 1), pz - (w >> 1) + w - 1];
         const near = 3, far = near + d - 1;
@@ -951,6 +956,36 @@ function buildSchool(W, g, x0, zf, sz, F, st, modern) {
 }
 
 // Plans whose area may touch the rectangle.
+// The town of a themed place (presets.js REGION_TOWNS): a big village on the flattest dry ground
+// 80-170 blocks from the middle of the place, in its style, with its name on the square.
+function regionTown(g, r) {
+  const T = typeof REGION_TOWNS !== 'undefined' ? REGION_TOWNS[r.key] : null;
+  if (!T || g.type !== 'default' || g.ver < 4) return null;
+  const C = g._towns || (g._towns = new Map());
+  if (C.has(r.key)) return C.get(r.key);
+  let best = null, bs = Infinity;
+  const a0 = hash3(r.x, 5, r.z, g.seed) * Math.PI * 2;
+  for (const rad of [85, 110, 135, 160]) for (let k = 0; k < 16; k++) {
+    const a = a0 + k / 16 * Math.PI * 2, cx = Math.round(r.x + Math.cos(a) * rad), cz = Math.round(r.z + Math.sin(a) * rad);
+    const h = g.height(cx, cz);
+    if (h < SEA + 1) continue;
+    let lo = h, hi = h, wet = 0;
+    for (const d of [14, 30]) for (let q = 0; q < 8; q++) {
+      const hh = g.height(cx + Math.round(Math.cos(q * Math.PI / 4) * d), cz + Math.round(Math.sin(q * Math.PI / 4) * d));
+      if (hh < SEA) wet++; else { lo = Math.min(lo, hh); hi = Math.max(hi, hh); }
+    }
+    const score = (hi - lo) + wet * 3 + rad * 0.02;
+    if (score < bs) { bs = score; best = [cx, cz]; }
+  }
+  let plan = null;
+  if (best) {
+    plan = planVillage(g, best[0], best[1], mulberry32((g.seed ^ Math.imul(r.x | 0, 2654435761) ^ (r.z | 0)) | 0), T.style, T);
+    plan.name = T.name; plan.town = r.key; plan.icon = T.icon;
+  }
+  C.set(r.key, plan);
+  return plan;
+}
+
 function structuresIn(g, x0, z0, x1, z1) {
   if (!g.structs) return [];
   // the STUCOM village is decided (and gets its school) before anything is built; in generator 4
@@ -965,7 +1000,27 @@ function structuresIn(g, x0, z0, x1, z1) {
     if (p === undefined) { p = planCell(g, i, j); g.structs.set(key, p); }
     if (p) out.push(p);
   }
+  if (g.regions && g.regions.length && !g._townBusy) {
+    g._townBusy = true;
+    try {
+      for (const r of g.regions) {
+        if (x1 < r.x - REGION_OUT || x0 > r.x + REGION_OUT || z1 < r.z - REGION_OUT || z0 > r.z + REGION_OUT) continue;
+        const t = regionTown(g, r), R = t ? t.radius + 12 : 0;
+        if (t && x1 >= t.x - R && x0 <= t.x + R && z1 >= t.z - R && z0 <= t.z + R) out.push(t);
+      }
+    } finally { g._townBusy = false; }
+  }
   return out;
+}
+
+// A board on two posts with the town's name (the picture is drawn by towns.js)
+function buildTownSign(W, g, x, z, F0, st, T) {
+  const F = g.height(x + 1, z) + 1;
+  for (let y = F - 1; y <= F + 2; y++) { W.set(x, y, z, y < F ? st.base : st.pillar === 'spruce' ? B.SPRUCE_LOG : B.LOG); W.set(x + 2, y, z, y < F ? st.base : st.pillar === 'spruce' ? B.SPRUCE_LOG : B.LOG); }
+  for (const y of [F + 1, F + 2]) W.set(x + 1, y, z, st.floor);
+  W.set(x + 1, F + 3, z, st.ridge);
+  const key = Object.keys(REGION_TOWNS).find((k) => REGION_TOWNS[k] === T);
+  if (key) W.pic(x, F + 1, z + 1, 4, 3, 2, 'town_' + key);
 }
 
 // Inside a building, road or square (no trees there).

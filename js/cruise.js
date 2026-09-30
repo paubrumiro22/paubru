@@ -99,7 +99,7 @@ const Cruise = {
   // ---- the cruise ----
   route(port) {
     const g = G.world.gen;
-    return CRUISE_ROUTE.map((k) => g.regions && g.regions.find((r) => r.key === k)).filter(Boolean).map((r) => ({ key: r.key, name: r.p.name, icon: r.p.icon, x: r.x, z: r.z }))
+    return CRUISE_ROUTE.map((k) => g.regions && g.regions.find((r) => r.key === k)).filter(Boolean).map((r) => ({ key: r.key, name: placeName(r), icon: placeIcon(r), x: r.x, z: r.z }))
       .sort((a, b) => Math.hypot(a.x - port.x, a.z - port.z) - Math.hypot(b.x - port.x, b.z - port.z));
   },
   book() {

@@ -283,8 +283,8 @@ function buildPlaces(el, after) {
     const dir = dirs[((Math.round(Math.atan2(dx, -dz) / (Math.PI / 4)) % 8) + 8) % 8];
     const b = document.createElement('button');
     b.className = 'place';
-    const i = document.createElement('span'); i.className = 'pi'; i.textContent = r.p.icon;
-    const n = document.createElement('b'); n.textContent = r.p.name;
+    const i = document.createElement('span'); i.className = 'pi'; i.textContent = placeIcon(r);
+    const n = document.createElement('b'); n.textContent = placeName(r);
     const s = document.createElement('small'); s.textContent = d < REGION_IN ? 'You are here' : (d / 1000).toFixed(1) + ' km ' + dir;
     b.append(i, n, s);
     b.addEventListener('click', () => {
@@ -714,7 +714,7 @@ function bindInput() {
   seedIn.addEventListener('input', () => {
     const k = placeTyped();
     const chip = $('presetChip');
-    if (k) { chip.textContent = 'Travel to ' + WORLD_PRESETS[k].icon + ' ' + WORLD_PRESETS[k].name + ' in this world'; chip.classList.add('on'); }
+    if (k) { chip.textContent = 'Travel to ' + (REGION_TOWNS[k] ? REGION_TOWNS[k].icon + ' ' + REGION_TOWNS[k].name : WORLD_PRESETS[k].name) + ' in this world'; chip.classList.add('on'); }
     else chip.classList.remove('on');
     disarm();
   });

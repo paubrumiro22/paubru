@@ -125,7 +125,7 @@ const Airport = {
     if (!g || !g.regions || !pl) return [];
     return g.regions.map((r) => {
       const d = Math.hypot(r.x - pl.x, r.z - pl.z);
-      return { key: r.key, name: r.p.name, icon: r.p.icon, d, price: 40 + Math.round(d / 30), mins: Math.max(1, Math.round(d / 250)) };
+      return { key: r.key, name: placeName(r), icon: placeIcon(r), d, price: 40 + Math.round(d / 30), mins: Math.max(1, Math.round(d / 250)) };
     }).sort((a, b) => a.d - b.d);
   },
   // far from STUCOM (after a flight, or anywhere): the only flight is the one back home
@@ -282,7 +282,7 @@ const Airport = {
 PIC_BUILTIN.airport_board = { w: 4, h: 2, draw(g, W, H) {
   g.fillStyle = '#0b0f18'; g.fillRect(0, 0, W, H);
   g.fillStyle = '#ffcc33'; g.font = `800 ${H * 0.11}px Arial`; g.textBaseline = 'middle'; g.fillText(ED('SORTIDES · DEPARTURES', 'DEPARTURES'), W * 0.04, H * 0.1);
-  const rows = [['10:05', 'BA101', 'PARADISE BEACH', 'EMBARCANT'], ['10:20', 'BA108', 'VOLCANO', 'A HORA'], ['10:35', 'BA115', 'SNOWY PEAKS', 'A HORA'], ['10:50', 'BA122', 'RED CANYON', 'A HORA'], ['11:05', 'BA129', 'ARCHIPELAGO', 'A HORA']];
+  const rows = [['10:05', 'BA101', 'beach', 'EMBARCANT'], ['10:20', 'BA108', 'volcano', 'A HORA'], ['10:35', 'BA115', 'peaks', 'A HORA'], ['10:50', 'BA122', 'canyon', 'A HORA'], ['11:05', 'BA129', 'islands', 'A HORA']].map((r) => [r[0], r[1], REGION_TOWNS[r[2]].name.toUpperCase(), r[3]]);
   g.font = `700 ${H * 0.085}px 'Courier New', monospace`;
   rows.forEach((r, i) => {
     const y = H * (0.26 + i * 0.16);

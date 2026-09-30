@@ -153,8 +153,8 @@ const Progress = {
       if (!pr.found) pr.found = {};
       if (pr.found[r.key] || Math.hypot(p.pos[0] - r.x, p.pos[2] - r.z) > REGION_OUT) continue;
       pr.found[r.key] = Date.now();
-      if (G.ui.banner) G.ui.banner(r.p.icon, r.p.name);
-      G.ui.toast('New place discovered: ' + r.p.name + ' · it is on your map now', 3500);
+      if (G.ui.banner) G.ui.banner(placeIcon(r), placeName(r));
+      G.ui.toast('New town discovered: ' + placeName(r) + ' · it is on your map now', 3500);
       sfx('achieve', null, 0.8, 0.9);
     }
     this.renderTracker();
