@@ -22787,6 +22787,7 @@ function updateRegion(dt) {
     G.region = key;
     G.regionOwn = own;
   } else G.regionOwn = own;
+}
 
 // On a survival server nobody can switch to creative (the server keeps its mode).
 function serverLocksMode() { return !!(typeof Net !== 'undefined' && Net.on && Net.server && Net.server.mode !== 'creative'); }
