@@ -140,7 +140,7 @@ const Architect = {
     const need = new Map();
     for (const [x, y, z, id, f] of list) {
       if (y < 1 || y >= CH) continue;
-      if (typeof Claims !== 'undefined' && !Claims.can(x, z)) { Claims.deny(x, z); return false; }
+      if (typeof Claims !== 'undefined' && !Claims.can(x, z, y)) { Claims.deny(x, z); return false; }
       const old = w.getBlock(x, y, z), of = w.getFacing(x, y, z);
       if (old === id && (f === undefined || of === f)) continue;
       if (old === B.BEDROCK) continue;

@@ -478,6 +478,63 @@
   #metroHud .mh-row b { font: 800 19px 'Courier New', monospace; color: #ffcf5c; } #metroHud .mh-row small { grid-column: 1 / -1; color: #b07a1c; font-size: 11px; }
   #metroHud .mh-row.now b { color: #3cf2c0; text-shadow: 0 0 8px rgba(60,242,192,.6); animation: mhBlink 1s steps(2) infinite; } @keyframes mhBlink { 50% { opacity: .35; } }
   #metroHud .mh-foot { padding: 6px 12px 8px; font: 600 10.5px var(--body); color: #6d7382; border-top: 1px solid #1a1d24; }
+  /* business.js: flats, businesses, stocks, rentals */
+  .gp-lift .gp-body { max-height: calc(100vh - 110px); overflow-y: auto; } .lift-grid.two { grid-template-columns: 1fr 1fr; } .lift-grid.two .lift-b { padding: 7px 10px; } .lift-grid.two .lift-b b { width: 32px; height: 32px; font-size: 15px; }
+  .lift-b { position: relative; } .fl-b { position: absolute; right: 12px; font-style: normal; font-size: 14px; opacity: .9; } .fl-b.free { filter: drop-shadow(0 0 6px #ffd34d); }
+  .fl-card { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(255, 211, 77, .12), rgba(60, 242, 192, .06)); border: 1px solid rgba(255, 211, 77, .35); display: grid; gap: 4px; }
+  .fl-card b { font: 800 14px var(--display); } .fl-card span { font-size: 12px; color: #b8c3d4; } .fl-act { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .bz-hero { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 10px; align-items: center; padding: 14px 16px; border-radius: 16px; margin-bottom: 14px;
+    background: radial-gradient(120% 140% at 0% 0%, rgba(255, 196, 61, .22), transparent 60%), radial-gradient(120% 140% at 100% 100%, rgba(60, 242, 154, .16), transparent 60%), rgba(255, 255, 255, .04); border: 1px solid rgba(255, 211, 77, .28); }
+  .bz-hero small { display: block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #9aa4b8; } .bz-hero b { font: 800 22px var(--display); color: #fff; } .bz-hero b em { font: 600 12px var(--body); color: #9aa4b8; font-style: normal; }
+  .bz-hero .bz-pend { color: #ffd34d; text-shadow: 0 0 18px rgba(255, 211, 77, .45); }
+  .bz-h { margin: 16px 0 8px; font: 800 13px var(--display); letter-spacing: .04em; text-transform: uppercase; color: #cfd6e2; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; } .bz-h span { font: 500 11.5px var(--body); text-transform: none; letter-spacing: 0; color: #8793a8; }
+  .bz-shop { display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; align-items: center; padding: 12px; border-radius: 14px; margin-bottom: 8px; background: rgba(255, 255, 255, .04); border: 1px solid var(--line); transition: .2s; }
+  .bz-shop.focus { border-color: #ffd34d; box-shadow: 0 0 0 3px rgba(255, 211, 77, .15); }
+  .bz-ic { width: 54px; height: 54px; border-radius: 14px; display: grid; place-items: center; font-size: 28px; background: repeating-linear-gradient(90deg, var(--c) 0 9px, #f4f1ea 9px 18px); box-shadow: inset 0 -14px 0 rgba(0, 0, 0, .35), 0 4px 14px rgba(0, 0, 0, .35); text-shadow: 0 2px 6px rgba(0, 0, 0, .5); }
+  .bz-main { min-width: 0; } .bz-main b { font: 800 15px var(--display); } .bz-main small { display: block; color: #93a0b4; font-size: 12px; margin: 2px 0 6px; }
+  .bz-bar { position: relative; height: 20px; border-radius: 10px; background: rgba(0, 0, 0, .35); overflow: hidden; border: 1px solid rgba(255, 255, 255, .08); }
+  .bz-bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #d99b1e, #ffd34d); box-shadow: 0 0 12px rgba(255, 211, 77, .5); transition: width .8s; }
+  .bz-bar span { position: relative; display: block; text-align: center; font: 700 11.5px/20px var(--body); color: #fff; text-shadow: 0 1px 2px #000; }
+  .bz-acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 260px; } .bz-acts .gp-btn { padding: 7px 10px; }
+  .bz-types { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .bz-type { display: grid; grid-template-columns: 40px 1fr; grid-template-rows: auto auto auto; gap: 1px 10px; text-align: left; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255, 255, 255, .04); color: #fff; cursor: pointer; transition: .15s; }
+  .bz-type:hover { background: rgba(255, 211, 77, .1); border-color: rgba(255, 211, 77, .5); transform: translateY(-1px); }
+  .bz-type i { grid-row: 1 / span 3; font-style: normal; font-size: 30px; align-self: center; } .bz-type b { font: 800 14px var(--display); } .bz-type span { font-size: 11.5px; color: #93a0b4; } .bz-type em { font: 800 12.5px var(--body); color: #ffd34d; font-style: normal; }
+  .bz-buy { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .05); text-align: left; }
+  #bizTags { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 4; }
+  .bztag { position: absolute; left: 0; top: 0; transform-origin: 50% 100%; display: grid; grid-template-columns: auto auto; gap: 0 8px; align-items: center; padding: 6px 12px 6px 8px; border-radius: 12px; white-space: nowrap;
+    background: linear-gradient(180deg, #1c2233f2, #10141ef2); border: 2px solid #ffd34d; color: #fff; box-shadow: 0 6px 20px rgba(0, 0, 0, .45), 0 0 18px rgba(255, 211, 77, .25); }
+  .bztag::after { content: ''; position: absolute; left: 50%; bottom: -8px; margin-left: -7px; border: 7px solid transparent; border-bottom: 0; border-top-color: #ffd34d; }
+  .bztag i { grid-row: 1 / span 2; font-style: normal; font-size: 22px; } .bztag b { font: 800 13px var(--display); } .bztag span { font: 800 9.5px var(--body); letter-spacing: .12em; color: #3cf29a; }
+  .bztag.shut { border-color: #6b7489; box-shadow: 0 6px 20px rgba(0, 0, 0, .45); } .bztag.shut::after { border-top-color: #6b7489; } .bztag.shut span { color: #ff8a7a; }
+  .gp-stocks .gp-body { padding-top: 0; }
+  .st-tape { overflow: hidden; margin: 0 -16px 12px; padding: 7px 0; background: #0a0d14; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .st-tape > div { display: inline-block; animation: stTape 40s linear infinite; } .st-tape span { margin: 0 18px; font: 600 12.5px var(--body); color: #cfd6e2; } .st-tape b { color: #fff; }
+  @keyframes stTape { to { transform: translateX(-50%); } }
+  .st-wrap { display: grid; grid-template-columns: 260px 1fr 210px; gap: 14px; }
+  .st-list { display: grid; gap: 6px; align-content: start; }
+  .st-row { display: grid; grid-template-columns: 22px 1fr 60px 64px; gap: 8px; align-items: center; padding: 7px 8px; border-radius: 11px; border: 1px solid var(--line); background: rgba(255, 255, 255, .03); color: #fff; cursor: pointer; text-align: left; }
+  .st-row.on { background: rgba(61, 139, 255, .16); border-color: #5b9dff; } .st-row:hover:not(.on) { background: rgba(255, 255, 255, .07); }
+  .st-row i { font-style: normal; font-size: 17px; } .st-row b { font: 800 12.5px var(--display); } .st-row small { display: block; font-size: 10px; color: #8793a8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px; }
+  .st-p { text-align: right; } .st-p b { display: block; font: 700 12px 'Courier New', monospace; } .st-p em, .st-tape em, .st-big em, .st-news em, .st-port em { font-style: normal; font-size: 10.5px; font-weight: 700; }
+  .up { color: #3cf29a; } .dn { color: #ff6b6b; }
+  .st-main { min-width: 0; } .st-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; } .st-head b { font: 800 17px var(--display); } .st-head small { display: block; font-size: 11.5px; color: #8793a8; }
+  .st-big { text-align: right; } .st-big b { display: block; font: 800 26px 'Courier New', monospace; } .st-big em { font-size: 13px; }
+  .st-rng { display: flex; gap: 4px; margin: 8px 0 6px; } .st-rng button { padding: 4px 12px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: #93a0b4; font: 700 11.5px var(--body); cursor: pointer; } .st-rng button.on { background: #fff; color: #10141e; }
+  .st-chart { width: 100%; height: auto; border-radius: 12px; background: linear-gradient(180deg, rgba(255, 255, 255, .04), rgba(0, 0, 0, .2)); border: 1px solid var(--line); cursor: crosshair; }
+  .st-trade { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .st-qty { display: flex; gap: 3px; align-items: center; } .st-qty button { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255, 255, 255, .06); color: #fff; font: 700 12px var(--body); cursor: pointer; }
+  .st-qty input { width: 64px; padding: 6px; border-radius: 8px; border: 1px solid var(--line-strong); background: #0a0d14; color: #fff; font: 700 13px 'Courier New', monospace; text-align: center; }
+  .st-own { margin: 8px 0 0; }
+  .st-side { display: grid; gap: 8px; align-content: start; } .st-port { padding: 12px; border-radius: 14px; background: linear-gradient(135deg, rgba(61, 139, 255, .2), rgba(60, 242, 154, .08)); border: 1px solid rgba(91, 157, 255, .4); display: grid; gap: 2px; }
+  .st-port small { font-size: 11px; color: #9aa4b8; } .st-port b { font: 800 20px var(--display); } .st-port em { font-size: 12px; }
+  .st-nh { font: 800 11px var(--body); letter-spacing: .08em; text-transform: uppercase; color: #9aa4b8; margin-top: 4px; }
+  .st-news { padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .04); border-left: 3px solid #ffd34d; } .st-news b { display: block; font: 700 12px var(--body); line-height: 1.3; } .st-news small { font-size: 10.5px; color: #8793a8; }
+  @media (max-width: 760px) { .st-wrap { grid-template-columns: 1fr; } .bz-hero { grid-template-columns: 1fr 1fr; } .bz-shop { grid-template-columns: 44px 1fr; } .bz-acts { grid-column: 1 / -1; max-width: none; justify-content: flex-start; } }
+  .rt-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .04); border: 1px solid var(--line); margin-bottom: 8px; flex-wrap: wrap; }
+  .rt-row.focus { border-color: #ffd34d; } .rt-row > i { font-style: normal; font-size: 24px; } .rt-row small { display: block; color: #93a0b4; font-size: 12px; } .rt-row .gp-btn { padding: 7px 10px; }
+  .rt-price { display: flex; align-items: center; gap: 4px; padding: 3px; border-radius: 10px; background: rgba(0, 0, 0, .3); }
+  .rt-price button { width: 26px; height: 26px; border-radius: 8px; border: 0; background: rgba(255, 255, 255, .1); color: #fff; font: 800 14px var(--body); cursor: pointer; } .rt-price b { min-width: 44px; text-align: center; font: 800 13px 'Courier New', monospace; color: #ffd34d; } .rt-price b::before { content: '&#x1fa99;'; font-size: 11px; margin-right: 2px; }
   #raceHud { position: fixed; left: 50%; top: 62px; transform: translate(-50%, -10px); z-index: 30; min-width: 250px; padding: 10px 16px; border-radius: 14px; background: #10131aee; border: 2px solid #ffd33d; color: #fff; opacity: 0; transition: .25s; pointer-events: none; display: grid; grid-template-columns: 1fr auto; gap: 2px 14px; align-items: center; }
   #raceHud.show { opacity: 1; transform: translate(-50%, 0); } #raceHud b { font: 800 14px var(--display); color: #ffd33d; } #raceHud span { grid-column: 1; font-size: 12.5px; color: #d0d6e2; }
   #raceHud em { grid-row: 1 / span 2; grid-column: 2; font: 800 22px 'Courier New', monospace; font-style: normal; } #raceHud small { grid-column: 1 / -1; font-size: 11px; color: #9aa4b8; }
@@ -7750,7 +7807,7 @@ class World {
     for (const [k, e] of this.blockEntities) be.push([k, e]);
     const flow = [];
     for (const [k, l] of this.flow) flow.push(k, l);
-    return { facing, be, flow, pics: typeof serializePictures === 'function' ? serializePictures(this) : [], metro: this.metro || undefined, homes: this.homes || undefined };
+    return { facing, be, flow, pics: typeof serializePictures === 'function' ? serializePictures(this) : [], metro: this.metro || undefined, homes: this.homes || undefined, biz: this.biz || undefined };
   }
 
   loadExtras(obj) {
@@ -7760,7 +7817,10 @@ class World {
     this.pictures.clear();
     this.metro = null;
     this.homes = null;
+    this.biz = null;
     if (!obj || typeof obj !== 'object') return;
+    // flats, businesses, rentals (business.js)
+    if (obj.biz && typeof obj.biz === 'object') this.biz = obj.biz;
     // houses bought on the district plots (homes.js)
     if (obj.homes && typeof obj.homes === 'object') this.homes = obj.homes;
     // metro lines built by players and the names given to stations (metro_panel.js)
@@ -32376,6 +32436,7 @@ const CITY_TYPES = [
   { k: 'open', icon: '\ud83d\udfe9', name: 'Open flat land', desc: 'A whole 36\u00d736 block of flat grass to build on' },
   { k: 'park', icon: '\ud83c\udf33', name: 'Park', desc: 'Lawns, trees, paths, benches and a fountain garden' },
   { k: 'square', icon: '\u26f2', name: 'Square', desc: 'A paved square with trees, benches and lamps' },
+  { k: 'towers', icon: '\ud83c\udfd9\ufe0f', name: 'Skyscrapers', desc: 'Two glass towers with lifts: flats for sale on every floor', cost: 1500, max: 120000 },
 ];
 const CITY_RANGE = 5, CITY_COST = 300, CITY_MAX_EDITS = 30000;
 
@@ -32433,6 +32494,7 @@ const City = {
     // what goes inside
     const X = (a) => cx + u0 + a, Z = (b) => cz + v0 + b;
     if (type === 'plots') buildPlotBlock(W, G.world.gen, { cx, cz, F }, u0, v0);
+    else if (type === 'towers') buildCityBlock(W, G.world.gen, { cx, cz, F }, u0, v0, 'towers');
     else if (type === 'park') {
       buildGarden(W, G.world.gen, X(11), Z(11), F);
       for (const [a, b, k] of [[5, 5, 'oak'], [30, 5, 'cherry'], [5, 30, 'cherry'], [30, 30, 'oak'], [11, 3, 'birch'], [24, 32, 'birch'], [3, 24, 'oak'], [32, 11, 'oak']]) campusTree(W, X(a), F, Z(b), k, 5);
@@ -32473,11 +32535,12 @@ const City = {
     if (!st || !type) return false;
     if (mine && !this.canBuild(i, j)) { G.ui.toast('\ud83c\udfd7\ufe0f You can only add a block next to one that is built'); return false; }
     const { list, pics } = this.blocks(i, j, type.k);
-    if (mine && list.length > CITY_MAX_EDITS) { G.ui.toast('\ud83c\udfd7\ufe0f The ground there is too uneven: grow the district from the flat land first', 4500); return false; }
+    if (mine && list.length > (type.max || CITY_MAX_EDITS)) { G.ui.toast('\ud83c\udfd7\ufe0f The ground there is too uneven: grow the district from the flat land first', 4500); return false; }
     if (mine) {
       if (G.mode === 'survival') {
-        if ((G.money | 0) < CITY_COST) { G.ui.toast('\ud83c\udfd7\ufe0f A new block costs ' + CITY_COST + ' coins (you have ' + (G.money | 0) + ')', 4000); return false; }
-        G.money -= CITY_COST;
+        const cost = type.cost || CITY_COST;
+        if ((G.money | 0) < cost) { G.ui.toast('\ud83c\udfd7\ufe0f This block costs ' + cost + ' coins (you have ' + (G.money | 0) + ')', 4000); return false; }
+        G.money -= cost;
       }
       if (Net.on) Net.op(['C', i, j, typeIdx]);
       G.ui.toast('\ud83d\udea7 Works started: ' + type.name, 3500);
@@ -32533,8 +32596,8 @@ const CityPanel = {
     const side = this.sel ? `
       <div class="cp-side">
         <b>New block</b><span>${this.sel[0] > 0 ? 'East ' + this.sel[0] : this.sel[0] < 0 ? 'West ' + -this.sel[0] : ''} ${this.sel[1] > 0 ? 'South ' + this.sel[1] : this.sel[1] < 0 ? 'North ' + -this.sel[1] : ''}</span>
-        ${CITY_TYPES.map((t, k) => `<button class="cp-type" data-k="${k}"><i>${t.icon}</i><div><b>${t.name}</b><span>${t.desc}</span></div></button>`).join('')}
-        <p>${G.mode === 'survival' ? 'Costs ' + CITY_COST + ' coins \u00b7 you have ' + (G.money | 0) : 'Free in creative'}</p>
+        ${CITY_TYPES.map((t, k) => `<button class="cp-type" data-k="${k}"><i>${t.icon}</i><div><b>${t.name}</b><span>${t.desc}${G.mode === 'survival' ? ' \u00b7 \ud83e\ude99 ' + (t.cost || CITY_COST) : ''}</span></div></button>`).join('')}
+        <p>${G.mode === 'survival' ? 'You have \ud83e\ude99 ' + (G.money | 0) : 'Free in creative'}</p>
       </div>` : `<div class="cp-side"><b>Grow the district</b><span>Pick a free square (+) next to the built blocks. Each block comes with its streets, pavements, trees and lamps, levelled with the rest of STUCOM.</span></div>`;
     el.innerHTML = `
       <div class="mp-card cp-card">
@@ -33033,13 +33096,13 @@ const ClaimPanel = {
   const mining = Act.updateMining;
   Act.updateMining = function (dt, now) {
     const t = this.target, b = t && t.block;
-    if (G.mouse.left && b && !Claims.can(b.pos[0], b.pos[2])) { this.mine.pos = null; this.mine.progress = 0; Claims.deny(b.pos[0], b.pos[2]); return; }
+    if (G.mouse.left && b && !Claims.can(b.pos[0], b.pos[2], b.pos[1])) { this.mine.pos = null; this.mine.progress = 0; Claims.deny(b.pos[0], b.pos[2]); return; }
     return mining.call(this, dt, now);
   };
   const place = Act.placeBlock;
   Act.placeBlock = function (hit) {
     const n = hit.normal, cell = BLOCK_REPLACE[hit.id] ? hit.pos : [hit.pos[0] + n[0], hit.pos[1] + n[1], hit.pos[2] + n[2]];
-    if (!Claims.can(cell[0], cell[2])) { Claims.deny(cell[0], cell[2]); return false; }
+    if (!Claims.can(cell[0], cell[2], cell[1])) { Claims.deny(cell[0], cell[2]); return false; }
     const held = G.inv.held;
     const plot = held && held.id === B.PLOT_STONE;
     const ok = place.call(this, hit);
@@ -33066,7 +33129,7 @@ const ClaimPanel = {
         // a stone from before (or whose plot was given up): claim again
         if (!Claims.create(b.pos[0], b.pos[1], b.pos[2])) { this.swingHand(); return true; }
       }
-      if (CONTAINERS.has(b.id) && !Claims.can(b.pos[0], b.pos[2])) { Claims.deny(b.pos[0], b.pos[2]); return true; }
+      if (CONTAINERS.has(b.id) && !Claims.can(b.pos[0], b.pos[2], b.pos[1])) { Claims.deny(b.pos[0], b.pos[2]); return true; }
     }
     return use.call(this, initial);
   };
@@ -37061,6 +37124,966 @@ SYNTH.hail_tick = (ctx, o, t) => { for (let i = 0; i < 3; i++) Sound.noise(ctx, 
 </script>
 <script>
 'use strict';
+// Owning the city. Four ways to make and spend money that keep going while you play:
+// - Flats (Flats): every tall lift (5+ stops, not on a house plot) is a tower of flats. Stand on the
+//   lift plate at any floor and the panel says who owns it; the ones for sale are bought there
+//   (400 + 60 \u00d7 floor). The builders furnish it as a loft round the lift core, it becomes your
+//   home, and on a server nobody else can touch it (Claims.can gets the height).
+// - Businesses (Biz): open a caf\u00e9, a bakery, a gym... where you stand (your plot, your flat or
+//   any free ground). A market stall goes up with a striped awning and a shopkeeper; it earns
+//   coins every real hour (more with levels and staff, up to a cap: come back to collect), the
+//   neighbours (cityalive.js) come to shop after work, and other players buy from your keeper.
+// - The stock market (Stocks): seven companies whose prices move by deterministic noise on the
+//   real clock, so everyone online sees the same market. Buy, sell (1 % fee), charts, news.
+// - Renting (Rent): put a house or flat on the market at a price per game day. Friends on the
+//   server rent it (and can then build and sleep there); if nobody does, a neighbour moves in
+//   and pays, more likely the fairer the price. The owner collects the rent from the phone.
+// World records live in world.biz (saved with the world, SharedState keys flat:, biz:, rent:,
+// lease:); your own takings and shares in G.prog.
+
+const BZ = {
+  data() {
+    const w = G.world;
+    if (!w) return { flats: {}, shops: {}, rent: {}, lease: {} };
+    const d = w.biz || (w.biz = {});
+    for (const k of ['flats', 'shops', 'rent', 'lease']) if (!d[k] || typeof d[k] !== 'object') d[k] = {};
+    return d;
+  },
+  prog() {
+    if (!G.prog) G.prog = {};
+    const p = G.prog;
+    for (const k of ['biz', 'stocks', 'rentGot']) if (!p[k] || typeof p[k] !== 'object') p[k] = {};
+    return p;
+  },
+  PFX: { flats: 'flat:', shops: 'biz:', rent: 'rent:', lease: 'lease:' },
+  put(kind, id, v) {
+    const d = this.data()[kind];
+    if (v) d[id] = v; else delete d[id];
+    if (G.world) G.world.editsDirty = true;
+    if (typeof SharedState !== 'undefined') SharedState.put(this.PFX[kind] + id, v || null);
+  },
+  coins(n) { return '\ud83e\ude99 ' + Math.round(n).toLocaleString('en'); },
+  esc(t) { return GPanel.esc(t == null ? '' : t); },
+  me(o) { return o === Net.owner; },
+  // the facing whose front points along (dx, dz)
+  fac(dx, dz) {
+    for (let f = 0; f < 6; f++) { const v = Furniture.front(f); if (Math.round(v[0]) === dx && Math.round(v[2]) === dz) return f; }
+    return 0;
+  },
+  mmss(ms) { const s = Math.max(0, Math.round(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return h ? h + ' h ' + m + ' min' : m ? m + ' min' : s + ' s'; },
+};
+
+// ================================================================ flats ====
+const Flats = {
+  cache: new Map(), offered: new Set(), was: null,
+  key(x, z, y) { return x + ',' + z + ',' + y; },
+  price(floor) { return 400 + 60 * floor; },
+  // the floor round a lift shaft at standing height y: the cells you can walk to from the lift door
+  area(x, z, y) {
+    const w = G.world;
+    const open = (a, b) => {
+      const f = w.getBlock(a, y - 1, b);
+      return !BLOCK_SOLID[w.getBlock(a, y, b)] && !BLOCK_SOLID[w.getBlock(a, y + 1, b)] && BLOCK_SOLID[f] && f !== B.LIFT_FLOOR;
+    };
+    let o = null;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (open(x + dx, z + dz)) { o = [dx, dz]; break; }
+    if (!o) return null;
+    const cells = new Set(), q = [[x + o[0], z + o[1]]];
+    cells.add((x + o[0]) + ',' + (z + o[1]));
+    let x0 = x, x1 = x, z0 = z, z1 = z;
+    while (q.length && cells.size < 400) {
+      const [a, b] = q.shift();
+      x0 = Math.min(x0, a); x1 = Math.max(x1, a); z0 = Math.min(z0, b); z1 = Math.max(z1, b);
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const na = a + dx, nb = b + dz, k = na + ',' + nb;
+        if (cells.has(k) || Math.abs(na - x) > 9 || Math.abs(nb - z) > 9 || !open(na, nb)) continue;
+        cells.add(k); q.push([na, nb]);
+      }
+    }
+    return { cells, o, x0, x1, z0, z1 };
+  },
+  // is this lift a tower of flats?
+  tower(x, z, stops) {
+    const k = x + ',' + z, c = this.cache.get(k);
+    if (c && (c.ok || performance.now() - c.t < 8000)) return c.ok;
+    let ok = stops.length >= 5 && !(typeof Homes !== 'undefined' && Homes.plotAt(x, z));
+    if (ok) { const a = this.area(x, z, stops[1]); ok = !!a && a.cells.size >= 60 && a.cells.size < 400; }
+    this.cache.set(k, { ok, t: performance.now() });
+    return ok;
+  },
+  rec(x, z, y) { return BZ.data().flats[this.key(x, z, y)] || null; },
+  at(x, y, z) {
+    for (const r of Object.values(BZ.data().flats)) if (r && r.b && x >= r.b[0] && x <= r.b[2] && z >= r.b[1] && z <= r.b[3] && y >= r.y - 1 && y <= r.y + 2) return r;
+    return null;
+  },
+  mayUse(r) { return BZ.me(r.o) || Rent.tenant('f:' + this.key(r.x, r.z, r.y)); },
+  mine() { return Object.entries(BZ.data().flats).filter(([, r]) => r && BZ.me(r.o)); },
+  spot(r) { const d = Array.isArray(r.d) ? r.d : [1, 0]; return [r.x + d[0] * 3 + 0.5, r.y, r.z + d[1] * 3 + 0.5]; },
+
+  // the lift panel shows who owns each floor and sells the one you are on
+  decorate(p, x, z, stops, cur) {
+    if (!p) return;
+    const e = BZ.esc, grid = p.body.querySelector('.lift-grid');
+    if (grid && stops.length > 6) grid.classList.add('two');
+    p.body.querySelectorAll('.lift-b').forEach((b) => {
+      const i = Number(b.dataset.i);
+      if (i <= 0 || i >= stops.length - 1) return;
+      const r = this.rec(x, z, stops[i]);
+      const t = document.createElement('em');
+      t.className = 'fl-b ' + (r ? (BZ.me(r.o) ? 'mine' : 'sold') : 'free');
+      t.textContent = r ? (BZ.me(r.o) ? '\ud83c\udfe0' : '\ud83d\udd12') : '\ud83e\ude99';
+      b.append(t);
+    });
+    const card = document.createElement('div');
+    card.className = 'fl-card';
+    const flats = stops.length - 2, sold = stops.slice(1, -1).filter((y) => this.rec(x, z, y)).length;
+    if (cur <= 0 || cur >= stops.length - 1) {
+      card.innerHTML = `<b>\ud83c\udfe2 ${flats} flats \u00b7 ${flats - sold} for sale</b><span>From ${BZ.coins(this.price(1))} \u00b7 pick a floor with \ud83e\ude99 and look at it</span>`;
+    } else {
+      const y = stops[cur], r = this.rec(x, z, y), lk = Rent.data('f:' + this.key(x, z, y));
+      if (r && BZ.me(r.o)) {
+        card.innerHTML = `<b>\ud83c\udfe0 Your flat \u00b7 floor ${cur}</b><span>${lk.lease && lk.lease.until > Date.now() ? 'Rented to ' + e(lk.lease.tn) : lk.rent && lk.rent.open ? 'On the rental market' : 'Furnished loft \u00b7 your home'}</span><div class="fl-act"><button class="gp-btn" data-a="home">Set as home</button><button class="gp-btn" data-a="rent">Rent it out\u2026</button></div>`;
+      } else if (r) {
+        const ten = lk.lease && lk.lease.until > Date.now() ? lk.lease : null;
+        card.innerHTML = `<b>\ud83d\udd12 ${e(r.n)}\u2019s flat \u00b7 floor ${cur}</b><span>${ten ? (ten.tenant === Net.owner ? 'You rent it \u00b7 until ' + new Date(ten.until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Rented to ' + e(ten.tn)) : lk.rent && lk.rent.open ? 'For rent \u00b7 ' + BZ.coins(lk.rent.price) + ' a day' : 'Private'}</span>${!ten && lk.rent && lk.rent.open && !BZ.me(r.o) ? '<div class="fl-act"><button class="gp-btn ok" data-a="lease">Rent it\u2026</button></div>' : ''}`;
+      } else {
+        card.innerHTML = `<b>\ud83d\udd11 Flat for sale \u00b7 floor ${cur}</b><span>A furnished loft round the lift: living room, kitchen, bedroom, bathroom${cur > 5 ? ' \u00b7 amazing views' : ''}</span><div class="fl-act"><button class="gp-btn ok" data-a="buy">Buy \u00b7 ${BZ.coins(this.price(cur))}</button></div>`;
+      }
+    }
+    p.body.append(card);
+    const act = (a) => {
+      const y = stops[cur], k = this.key(x, z, y);
+      if (a === 'buy' && this.buy(x, z, stops, cur)) p.close();
+      if (a === 'home') { const r = this.rec(x, z, y); Home.set(this.spot(r), 'flat'); G.ui.toast('\ud83c\udfe0 Home set: your flat on floor ' + cur); }
+      if (a === 'rent') { p.close(); Rent.open('f:' + k); }
+      if (a === 'lease') { p.close(); Rent.open('f:' + k); }
+    };
+    card.querySelectorAll('[data-a]').forEach((b) => b.addEventListener('click', () => act(b.dataset.a)));
+  },
+
+  buy(x, z, stops, i) {
+    const y = stops[i], k = this.key(x, z, y);
+    if (this.rec(x, z, y)) { G.ui.toast('This flat is already sold'); return false; }
+    const a = this.area(x, z, y);
+    if (!a || a.cells.size < 40) { G.ui.toast('This floor is not a flat'); return false; }
+    const price = this.price(i);
+    if (!Shops.pay(price)) { G.ui.toast('\ud83e\ude99 This flat costs ' + price + ' coins (you have ' + (G.money | 0) + ')', 3500); sfx('gate_no', null, 0.6, 1); return false; }
+    const r = { o: Net.owner, n: Net.name, x, z, y, fl: i, d: a.o, b: [a.x0, a.z0, a.x1, a.z1], t: Date.now() };
+    BZ.put('flats', k, r);
+    this.furnish(x, z, y, a);
+    Home.set([x + a.o[0] * 3 + 0.5, y, z + a.o[1] * 3 + 0.5], 'flat');
+    G.ui.banner('\ud83c\udfe0', 'Your flat on floor ' + i + ' \u00b7 the movers are in');
+    sfx('shop_till', null, 0.8, 1);
+    setTimeout(() => sfx('achieve', null, 0.8, 1), 900);
+    return true;
+  },
+
+  // a loft round the core: living room in front of the lift, dining and kitchen on one side,
+  // bedroom, desk and bathroom behind
+  furnish(x, z, y, a) {
+    const [ox, oz] = a.o, px = -oz, pz = ox, w = G.world, out = [], used = new Set();
+    const W = (A, Bb) => [x + A * ox + Bb * px, z + A * oz + Bb * pz];
+    const F = (fa, fb) => BZ.fac(fa * ox + fb * px, fa * oz + fb * pz);
+    const free = (X, yy, Z) => a.cells.has(X + ',' + Z) && !used.has(X + ',' + yy + ',' + Z) && w.getBlock(X, yy, Z) === B.AIR;
+    const put = (A, Bb, dy, id, fa, fb) => {
+      const [X, Z] = W(A, Bb);
+      if (!free(X, y + dy, Z)) return false;
+      used.add(X + ',' + (y + dy) + ',' + Z);
+      out.push([X, y + dy, Z, id, fa === undefined ? undefined : F(fa, fb)]);
+      return true;
+    };
+    // living room
+    for (const b of [2, 3, 4]) put(2, b, 0, B.SOFA_GRAY, 1, 0);
+    put(3, 3, 0, B.COFFEE_TABLE, 1, 0);
+    for (const b of [2, 3, 4]) put(4, b, 0, B.RUG_BEIGE, 1, 0);
+    put(5, 3, 0, B.TV_ON, -1, 0);
+    put(5, 5, 0, B.FLOOR_LAMP, -1, 0); put(2, 5, 0, B.FLOOR_LAMP, 1, 0);
+    // dining and kitchen
+    for (const b of [-2, -3]) { put(4, b, 0, B.TABLE, 1, 0); put(3, b, 0, B.CHAIR, 1, 0); put(5, b, 0, B.CHAIR, -1, 0); }
+    [B.KITCHEN_COUNTER, B.KITCHEN_SINK, B.STOVE, B.KITCHEN_COUNTER].forEach((id, k) => put(k, -5, 0, id, 0, 1));
+    if (put(4, -5, 0, B.FRIDGE, 0, 1)) put(4, -5, 1, B.FRIDGE_TOP, 0, 1);
+    // bedroom: a double bed with its head to the far wall
+    {
+      const f = F(1, 0), fr = Furniture.front(f), side = furnSide(f);
+      const [hx, hz] = W(-5, 3), cells = [[hx, hz, B.DOUBLE_BED_HEAD, f], [hx + side[0], hz + side[2], B.DOUBLE_BED_HEAD, f | 8],
+        [hx + fr[0], hz + fr[2], B.DOUBLE_BED, f], [hx + fr[0] + side[0], hz + fr[2] + side[2], B.DOUBLE_BED, f | 8]];
+      if (cells.every(([X, Z]) => free(X, y, Z))) for (const [X, Z, id, ff] of cells) { used.add(X + ',' + y + ',' + Z); out.push([X, y, Z, id, ff]); }
+    }
+    put(-5, 5, 0, B.FLOOR_LAMP, 1, 0);
+    for (const b of [2, 3, 4]) put(-2, b, 0, B.RUG_BLUE, 1, 0);
+    // desk
+    if (put(-5, -2, 0, B.TABLE, 1, 0)) put(-5, -2, 1, B.DESKTOP_PC, 1, 0);
+    put(-4, -2, 0, B.CHAIR, -1, 0);
+    // bathroom corner
+    if (put(-5, -5, 0, B.SHOWER, 0, 1)) put(-5, -5, 1, B.SHOWER_TOP, 0, 1);
+    put(-4, -5, 0, B.TOILET, 0, 1); put(-3, -5, 0, B.KITCHEN_SINK, 0, 1); put(-2, -5, 0, B.WASHER, 0, 1);
+    // plants, paintings, lights
+    for (const [A, Bb] of [[5, -5], [-5, 0]]) put(A, Bb, 0, B.BUSH);
+    put(5, 1, 1, B.PAINTING_CITY, -1, 0); put(-5, 1, 1, B.PAINTING_SEA, 1, 0);
+    for (const [A, Bb] of [[3, 3], [4, -3], [-3, 3], [-3, -3]]) put(A, Bb, 2, B.CEILING_LAMP, 1, 0);
+    // bottom first, a little at a time: the movers carry it in
+    let i = 0;
+    const step = () => {
+      if (!G.world || G.world !== w) return;
+      const batch = out.slice(i, i + 3);
+      i += 3;
+      if (!batch.length) { saveWorld(); return; }
+      editBlocks(batch);
+      for (const b of batch) Particles.poof(b[0] + 0.5, b[1] + 0.5, b[2] + 0.5, 1, 1);
+      sfx('place_1', [batch[0][0] + 0.5, y + 0.5, batch[0][2] + 0.5], 0.4, rand(0.8, 1.1));
+      setTimeout(step, 90);
+    };
+    step();
+  },
+
+  update() {
+    // arriving at a floor for sale: offer it once per tower
+    const r = Lift.ride;
+    if (this.was && !r) {
+      const q = this.was, y = q.stops[q.to], k = q.x + ',' + q.z;
+      if (q.to > 0 && q.to < q.stops.length - 1 && !this.offered.has(k) && this.tower(q.x, q.z, q.stops) && !this.rec(q.x, q.z, y)) {
+        this.offered.add(k);
+        setTimeout(() => {
+          if (GPanel.top()) return;
+          const p = GPanel.open({ title: 'Flat for sale', sub: 'Floor ' + q.to, icon: '\ud83d\udd11', width: 360 });
+          p.body.innerHTML = `<div class="gp-card"><div class="gp-big">\ud83c\udfd9\ufe0f</div><p><b>Floor ${q.to}</b> \u00b7 a furnished loft with views over ${BZ.esc(CITY)}</p><p class="gp-dim">Every floor with \ud83e\ude99 on the lift buttons is for sale. You have ${G.mode === 'creative' ? '\u221e' : BZ.coins(G.money | 0)}.</p>
+            <div class="fl-act" style="justify-content:center"><button class="gp-btn ok" data-a="buy">Buy \u00b7 ${BZ.coins(this.price(q.to))}</button><button class="gp-btn" data-a="no">Just looking</button></div></div>`;
+          p.body.querySelector('[data-a="buy"]').addEventListener('click', () => { if (this.buy(q.x, q.z, q.stops, q.to)) p.close(); });
+          p.body.querySelector('[data-a="no"]').addEventListener('click', () => p.close());
+        }, 700);
+      }
+    }
+    this.was = r ? { x: r.x, z: r.z, stops: r.stops, to: r.to } : null;
+  },
+};
+
+// ============================================================ businesses ====
+const BIZ_TYPES = {
+  cafe: { icon: '\u2615', name: ED('Cafeteria', 'Caf\u00e9'), cost: 500, rate: 120, awn: 12, item: I.COOKIE, n: 3, price: 4, what: 'a coffee and a cookie', back: [B.SHELF_DRINKS, B.STOVE, B.SHELF_DRINKS] },
+  bakery: { icon: '\ud83e\udd50', name: ED('Forn de pa', 'Bakery'), cost: 450, rate: 100, awn: 1, item: I.CROISSANT, n: 2, price: 5, what: 'two croissants', back: [B.SHELF_BREAD, B.SHELF_BREAD, B.SHELF_BREAD] },
+  florist: { icon: '\ud83d\udc90', name: ED('Floristeria', 'Flower shop'), cost: 350, rate: 80, awn: 6, item: B.TULIP, n: 4, price: 4, what: 'a bunch of tulips', back: [[B.PODZOL, B.HYDRANGEA], [B.PODZOL, B.LAVENDER], [B.PODZOL, B.HYDRANGEA]] },
+  gym: { icon: '\ud83c\udfcb\ufe0f', name: ED('Gimn\u00e0s', 'Gym'), cost: 900, rate: 200, awn: 14, item: I.JUICE, n: 2, price: 6, what: 'a class and a smoothie', back: [B.TV_ON, B.TV_ON, B.TV_ON], heal: true },
+  tech: { icon: '\ud83d\udcbb', name: ED('Botiga d\u2019inform\u00e0tica', 'Tech shop'), cost: 1200, rate: 260, awn: 3, price: 15, what: 'a repair of the tool in your hand', back: [[B.TABLE, B.DESKTOP_PC], [B.TABLE, B.DESKTOP_PC], [B.TABLE, B.DESKTOP_PC]], repair: true },
+  resto: { icon: '\ud83c\udf5d', name: ED('Restaurant', 'Restaurant'), cost: 1500, rate: 320, awn: 14, item: I.STEAK, n: 2, price: 12, what: 'the menu of the day', back: [B.KITCHEN_COUNTER, B.STOVE, [B.FRIDGE, B.FRIDGE_TOP]] },
+};
+const BIZ_MAX = 4, BIZ_LVL = 5, BIZ_STAFF = 3, BIZ_SALARY = 25;
+
+const Biz = {
+  npcs: new Map(), tags: new Map(), t: 0, welcomed: false,
+  list() { return Object.entries(BZ.data().shops).filter(([, s]) => s && BIZ_TYPES[s.type]); },
+  mine() { return this.list().filter(([, s]) => BZ.me(s.o)); },
+  own(id) {
+    const P = BZ.prog().biz;
+    return P[id] || (P[id] = { lvl: 1, staff: 0, last: Date.now(), bank: 0, sold: 0, total: 0 });
+  },
+  gross(s, b) { const T = BIZ_TYPES[s.type]; return T.rate * (1 + 0.6 * (b.lvl - 1)) * (1 + 0.35 * b.staff); },
+  net(s, b) { return this.gross(s, b) - b.staff * BIZ_SALARY; },
+  cap(s, b) { return Math.round(this.net(s, b) * (2 + 0.5 * (b.lvl - 1))); },
+  accrue(id, s) {
+    const b = this.own(id), now = Date.now(), h = Math.max(0, now - (b.last || now)) / 3.6e6;
+    const cap = this.cap(s, b);
+    if (b.bank < cap) b.bank = Math.min(cap, b.bank + this.net(s, b) * h);
+    b.last = now;
+    return b;
+  },
+  pending() { let n = 0; for (const [id, s] of this.mine()) n += this.accrue(id, s).bank; return n; },
+  perHour() { let n = 0; for (const [id, s] of this.mine()) n += this.net(s, this.own(id)); return n; },
+  // the stall's cells: d steps in front of where the owner stood, k to the side
+  cell(s, d, k) { return [s.x + s.fx * d - s.fz * k, s.z + s.fz * d + s.fx * k]; },
+  spot(s) { const [x, z] = this.cell(s, 1, 0); return [x + 0.5, s.y, z + 0.5]; },
+
+  canOpen() {
+    const p = G.player, x = Math.floor(p.pos[0]), y = Math.floor(p.pos[1] + 0.01), z = Math.floor(p.pos[2]);
+    const look = p.lookDir(), ax = Math.abs(look[0]) > Math.abs(look[2]);
+    const fx = ax ? Math.sign(look[0]) : 0, fz = ax ? 0 : Math.sign(look[2]) || 1;
+    const s = { x, y, z, fx, fz }, w = G.world;
+    if (this.mine().length >= BIZ_MAX) return { err: 'You already run ' + BIZ_MAX + ' businesses: close one first' };
+    if (G.vehicle || !p.onGround) return { err: 'Stand on the ground where the stall should go' };
+    for (let d = 1; d <= 4; d++) for (let k = -2; k <= 2; k++) {
+      const [cx, cz] = this.cell(s, d, k);
+      if (!BLOCK_SOLID[w.getBlock(cx, y - 1, cz)]) return { err: 'The ground in front of you is not flat: you need 5 \u00d7 4 free blocks' };
+      for (let yy = y; yy <= y + 3; yy++) { const id = w.getBlock(cx, yy, cz); if (id !== B.AIR && !BLOCK_REPLACE[id]) return { err: 'Something is in the way: you need 5 \u00d7 4 free blocks in front of you, 4 high' }; }
+      if (!Claims.can(cx, cz, y)) return { err: 'That is someone else\u2019s plot' };
+      const f = Flats.at(cx, y, cz);
+      if (f && !Flats.mayUse(f)) return { err: 'That is someone else\u2019s flat' };
+    }
+    for (const [, o] of this.list()) if (Math.abs(o.x - x) < 7 && Math.abs(o.z - z) < 7 && Math.abs(o.y - y) < 4) return { err: 'Too close to ' + o.name };
+    return { s };
+  },
+
+  open(type, name) {
+    const T = BIZ_TYPES[type], c = this.canOpen();
+    if (c.err) { G.ui.toast('\ud83c\udfea ' + c.err, 3500); sfx('gate_no', null, 0.6, 1); return false; }
+    if (!Shops.pay(T.cost)) { G.ui.toast('\ud83e\ude99 A ' + T.name + ' costs ' + T.cost + ' coins (you have ' + (G.money | 0) + ')', 3500); sfx('gate_no', null, 0.6, 1); return false; }
+    const s = Object.assign(c.s, { o: Net.owner, n: Net.name, type, name: String(name || (Net.name + '\u2019s ' + T.name)).slice(0, 28), t: Date.now(), lvl: 1 });
+    const id = 's' + Date.now().toString(36);
+    BZ.put('shops', id, s);
+    const b = this.own(id);
+    b.last = Date.now(); b.bank = 0;
+    this.build(s);
+    G.ui.banner(T.icon, s.name + ' is open!');
+    sfx('shop_till', null, 0.8, 1);
+    return true;
+  },
+
+  build(s) {
+    const T = BIZ_TYPES[s.type], y = s.y, out = [];
+    const at = (d, k, dy, id, f) => { const [x, z] = this.cell(s, d, k); out.push([x, y + dy, z, id, f]); };
+    const toCust = BZ.fac(-s.fx, -s.fz);
+    [B.KITCHEN_COUNTER, B.CASH_REGISTER, B.KITCHEN_COUNTER].forEach((id, i) => at(2, i - 1, 0, id, toCust));
+    T.back.forEach((e, i) => { const [a, b2] = Array.isArray(e) ? e : [e]; at(4, i - 1, 0, a, toCust); if (b2) at(4, i - 1, 1, b2, toCust); });
+    for (const [d, k] of [[1, -2], [1, 2], [4, -2], [4, 2]]) for (let dy = 0; dy <= 2; dy++) at(d, k, dy, B.DARK_OAK_FENCE);
+    for (let d = 1; d <= 4; d++) for (let k = -2; k <= 2; k++) at(d, k, 3, B.WOOL + (k % 2 === 0 ? T.awn : 0));
+    at(1, -1, 2, B.LANTERN, 8); at(1, 1, 2, B.LANTERN, 8);
+    editBlocks(out);
+    for (const b of out) if (Math.random() < 0.4) Particles.poof(b[0] + 0.5, b[1] + 0.5, b[2] + 0.5, 1, 1);
+  },
+
+  close(id) {
+    const s = BZ.data().shops[id];
+    if (!s) return;
+    const T = BIZ_TYPES[s.type], b = this.own(id);
+    Shops.earn(Math.round(b.bank) + Math.round(T.cost * 0.5));
+    delete BZ.prog().biz[id];
+    BZ.put('shops', id, null);
+    this.dropNpcs(id);
+    G.ui.toast('\ud83c\udfea ' + s.name + ' closed \u00b7 the stall is yours to take down', 3500);
+  },
+
+  collect(id) {
+    const s = BZ.data().shops[id];
+    if (!s) return 0;
+    const b = this.accrue(id, s), n = Math.floor(b.bank);
+    if (n <= 0) return 0;
+    b.bank -= n; b.total = (b.total || 0) + n;
+    Shops.earn(n);
+    sfx('shop_till', null, 0.7, 1.1);
+    return n;
+  },
+  collectAll() {
+    let n = 0;
+    for (const [id] of this.mine()) n += this.collect(id);
+    if (n) G.ui.banner('\ud83d\udcb0', 'Collected ' + BZ.coins(n) + ' from your businesses');
+    else G.ui.toast('Nothing to collect yet');
+    return n;
+  },
+  upgrade(id) {
+    const s = BZ.data().shops[id], b = this.accrue(id, s), T = BIZ_TYPES[s.type];
+    if (b.lvl >= BIZ_LVL) return;
+    const cost = Math.round(T.cost * 0.75 * b.lvl);
+    if (!Shops.pay(cost)) { G.ui.toast('\ud83e\ude99 The upgrade costs ' + cost); sfx('gate_no', null, 0.6, 1); return; }
+    b.lvl++;
+    s.lvl = b.lvl;
+    BZ.put('shops', id, s);
+    G.ui.banner('\u2b50', s.name + ' \u00b7 level ' + b.lvl);
+    sfx('achieve', null, 0.8, 1.1);
+  },
+  hire(id) {
+    const s = BZ.data().shops[id], b = this.accrue(id, s);
+    if (b.staff >= BIZ_STAFF) return;
+    const cost = 200 * (b.staff + 1);
+    if (!Shops.pay(cost)) { G.ui.toast('\ud83e\ude99 Hiring costs ' + cost); sfx('gate_no', null, 0.6, 1); return; }
+    b.staff++;
+    s.staff = b.staff;
+    BZ.put('shops', id, s);
+    this.dropNpcs(id);
+    G.ui.toast('\ud83e\udd1d ' + this.staffName(s, b.staff) + ' starts tomorrow\u2026 no, today!', 3000);
+    sfx('pling', null, 0.7, 1);
+  },
+  staffName(s, i) { return VILLAGER_NAMES[Math.floor(hash3(s.x, i, s.z, 91) * 997) % VILLAGER_NAMES.length]; },
+
+  // someone buys at a stall (the keeper's right-click)
+  serve(id) {
+    const s = BZ.data().shops[id];
+    if (!s) return;
+    const T = BIZ_TYPES[s.type], e = BZ.esc, keeper = this.staffName(s, 0);
+    const mine = BZ.me(s.o);
+    if (mine) { this.panel(id); return; }
+    const p = GPanel.open({ title: s.name, sub: 'Run by ' + s.n + ' \u00b7 ' + '\u2605'.repeat(s.lvl || 1), icon: T.icon, width: 380 });
+    p.body.innerHTML = `<div class="gp-card"><p class="gp-big" style="font-size:18px">\u201cHi! What can I get you?\u201d</p><p class="gp-dim">${e(keeper)} works here</p>
+      <div class="bz-buy"><b>${T.icon} ${e(T.what)}</b><button class="gp-btn ok" data-a="buy">Buy \u00b7 ${BZ.coins(T.price)}</button></div></div>`;
+    p.body.querySelector('[data-a="buy"]').addEventListener('click', () => {
+      if (T.repair) {
+        const h = G.inv.held;
+        if (!h || !(h.dmg > 0)) { G.ui.toast('\ud83d\udd27 Hold a worn tool to get it repaired'); return; }
+      }
+      if (!Shops.pay(T.price)) { G.ui.toast('\ud83e\ude99 You need ' + T.price + ' coins'); sfx('gate_no', null, 0.6, 1); return; }
+      if (T.repair) G.inv.held.dmg = 0;
+      else if (T.item) { const rest = G.inv.add(mkStack(T.item, T.n)); if (rest > 0) Ents.spawnItem(mkStack(T.item, rest), G.player.pos[0], G.player.pos[1] + 1, G.player.pos[2]); }
+      if (T.heal && G.stats) G.stats.health = Math.min(G.stats.maxHealth || 20, (G.stats.health || 20) + 6);
+      if (Net.on) Net.op(['BZ', id, T.price]);
+      G.ui.toast(T.icon + ' ' + T.what + ' \u00b7 thank you!', 2200);
+      sfx('shop_till', null, 0.6, 1.2);
+      p.close();
+    });
+  },
+
+  // ---- the keepers ----
+  dropNpcs(id) { const l = this.npcs.get(id); if (l) for (const m of l) m.removed = true; this.npcs.delete(id); },
+  keepers(dt) {
+    const p = G.player.pos, w = G.world, shops = this.list();
+    const live = new Set(shops.map(([id]) => id));
+    for (const id of [...this.npcs.keys()]) if (!live.has(id)) this.dropNpcs(id);
+    for (const [id, s] of shops) {
+      const near = Math.abs(s.x - p[0]) < 56 && Math.abs(s.z - p[2]) < 56 && Math.abs(s.y - p[1]) < 40 && w.isLoaded(s.x, s.z);
+      let l = this.npcs.get(id);
+      if (l && (!near || l.some((m) => m.removed || m.dead))) { this.dropNpcs(id); l = null; if (!near) continue; }
+      if (!near || l || !G.rules.mobSpawning) continue;
+      l = [];
+      const n = 1 + Math.min(BIZ_STAFF, s.staff | 0);
+      for (let i = 0; i < n; i++) {
+        const k = i === 0 ? 0 : i === 1 ? -1 : i === 2 ? 1 : 0, d = i === 3 ? 1 : 3;
+        const [x, z] = i === 3 ? this.cell(s, 0, 2) : this.cell(s, d, k);
+        const m = Ents.spawnMob('villager', x + 0.5, s.y + 0.01, z + 0.5);
+        if (!m) continue;
+        m.persistent = true; m.bizNpc = id; m.bizMain = i === 0;
+        m.prof = 'shopkeeper'; m.skin = i === 0 ? (VILLAGER_SKIN.shopkeeper || 0) : (STUDENT_SKINS.length ? STUDENT_SKINS[Math.floor(hash3(s.x, i, s.z, 92) * STUDENT_SKINS.length)] : VILLAGER_SKIN.shopkeeper);
+        m.name = this.staffName(s, i);
+        m.home = [x + 0.5, z + 0.5]; m.homeR = 0.3;
+        m.yaw = Math.atan2(-s.fx, -s.fz);
+        l.push(m);
+      }
+      this.npcs.set(id, l);
+    }
+  },
+
+  // the neighbours shop after work: a sale each time one reaches one of your stalls
+  customers() {
+    if (typeof Citizens === 'undefined' || !Citizens.list.length) return;
+    const day = ((G.prog && G.prog.day) | 0) + Math.floor((G.dayTime || 0) * 4);
+    for (const [id, s] of this.mine()) {
+      const sp = this.spot(s), T = BIZ_TYPES[s.type];
+      for (const m of Citizens.list) {
+        if (m.removed || Math.hypot(m.pos[0] - sp[0], m.pos[2] - sp[2]) > 2.6 || Math.abs(m.pos[1] - sp[1]) > 2) continue;
+        const tag = id + ':' + day;
+        if (m.bizSeen === tag) continue;
+        m.bizSeen = tag;
+        const b = this.own(id), got = Math.round(T.price * (1 + 0.25 * (b.lvl - 1)) * 2);
+        b.bank += got; b.sold = (b.sold || 0) + 1;
+        const pp = G.player.pos;
+        if (Math.hypot(pp[0] - sp[0], pp[2] - sp[2]) < 24) {
+          G.ui.toast(T.icon + ' ' + m.name + ' bought ' + T.what + ' \u00b7 +' + got, 2400);
+          sfx('pling', sp, 0.5, 1.2);
+          Particles.poof && Particles.poof(sp[0], sp[1] + 1.8, sp[2], 0.5, 1);
+        }
+      }
+    }
+  },
+  // where a neighbour goes shopping instead (the stalls on the district's ground)
+  visit(c, plan) {
+    const shops = this.list().filter(([, s]) => Math.abs(s.y - plan.y) <= 2 && Math.abs(s.x - plan.x) < 260 && Math.abs(s.z - plan.z) < 260);
+    if (!shops.length) return null;
+    const day = (G.prog && G.prog.day) | 0;
+    if (hash3(c.i, day, 3, 93) > 0.6) return null;
+    const [, s] = shops[Math.floor(hash3(c.i, day, 4, 94) * shops.length)];
+    const [x, z] = this.cell(s, 1, Math.round(hash3(c.i, day, 5, 95) * 2 - 1));
+    return [x - plan.x, z - plan.z, 'fun'];
+  },
+
+  // floating shop signs over the stalls
+  drawTags() {
+    const R = G.renderer;
+    let host = $('bizTags');
+    if (!host) { host = document.createElement('div'); host.id = 'bizTags'; document.body.append(host); }
+    const show = R && R.viewProj && !G.onTitle && !G.hudHidden && !G.screenOpen;
+    const seen = new Set();
+    if (show) {
+      const vp = R.viewProj, cam = R.camPos, W = window.innerWidth, H = window.innerHeight;
+      for (const [id, s] of this.list()) {
+        const [x, z] = this.cell(s, 2.5, 0), rel = [x + 0.5 - cam[0], s.y + 4.4 - cam[1], z + 0.5 - cam[2]];
+        const dist = Math.hypot(rel[0], rel[1], rel[2]);
+        if (dist > 48) continue;
+        const w = vp[3] * rel[0] + vp[7] * rel[1] + vp[11] * rel[2] + vp[15];
+        if (w < 0.1) continue;
+        const sx = ((vp[0] * rel[0] + vp[4] * rel[1] + vp[8] * rel[2] + vp[12]) / w * 0.5 + 0.5) * W;
+        const sy = (1 - ((vp[1] * rel[0] + vp[5] * rel[1] + vp[9] * rel[2] + vp[13]) / w * 0.5 + 0.5)) * H;
+        let el = this.tags.get(id);
+        if (!el) { el = document.createElement('div'); el.className = 'bztag'; host.append(el); this.tags.set(id, el); }
+        const T = BIZ_TYPES[s.type], h = CityAlive.hour(), openNow = h >= 7 && h < 23;
+        const html = `<i>${T.icon}</i><b>${BZ.esc(s.name)}</b><span>${'\u2605'.repeat(s.lvl || 1)} \u00b7 ${openNow ? 'OPEN' : 'CLOSED'}</span>`;
+        if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; el.classList.toggle('shut', !openNow); }
+        el.style.transform = `translate(${Math.round(sx)}px, ${Math.round(sy)}px) translate(-50%, -100%) scale(${clamp(14 / Math.max(8, dist), 0.45, 1).toFixed(3)})`;
+        el.style.opacity = String(clamp((48 - dist) / 10, 0, 1));
+        seen.add(id);
+      }
+    }
+    for (const [id, el] of this.tags) if (!seen.has(id)) { el.remove(); this.tags.delete(id); }
+  },
+
+  update(dt) {
+    if (!G.world || G.onTitle) return;
+    this.t -= dt;
+    if (this.t > 0) return;
+    this.t = 1;
+    if (!this.welcomed) {
+      this.welcomed = true;
+      const n = Math.floor(this.pending());
+      if (n > 20) setTimeout(() => G.ui.banner('\ud83d\udcbc', 'Your businesses made ' + BZ.coins(n) + ' while you were away \u00b7 collect it on the phone'), 4000);
+    }
+    this.keepers(dt);
+    this.customers();
+  },
+
+  // ---- the app ----
+  panel(focus) {
+    const q = GPanel.open({ title: ED('Els meus negocis', 'My businesses'), sub: CITY, icon: '\ud83d\udcbc', cls: 'gp-biz', width: 720 });
+    let iv = 0;
+    q.onClose = () => clearInterval(iv);
+    const draw = () => {
+      const e = BZ.esc, mine = this.mine(), others = this.list().filter(([, s]) => !BZ.me(s.o));
+      const pend = this.pending(), ph = this.perHour();
+      const money = G.mode === 'creative' ? '\u221e' : BZ.coins(G.money | 0);
+      q.body.innerHTML = `
+        <div class="bz-hero">
+          <div><small>Ready to collect</small><b class="bz-pend">${BZ.coins(pend)}</b></div>
+          <div><small>Income</small><b>+${Math.round(ph)}<em>/h</em></b></div>
+          <div><small>You have</small><b>${money}</b></div>
+          <button class="gp-btn ok" data-a="all" ${pend >= 1 ? '' : 'disabled'}>Collect all</button>
+        </div>
+        ${mine.length ? mine.map(([id, s]) => {
+          const T = BIZ_TYPES[s.type], b = this.accrue(id, s), cap = this.cap(s, b);
+          const up = Math.round(T.cost * 0.75 * b.lvl), hire = 200 * (b.staff + 1);
+          return `<div class="bz-shop${focus === id ? ' focus' : ''}" data-id="${id}">
+            <div class="bz-ic" style="--c:${['#e8e8e8', '#f07614', '#be46b4', '#3cb0da', '#f8c628', '#70ba1a', '#ee8eac', '#40464a', '#909088', '#168a92', '#7a2cac', '#363a9e', '#724828', '#546e1c', '#a22824', '#16161a'][T.awn]}">${T.icon}</div>
+            <div class="bz-main"><b>${e(s.name)}</b><small>${e(T.name)} \u00b7 ${'\u2605'.repeat(b.lvl)}${'\u2606'.repeat(BIZ_LVL - b.lvl)} \u00b7 ${b.staff} staff \u00b7 ${b.sold || 0} customers \u00b7 ${People.dist([s.x, s.y, s.z])}</small>
+              <div class="bz-bar"><i style="width:${Math.min(100, b.bank / Math.max(1, cap) * 100).toFixed(1)}%"></i><span>${BZ.coins(b.bank)} / ${cap}${b.bank >= cap - 0.5 ? ' \u00b7 full! collect it' : ' \u00b7 +' + Math.round(this.net(s, b)) + '/h'}</span></div></div>
+            <div class="bz-acts"><button class="gp-btn ok" data-a="col" ${b.bank >= 1 ? '' : 'disabled'}>Collect</button>
+              <button class="gp-btn" data-a="up" ${b.lvl >= BIZ_LVL ? 'disabled' : ''} title="More income and a bigger till">${b.lvl >= BIZ_LVL ? 'Top level' : '\u2b50 ' + up}</button>
+              <button class="gp-btn" data-a="hire" ${b.staff >= BIZ_STAFF ? 'disabled' : ''} title="+35% income, ${BIZ_SALARY}/h salary">${b.staff >= BIZ_STAFF ? 'Full team' : '\ud83e\udd1d ' + hire}</button>
+              <button class="gp-btn" data-a="ren" title="Rename">\u270f\ufe0f</button><button class="gp-btn bad" data-a="del" title="Close it (half the price back)">\u2715</button></div>
+          </div>`;
+        }).join('') : '<p class="gp-dim" style="margin:4px 0 12px">You don\u2019t run any business yet. Stand where you want it, look where the counter should go and open one below: it earns coins every hour, even while you are away.</p>'}
+        <h4 class="bz-h">Open a business here <span>5 \u00d7 4 free blocks in front of you \u00b7 max ${BIZ_MAX}</span></h4>
+        <div class="bz-types">${Object.entries(BIZ_TYPES).map(([k, T]) => `<button class="bz-type" data-open="${k}"><i>${T.icon}</i><b>${e(T.name)}</b><span>+${T.rate}/h \u00b7 sells ${e(T.what)}</span><em>${BZ.coins(T.cost)}</em></button>`).join('')}</div>
+        ${others.length ? `<h4 class="bz-h">Around ${e(CITY)}</h4>${others.map(([, s]) => `<div class="gp-row"><span style="font-size:20px">${BIZ_TYPES[s.type].icon}</span><div class="gp-grow"><b>${e(s.name)}</b><small>${e(s.n)} \u00b7 ${'\u2605'.repeat(s.lvl || 1)} \u00b7 ${People.dist([s.x, s.y, s.z])}</small></div></div>`).join('')}` : ''}`;
+      q.body.querySelector('[data-a="all"]').addEventListener('click', () => { this.collectAll(); draw(); });
+      q.body.querySelectorAll('.bz-shop').forEach((row) => {
+        const id = row.dataset.id;
+        row.querySelectorAll('[data-a]').forEach((b) => b.addEventListener('click', () => {
+          const a = b.dataset.a;
+          if (a === 'col') { const n = this.collect(id); if (n) G.ui.toast('\ud83d\udcb0 +' + n); }
+          if (a === 'up') this.upgrade(id);
+          if (a === 'hire') this.hire(id);
+          if (a === 'ren') {
+            const s = BZ.data().shops[id], nm = prompt('Name of your business', s.name);
+            if (nm && nm.trim()) { s.name = nm.trim().slice(0, 28); BZ.put('shops', id, s); }
+          }
+          if (a === 'del') { if (confirm('Close ' + BZ.data().shops[id].name + '? You get half of what it cost and the till.')) this.close(id); }
+          draw();
+        }));
+      });
+      q.body.querySelectorAll('[data-open]').forEach((b) => b.addEventListener('click', () => {
+        const T = BIZ_TYPES[b.dataset.open];
+        const c = this.canOpen();
+        if (c.err) { G.ui.toast('\ud83c\udfea ' + c.err, 3500); sfx('gate_no', null, 0.6, 1); return; }
+        const nm = prompt('Name your ' + T.name, Net.name + '\u2019s ' + T.name);
+        if (nm === null) return;
+        if (this.open(b.dataset.open, nm.trim() || undefined)) q.close();
+      }));
+    };
+    draw();
+    // the tills fill up while you look
+    iv = setInterval(() => {
+      if (!q.wrap.isConnected) { clearInterval(iv); return; }
+      for (const row of q.body.querySelectorAll('.bz-shop')) {
+        const id = row.dataset.id, s = BZ.data().shops[id];
+        if (!s) continue;
+        const b = this.accrue(id, s), cap = this.cap(s, b), bar = row.querySelector('.bz-bar');
+        bar.querySelector('i').style.width = Math.min(100, b.bank / Math.max(1, cap) * 100).toFixed(1) + '%';
+        bar.querySelector('span').textContent = BZ.coins(b.bank) + ' / ' + cap + (b.bank >= cap - 0.5 ? ' \u00b7 full! collect it' : ' \u00b7 +' + Math.round(this.net(s, b)) + '/h');
+      }
+      const pe = q.body.querySelector('.bz-pend');
+      if (pe) pe.textContent = BZ.coins(this.pending());
+    }, 1000);
+  },
+};
+
+// ======================================================== stock market ====
+const STOCKS = [
+  { k: 'BANC', name: ED('Banc de STUCOM', 'Blockton Bank'), icon: '\ud83c\udfe6', base: 120, vol: 0.7, seed: 11 },
+  { k: 'METR', name: ED('Metro de STUCOM', 'Blockton Metro'), icon: '\ud83d\ude87', base: 46, vol: 0.9, seed: 12 },
+  { k: 'AIR', name: 'BlocAir', icon: '\u2708\ufe0f', base: 82, vol: 1.4, seed: 13 },
+  { k: 'MINE', name: 'Deep Rock Mining', icon: '\u26cf\ufe0f', base: 31, vol: 1.3, seed: 14 },
+  { k: 'PIXL', name: 'Pixel Studios', icon: '\ud83c\udfae', base: 210, vol: 1.8, seed: 15 },
+  { k: 'FORN', name: 'Forn & Co', icon: '\ud83e\udd50', base: 18, vol: 0.5, seed: 16 },
+  { k: 'VOLT', name: 'Volt Motors', icon: '\ud83d\udd0b', base: 150, vol: 2.2, seed: 17 },
+];
+const STOCK_NEWS = {
+  BANC: ['Bank raises its interest rates', 'Bank fined for hidden fees'],
+  METR: ['New metro line brings record passengers', 'Signal failure stops the metro for hours'],
+  AIR: ['Holiday rush fills every BlocAir flight', 'Storms ground half the fleet'],
+  MINE: ['Miners hit a huge diamond vein', 'Flooded shaft closes the main mine'],
+  PIXL: ['Pixel Studios\u2019 new game is a smash hit', 'Big release delayed again'],
+  FORN: ['Croissant craze sweeps the city', 'Flour prices hit a record high'],
+  VOLT: ['Volt unveils a self-driving car', 'Volt recalls 10,000 cars'],
+};
+const STOCK_FEE = 0.01;
+
+const Stocks = {
+  sel: 'BANC', range: 60,
+  vn(x, seed) {
+    const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f);
+    const a = hash3(i, seed, 7, 91) * 2 - 1, b = hash3(i + 1, seed, 7, 91) * 2 - 1;
+    return a + (b - a) * u;
+  },
+  // the price at minute m of the real clock: the same on every computer
+  at(s, m) {
+    let l = 0;
+    for (const [per, amp, o] of [[0.8, 0.003, 1], [7, 0.011, 2], [50, 0.028, 3], [400, 0.075, 4], [3000, 0.2, 5]]) l += amp * s.vol * this.vn(m / per, s.seed * 10 + o);
+    return s.base * Math.exp(l);
+  },
+  now() { return Date.now() / 60000; },
+  price(s) { return this.at(s, this.now()); },
+  change(s, mins) { const n = this.now(); return this.at(s, n) / this.at(s, n - mins) - 1; },
+  of(k) { return STOCKS.find((s) => s.k === k); },
+  hold() { return BZ.prog().stocks; },
+  value() { let v = 0; for (const [k, h] of Object.entries(this.hold())) { const s = this.of(k); if (s && h) v += h.n * this.price(s); } return v; },
+  cost() { let v = 0; for (const h of Object.values(this.hold())) if (h) v += h.cost; return v; },
+  buy(k, n) {
+    const s = this.of(k); n = Math.floor(n);
+    if (!s || n <= 0) return;
+    const total = Math.ceil(this.price(s) * n * (1 + STOCK_FEE));
+    if (!Shops.pay(total)) { G.ui.toast('\ud83e\ude99 ' + n + ' \u00d7 ' + k + ' cost ' + total + ' (you have ' + (G.money | 0) + ')'); sfx('gate_no', null, 0.6, 1); return; }
+    const H = this.hold(), h = H[k] || (H[k] = { n: 0, cost: 0 });
+    h.n += n; h.cost += total;
+    G.ui.toast('\ud83d\udcc8 Bought ' + n + ' ' + k + ' \u00b7 ' + BZ.coins(total));
+    sfx('shop_till', null, 0.6, 1.3);
+  },
+  sell(k, n) {
+    const s = this.of(k), H = this.hold(), h = H[k];
+    n = Math.floor(Math.min(n, h ? h.n : 0));
+    if (!s || n <= 0) return;
+    const got = Math.floor(this.price(s) * n * (1 - STOCK_FEE));
+    h.cost *= (h.n - n) / h.n; h.n -= n;
+    if (h.n <= 0) delete H[k];
+    if (G.mode === 'creative') G.ui.toast('\ud83d\udcc9 Sold (coins don\u2019t count in creative)'); else Shops.earn(got);
+    G.ui.toast('\ud83d\udcb0 Sold ' + n + ' ' + k + ' \u00b7 ' + BZ.coins(got));
+    sfx('shop_till', null, 0.6, 1.1);
+  },
+  // headlines: the biggest half-hour moves of the last day
+  news() {
+    const n = Math.floor(this.now() / 30) * 30, out = [];
+    for (const s of STOCKS) for (let i = 0; i < 48; i++) {
+      const t = n - i * 30, ch = this.at(s, t) / this.at(s, t - 30) - 1;
+      if (Math.abs(ch) > 0.012 + 0.006 * s.vol) out.push({ s, t, ch });
+    }
+    out.sort((a, b) => b.t - a.t);
+    const seen = new Set();
+    return out.filter((q) => { const k = q.s.k + (q.ch > 0); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 6).map((q) => ({ ...q, text: STOCK_NEWS[q.s.k][q.ch > 0 ? 0 : 1] }));
+  },
+  spark(c, s, mins, big) {
+    const g = c.getContext('2d'), W = c.width, H = c.height, n = big ? 160 : 40, now = this.now(), pts = [];
+    for (let i = 0; i <= n; i++) pts.push(this.at(s, now - mins + mins * i / n));
+    let lo = Math.min(...pts), hi = Math.max(...pts);
+    if (hi - lo < 1e-6) hi = lo + 1;
+    const pad = big ? 22 : 3, up = pts[n] >= pts[0], col = up ? '#3cf29a' : '#ff6b6b';
+    const X = (i) => pad + (W - pad * 2) * i / n, Y = (v) => pad + (H - pad * 2) * (1 - (v - lo) / (hi - lo));
+    g.clearRect(0, 0, W, H);
+    if (big) {
+      g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 1;
+      for (let k = 0; k <= 4; k++) { const y = pad + (H - pad * 2) * k / 4; g.beginPath(); g.moveTo(pad, y); g.lineTo(W - pad, y); g.stroke(); }
+      g.fillStyle = 'rgba(255,255,255,.45)'; g.font = '600 11px system-ui';
+      g.fillText(hi.toFixed(2), 4, pad - 6); g.fillText(lo.toFixed(2), 4, H - 6);
+      const lab = mins <= 60 ? '1 hour' : mins <= 1440 ? '24 hours' : '7 days';
+      g.textAlign = 'right'; g.fillText(lab + ' \u00b7 now', W - 4, H - 6); g.textAlign = 'left';
+    }
+    const grad = g.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, up ? 'rgba(60,242,154,.35)' : 'rgba(255,107,107,.35)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.beginPath(); g.moveTo(X(0), Y(pts[0]));
+    for (let i = 1; i <= n; i++) g.lineTo(X(i), Y(pts[i]));
+    g.lineTo(X(n), H - pad); g.lineTo(X(0), H - pad); g.closePath(); g.fillStyle = grad; g.fill();
+    g.beginPath(); g.moveTo(X(0), Y(pts[0]));
+    for (let i = 1; i <= n; i++) g.lineTo(X(i), Y(pts[i]));
+    g.strokeStyle = col; g.lineWidth = big ? 2.2 : 1.5; g.lineJoin = 'round'; g.stroke();
+    if (big) { g.fillStyle = col; g.beginPath(); g.arc(X(n), Y(pts[n]), 4, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.arc(X(n), Y(pts[n]), 8 + 3 * Math.sin(performance.now() / 300), 0, 7); g.fill(); }
+    return { pts, lo, hi, X, Y, pad };
+  },
+  open() {
+    const q = GPanel.open({ title: ED('Borsa de STUCOM', CITY + ' Stock Exchange'), sub: 'Live', icon: '\ud83d\udcc8', cls: 'gp-stocks', width: 980 });
+    let iv = 0, qty = 1;
+    q.onClose = () => clearInterval(iv);
+    const pct = (v) => (v >= 0 ? '\u25b2 ' : '\u25bc ') + Math.abs(v * 100).toFixed(2) + '%';
+    const cls = (v) => (v >= 0 ? 'up' : 'dn');
+    const draw = () => {
+      const e = BZ.esc, s = this.of(this.sel), H = this.hold(), h = H[s.k], pr = this.price(s);
+      const val = this.value(), cost = this.cost(), pl = val - cost;
+      q.body.innerHTML = `
+        <div class="st-tape"><div>${[...STOCKS, ...STOCKS].map((t) => { const c = this.change(t, 60); return `<span>${t.icon} <b>${t.k}</b> ${this.price(t).toFixed(2)} <em class="${cls(c)}">${pct(c)}</em></span>`; }).join('')}</div></div>
+        <div class="st-wrap">
+          <div class="st-list">${STOCKS.map((t) => { const c = this.change(t, 60); return `<button class="st-row${t.k === s.k ? ' on' : ''}" data-k="${t.k}"><i>${t.icon}</i><div><b>${t.k}</b><small>${e(t.name)}</small></div><canvas width="60" height="24" data-sp="${t.k}"></canvas><div class="st-p"><b data-pr="${t.k}">${this.price(t).toFixed(2)}</b><em class="${cls(c)}">${pct(c)}</em></div></button>`; }).join('')}</div>
+          <div class="st-main">
+            <div class="st-head"><div><b>${s.icon} ${e(s.name)}</b><small>${s.k} \u00b7 volatility ${'\u25cf'.repeat(Math.round(s.vol * 2))}</small></div><div class="st-big"><b data-big>${pr.toFixed(2)}</b><em class="${cls(this.change(s, this.range))}" data-bch>${pct(this.change(s, this.range))}</em></div></div>
+            <div class="st-rng">${[[60, '1H'], [1440, '1D'], [10080, '1W']].map(([m, l]) => `<button class="${m === this.range ? 'on' : ''}" data-r="${m}">${l}</button>`).join('')}</div>
+            <canvas class="st-chart" width="520" height="210"></canvas>
+            <div class="st-trade">
+              <div class="st-qty"><button data-q="-">\u2212</button><input type="number" min="1" value="${qty}" /><button data-q="+">+</button>${[1, 10, 100].map((n) => `<button data-qs="${n}">${n}</button>`).join('')}<button data-qs="max">Max</button></div>
+              <button class="gp-btn ok" data-a="buy">Buy \u00b7 <span data-tb>${BZ.coins(pr * qty * (1 + STOCK_FEE))}</span></button>
+              <button class="gp-btn bad" data-a="sell" ${h ? '' : 'disabled'}>Sell</button>
+            </div>
+            <p class="gp-dim st-own">${h ? `You own <b>${h.n}</b> ${s.k} \u00b7 paid ${BZ.coins(h.cost)} \u00b7 worth ${BZ.coins(h.n * pr)} \u00b7 <span class="${cls(h.n * pr - h.cost)}">${h.n * pr - h.cost >= 0 ? '+' : ''}${Math.round(h.n * pr - h.cost)}</span>` : 'You don\u2019t own any ' + s.k + ' yet'} \u00b7 1% fee on every trade</p>
+          </div>
+          <div class="st-side">
+            <div class="st-port"><small>Your portfolio</small><b>${BZ.coins(val)}</b><em class="${cls(pl)}">${pl >= 0 ? '+' : ''}${Math.round(pl)} (${cost ? (pl / cost * 100).toFixed(1) : '0.0'}%)</em><small>Cash ${G.mode === 'creative' ? '\u221e' : BZ.coins(G.money | 0)}</small></div>
+            <small class="st-nh">\ud83d\udcf0 Market news</small>
+            ${this.news().map((n) => `<div class="st-news"><b>${n.s.icon} ${e(n.text)}</b><small>${n.s.k} <em class="${cls(n.ch)}">${pct(n.ch)}</em> \u00b7 ${BZ.mmss((this.now() - n.t) * 60000)} ago</small></div>`).join('') || '<p class="gp-dim">A calm day on the market.</p>'}
+          </div>
+        </div>`;
+      q.body.querySelectorAll('[data-sp]').forEach((c) => this.spark(c, this.of(c.dataset.sp), 60, false));
+      const chart = q.body.querySelector('.st-chart');
+      this.spark(chart, s, this.range, true);
+      q.body.querySelectorAll('.st-row').forEach((b) => b.addEventListener('click', () => { this.sel = b.dataset.k; draw(); }));
+      q.body.querySelectorAll('[data-r]').forEach((b) => b.addEventListener('click', () => { this.range = Number(b.dataset.r); draw(); }));
+      const inp = q.body.querySelector('.st-qty input');
+      const setQ = (n) => { qty = clamp(Math.floor(n) || 1, 1, 99999); inp.value = qty; q.body.querySelector('[data-tb]').textContent = BZ.coins(this.price(s) * qty * (1 + STOCK_FEE)); };
+      inp.addEventListener('input', () => setQ(Number(inp.value)));
+      q.body.querySelectorAll('[data-q]').forEach((b) => b.addEventListener('click', () => setQ(qty + (b.dataset.q === '+' ? 1 : -1))));
+      q.body.querySelectorAll('[data-qs]').forEach((b) => b.addEventListener('click', () => setQ(b.dataset.qs === 'max' ? (h && G.mode !== 'creative' && (G.money | 0) < this.price(s) * (1 + STOCK_FEE) ? h.n : Math.max(1, Math.floor((G.mode === 'creative' ? 1000 * this.price(s) : G.money | 0) / (this.price(s) * (1 + STOCK_FEE))))) : Number(b.dataset.qs))));
+      q.body.querySelector('[data-a="buy"]').addEventListener('click', () => { this.buy(s.k, qty); draw(); });
+      q.body.querySelector('[data-a="sell"]').addEventListener('click', () => { this.sell(s.k, Math.min(qty, h ? h.n : 0)); draw(); });
+      // hover: the price at that moment
+      chart.addEventListener('mousemove', (ev) => {
+        const r = chart.getBoundingClientRect(), fx = (ev.clientX - r.left) / r.width * chart.width;
+        const g = this.spark(chart, s, this.range, true), n = g.pts.length - 1;
+        const i = clamp(Math.round((fx - g.pad) / (chart.width - g.pad * 2) * n), 0, n), cx = chart.getContext('2d');
+        cx.strokeStyle = 'rgba(255,255,255,.35)'; cx.setLineDash([3, 3]); cx.beginPath(); cx.moveTo(g.X(i), g.pad); cx.lineTo(g.X(i), chart.height - g.pad); cx.stroke(); cx.setLineDash([]);
+        const ago = this.range * (1 - i / n), lab = g.pts[i].toFixed(2) + ' \u00b7 ' + (ago < 1 ? 'now' : BZ.mmss(ago * 60000) + ' ago');
+        cx.font = '700 12px system-ui'; const tw = cx.measureText(lab).width + 12, bx = clamp(g.X(i) - tw / 2, 2, chart.width - tw - 2);
+        cx.fillStyle = 'rgba(10,14,24,.9)'; cx.fillRect(bx, 4, tw, 20); cx.fillStyle = '#fff'; cx.fillText(lab, bx + 6, 18);
+      });
+    };
+    draw();
+    iv = setInterval(() => {
+      if (!q.wrap.isConnected) { clearInterval(iv); return; }
+      const s = this.of(this.sel);
+      q.body.querySelectorAll('[data-pr]').forEach((b) => { b.textContent = this.price(this.of(b.dataset.pr)).toFixed(2); });
+      const big = q.body.querySelector('[data-big]');
+      if (big) big.textContent = this.price(s).toFixed(2);
+      const chart = q.body.querySelector('.st-chart');
+      if (chart && !chart.matches(':hover')) this.spark(chart, s, this.range, true);
+      const tb = q.body.querySelector('[data-tb]');
+      if (tb) tb.textContent = BZ.coins(this.price(s) * qty * (1 + STOCK_FEE));
+    }, 1000);
+  },
+};
+
+// =============================================================== renting ====
+const Rent = {
+  t: 0,
+  day() { return DAY_LENGTH * 1000; },
+  data(id) { const D = BZ.data(); return { rent: D.rent[id] || null, lease: D.lease[id] || null }; },
+  tenant(id) { const l = BZ.data().lease[id]; return !!l && l.tenant === Net.owner && l.until > Date.now(); },
+  // what I own that could be rented: houses and flats
+  props() {
+    const out = [];
+    const R = G.world && G.world.homes;
+    if (R && typeof Homes !== 'undefined') for (const p of Homes.plots()) {
+      const r = R[p.id];
+      if (!r || !BZ.me(r.o)) continue;
+      const T = HOME_TYPES[r.type] || { icon: '\ud83c\udfe0', name: 'House', price: 800 };
+      out.push({ id: 'h:' + p.id, icon: T.icon, label: T.name + ' \u00b7 plot ' + p.id.slice(1), pos: [p.x0 + 7, p.F, p.z0 + 7], fair: Math.round(T.price / 9), plot: p });
+    }
+    for (const [k, r] of Flats.mine()) out.push({ id: 'f:' + k, icon: '\ud83c\udfd9\ufe0f', label: 'Flat \u00b7 floor ' + r.fl, pos: Flats.spot(r), fair: Math.round(Flats.price(r.fl) / 8) });
+    return out;
+  },
+  // a tenant builds and sleeps in the house they rent
+  byClaim(c) {
+    const D = BZ.data();
+    for (const [id, l] of Object.entries(D.lease)) {
+      if (!l || l.tenant !== Net.owner || l.until <= Date.now() || !id.startsWith('h:')) continue;
+      const p = Homes.plots().find((q) => 'h:' + q.id === id);
+      if (p && c.x >= p.x0 - 1 && c.x <= p.x1 + 1 && c.z >= p.z0 - 1 && c.z <= p.z1 + 1) return true;
+    }
+    return false;
+  },
+  list(id, price, open, prop) {
+    const r = { o: Net.owner, n: Net.name, price: clamp(Math.round(price), 5, 5000), open: !!open, label: prop.label, icon: prop.icon, x: prop.pos[0], y: prop.pos[1], z: prop.pos[2], fair: prop.fair, t: Date.now() };
+    BZ.put('rent', id, r);
+  },
+  lease(id, days) {
+    const { rent, lease } = this.data(id);
+    if (!rent || !rent.open) return;
+    if (lease && lease.until > Date.now() && lease.tenant !== Net.owner) { G.ui.toast('Someone already lives there'); return; }
+    const cost = rent.price * days;
+    if (!Shops.pay(cost)) { G.ui.toast('\ud83e\ude99 ' + days + ' days cost ' + cost); sfx('gate_no', null, 0.6, 1); return; }
+    const from = lease && lease.tenant === Net.owner && lease.until > Date.now() ? lease.until : Date.now();
+    BZ.put('lease', id, { tenant: Net.owner, tn: Net.name, until: from + days * this.day(), paid: ((lease && lease.paid) || 0) + cost });
+    Home.set([rent.x, rent.y, rent.z], 'rent');
+    G.ui.banner('\ud83d\udd11', 'Keys in hand! ' + rent.label + ' is yours for ' + days + ' day' + (days > 1 ? 's' : ''));
+    sfx('achieve', null, 0.8, 1);
+  },
+  pending() {
+    const D = BZ.data(), got = BZ.prog().rentGot;
+    let n = 0;
+    for (const [id, r] of Object.entries(D.rent)) if (r && BZ.me(r.o)) { const l = D.lease[id]; if (l) n += Math.max(0, (l.paid || 0) - (got[id] || 0)); }
+    return n;
+  },
+  collect() {
+    const D = BZ.data(), got = BZ.prog().rentGot;
+    let n = 0;
+    for (const [id, r] of Object.entries(D.rent)) if (r && BZ.me(r.o)) { const l = D.lease[id]; if (l) { n += Math.max(0, (l.paid || 0) - (got[id] || 0)); got[id] = l.paid || 0; } }
+    if (n > 0) { Shops.earn(n); G.ui.banner('\ud83d\udd11', 'Rent collected \u00b7 ' + BZ.coins(n)); sfx('shop_till', null, 0.7, 1); }
+    return n;
+  },
+  // neighbours move into what nobody rents, and pay (the owner's computer runs them)
+  update(dt) {
+    this.t -= dt;
+    if (this.t > 0 || !G.world || G.onTitle) return;
+    this.t = 5;
+    const D = BZ.data(), now = Date.now(), day = this.day();
+    for (const [id, r] of Object.entries(D.rent)) {
+      if (!r || !BZ.me(r.o) || !r.open) continue;
+      let l = D.lease[id];
+      if (l && l.until > now) continue;
+      const want = clamp((r.fair || r.price) / r.price, 0.03, 1);
+      // a neighbour's lease ran out while we were away: they stay on (or not), three days at a time
+      if (l && l.npc) {
+        let k = 0, changed = false;
+        while (l.until <= now && k++ < 30 && hash3(Math.floor(l.until / day), id.length, k, 96) < 0.55 + 0.4 * want) { l = { ...l, until: l.until + 3 * day, paid: (l.paid || 0) + r.price * 3 }; changed = true; }
+        if (changed) { BZ.put('lease', id, l); if (l.until > now) continue; }
+      }
+      r.wait = r.wait || now + (40 + 100 * Math.random()) * 1000;
+      if (now < r.wait) continue;
+      r.wait = 0;
+      if (Math.random() > want) continue;
+      const nm = VILLAGER_NAMES[Math.floor(Math.random() * VILLAGER_NAMES.length)];
+      BZ.put('lease', id, { tenant: 'npc', tn: nm, npc: true, until: now + 3 * day, paid: ((l && l.paid) || 0) + r.price * 3 });
+      G.ui.toast('\ud83d\udd11 ' + nm + ' rented your ' + r.label + ' \u00b7 ' + BZ.coins(r.price * 3) + ' to collect', 4500);
+      sfx('pling', null, 0.6, 1);
+    }
+  },
+
+  open(focus) {
+    const q = GPanel.open({ title: ED('Lloguers', 'Rentals'), sub: CITY, icon: '\ud83d\udd11', cls: 'gp-rent', width: 680 });
+    const draw = () => {
+      const e = BZ.esc, D = BZ.data(), now = Date.now(), props = this.props(), pend = this.pending();
+      const until = (t) => { const d = (t - now) / this.day(); return d >= 1 ? d.toFixed(1) + ' days left' : BZ.mmss(t - now) + ' left'; };
+      const market = Object.entries(D.rent).filter(([id, r]) => r && r.open && !BZ.me(r.o));
+      q.body.innerHTML = `
+        <div class="bz-hero"><div><small>Rent to collect</small><b>${BZ.coins(pend)}</b></div><div><small>Your properties</small><b>${props.length}</b></div><div><small>Rented now</small><b>${props.filter((p) => D.lease[p.id] && D.lease[p.id].until > now).length}</b></div><button class="gp-btn ok" data-a="col" ${pend >= 1 ? '' : 'disabled'}>Collect</button></div>
+        <h4 class="bz-h">Your properties <span>price per game day (${Math.round(DAY_LENGTH / 60)} min) \u00b7 neighbours rent fair prices sooner</span></h4>
+        ${props.length ? props.map((p) => {
+          const r = D.rent[p.id], l = D.lease[p.id], live = l && l.until > now, price = r ? r.price : p.fair;
+          return `<div class="rt-row${focus === p.id ? ' focus' : ''}" data-id="${p.id}"><i>${p.icon}</i><div class="gp-grow"><b>${e(p.label)}</b><small>${live ? (l.npc ? '\ud83d\ude42 ' : '\ud83d\udc64 ') + 'Rented to ' + e(l.tn) + ' \u00b7 ' + until(l.until) : r && r.open ? '\ud83d\udce3 On the market \u00b7 waiting for a tenant' : 'Not for rent'} \u00b7 fair price ~${p.fair}</small></div>
+            <div class="rt-price"><button data-p="-">\u2212</button><b data-pv>${price}</b><button data-p="+">+</button></div>
+            <button class="gp-btn ${r && r.open ? 'bad' : 'pri'}" data-a="tog">${r && r.open ? 'Take off' : 'Rent out'}</button></div>`;
+        }).join('') : '<p class="gp-dim">Buy a house (\ud83d\udcf1 Real estate) or a flat in a tower (step onto its lift) and you can rent it out here.</p>'}
+        <h4 class="bz-h">For rent in ${e(CITY)} <span>${Net.on ? 'from the other players' : 'online, your friends\u2019 houses show up here'}</span></h4>
+        ${market.length ? market.map(([id, r]) => {
+          const l = D.lease[id], live = l && l.until > now, mine = live && l.tenant === Net.owner;
+          return `<div class="rt-row" data-id="${id}"><i>${r.icon || '\ud83c\udfe0'}</i><div class="gp-grow"><b>${e(r.label)}</b><small>${e(r.n)}\u2019s \u00b7 ${BZ.coins(r.price)} a day \u00b7 ${People.dist([r.x, r.y, r.z])}${live ? ' \u00b7 ' + (mine ? 'you live here \u00b7 ' + until(l.until) : 'rented to ' + e(l.tn)) : ''}</small></div>
+            ${live && !mine ? '' : [1, 3, 7].map((d) => `<button class="gp-btn ${d === 3 ? 'ok' : ''}" data-days="${d}">${mine ? '+' : ''}${d} d \u00b7 ${r.price * d}</button>`).join('')}</div>`;
+        }).join('') : '<p class="gp-dim">Nothing on the market right now.</p>'}`;
+      q.body.querySelector('[data-a="col"]').addEventListener('click', () => { this.collect(); draw(); });
+      q.body.querySelectorAll('.rt-row').forEach((row) => {
+        const id = row.dataset.id, prop = props.find((p) => p.id === id);
+        if (prop) {
+          const pv = row.querySelector('[data-pv]');
+          row.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => {
+            const v = Number(pv.textContent), st = v >= 200 ? 25 : v >= 50 ? 5 : 1;
+            const nv = clamp(v + (b.dataset.p === '+' ? st : -st), 5, 5000);
+            pv.textContent = nv;
+            const r = D.rent[id];
+            if (r) this.list(id, nv, r.open, prop);
+          }));
+          row.querySelector('[data-a="tog"]').addEventListener('click', () => {
+            const r = D.rent[id];
+            this.list(id, Number(pv.textContent), !(r && r.open), prop);
+            if (!(r && r.open)) G.ui.toast('\ud83d\udce3 ' + prop.label + ' is on the market');
+            draw();
+          });
+        }
+        row.querySelectorAll('[data-days]').forEach((b) => b.addEventListener('click', () => { this.lease(id, Number(b.dataset.days)); draw(); }));
+      });
+    };
+    draw();
+  },
+};
+
+// ================================================================= hooks ====
+SYNTH.cash_up = (ctx, o, t) => { Sound.tone(ctx, o, t, 0.12, { wave: 'triangle', f0: 1568, gain: 0.08 }); Sound.tone(ctx, o, t + 0.08, 0.2, { wave: 'triangle', f0: 2093, gain: 0.08 }); };
+{
+  // flats are private on servers (Claims.can gets the height from the callers)
+  const can = Claims.can;
+  Claims.can = function (x, z, y) {
+    if (!can.call(this, x, z)) return false;
+    if (y === undefined || !Net.on || !Net.server) return true;
+    const f = Flats.at(x, y, z);
+    if (f && !Flats.mayUse(f)) { Flats.denied = f; return false; }
+    Flats.denied = null;
+    return true;
+  };
+  const deny = Claims.deny;
+  Claims.deny = function (x, z) {
+    const f = Flats.denied;
+    if (f && this.warnT <= 0) { this.warnT = 2; G.ui.toast('\ud83d\udd12 This is ' + f.n + '\u2019s flat', 2500); sfx('gate_no', null, 0.6, 1); return; }
+    return deny.call(this, x, z);
+  };
+  const tr = Claims.trusted;
+  Claims.trusted = function (c) { return tr.call(this, c) || Rent.byClaim(c); };
+
+  if (typeof Lift !== 'undefined') {
+    const off = Lift.offer;
+    Lift.offer = function (x, z, stops, cur) {
+      off.call(this, x, z, stops, cur);
+      try { if (Flats.tower(x, z, stops)) Flats.decorate(this.panel, x, z, stops, cur); } catch (e) { console.warn('Blocklands: flats', e); }
+    };
+  }
+  const kp = Ents.keepable;
+  Ents.keepable = function (m) { if (m.bizNpc) return false; return kp.call(this, m); };
+  const use = Act.useItem;
+  Act.useItem = function (initial) {
+    const t = this.target;
+    if (initial && t && t.mob && t.mob.bizNpc && !t.mob.dead) { Biz.serve(t.mob.bizNpc); this.swingHand(); return true; }
+    return use.call(this, initial);
+  };
+  if (typeof Citizens !== 'undefined') {
+    const goal = Citizens.goal;
+    Citizens.goal = function (c, h) {
+      const g = goal.call(this, c, h);
+      if (g && g[2] === 'fun' && this.who && this.who.plan) { const v = Biz.visit(c, this.who.plan); if (v) return v; }
+      return g;
+    };
+  }
+  const ap = Net.applyOp;
+  Net.applyOp = function (r, o) {
+    if (o[1] === 'BZ') {
+      const id = String(o[2]), s = BZ.data().shops[id], n = clamp(Number(o[3]) || 0, 0, 100);
+      if (s && BZ.me(s.o) && n > 0) {
+        const b = Biz.own(id);
+        b.bank += n; b.sold = (b.sold || 0) + 1;
+        G.ui.toast(BIZ_TYPES[s.type].icon + ' ' + ((r && r.name) || 'Someone') + ' bought at ' + s.name + ' \u00b7 +' + n, 3000);
+        sfx('cash_up', null, 0.6, 1);
+      }
+      return;
+    }
+    return ap.call(this, r, o);
+  };
+  const apply = SharedState.apply;
+  SharedState.apply = function (k, v) {
+    for (const [kind, pfx] of Object.entries(BZ.PFX)) if (k.startsWith(pfx)) {
+      const id = k.slice(pfx.length), D = BZ.data()[kind];
+      if (v && typeof v === 'object' && JSON.stringify(v).length < 800) D[id] = v; else if (!v) delete D[id];
+      if (kind === 'shops') Biz.dropNpcs(id);
+      return;
+    }
+    return apply.call(this, k, v);
+  };
+  const fu = Furniture.update;
+  Furniture.update = function (dt) {
+    fu.call(this, dt);
+    const d = dt || 0.016;
+    try { Flats.update(); Biz.update(d); Rent.update(d); } catch (e) { console.warn('Blocklands: business', e); }
+  };
+  const wr = Weather.render;
+  Weather.render = function (...a) { const r = wr.apply(this, a); try { Biz.drawTags(); } catch (e) { /* ignore */ } return r; };
+
+  PC.add({ key: 'biz', icon: '\ud83d\udcbc', name: ED('Negocis', 'Business'), run() { Biz.panel(); } });
+  PC.add({ key: 'stocks', icon: '\ud83d\udcc8', name: ED('Borsa', 'Stocks'), run() { Stocks.open(); } });
+  PC.add({ key: 'rent', icon: '\ud83d\udd11', name: ED('Lloguers', 'Rentals'), run() { Rent.open(); } });
+}
+</script>
+<script>
+'use strict';
 // Aeroport STUCOM (district.js builds it east of the ring road). While you are near, Blocklands
 // Air airliners land on the runway, taxi to the stand, wait and take off again. At a check-in
 // till (or with the airline staff) you buy a flight to any of the world's themed places: you
@@ -37564,7 +38587,7 @@ const Architect = {
     const need = new Map();
     for (const [x, y, z, id, f] of list) {
       if (y < 1 || y >= CH) continue;
-      if (typeof Claims !== 'undefined' && !Claims.can(x, z)) { Claims.deny(x, z); return false; }
+      if (typeof Claims !== 'undefined' && !Claims.can(x, z, y)) { Claims.deny(x, z); return false; }
       const old = w.getBlock(x, y, z), of = w.getFacing(x, y, z);
       if (old === id && (f === undefined || of === f)) continue;
       if (old === B.BEDROCK) continue;

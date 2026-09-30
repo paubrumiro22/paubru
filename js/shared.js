@@ -452,13 +452,13 @@ const ClaimPanel = {
   const mining = Act.updateMining;
   Act.updateMining = function (dt, now) {
     const t = this.target, b = t && t.block;
-    if (G.mouse.left && b && !Claims.can(b.pos[0], b.pos[2])) { this.mine.pos = null; this.mine.progress = 0; Claims.deny(b.pos[0], b.pos[2]); return; }
+    if (G.mouse.left && b && !Claims.can(b.pos[0], b.pos[2], b.pos[1])) { this.mine.pos = null; this.mine.progress = 0; Claims.deny(b.pos[0], b.pos[2]); return; }
     return mining.call(this, dt, now);
   };
   const place = Act.placeBlock;
   Act.placeBlock = function (hit) {
     const n = hit.normal, cell = BLOCK_REPLACE[hit.id] ? hit.pos : [hit.pos[0] + n[0], hit.pos[1] + n[1], hit.pos[2] + n[2]];
-    if (!Claims.can(cell[0], cell[2])) { Claims.deny(cell[0], cell[2]); return false; }
+    if (!Claims.can(cell[0], cell[2], cell[1])) { Claims.deny(cell[0], cell[2]); return false; }
     const held = G.inv.held;
     const plot = held && held.id === B.PLOT_STONE;
     const ok = place.call(this, hit);
@@ -485,7 +485,7 @@ const ClaimPanel = {
         // a stone from before (or whose plot was given up): claim again
         if (!Claims.create(b.pos[0], b.pos[1], b.pos[2])) { this.swingHand(); return true; }
       }
-      if (CONTAINERS.has(b.id) && !Claims.can(b.pos[0], b.pos[2])) { Claims.deny(b.pos[0], b.pos[2]); return true; }
+      if (CONTAINERS.has(b.id) && !Claims.can(b.pos[0], b.pos[2], b.pos[1])) { Claims.deny(b.pos[0], b.pos[2]); return true; }
     }
     return use.call(this, initial);
   };

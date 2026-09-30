@@ -11,6 +11,7 @@ const CITY_TYPES = [
   { k: 'open', icon: '🟩', name: 'Open flat land', desc: 'A whole 36×36 block of flat grass to build on' },
   { k: 'park', icon: '🌳', name: 'Park', desc: 'Lawns, trees, paths, benches and a fountain garden' },
   { k: 'square', icon: '⛲', name: 'Square', desc: 'A paved square with trees, benches and lamps' },
+  { k: 'towers', icon: '🏙️', name: 'Skyscrapers', desc: 'Two glass towers with lifts: flats for sale on every floor', cost: 1500, max: 120000 },
 ];
 const CITY_RANGE = 5, CITY_COST = 300, CITY_MAX_EDITS = 30000;
 
@@ -68,6 +69,7 @@ const City = {
     // what goes inside
     const X = (a) => cx + u0 + a, Z = (b) => cz + v0 + b;
     if (type === 'plots') buildPlotBlock(W, G.world.gen, { cx, cz, F }, u0, v0);
+    else if (type === 'towers') buildCityBlock(W, G.world.gen, { cx, cz, F }, u0, v0, 'towers');
     else if (type === 'park') {
       buildGarden(W, G.world.gen, X(11), Z(11), F);
       for (const [a, b, k] of [[5, 5, 'oak'], [30, 5, 'cherry'], [5, 30, 'cherry'], [30, 30, 'oak'], [11, 3, 'birch'], [24, 32, 'birch'], [3, 24, 'oak'], [32, 11, 'oak']]) campusTree(W, X(a), F, Z(b), k, 5);
@@ -108,11 +110,12 @@ const City = {
     if (!st || !type) return false;
     if (mine && !this.canBuild(i, j)) { G.ui.toast('🏗️ You can only add a block next to one that is built'); return false; }
     const { list, pics } = this.blocks(i, j, type.k);
-    if (mine && list.length > CITY_MAX_EDITS) { G.ui.toast('🏗️ The ground there is too uneven: grow the district from the flat land first', 4500); return false; }
+    if (mine && list.length > (type.max || CITY_MAX_EDITS)) { G.ui.toast('🏗️ The ground there is too uneven: grow the district from the flat land first', 4500); return false; }
     if (mine) {
       if (G.mode === 'survival') {
-        if ((G.money | 0) < CITY_COST) { G.ui.toast('🏗️ A new block costs ' + CITY_COST + ' coins (you have ' + (G.money | 0) + ')', 4000); return false; }
-        G.money -= CITY_COST;
+        const cost = type.cost || CITY_COST;
+        if ((G.money | 0) < cost) { G.ui.toast('🏗️ This block costs ' + cost + ' coins (you have ' + (G.money | 0) + ')', 4000); return false; }
+        G.money -= cost;
       }
       if (Net.on) Net.op(['C', i, j, typeIdx]);
       G.ui.toast('🚧 Works started: ' + type.name, 3500);
@@ -168,8 +171,8 @@ const CityPanel = {
     const side = this.sel ? `
       <div class="cp-side">
         <b>New block</b><span>${this.sel[0] > 0 ? 'East ' + this.sel[0] : this.sel[0] < 0 ? 'West ' + -this.sel[0] : ''} ${this.sel[1] > 0 ? 'South ' + this.sel[1] : this.sel[1] < 0 ? 'North ' + -this.sel[1] : ''}</span>
-        ${CITY_TYPES.map((t, k) => `<button class="cp-type" data-k="${k}"><i>${t.icon}</i><div><b>${t.name}</b><span>${t.desc}</span></div></button>`).join('')}
-        <p>${G.mode === 'survival' ? 'Costs ' + CITY_COST + ' coins · you have ' + (G.money | 0) : 'Free in creative'}</p>
+        ${CITY_TYPES.map((t, k) => `<button class="cp-type" data-k="${k}"><i>${t.icon}</i><div><b>${t.name}</b><span>${t.desc}${G.mode === 'survival' ? ' · 🪙 ' + (t.cost || CITY_COST) : ''}</span></div></button>`).join('')}
+        <p>${G.mode === 'survival' ? 'You have 🪙 ' + (G.money | 0) : 'Free in creative'}</p>
       </div>` : `<div class="cp-side"><b>Grow the district</b><span>Pick a free square (+) next to the built blocks. Each block comes with its streets, pavements, trees and lamps, levelled with the rest of STUCOM.</span></div>`;
     el.innerHTML = `
       <div class="mp-card cp-card">
