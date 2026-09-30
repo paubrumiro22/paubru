@@ -544,6 +544,28 @@
   .ntag.talk::after { content: ' 🎙️'; }
   /* rocket.js */
   #rocketHud { position: fixed; left: 50%; top: 18%; transform: translateX(-50%); z-index: 30; text-align: center; color: #fff; opacity: 0; transition: .3s; pointer-events: none; text-shadow: 0 2px 12px rgba(0,0,0,.7); }
+  #fairHud { position: fixed; left: 50%; top: 13%; transform: translateX(-50%); z-index: 30; text-align: center; color: #fff; opacity: 0; transition: opacity .3s; pointer-events: none; text-shadow: 0 2px 14px rgba(0,0,0,.75); }
+  #fairHud.show { opacity: 1; } #fairHud b { display: block; font: 900 30px var(--display); letter-spacing: .5px; } #fairHud span { font: 700 13px var(--body); color: #ffd24a; }
+  #balloonHud { position: fixed; right: 18px; bottom: 96px; z-index: 30; width: 210px; padding: 12px 14px; border-radius: 16px; color: #fff; pointer-events: none; opacity: 0; transform: translateY(8px); transition: .3s;
+    background: linear-gradient(160deg, rgba(40, 18, 70, .78), rgba(12, 24, 48, .78)); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 10px 30px rgba(0,0,0,.35); backdrop-filter: blur(6px); }
+  #balloonHud.show { opacity: 1; transform: none; } #balloonHud .bl-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  #balloonHud b { font: 900 26px var(--display); } #balloonHud span { font: 700 12px var(--body); color: #ffd24a; } #balloonHud small { font: 600 11px var(--body); color: #c9d4ff; }
+  #balloonHud .bl-heat { height: 8px; margin: 8px 0; border-radius: 99px; background: rgba(255,255,255,.12); overflow: hidden; }
+  #balloonHud .bl-heat i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #ffd24a, #ff7a3d, #ff3d5a); transition: width .2s; }
+  body.balloon #flightHud { display: none !important; }
+  .gp-fair .fr-card { text-align: center; } .gp-fair .fr-hero { font-size: 54px; line-height: 1; margin: 4px 0 8px; filter: drop-shadow(0 6px 14px rgba(255, 79, 216, .35)); animation: frBob 3s ease-in-out infinite; }
+  @keyframes frBob { 50% { transform: translateY(-5px) rotate(-3deg); } }
+  .gp-fair .fr-card p { margin: 0 0 12px; opacity: .9; }
+  .gp-fair .fr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 8px; margin: 0 0 14px; }
+  .gp-fair .fr-stats div { padding: 9px 6px; border-radius: 12px; background: linear-gradient(160deg, rgba(255, 79, 216, .14), rgba(80, 140, 255, .12)); border: 1px solid rgba(255,255,255,.1); }
+  .gp-fair .fr-stats small { display: block; font-size: 11px; opacity: .7; } .gp-fair .fr-stats b { font: 800 16px var(--display); }
+  .gp-fair .fr-go { min-width: 60%; font-size: 15px; padding: 11px 18px; }
+  .gp-fair .fr-keys { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 0 14px; font-size: 12.5px; text-align: left; }
+  .gp-fair .fr-keys div { padding: 7px 9px; border-radius: 10px; background: rgba(255,255,255,.06); }
+  .gp-fair .fr-menu { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .gp-fair .fr-ride { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 8px; border-radius: 14px; cursor: pointer; color: inherit; font: inherit;
+    background: linear-gradient(160deg, rgba(255, 79, 216, .16), rgba(80, 140, 255, .14)); border: 1px solid rgba(255,255,255,.12); transition: transform .15s, border-color .15s; }
+  .gp-fair .fr-ride:hover { transform: translateY(-2px); border-color: rgba(255, 210, 74, .6); } .gp-fair .fr-ride span { font-size: 30px; } .gp-fair .fr-ride small { color: #ffd24a; font-weight: 700; }
   #rocketHud.show { opacity: 1; } #rocketHud b { display: block; font: 900 30px var(--display); } #rocketHud span { font: 700 14px 'Courier New', monospace; color: #ffcc33; }
   #rocketHud .rk-count { font: 900 120px var(--display); color: #fff; line-height: 1; text-shadow: 0 0 40px rgba(255, 140, 60, .8); }
   #spaceFx { position: fixed; inset: 0; z-index: 89; }
@@ -1576,6 +1598,7 @@
 <script src="js/campnou.js" data-w></script>
 <script src="js/dimensions.js" data-w></script>
 <script src="js/moon_gen.js" data-w></script>
+<script src="js/fair_gen.js" data-w></script>
 <script src="js/mesher.js" data-w></script>
 <script src="js/workers.js"></script>
 <script src="js/atmosphere.js"></script>
@@ -1651,6 +1674,8 @@
 <script src="js/mayor.js"></script>
 <script src="js/radio.js"></script>
 <script src="js/rocket.js"></script>
+<script src="js/fair.js"></script>
+<script src="js/balloon.js"></script>
 <script src="js/classes.js"></script>
 <script src="js/main.js"></script>
 <script src="js/touch.js"></script>

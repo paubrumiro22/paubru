@@ -1061,6 +1061,8 @@ function frame(now) {
       cam = { pos: [eye[0], eye[1] + 5, eye[2]], yaw: G.titleYaw, pitch: -0.1 + Math.sin(G.time * 0.05) * 0.04, roll: 0, fov: 70 };
     } else if (G.vehicle) {
       cam = Vehicles.camera(dt);
+    } else if (typeof Fair !== 'undefined' && Fair.seat) {
+      cam = Fair.camera(dt);
     } else {
       const eye = p.eyePos();
       let roll = st.hurtTilt * 0.13;
@@ -1089,7 +1091,7 @@ function frame(now) {
     if (!paused) DimAir.update(dt, cam.pos, dim);
     Sound.setListener(cam.pos, cam.yaw);
     const thirdPerson = (Photo.on ? Photo.away() : (typeof Architect !== 'undefined' && Architect.on) || G.view) && !G.vehicle && !G.onTitle && !st.dead && !G.sleeping;
-    const showHand = !Photo.on && !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle && !thirdPerson;
+    const showHand = !Photo.on && !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle && !thirdPerson && !(typeof Fair !== 'undefined' && Fair.seat);
     let self = null;
     if (thirdPerson) {
       const sp = Math.hypot(p.vel[0], p.vel[2]);

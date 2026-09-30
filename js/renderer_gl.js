@@ -11,7 +11,7 @@ const SAMPLER_UNITS = {
 const MAX_QUADS = 1 << 17;
 const LUT_W = 256, LUT_H = 128;
 const ENT_FLOATS = 16;                 // floats per entity vertex
-const ENT_MAX_QUADS = 24000;
+const ENT_MAX_QUADS = 40000;
 const SHADOW_PRESETS = {
   off: { size: 1, range: 0, taps: 1 },
   low: { size: 1024, range: 48, taps: 4 },

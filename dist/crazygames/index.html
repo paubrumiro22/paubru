@@ -544,6 +544,28 @@
   .ntag.talk::after { content: ' &#x1f399;&#xfe0f;'; }
   /* rocket.js */
   #rocketHud { position: fixed; left: 50%; top: 18%; transform: translateX(-50%); z-index: 30; text-align: center; color: #fff; opacity: 0; transition: .3s; pointer-events: none; text-shadow: 0 2px 12px rgba(0,0,0,.7); }
+  #fairHud { position: fixed; left: 50%; top: 13%; transform: translateX(-50%); z-index: 30; text-align: center; color: #fff; opacity: 0; transition: opacity .3s; pointer-events: none; text-shadow: 0 2px 14px rgba(0,0,0,.75); }
+  #fairHud.show { opacity: 1; } #fairHud b { display: block; font: 900 30px var(--display); letter-spacing: .5px; } #fairHud span { font: 700 13px var(--body); color: #ffd24a; }
+  #balloonHud { position: fixed; right: 18px; bottom: 96px; z-index: 30; width: 210px; padding: 12px 14px; border-radius: 16px; color: #fff; pointer-events: none; opacity: 0; transform: translateY(8px); transition: .3s;
+    background: linear-gradient(160deg, rgba(40, 18, 70, .78), rgba(12, 24, 48, .78)); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 10px 30px rgba(0,0,0,.35); backdrop-filter: blur(6px); }
+  #balloonHud.show { opacity: 1; transform: none; } #balloonHud .bl-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  #balloonHud b { font: 900 26px var(--display); } #balloonHud span { font: 700 12px var(--body); color: #ffd24a; } #balloonHud small { font: 600 11px var(--body); color: #c9d4ff; }
+  #balloonHud .bl-heat { height: 8px; margin: 8px 0; border-radius: 99px; background: rgba(255,255,255,.12); overflow: hidden; }
+  #balloonHud .bl-heat i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #ffd24a, #ff7a3d, #ff3d5a); transition: width .2s; }
+  body.balloon #flightHud { display: none !important; }
+  .gp-fair .fr-card { text-align: center; } .gp-fair .fr-hero { font-size: 54px; line-height: 1; margin: 4px 0 8px; filter: drop-shadow(0 6px 14px rgba(255, 79, 216, .35)); animation: frBob 3s ease-in-out infinite; }
+  @keyframes frBob { 50% { transform: translateY(-5px) rotate(-3deg); } }
+  .gp-fair .fr-card p { margin: 0 0 12px; opacity: .9; }
+  .gp-fair .fr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 8px; margin: 0 0 14px; }
+  .gp-fair .fr-stats div { padding: 9px 6px; border-radius: 12px; background: linear-gradient(160deg, rgba(255, 79, 216, .14), rgba(80, 140, 255, .12)); border: 1px solid rgba(255,255,255,.1); }
+  .gp-fair .fr-stats small { display: block; font-size: 11px; opacity: .7; } .gp-fair .fr-stats b { font: 800 16px var(--display); }
+  .gp-fair .fr-go { min-width: 60%; font-size: 15px; padding: 11px 18px; }
+  .gp-fair .fr-keys { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 0 14px; font-size: 12.5px; text-align: left; }
+  .gp-fair .fr-keys div { padding: 7px 9px; border-radius: 10px; background: rgba(255,255,255,.06); }
+  .gp-fair .fr-menu { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .gp-fair .fr-ride { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 8px; border-radius: 14px; cursor: pointer; color: inherit; font: inherit;
+    background: linear-gradient(160deg, rgba(255, 79, 216, .16), rgba(80, 140, 255, .14)); border: 1px solid rgba(255,255,255,.12); transition: transform .15s, border-color .15s; }
+  .gp-fair .fr-ride:hover { transform: translateY(-2px); border-color: rgba(255, 210, 74, .6); } .gp-fair .fr-ride span { font-size: 30px; } .gp-fair .fr-ride small { color: #ffd24a; font-weight: 700; }
   #rocketHud.show { opacity: 1; } #rocketHud b { display: block; font: 900 30px var(--display); } #rocketHud span { font: 700 14px 'Courier New', monospace; color: #ffcc33; }
   #rocketHud .rk-count { font: 900 120px var(--display); color: #fff; line-height: 1; text-shadow: 0 0 40px rgba(255, 140, 60, .8); }
   #spaceFx { position: fixed; inset: 0; z-index: 89; }
@@ -9449,7 +9471,8 @@ function placeStructures(g, chunk) {
   const plans = structuresIn(g, x0, z0, x0 + CS - 1, z0 + CS - 1);
   const ave = typeof aveChunk === 'function' ? aveChunk(g, x0, z0) : null;
   const space = typeof spaceChunk === 'function' ? spaceChunk(g, x0, z0) : null;
-  if (!plans.length && !ave && !space) return;
+  const fair = typeof fairChunk === 'function' ? fairChunk(g, x0, z0) : null;
+  if (!plans.length && !ave && !space && !fair) return;
   const W = structWriter(chunk);
   for (const p of plans) for (const piece of p.pieces) {
     const b = piece.box;
@@ -9459,6 +9482,7 @@ function placeStructures(g, chunk) {
   // the high-speed line runs further out than any plan reaches (ave_gen.js)
   if (ave) ave(W);
   if (space) space(W);
+  if (fair) fair(W);
 }
 </script>
 <script data-w>
@@ -12691,6 +12715,240 @@ function buildSpacePort(W, g, S) {
 </script>
 <script data-w>
 'use strict';
+// The funfair north of the district (data-w: the workers build its blocks). Everything that moves
+// (the Ferris wheel, the roller coaster trains and its track, the carousel, the drop tower's ring,
+// the balloons) is drawn by fair.js; here go the ground, paths, fences, the entrance arch, the
+// stalls, the wheel's A-frame, the drop tower's mast, the coaster station and its supports.
+// fairTrack() is shared by both: the supports stand exactly under the track the trains ride.
+// Local frame: a = x - S.x (east), b = z - S.z (south, towards the district), y above S.F.
+
+const FAIR_A = 62, FAIR_B0 = -60, FAIR_B1 = 58;       // the fenced rectangle
+const FAIR_WHEEL = { a: -32, b: -30, y: 19.5, R: 16, n: 16 };
+const FAIR_CAROUSEL = { a: -30, b: 24, R: 7 };
+const FAIR_TOWER = { a: 36, b: 26, h: 42 };
+const FAIR_BALLOONS = { a: -6, b: -44 };
+const FAIR_PLAZA = { a: 0, b: 16, R: 8 };
+const FAIR_STATION = { a0: 10, a1: 28, b: -8, y: 3 };
+
+function fairSite(g) {
+  if (!g || !g.structs || typeof stucomVillage !== 'function') return null;
+  if (g._fair !== undefined) return g._fair;
+  const st = stucomVillage(g);
+  if (!st || !st.district) { g._fair = null; return null; }
+  const D = st.district;
+  g._fair = { x: D.cx, z: D.cz - DOUT - 66, F: D.F, pathEnd: D.cz - DHALF - 14 };
+  return g._fair;
+}
+
+// The coaster circuit as points every half block ({x, y, z, k}: k 1 station, 2 chain lift, 3 loop,
+// 4 run back in), local to the fair, closed (the last point is the first one).
+function fairTrack() {
+  if (fairTrack.pts) return fairTrack.pts;
+  const P = [];
+  let x = FAIR_STATION.a0, z = FAIR_STATION.b, y = FAIR_STATION.y, h = 0;   // heading 0 = +x, +h turns towards +z
+  const push = (k) => P.push({ x, y, z, k });
+  const ease = (t, e) => e === 'lin' ? t : t * t * (3 - 2 * t);
+  const straight = (L, dy = 0, e = 's', k = 0) => {
+    const y0 = y, x0 = x, z0 = z;
+    for (let s = 0.5; s <= L + 1e-6; s += 0.5) { x = x0 + Math.cos(h) * s; z = z0 + Math.sin(h) * s; y = y0 + dy * ease(s / L, e); push(k); }
+  };
+  const turn = (a, R, dy = 0) => {
+    const y0 = y, h0 = h, sg = Math.sign(a), cx = x - Math.sin(h) * R * sg, cz = z + Math.cos(h) * R * sg, L = Math.abs(a) * R;
+    for (let s = 0.5; s <= L + 1e-6; s += 0.5) { h = h0 + a * s / L; x = cx + Math.sin(h) * R * sg; z = cz - Math.cos(h) * R * sg; y = y0 + dy * ease(s / L, 's'); push(0); }
+    h = h0 + a;
+  };
+  const loop = (R, side) => {
+    const x0 = x, z0 = z, y0 = y, fx = Math.cos(h), fz = Math.sin(h), lx = -fz * side, lz = fx * side, L = 2 * Math.PI * R;
+    for (let s = 0.5; s <= L + 1e-6; s += 0.5) {
+      const th = s / L * 2 * Math.PI, sh = 3 * ease(s / L, 's');
+      x = x0 + fx * R * Math.sin(th) + lx * sh; z = z0 + fz * R * Math.sin(th) + lz * sh; y = y0 + R * (1 - Math.cos(th)); push(3);
+    }
+  };
+  const bez = (X, Z, Y, H) => {
+    const x0 = x, z0 = z, y0 = y, d = Math.hypot(X - x0, Z - z0) * 0.45;
+    const c1 = [x0 + Math.cos(h) * d, z0 + Math.sin(h) * d], c2 = [X - Math.cos(H) * d, Z - Math.sin(H) * d];
+    const pt = (t) => { const u = 1 - t; return [u * u * u * x0 + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * X, u * u * u * z0 + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * Z]; };
+    let len = 0, prev = [x0, z0];
+    for (let i = 1; i <= 200; i++) { const q = pt(i / 200); len += Math.hypot(q[0] - prev[0], q[1] - prev[1]); prev = q; }
+    const n = Math.ceil(len / 0.5);
+    for (let i = 1; i <= n; i++) { const q = pt(i / n); x = q[0]; z = q[1]; y = y0 + (Y - y0) * ease(i / n, 's'); push(4); }
+    h = H;
+  };
+  push(1);
+  straight(18, 0, 's', 1);          // the station
+  straight(4, 1.5);
+  straight(21, 21, 'lin', 2);       // the chain lift
+  straight(3, 1);                   // the crest
+  turn(-Math.PI / 2, 5);            // round to the north
+  straight(28, -23.5);              // the big drop
+  straight(3);
+  loop(8, -1);                      // the loop
+  straight(6);
+  turn(-Math.PI / 2, 8, 6);         // banked turn to the west
+  straight(11, 5); straight(11, -10); straight(9, 7); straight(8, -4);   // airtime hills
+  turn(-Math.PI * 1.5, 7, -4);      // descending helix
+  bez(FAIR_STATION.a0 - 0.5, FAIR_STATION.b, FAIR_STATION.y, 0);         // back into the station
+  P[P.length - 1] = Object.assign({}, P[0], { k: 4 });
+  fairTrack.pts = P;
+  return P;
+}
+
+function fairChunk(g, x0, z0) {
+  const S = fairSite(g);
+  if (!S) return null;
+  if (x0 + CS - 1 < S.x - FAIR_A - 4 || x0 > S.x + FAIR_A + 4 || z0 + CS - 1 < S.z + FAIR_B0 - 4 || z0 > Math.max(S.z + FAIR_B1 + 4, S.pathEnd)) return null;
+  return (W) => buildFair(W, g, S);
+}
+
+function buildFair(W, g, S) {
+  const { x: X, z: Z, F } = S;
+  const at = (a, b) => [X + a, Z + b];
+  const put = (a, y, b, id, f) => { const x = X + a, z = Z + b; if (W.has(x, z)) W.set(x, F + y, z, id, f); };
+  const rect = (a0, b0, a1, b1, fn) => cityRect(W, X + a0, Z + b0, X + a1, Z + b1, (x, z) => fn(x - X, z - Z, x, z));
+  const inPath = (a, b) => Math.abs(a) <= 3 || (Math.abs(b - FAIR_PLAZA.b) <= 2 && Math.abs(a) <= 44) || (Math.abs(a + 30) <= 2 && b >= -12 && b <= 16) || (Math.abs(b + 4) <= 2 && a >= -30 && a <= 34) || (Math.abs(a - 34) <= 2 && b >= -4 && b <= 16);
+
+  // the ground: levelled, cleared, grass with paths
+  rect(-FAIR_A - 3, FAIR_B0 - 3, FAIR_A + 3, FAIR_B1 + 3, (a, b, x, z) => {
+    const h = g.height(x, z);
+    for (let y = Math.min(h, F - 2); y <= F - 2; y++) W.set(x, y, z, y >= F - 3 ? B.DIRT : B.STONE);
+    const inside = Math.abs(a) <= FAIR_A && b >= FAIR_B0 && b <= FAIR_B1;
+    const pl = Math.hypot(a - FAIR_PLAZA.a, b - FAIR_PLAZA.b);
+    let top = B.GRASS;
+    if (inside && pl <= FAIR_PLAZA.R + 3) top = pl <= FAIR_PLAZA.R + 2 && ((Math.floor(pl) + Math.floor(Math.atan2(b - FAIR_PLAZA.b, a) * 4)) & 1) ? B.HYDRAULIC_TILE : B.TERRAZZO;
+    else if (inside && inPath(a, b)) top = (Math.abs(a) === 3 || Math.abs(a) === 2 && Math.abs(b) > 40) ? B.POLISHED_ANDESITE : B.PANOT;
+    W.set(x, F - 1, z, top);
+    for (let y = F; y <= Math.max(h + 6, F + 12) && y < CH; y++) if (W.get(x, y, z) !== B.AIR) W.set(x, y, z, B.AIR);
+  });
+  // the fence all round with lamps, the entrance gap in the south
+  rect(-FAIR_A, FAIR_B0, FAIR_A, FAIR_B1, (a, b, x, z) => {
+    const edge = Math.abs(a) === FAIR_A || b === FAIR_B0 || b === FAIR_B1;
+    if (!edge || (b === FAIR_B1 && Math.abs(a) <= 5)) return;
+    W.set(x, F, z, (a + b) % 10 === 0 ? B.BLACKSTONE_WALL : B.DARK_OAK_FENCE);
+    if ((a + b) % 20 === 0) campusLamp(W, x, F, z);
+  });
+  // the entrance: two striped towers, an arch with the sign, ticket booths
+  for (const s of [-1, 1]) {
+    rect(s * 7 - 1, FAIR_B1 - 1, s * 7 + 1, FAIR_B1 + 1, (a, b, x, z) => {
+      for (let y = 0; y <= 10; y++) W.set(x, F + y, z, y === 10 ? B.WOOL + 14 : (y >> 1) % 2 ? B.WOOL + 0 : B.WOOL + 14);
+      W.set(x, F + 11, z, B.SEA_LANTERN);
+    });
+    put(s * 7, 12, FAIR_B1, B.LED_YELLOW);
+    // ticket booths either side: a kiosk with a striped roof and a machine
+    rect(s * 12 - 2, FAIR_B1 - 3, s * 12 + 2, FAIR_B1 - 1, (a, b, x, z) => {
+      const edge = Math.abs(a - s * 12) === 2 || b === FAIR_B1 - 3;
+      for (let y = 0; y <= 2; y++) W.set(x, F + y, z, edge ? (y === 1 && b === FAIR_B1 - 1 ? B.GLASS : B.WOOL + 0) : B.AIR);
+      W.set(x, F + 3, z, (a + 20) % 2 ? B.WOOL + 14 : B.WOOL + 0);
+    });
+    put(s * 12, 0, FAIR_B1, B.TICKET_MACHINE, 4);
+  }
+  rect(-7, FAIR_B1, 7, FAIR_B1, (a, b, x, z) => { for (let y = 8; y <= 9; y++) W.set(x, F + y, z, y === 9 && a % 2 === 0 ? B.LED_YELLOW : B.WOOL + 11); });
+  if (W.has(X - 5, Z + FAIR_B1 + 1)) W.pic(X - 5, F + 5, Z + FAIR_B1 + 1, 4, 10, 3, 'fair_sign');
+  // the path from the district to the gate
+  cityRect(W, X - 7, Z + FAIR_B1 + 2, X + 7, S.pathEnd, (x, z) => {
+    if (Math.abs(x - X) > 3) { for (let y = F; y <= F + 14 && y < CH; y++) { const id = W.get(x, y, z); if (id > 0 && (BLOCK_RT[id] === RT_CROSS || id === B.LEAVES || id === B.LOG || id === B.BIRCH_LEAVES || id === B.BIRCH_LOG || id === B.SPRUCE_LEAVES || id === B.SPRUCE_LOG || id === B.CHERRY_LEAVES || id === B.CHERRY_LOG)) W.set(x, y, z, B.AIR); } return; }
+    let y = F + 20;
+    while (y > 2 && (W.get(x, y, z) <= 0 || !BLOCK_SOLID[W.get(x, y, z)] || BLOCK_RT[W.get(x, y, z)] === RT_CROSS || BLOCK_RT[W.get(x, y, z)] === RT_CUTOUT)) y--;
+    W.set(x, y, z, Math.abs(x - X) === 3 ? B.POLISHED_ANDESITE : B.PANOT);
+    for (let yy = y + 1; yy <= y + 5; yy++) if (W.get(x, yy, z) > 0) W.set(x, yy, z, B.AIR);
+    if (Math.abs(x - X) === 3 && (z - Z) % 12 === 0) campusLamp(W, x + Math.sign(x - X), y + 1, z);
+  });
+
+  // the plaza: a round fountain and benches
+  rect(FAIR_PLAZA.a - 4, FAIR_PLAZA.b - 4, FAIR_PLAZA.a + 4, FAIR_PLAZA.b + 4, (a, b, x, z) => {
+    const d = Math.hypot(a - FAIR_PLAZA.a, b - FAIR_PLAZA.b);
+    if (d <= 3.6 && d > 2.6) W.set(x, F, z, B.QUARTZ_BLOCK);
+    else if (d <= 2.6) { W.set(x, F - 1, z, B.WATER); if (d < 0.8) { W.set(x, F - 1, z, B.QUARTZ_PILLAR); W.set(x, F, z, B.QUARTZ_PILLAR); W.set(x, F + 1, z, B.SEA_LANTERN); } }
+  });
+  for (const [a, b, f] of [[-6, FAIR_PLAZA.b - 6, 4], [6, FAIR_PLAZA.b - 6, 4], [-6, FAIR_PLAZA.b + 6, 5], [6, FAIR_PLAZA.b + 6, 5]]) put(a, 0, b, shapeId('oak', 'stairs'), f);
+
+  // food and game stalls along the avenue: counter, striped awning, lights
+  const STALLS = [[-8, 44, 1], [8, 44, 1], [-8, 34, 14], [8, 34, 4], [-8, 50, 5], [8, 50, 10]];
+  for (const [a0, b0, col] of STALLS) {
+    const s = Math.sign(a0);
+    rect(a0 - (s > 0 ? 0 : 3), b0 - 2, a0 + (s > 0 ? 3 : 0), b0 + 2, (a, b, x, z) => {
+      const front = a === a0, back = a === a0 + s * 3, side = Math.abs(b - b0) === 2;
+      W.set(x, F - 1, z, B.PLANKS);
+      if (front) W.set(x, F, z, B.DARK_OAK_PLANKS);
+      else if (back || side) for (let y = 0; y <= 2; y++) W.set(x, F + y, z, B.DARK_OAK_PLANKS);
+      W.set(x, F + 3, z, (b - b0 + 2) % 2 ? B.WOOL + 0 : B.WOOL + col);
+      if (front && (b - b0) % 2 === 0) W.set(x, F + 3, z, B.LED_YELLOW);
+    });
+    put(a0 + s, 0, b0, B.VENDING_MACHINE, s > 0 ? 1 : 0);
+  }
+  // trees, flower beds and lamps between the attractions
+  const trees = [[-16, 40], [16, 40], [-18, 6], [18, 8], [-48, 6], [-48, 44], [50, 48], [52, 4], [-12, -16], [-50, -52], [-4, 30], [4, 30], [22, 44], [-22, 44]];
+  for (const [a, b] of trees) { const [x, z] = at(a, b); if (Math.abs(a) < FAIR_A - 2) campusTree(W, x, F, z, (a + b) & 1 ? 'cherry' : 'oak', 5); }
+  rect(-FAIR_A + 1, FAIR_B0 + 1, FAIR_A - 1, FAIR_B1 - 1, (a, b, x, z) => {
+    if (W.get(x, F - 1, z) !== B.GRASS || W.get(x, F, z) !== B.AIR) return;
+    const r = hash3(x, 7, z, 1234);
+    if (r < 0.05) W.set(x, F, z, [B.ROSE, B.DANDELION, B.TULIP, B.CORNFLOWER, B.ALLIUM][Math.floor(r * 100) % 5]);
+    else if (r < 0.14) W.set(x, F, z, B.TALLGRASS);
+    if (inPath(a + 4, b) !== inPath(a, b) && (a + b) % 14 === 0 && Math.abs(a) > 4) campusLamp(W, x, F, z);
+  });
+  for (let b = FAIR_B1 - 6; b > FAIR_PLAZA.b + 10; b -= 8) for (const s of [-1, 1]) { const [x, z] = at(s * 4, b); campusLamp(W, x, F, z); }
+
+  // ---- the Ferris wheel: an A-frame each side of the wheel, a boarding deck ----
+  const Wh = FAIR_WHEEL;
+  for (const db of [-3, 3]) for (const da of [-11, 11]) {
+    const n = 40;
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, a = Math.round(Wh.a + da * (1 - t)), y = Math.round(Wh.y * t), b = Wh.b + db;
+      put(a, y, b, B.CONCRETE + 0);
+    }
+  }
+  for (const db of [-3, 3]) put(Wh.a, Math.round(Wh.y), Wh.b + db, B.STEEL_PLATE);
+  for (let da = -11; da <= 11; da++) for (const db of [-3, 3]) put(Wh.a + da, 0, Wh.b + db, B.CONCRETE + 7);
+  rect(Wh.a - 3, Wh.b - 2, Wh.a + 3, Wh.b + 5, (a, b, x, z) => { W.set(x, F - 1, z, B.CONCRETE + 7); if (b === Wh.b + 5 && Math.abs(a - Wh.a) === 3) campusLamp(W, x, F, z); });
+  put(Wh.a + 3, 0, Wh.b + 4, B.TICKET_MACHINE, 4);
+  // ---- the carousel: a round base, a low wall with a gap ----
+  const C = FAIR_CAROUSEL;
+  rect(C.a - C.R - 2, C.b - C.R - 2, C.a + C.R + 2, C.b + C.R + 2, (a, b, x, z) => {
+    const d = Math.hypot(a - C.a, b - C.b);
+    if (d <= C.R + 0.5) W.set(x, F - 1, z, B.CONCRETE + 7);
+    else if (d <= C.R + 1.6) { W.set(x, F - 1, z, B.TERRAZZO); if (d > C.R + 1 && !(b > C.b && Math.abs(a - C.a) <= 1)) W.set(x, F, z, B.OAK_FENCE); }
+  });
+  put(C.a + 2, 0, C.b + C.R + 2, B.TICKET_MACHINE, 4);
+  // ---- the drop tower: a 3\u00d73 steel mast with lights, a pit round its foot ----
+  const T = FAIR_TOWER;
+  rect(T.a - 1, T.b - 1, T.a + 1, T.b + 1, (a, b, x, z) => {
+    for (let y = 0; y <= T.h; y++) W.set(x, F + y, z, a === T.a && b === T.b ? B.STEEL_PLATE : y % 6 === 5 ? B.LED_RED : (y + a + b) % 3 === 0 ? B.STEEL_PLATE : B.IRON_BARS);
+    W.set(x, F + T.h + 1, z, B.STEEL_PLATE);
+  });
+  put(T.a, T.h + 2, T.b, B.LED_RED);
+  rect(T.a - 5, T.b - 5, T.a + 5, T.b + 5, (a, b, x, z) => { const d = Math.max(Math.abs(a - T.a), Math.abs(b - T.b)); if (d >= 2) W.set(x, F - 1, z, d === 5 ? B.CONCRETE + 4 : B.CONCRETE + 15); if (d === 5 && !(b > T.b && Math.abs(a - T.a) <= 1)) W.set(x, F, z, B.IRON_BARS); });
+  put(T.a + 2, 0, T.b + 6, B.TICKET_MACHINE, 4);
+  // ---- the balloon field: a round pad with baskets' marks ----
+  const Bl = FAIR_BALLOONS;
+  rect(Bl.a - 9, Bl.b - 9, Bl.a + 9, Bl.b + 9, (a, b, x, z) => { const d = Math.hypot(a - Bl.a, b - Bl.b); if (d <= 8.5) W.set(x, F - 1, z, d > 7.5 ? B.CONCRETE + 1 : B.GRASS); });
+  put(Bl.a, 0, Bl.b + 10, B.TICKET_MACHINE, 4);
+
+  // ---- the coaster: station, queue, supports under the track ----
+  const Sa = FAIR_STATION;
+  rect(Sa.a0 - 1, Sa.b + 2, Sa.a1 + 1, Sa.b + 4, (a, b, x, z) => {
+    for (let y = 0; y <= 1; y++) W.set(x, F + y, z, B.TERRAZZO);
+    if (b === Sa.b + 2 && (a - Sa.a0) % 3 === 0) { W.set(x, F + 2, z, B.IRON_BARS); }
+  });
+  rect(Sa.a0 - 1, Sa.b - 3, Sa.a1 + 1, Sa.b + 4, (a, b, x, z) => {
+    // a roof on slim posts over the train and the platform
+    W.set(x, F + 7, z, (a + b) % 2 ? B.WOOL + 14 : B.WOOL + 0);
+    if ((b === Sa.b - 3 || b === Sa.b + 4) && (a - Sa.a0) % 6 === 0) for (let y = b === Sa.b + 4 ? 2 : 0; y < 7; y++) W.set(x, F + y, z, B.BLACKSTONE_WALL);
+  });
+  for (let a = Sa.a0 + 2; a <= Sa.a1 - 2; a += 4) put(a, 2, Sa.b + 3, B.LED_YELLOW);
+  put(Sa.a1 + 2, 0, Sa.b + 5, B.TICKET_MACHINE, 4);
+  for (let a = Sa.a1 + 1; a <= Sa.a1 + 3; a++) put(a, 0, Sa.b + 4, shapeId('stone_brick', 'stairs') || B.TERRAZZO_SLAB, 1);
+  const P = fairTrack();
+  for (let i = 0; i < P.length; i += 8) {
+    const q = P[i];
+    if (q.k === 1 || (q.k === 3 && Math.abs(q.y - FAIR_STATION.y) > 0.5)) continue;
+    const a = Math.round(q.x), b = Math.round(q.z), top = Math.floor(q.y - 1.2);
+    if (top < 0) continue;
+    for (let y = 0; y <= top; y++) put(a, y, b, B.BLACKSTONE_WALL);
+    put(a, -1, b, B.CONCRETE + 7);
+  }
+}
+</script>
+<script data-w>
+'use strict';
 // Builds chunk meshes: flood-filled sky/block light over a padded region, smooth lighting,
 // per-vertex ambient occlusion, shaped blocks (slabs, torches, ladders, beds) and separate
 // opaque / cutout / water vertex streams. The light it computes is kept per chunk so
@@ -14739,7 +14997,7 @@ const SAMPLER_UNITS = {
 const MAX_QUADS = 1 << 17;
 const LUT_W = 256, LUT_H = 128;
 const ENT_FLOATS = 16;                 // floats per entity vertex
-const ENT_MAX_QUADS = 24000;
+const ENT_MAX_QUADS = 40000;
 const SHADOW_PRESETS = {
   off: { size: 1, range: 0, taps: 1 },
   low: { size: 1024, range: 48, taps: 4 },
@@ -42684,6 +42942,810 @@ const boardRocket = Vehicles.board;
 </script>
 <script>
 'use strict';
+// The funfair (fair_gen.js lays out the ground). Four rides that run on the shared clock, so every
+// player online sees the same trains and cabins in the same place:
+// - the roller coaster: a chain lift, a 24 m drop, a vertical loop, a banked turn, airtime hills
+//   and a helix; the trains follow fairTrack() with a real speed profile (gravity, friction,
+//   chain, brakes) and a banked, parallel-transported frame, and the rider's camera rolls and
+//   loops with the car (mouse look stays free, relative to the seat);
+// - the Ferris wheel: 16 cabins, one turn every 96 s, the cabin at the bottom takes you;
+// - the carousel: 18 horses bobbing on a turning, lit platform with a music box;
+// - the drop tower: 12 seats that climb the mast, wait, drop and brake.
+// Ticket machines at each ride (and the Funfair app) open the ride's card. Balloons: balloon.js.
+
+const FAIR_PRICES = { coaster: 15, wheel: 8, carousel: 5, tower: 12 };
+const FAIR_G = 12;                        // gravity felt on the coaster, in blocks/s\u00b2
+const COASTER_CARS = 4, COASTER_GAP = 2.7, COASTER_DWELL = 14;
+const WHEEL_PERIOD = 96, CAROUSEL_PERIOD = 26, TOWER_CYCLE = 44;
+const FAIR_COLS = [[0.9, 0.18, 0.2], [0.16, 0.5, 0.92], [0.98, 0.78, 0.12], [0.2, 0.72, 0.36], [0.72, 0.28, 0.85], [0.98, 0.5, 0.12]];
+
+const Coaster = {
+  // built once from the track: positions (local), frames, speed and time along the run
+  build() {
+    if (this.pts) return this;
+    const raw = fairTrack().slice(0, -1);
+    // start the run where the head of a stopped train sits in the station
+    const stop = raw.findIndex((p, i) => i > 0 && p.x >= FAIR_STATION.a0 + 14.5);
+    const P = raw.slice(stop).concat(raw.slice(0, stop));
+    const n = P.length, pos = P.map((p) => [p.x, p.y, p.z]);
+    const T = [], U = [], R = [], S = [0];
+    for (let i = 1; i < n; i++) S.push(S[i - 1] + Math.hypot(pos[i][0] - pos[i - 1][0], pos[i][1] - pos[i - 1][1], pos[i][2] - pos[i - 1][2]));
+    const L = S[n - 1] + Math.hypot(pos[0][0] - pos[n - 1][0], pos[0][1] - pos[n - 1][1], pos[0][2] - pos[n - 1][2]);
+    for (let i = 0; i < n; i++) { const a = pos[(i - 1 + n) % n], b = pos[(i + 1) % n]; T.push(V3.norm([b[0] - a[0], b[1] - a[1], b[2] - a[2]])); }
+    // parallel transport of "up", then spread the twist left over at the end of the circuit
+    let u = [0, 1, 0];
+    for (let i = 0; i < n; i++) { const t = T[i], d = V3.dot(u, t); u = V3.norm([u[0] - t[0] * d, u[1] - t[1] * d, u[2] - t[2] * d]); U.push(u); }
+    {
+      const t = T[0], d = V3.dot(u, t), ue = V3.norm([u[0] - t[0] * d, u[1] - t[1] * d, u[2] - t[2] * d]);
+      const r0 = V3.cross(t, U[0]), tw = Math.atan2(V3.dot(ue, r0), V3.dot(ue, U[0]));
+      for (let i = 0; i < n; i++) U[i] = rotAbout(U[i], T[i], -tw * i / n);
+    }
+    // speeds: off from the station, the chain at a steady pace, then gravity and friction, brakes at the end
+    const v = new Float32Array(n);
+    let v2 = 0;
+    for (let i = 1; i < n; i++) {
+      const ds = S[i] - S[i - 1], k = P[i].k;
+      v2 = Math.max(0, v2 + 2 * FAIR_G * (pos[i - 1][1] - pos[i][1]) - 0.22 * ds);
+      if (k === 2) v2 = Math.max(v2, 3.6 * 3.6);
+      if (S[i] < 14) v2 = Math.max(v2, Math.min(3.2 * 3.2, 2 * 1.6 * S[i]));
+      v2 = Math.max(v2, 2.2 * 2.2);
+      const left = L - S[i];
+      if (left < 90) v2 = Math.min(v2, Math.pow(Math.sqrt(2 * 2.2 * Math.max(0, left - 12)) + 0.6, 2));
+      if (left < 12) v2 = Math.min(v2, Math.pow(0.25 + left / 12 * 0.35, 2));
+      v[i] = Math.sqrt(v2);
+    }
+    v[0] = 0.25;
+    const t = new Float32Array(n + 1);
+    for (let i = 1; i < n; i++) t[i] = t[i - 1] + (S[i] - S[i - 1]) / Math.max(0.3, (v[i] + v[i - 1]) / 2);
+    t[n] = t[n - 1] + (L - S[n - 1]) / 0.3;
+    // banking from the sideways curvature, smoothed, never in the loop
+    const bank = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      if (P[i].k === 3 || Math.abs(T[i][1]) > 0.8) continue;
+      const a = T[(i - 2 + n) % n], b = T[(i + 2) % n], ds = 2 * (S[1] - S[0]) || 1;
+      const r = V3.cross(T[i], U[i]), kap = V3.dot([(b[0] - a[0]) / ds, (b[1] - a[1]) / ds, (b[2] - a[2]) / ds], r);
+      bank[i] = clamp(Math.atan(v[i] * v[i] * kap / FAIR_G) * 0.8, -1.15, 1.15);
+    }
+    const sm = new Float32Array(n);
+    for (let i = 0; i < n; i++) { let s = 0; for (let j = -10; j <= 10; j++) s += bank[(i + j + n) % n]; sm[i] = s / 21; }
+    for (let i = 0; i < n; i++) { if (Math.abs(sm[i]) > 0.01) U[i] = rotAbout(U[i], T[i], sm[i]); R.push(V3.norm(V3.cross(T[i], U[i]))); }
+    Object.assign(this, { pts: P, pos, T, U, R, S, L, v, t, n, run: t[n], cycle: t[n] + COASTER_DWELL, top: Math.max(...v) });
+    return this;
+  },
+  // head of the train at time \u03c4 into the cycle: { s, v, running }
+  at(tc) {
+    if (tc < COASTER_DWELL) return { s: 0, v: 0, running: false, wait: COASTER_DWELL - tc };
+    const x = tc - COASTER_DWELL, t = this.t;
+    let lo = 0, hi = this.n;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (t[m] <= x) lo = m; else hi = m; }
+    const f = clamp((x - t[lo]) / Math.max(1e-6, t[hi] - t[lo]), 0, 1), s1 = hi >= this.n ? this.L : this.S[hi];
+    return { s: this.S[lo] + (s1 - this.S[lo]) * f, v: this.v[lo] + ((this.v[hi % this.n] || 0) - this.v[lo]) * f, running: true, left: this.run - x };
+  },
+  // position and frame at arc length s (wraps)
+  frame(s) {
+    const L = this.L, S = this.S, n = this.n;
+    s = ((s % L) + L) % L;
+    let lo = 0, hi = n;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (S[m] <= s) lo = m; else hi = m; }
+    const j = hi % n, s1 = hi >= n ? L : S[hi], f = clamp((s - S[lo]) / Math.max(1e-6, s1 - S[lo]), 0, 1);
+    const mix = (a, b) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+    const t = V3.norm(mix(this.T[lo], this.T[j])), u0 = mix(this.U[lo], this.U[j]), d = V3.dot(u0, t);
+    const u = V3.norm([u0[0] - t[0] * d, u0[1] - t[1] * d, u0[2] - t[2] * d]);
+    return { p: mix(this.pos[lo], this.pos[j]), t, u, r: V3.norm(V3.cross(t, u)), k: this.pts[lo].k };
+  },
+};
+function rotAbout(v, k, a) {
+  const c = Math.cos(a), s = Math.sin(a), d = V3.dot(v, k), x = V3.cross(k, v);
+  return [v[0] * c + x[0] * s + k[0] * d * (1 - c), v[1] * c + x[1] * s + k[1] * d * (1 - c), v[2] * c + x[2] * s + k[2] * d * (1 - c)];
+}
+
+const Fair = {
+  seat: null, wait: null, hint: false, lastYaw: 0, noteT: 0, noteI: 0, sndT: 0,
+  site() { const g = G.world && G.world.gen; return g && G.world.type !== 'campnou' && G.slot !== 'jet' ? fairSite(g) : null; },
+  now() { return Date.now() / 1000; },
+  local(S, p) { return [p[0] - S.x, p[1] - S.F, p[2] - S.z]; },
+  inside(p, pad = 0) { const S = this.site(); if (!S) return false; const a = p[0] - S.x, b = p[2] - S.z; return Math.abs(a) <= FAIR_A + pad && b >= FAIR_B0 - pad && b <= FAIR_B1 + pad; },
+  name() { return ED('Parc d\'atraccions', 'Funfair'); },
+
+  // ---- ride states on the shared clock ----
+  coasterState() { const C = Coaster.build(); return C.at(this.now() % C.cycle); },
+  wheelAngle() { return (this.now() / WHEEL_PERIOD) % 1 * Math.PI * 2; },
+  carouselAngle() { return (this.now() / CAROUSEL_PERIOD) % 1 * Math.PI * 2; },
+  towerY(tc = this.now() % TOWER_CYCLE) {
+    if (tc < 10) return 1;
+    if (tc < 28) { const k = (tc - 10) / 18; return 1 + 37 * (k * k * (3 - 2 * k)); }
+    if (tc < 33) return 38;
+    const fall = tc - 33, tf = Math.sqrt(2 * 26 / 9.8);
+    if (fall < tf) return 38 - 0.5 * 9.8 * fall * fall;
+    const vb = 9.8 * tf, bt = fall - tf, dec = vb * vb / (2 * 11);
+    if (bt < vb / dec) return Math.max(1, 12 - (vb * bt - 0.5 * dec * bt * bt));
+    return 1;
+  },
+  towerPhase(tc = this.now() % TOWER_CYCLE) { return tc < 10 ? 'board' : tc < 28 ? 'up' : tc < 33 ? 'top' : tc < 38 ? 'drop' : 'board'; },
+
+  // ---- boarding ----
+  open(kind) {
+    const S = this.site();
+    if (!S) { G.ui.toast('This world has no funfair'); return; }
+    if (!kind) { this.menu(); return; }
+    const info = {
+      coaster: { icon: '\ud83c\udfa2', title: ED('Muntanya russa', 'Roller coaster'), text: 'A chain lift to 27 m, a 24 m drop, a vertical loop, a banked turn, airtime hills and a helix.', stats: () => { const C = Coaster.build(), st = this.coasterState(); return [['Top speed', Math.round(C.top * 3.6) + ' km/h'], ['Length', Math.round(C.L) + ' m'], ['Ride', Math.round(C.run) + ' s'], [st.running ? 'Next train' : 'Leaves in', Math.ceil(st.running ? st.left + COASTER_DWELL : st.wait) + ' s']]; } },
+      wheel: { icon: '\ud83c\udfa1', title: ED('N\u00f2ria', 'Ferris wheel'), text: 'A slow turn 36 m up: the whole city, the sea and the mountains.', stats: () => [['Height', '36 m'], ['Cabins', FAIR_WHEEL.n], ['One turn', WHEEL_PERIOD + ' s']] },
+      carousel: { icon: '\ud83c\udfa0', title: ED('Cavallets', 'Carousel'), text: 'Horses that rise and fall to a music box, under a roof of lights. Get off whenever you like.', stats: () => [['Horses', 18], ['One turn', CAROUSEL_PERIOD + ' s']] },
+      tower: { icon: '\ud83d\uddfc', title: ED('Torre de caiguda', 'Drop tower'), text: 'Up the 42 m mast, a moment of silence at the top\u2026 and free fall.', stats: () => { const tc = this.now() % TOWER_CYCLE; return [['Height', '40 m'], ['Free fall', '2.3 s'], [this.towerPhase(tc) === 'board' ? 'Leaves in' : 'Back down in', Math.ceil(tc < 10 ? 10 - tc : TOWER_CYCLE - tc + 10) + ' s']]; } },
+    }[kind];
+    if (!info) return;
+    const price = FAIR_PRICES[kind];
+    const q = GPanel.open({ title: info.title, icon: info.icon, sub: this.name() + ' \u00b7 ' + CITY, width: 440, cls: 'gp-fair' });
+    const draw = () => {
+      if (!q.body.isConnected) { clearInterval(iv); return; }
+      q.body.innerHTML = `<div class="fr-card"><div class="fr-hero">${info.icon}</div><p>${info.text}</p>
+        <div class="fr-stats">${info.stats().map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('')}</div>
+        <button class="gp-btn ok fr-go">${G.mode === 'creative' ? '' : '\ud83e\ude99 ' + price + ' \u00b7 '}Ride</button></div>`;
+      q.body.querySelector('.fr-go').addEventListener('click', () => {
+        if (this.seat) { G.ui.toast('You are already on a ride'); return; }
+        if (!Shops.pay(price)) { G.ui.toast('\ud83e\ude99 A ride costs ' + price + ' coins'); sfx('gate_no', null, 0.6, 1); return; }
+        q.close();
+        this.board(kind);
+      });
+    };
+    const iv = setInterval(draw, 1000);
+    draw();
+  },
+  menu() {
+    const S = this.site();
+    const q = GPanel.open({ title: this.name(), icon: '\ud83c\udfa1', sub: CITY, width: 460, cls: 'gp-fair' });
+    const rides = [['coaster', '\ud83c\udfa2', ED('Muntanya russa', 'Roller coaster')], ['wheel', '\ud83c\udfa1', ED('N\u00f2ria', 'Ferris wheel')], ['carousel', '\ud83c\udfa0', ED('Cavallets', 'Carousel')], ['tower', '\ud83d\uddfc', ED('Torre de caiguda', 'Drop tower')], ['balloon', '\ud83c\udf88', ED('Globus aerost\u00e0tic', 'Hot-air balloon')]];
+    const inFair = this.inside(G.player.pos, 20);
+    q.body.innerHTML = `<div class="fr-menu">${rides.map(([k, i, n]) => `<button class="fr-ride" data-k="${k}"><span>${i}</span><b>${n}</b><small>${k === 'balloon' ? '\ud83e\ude99 ' + BALLOON_PRICE : '\ud83e\ude99 ' + FAIR_PRICES[k]}</small></button>`).join('')}</div>
+      <p class="gp-dim">${inFair ? 'Tickets at the machine by each ride, or here.' : 'The funfair is north of the district. Mark it on your map and walk up the path.'}</p>
+      ${inFair ? '' : '<button class="gp-btn ok fr-mark">\ud83d\udccd Mark it on my map</button>'}`;
+    q.body.querySelectorAll('.fr-ride').forEach((b) => b.addEventListener('click', () => {
+      if (!inFair) { G.ui.toast('Go to the funfair first'); return; }
+      q.close();
+      if (b.dataset.k === 'balloon') Balloons.open(); else this.open(b.dataset.k);
+    }));
+    const m = q.body.querySelector('.fr-mark');
+    if (m) m.addEventListener('click', () => {
+      G.markers = G.markers || [];
+      const x = Math.round(S.x), z = Math.round(S.z + FAIR_B1);
+      if (!G.markers.some((k) => k.x === x && k.z === z)) G.markers.push({ x, z, name: '\ud83c\udfa1 ' + this.name(), color: '#ff4fd8' });
+      const d = Math.hypot(x - G.player.pos[0], z - G.player.pos[2]);
+      G.ui.banner('\ud83c\udfa1', this.name() + ' \u00b7 ' + Math.round(d) + ' blocks \u00b7 marked on your map (M)');
+      q.close();
+    });
+  },
+  board(kind) {
+    const S = this.site(), p = G.player;
+    if (!S) return;
+    if (G.vehicle) Vehicles.dismount(true);
+    if (p.seat) Furniture.stand(p);
+    p.flying = false;
+    const seat = { kind, t0: this.now(), yaw0: p.yaw };
+    if (kind === 'coaster') {
+      const st = this.coasterState();
+      if (st.running || st.wait < 2.5) {
+        this.wait = { kind, until: this.now() + (st.running ? st.left : st.wait) + 0.5 };
+        G.ui.banner('\ud83c\udfa2', 'Your seat is booked: wait on the platform for the next train (' + Math.ceil(st.running ? st.left + 1 : st.wait + 1) + ' s)');
+        return;
+      }
+      seat.car = 0; seat.row = 0; seat.side = Math.random() < 0.5 ? -1 : 1;   // the front row: the best view
+      p.yaw = 0; p.pitch = -0.05;
+      G.ui.banner('\ud83c\udfa2', 'Lap bar down \u00b7 hold on!');
+    } else if (kind === 'wheel') {
+      const th = this.wheelAngle(), n = FAIR_WHEEL.n;
+      let best = 0, bd = 9;
+      for (let i = 0; i < n; i++) { const a = ((th + i / n * Math.PI * 2) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2), d = Math.min(a, Math.PI * 2 - a); if (d < bd) { bd = d; best = i; } }
+      seat.i = best;
+      p.yaw = Math.PI; p.pitch = 0;
+      G.ui.banner('\ud83c\udfa1', 'Enjoy the view \u00b7 one full turn');
+    } else if (kind === 'carousel') {
+      const C = FAIR_CAROUSEL, ph = this.carouselAngle();
+      let best = 0, bd = 1e9;
+      for (let i = 0; i < 18; i++) { const h = this.horse(S, i, ph); const d = Math.hypot(h.x - p.pos[0], h.z - p.pos[2]); if (d < bd) { bd = d; best = i; } }
+      seat.i = best; void C;
+      G.ui.banner('\ud83c\udfa0', 'Round and round \u00b7 Shift to get off');
+    } else if (kind === 'tower') {
+      if (this.towerPhase() !== 'board') {
+        const tc = this.now() % TOWER_CYCLE;
+        this.wait = { kind, until: this.now() + (TOWER_CYCLE - tc) + 0.5 };
+        G.ui.banner('\ud83d\uddfc', 'Seat booked: the next ride goes up in ' + Math.ceil(TOWER_CYCLE - tc + 1) + ' s');
+        return;
+      }
+      const T = FAIR_TOWER;
+      const ang = Math.atan2(p.pos[2] - (S.z + T.b), p.pos[0] - (S.x + T.a));
+      seat.i = ((Math.round(ang / (Math.PI / 6)) % 12) + 12) % 12;
+      const o = this.towerSeat(S, seat.i, 1);
+      p.yaw = Math.atan2(-o.out[0], -o.out[2]); p.pitch = 0;
+      G.ui.banner('\ud83d\uddfc', 'Seat belt on \u00b7 look down when it stops at the top');
+    }
+    this.seat = seat;
+    const pr = G.prog || (G.prog = {});
+    pr.fair = pr.fair || {};
+    pr.fair[kind] = (pr.fair[kind] || 0) + 1;
+    if (Object.keys(pr.fair).length >= 4 && !pr.fairAll) { pr.fairAll = 1; Shops.earn(60); G.ui.banner('\ud83c\udfc6', 'Every ride at the funfair! +60 coins'); }
+    sfx('click', null, 0.8, 0.8);
+  },
+  leave(msg) {
+    const s = this.seat, S = this.site(), p = G.player;
+    this.seat = null;
+    if (!S || !s) return;
+    let to;
+    if (s.kind === 'coaster') to = [S.x + FAIR_STATION.a0 + 8, S.F + 2, S.z + FAIR_STATION.b + 3.5];
+    else if (s.kind === 'wheel') to = [S.x + FAIR_WHEEL.a + 0.5, S.F, S.z + FAIR_WHEEL.b + 4];
+    else if (s.kind === 'carousel') to = [S.x + FAIR_CAROUSEL.a + 0.5, S.F, S.z + FAIR_CAROUSEL.b + FAIR_CAROUSEL.R + 2.5];
+    else { const o = this.towerSeat(S, s.i, 1); to = [o.x + o.out[0] * 2.2, S.F, o.z + o.out[2] * 2.2]; }
+    p.pos = to; p.vel = [0, 0, 0]; p.fallStart = null; p.landed = 0;
+    if (s.kind === 'coaster') p.yaw = s.yaw0;
+    liftOutOfBlocks(p);
+    Net.teleported && Net.teleported();
+    this.hud();
+    if (msg) G.ui.toast(msg);
+  },
+
+  // ---- geometry of each ride in world space ----
+  wheelCabin(S, i, th) {
+    const Wh = FAIR_WHEEL, a = th + i / Wh.n * Math.PI * 2;
+    return { x: S.x + Wh.a + 0.5 + Math.sin(a) * Wh.R, y: S.F + Wh.y - Math.cos(a) * Wh.R, z: S.z + Wh.b + 0.5, a };
+  },
+  horse(S, i, ph) {
+    const C = FAIR_CAROUSEL, inner = i >= 12, k = inner ? i - 12 : i, n = inner ? 6 : 12, r = inner ? 3.3 : 5.4;
+    const a = ph + (k + (inner ? 0.5 : 0)) / n * Math.PI * 2;
+    const bob = Math.sin(ph * 5 + k * 1.3 + (inner ? 1 : 0)) * 0.35;
+    return { x: S.x + C.a + 0.5 + Math.cos(a) * r, y: S.F + 0.95 + bob, z: S.z + C.b + 0.5 + Math.sin(a) * r, a, yaw: Math.PI - a };
+  },
+  towerSeat(S, i, y) {
+    const T = FAIR_TOWER, side = Math.floor(i / 3), k = i % 3 - 1;
+    const out = [[0, 0, -1], [1, 0, 0], [0, 0, 1], [-1, 0, 0]][side], along = [[1, 0, 0], [0, 0, 1], [-1, 0, 0], [0, 0, -1]][side];
+    return { x: S.x + T.a + 0.5 + out[0] * 2.3 + along[0] * k * 1.05, y: S.F + y, z: S.z + T.b + 0.5 + out[2] * 2.3 + along[2] * k * 1.05, out, along };
+  },
+  // world position, frame and eye of the rider's coaster seat
+  coasterSeat(S, st, s) {
+    const f = Coaster.frame(st.s - s.car * COASTER_GAP - 1.1 + (s.row ? -0.6 : 0.35));
+    const base = [S.x + 0.5 + f.p[0], S.F + f.p[1], S.z + 0.5 + f.p[2]];
+    const off = (r, u) => [base[0] + f.r[0] * r + f.u[0] * u, base[1] + f.r[1] * r + f.u[1] * u, base[2] + f.r[2] * r + f.u[2] * u];
+    return { f, eye: off(s.side * 0.3, 1.5), foot: off(s.side * 0.3, 0.35) };
+  },
+
+  // ---- per frame ----
+  update(dt) {
+    const S = this.site(), p = G.player;
+    if (!S) { if (this.seat) this.seat = null; return; }
+    const d = Math.hypot(p.pos[0] - S.x, p.pos[2] - S.z);
+    if (!this.hint && this.inside(p.pos, -2)) { this.hint = true; G.ui.banner('\ud83c\udfa1', this.name() + ' \u00b7 tickets at the machines by each ride'); }
+    // a booked seat: board when the ride is ready
+    if (this.wait && !this.seat) {
+      const w = this.wait;
+      if (d > 140) this.wait = null;
+      else if (w.kind === 'coaster') { const st = this.coasterState(); if (!st.running && st.wait > 2.5) { this.wait = null; this.board('coaster'); } }
+      else if (w.kind === 'tower' && this.towerPhase() === 'board' && this.now() % TOWER_CYCLE < 8) { this.wait = null; this.board('tower'); }
+    }
+    this.sounds(dt, S, d);
+    const s = this.seat;
+    if (!s) { this.hud(); return; }
+    let foot;
+    if (s.kind === 'coaster') {
+      const st = this.coasterState();
+      if (st.running) s.ran = true;
+      else if (s.ran) { this.leave('\ud83c\udfa2 What a ride!'); sfx('achieve', null, 0.7, 1.1); return; }
+      const q = this.coasterSeat(S, st, s);
+      foot = [q.eye[0], q.eye[1] - 1.62, q.eye[2]];
+      s.q = q; s.v = st.v;
+    } else if (s.kind === 'wheel') {
+      const c = this.wheelCabin(S, s.i, this.wheelAngle());
+      foot = [c.x, c.y - 2.75, c.z];
+      if (this.now() - s.t0 > WHEEL_PERIOD - 1.5) { this.leave('\ud83c\udfa1 Back on the ground'); return; }
+    } else if (s.kind === 'carousel') {
+      const h = this.horse(S, s.i, this.carouselAngle());
+      foot = [h.x, h.y + 0.25, h.z];
+    } else if (s.kind === 'tower') {
+      const tc = this.now() % TOWER_CYCLE, ph = this.towerPhase(tc);
+      const o = this.towerSeat(S, s.i, this.towerY(tc));
+      foot = [o.x, o.y - 0.37, o.z];
+      if (ph === 'top' && !s.top) { s.top = true; G.ui.toast('\ud83d\ude36 \u2026', 1500); }
+      if (ph === 'drop' && !s.dropped) { s.dropped = true; sfx('tower_drop', null, 1, 1); }
+      if (s.dropped && ph === 'board') { this.leave('\ud83d\uddfc Legs still shaking?'); return; }
+      if (ph === 'drop' && tc > 34.5 && tc < 36) G.shake = Math.max(G.shake || 0, 0.8);
+    }
+    p.pos = foot; p.vel = [0, 0, 0]; p.onGround = true; p.fallStart = null; p.landed = 0;
+    p.inWater = p.eyeInWater = p.inLava = p.eyeInLava = false;
+    this.hud();
+  },
+  exitKey() {
+    const s = this.seat;
+    if (!s) return false;
+    if (s.kind === 'carousel') { this.leave(); return true; }
+    if (s.kind === 'coaster') { const st = this.coasterState(); if (!st.running) { this.leave(); return true; } G.ui.toast('\ud83c\udfa2 Keep your arms inside the car!'); return true; }
+    if (s.kind === 'wheel') { const c = this.wheelCabin(this.site(), s.i, this.wheelAngle()); const a = ((c.a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2); if (Math.min(a, Math.PI * 2 - a) < 0.25) { this.leave(); return true; } G.ui.toast('\ud83c\udfa1 Wait until your cabin reaches the bottom'); return true; }
+    if (s.kind === 'tower') { if (this.towerPhase() === 'board') { this.leave(); return true; } G.ui.toast('\ud83d\uddfc The seat belt is locked'); return true; }
+    return false;
+  },
+  camera(dt) {
+    const s = this.seat, p = G.player;
+    void dt;
+    if (!s || s.kind !== 'coaster' || !s.q) {
+      const e = p.eyePos();
+      return { pos: e, yaw: p.yaw, pitch: p.pitch, roll: 0, fov: G.settings.fov };
+    }
+    const { f, eye } = s.q;
+    // the look relative to the seat, turned into the car's frame
+    const fl = [-Math.sin(p.yaw) * Math.cos(p.pitch), Math.sin(p.pitch), -Math.cos(p.yaw) * Math.cos(p.pitch)];
+    const rl = [Math.cos(p.yaw), 0, -Math.sin(p.yaw)], ul = V3.cross(rl, fl);
+    const w = (l) => [f.r[0] * l[0] + f.u[0] * l[1] + f.t[0] * -l[2], f.r[1] * l[0] + f.u[1] * l[1] + f.t[1] * -l[2], f.r[2] * l[0] + f.u[2] * l[1] + f.t[2] * -l[2]];
+    const F = w(fl), Uw = w(ul);
+    const pitch = Math.asin(clamp(F[1], -1, 1));
+    let yaw = Math.abs(F[1]) > 0.995 ? this.lastYaw : Math.atan2(-F[0], -F[2]);
+    this.lastYaw = yaw;
+    const r0 = [Math.cos(yaw), 0, -Math.sin(yaw)], u0 = V3.cross(r0, [-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)]);
+    const roll = Math.atan2(-V3.dot(Uw, r0), V3.dot(Uw, u0));
+    const fov = G.settings.fov + clamp((s.v || 0) / 22, 0, 1) * 14;
+    const sh = (s.v || 0) > 8 ? (Math.random() - 0.5) * 0.02 * (s.v / 20) : 0;
+    return { pos: [eye[0], eye[1] + sh, eye[2]], yaw, pitch, roll, fov };
+  },
+
+  // ---- sound: the chain, the rush of air, the music box ----
+  sounds(dt, S, d) {
+    const s = this.seat;
+    this.sndT -= dt;
+    if (s && s.kind === 'coaster' && s.q && this.sndT <= 0) {
+      if (s.q.f.k === 2) { sfx('chain_clack', null, 0.5, 1); this.sndT = 0.22; }
+      else if ((s.v || 0) > 6) { sfx('coaster_rush', null, clamp(s.v / 24, 0.2, 1), 0.8 + s.v / 40); this.sndT = 0.45; }
+      else this.sndT = 0.3;
+    }
+    // the carousel's music box, soft, only near it
+    const C = FAIR_CAROUSEL, dc = Math.hypot(G.player.pos[0] - (S.x + C.a), G.player.pos[2] - (S.z + C.b));
+    this.noteT -= dt;
+    if (dc < 28 && this.noteT <= 0) {
+      const tune = [0, 4, 7, 12, 7, 4, 5, 9, 12, 9, 5, 2, 7, 11, 14, 11, 7, 4, 0, -1];
+      const n = tune[this.noteI++ % tune.length];
+      sfx('music_box', [S.x + C.a, S.F + 3, S.z + C.b], 0.35 * (1 - dc / 28), Math.pow(2, n / 12));
+      this.noteT = this.noteI % 4 === 0 ? 0.6 : 0.3;
+    }
+    void d;
+  },
+
+  hud() {
+    const s = this.seat, w = this.wait;
+    let el = $('fairHud');
+    if (!s && !w) { if (el) el.classList.remove('show'); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'fairHud'; document.body.append(el); }
+    let html;
+    if (!s) html = `<b>${w.kind === 'coaster' ? '\ud83c\udfa2' : '\ud83d\uddfc'} Seat booked</b><span>Boarding in ${Math.max(0, Math.ceil(w.until - this.now()))} s</span>`;
+    else if (s.kind === 'coaster') {
+      const st = this.coasterState(), S = this.site();
+      const h = s.q ? Math.round(s.q.eye[1] - S.F - 1.5) : 0;
+      html = st.running ? `<b>\ud83c\udfa2 ${Math.round((s.v || 0) * 3.6)} km/h</b><span>${Math.max(0, h)} m${s.q && s.q.f.k === 2 ? ' \u00b7 click\u2026 click\u2026 click\u2026' : s.q && s.q.f.u[1] < 0 ? ' \u00b7 upside down!' : ''}</span>`
+        : `<b>\ud83c\udfa2 Leaving in ${Math.ceil(st.wait)} s</b><span>Shift to get off</span>`;
+    } else if (s.kind === 'wheel') html = `<b>\ud83c\udfa1 ${Math.round(G.player.pos[1] - this.site().F)} m</b><span>${Math.max(0, Math.ceil(WHEEL_PERIOD - (this.now() - s.t0)))} s to the bottom</span>`;
+    else if (s.kind === 'carousel') html = '<b>\ud83c\udfa0 Carousel</b><span>Shift to get off</span>';
+    else { const tc = this.now() % TOWER_CYCLE, ph = this.towerPhase(tc); html = `<b>\ud83d\uddfc ${Math.round(G.player.pos[1] - this.site().F)} m</b><span>${ph === 'board' ? 'Going up in ' + Math.ceil(10 - tc) + ' s' : ph === 'up' ? 'Going up\u2026' : ph === 'top' ? 'Hold on\u2026' : 'AAAAH!'}</span>`; }
+    el.innerHTML = html;
+    el.classList.add('show');
+  },
+
+  // ---- drawing ----
+  render(cp) {
+    const S = this.site();
+    if (!S || Math.abs(cp[0] - S.x) > 300 || Math.abs(cp[2] - S.z) > 300) return;
+    const uv = () => Vehicles.swatchUV('white');
+    const night = typeof isDaytime === 'function' && !isDaytime();
+    const box = (m, a, b, col, glow) => { ER.color = col; ER.ov = glow ? 3 : 0; ER.box(m, a[0], a[1], a[2], b[0], b[1], b[2], uv); };
+    const at = (x, y, z) => XF.t(x - cp[0], y - cp[1], z - cp[2]);
+    // a beam from p to q with a square section w
+    const beam = (p, q, w, col, glow) => {
+      const d = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], L = Math.hypot(d[0], d[1], d[2]);
+      if (L < 1e-3) return;
+      const t = [d[0] / L, d[1] / L, d[2] / L], up = Math.abs(t[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+      const r = V3.norm(V3.cross(t, up)), u = V3.cross(r, t);
+      const m = [r[0], u[0], t[0], p[0] - cp[0], r[1], u[1], t[1], p[1] - cp[1], r[2], u[2], t[2], p[2] - cp[2]];
+      box(m, [-w / 2, -w / 2, 0], [w / 2, w / 2, L], col, glow);
+    };
+    const frameM = (o, r, u, t) => [r[0], u[0], t[0], o[0] - cp[0], r[1], u[1], t[1], o[1] - cp[1], r[2], u[2], t[2], o[2] - cp[2]];
+    const flash = (i) => night ? 0.55 + 0.45 * Math.sin(G.time * 4 + i * 0.7) : 0.8;
+
+    // ---- the Ferris wheel ----
+    {
+      const Wh = FAIR_WHEEL, th = this.wheelAngle(), cx = S.x + Wh.a + 0.5, cy = S.F + Wh.y, cz = S.z + Wh.b + 0.5;
+      if (Math.hypot(cx - cp[0], cz - cp[2]) < 260) {
+        ER.lightAt(cx, S.F + 3, cz + 6);
+        const seg = 48, rim = (a, dz, R = Wh.R) => [cx + Math.sin(a) * R, cy - Math.cos(a) * R, cz + dz];
+        for (const dz of [-1.3, 1.3]) {
+          for (let i = 0; i < seg; i++) {
+            const a0 = th + i / seg * Math.PI * 2, a1 = th + (i + 1) / seg * Math.PI * 2;
+            beam(rim(a0, dz), rim(a1, dz), 0.4, [0.95, 0.95, 0.97]);
+            beam(rim(a0, dz, Wh.R - 1.6), rim(a1, dz, Wh.R - 1.6), 0.22, [0.9, 0.9, 0.93]);
+            if (i % 2 === 0) { const q = rim(a0, dz + Math.sign(dz) * 0.3, Wh.R + 0.05); const c = FAIR_COLS[(i / 2 + Math.floor(G.time * 2)) % 6 | 0]; box(at(q[0], q[1], q[2]), [-0.22, -0.22, -0.22], [0.22, 0.22, 0.22], c.map((v) => v * flash(i)), true); }
+          }
+          for (let i = 0; i < Wh.n; i++) { const a = th + i / Wh.n * Math.PI * 2; beam([cx, cy, cz + dz * 0.6], rim(a, dz), 0.2, [0.85, 0.85, 0.88]); beam(rim(a, dz, Wh.R - 1.6), rim(a + Math.PI / Wh.n, dz), 0.14, [0.85, 0.85, 0.88]); }
+        }
+        box(at(cx, cy, cz), [-0.9, -0.9, -2.9], [0.9, 0.9, 2.9], [0.6, 0.6, 0.64]);
+        box(at(cx, cy, cz), [-0.5, -0.5, -3.1], [0.5, 0.5, 3.1], [0.95, 0.3, 0.3], night);
+        for (let i = 0; i < Wh.n; i++) {
+          const c = this.wheelCabin(S, i, th), col = FAIR_COLS[i % 6];
+          ER.lightAt(c.x, c.y - 1, c.z);
+          const m = at(c.x, c.y, c.z);
+          beam([c.x, c.y, c.z - 1.3], [c.x, c.y, c.z + 1.3], 0.16, [0.7, 0.7, 0.72]);
+          box(m, [-0.08, -0.7, -0.08], [0.08, 0, 0.08], [0.5, 0.5, 0.52]);
+          box(m, [-1.2, -0.85, -1.05], [1.2, -0.6, 1.05], col);                   // roof
+          box(m, [-0.9, -0.6, -0.8], [0.9, -0.5, 0.8], col.map((v) => v * 0.7));
+          for (const [x, z] of [[-1.05, -0.9], [0.95, -0.9], [-1.05, 0.8], [0.95, 0.8]]) box(m, [x, -2.3, z], [x + 0.1, -0.6, z + 0.1], [0.9, 0.9, 0.92]);
+          box(m, [-1.1, -2.45, -1.0], [1.1, -2.3, 1.0], [0.3, 0.3, 0.33]);        // floor
+          box(m, [-1.1, -2.3, -1.0], [1.1, -1.85, -0.9], col); box(m, [-1.1, -2.3, 0.9], [1.1, -1.85, 1.0], col);
+          box(m, [-1.1, -2.3, -1.0], [-1.0, -1.85, 1.0], col); box(m, [1.0, -2.3, -1.0], [1.1, -1.85, 1.0], col);
+          box(m, [-1.1, -1.6, -1.0], [1.1, -1.52, -0.92], [0.9, 0.9, 0.92]); box(m, [-1.1, -1.6, 0.92], [1.1, -1.52, 1.0], [0.9, 0.9, 0.92]);
+          box(m, [-0.8, -2.3, -0.2], [0.8, -1.9, 0.2], [0.55, 0.36, 0.2]);         // bench
+          if (night) box(m, [-0.15, -0.62, -0.15], [0.15, -0.5, 0.15], [1, 0.9, 0.6], true);
+        }
+      }
+    }
+    // ---- the carousel ----
+    {
+      const C = FAIR_CAROUSEL, ph = this.carouselAngle(), cx = S.x + C.a + 0.5, cz = S.z + C.b + 0.5, y0 = S.F;
+      if (Math.hypot(cx - cp[0], cz - cp[2]) < 200) {
+        ER.lightAt(cx, y0 + 2, cz + C.R);
+        for (let i = 0; i < 20; i++) {
+          const a = ph + i / 20 * Math.PI * 2, m = XF.chain(at(cx, y0, cz), XF.ry(-a));
+          box(m, [0, 0.05, -1.2], [C.R, 0.35, 1.2], i % 2 ? [0.62, 0.4, 0.22] : [0.55, 0.34, 0.18]);
+          box(m, [C.R - 0.1, 0.0, -1.2], [C.R + 0.05, 0.4, 1.2], [0.85, 0.7, 0.2]);
+          // the roof: a cone of stripes and a scalloped skirt of bulbs
+          for (let k = 0; k < 4; k++) { const r0 = C.R + 0.4 - k * 1.8; box(m, [0, 5.2 + k * 0.55, -r0 * 0.33], [r0, 5.5 + k * 0.55, r0 * 0.33], i % 2 ? [0.9, 0.15, 0.2] : [0.97, 0.95, 0.9]); }
+          box(m, [C.R + 0.2, 4.6, -1.2], [C.R + 0.4, 5.2, 1.2], i % 2 ? [0.9, 0.15, 0.2] : [0.97, 0.95, 0.9]);
+          box(m, [C.R + 0.35, 4.75, -0.1], [C.R + 0.55, 4.95, 0.1], FAIR_COLS[(i + Math.floor(G.time * 3)) % 6].map((v) => v * flash(i)), true);
+        }
+        box(at(cx, y0, cz), [-1.3, 0.35, -1.3], [1.3, 5.2, 1.3], [0.9, 0.78, 0.3]);
+        box(at(cx, y0, cz), [-1.35, 1.2, -1.35], [1.35, 4.4, 1.35], [0.7, 0.8, 0.95], true);
+        box(at(cx, y0, cz), [-0.3, 7.4, -0.3], [0.3, 8.3, 0.3], [0.95, 0.8, 0.2], night);
+        for (let i = 0; i < 18; i++) {
+          const h = this.horse(S, i, ph), rideMe = this.seat && this.seat.kind === 'carousel' && this.seat.i === i;
+          ER.lightAt(h.x, h.y + 1, h.z);
+          const m = XF.chain(at(h.x, h.y, h.z), XF.ry(h.yaw));
+          box(XF.chain(at(h.x, y0, h.z), XF.ry(h.yaw)), [-0.05, 0.3, -0.05], [0.05, 5.2, 0.05], [0.95, 0.82, 0.3]);
+          const coat = [[0.96, 0.95, 0.92], [0.55, 0.35, 0.2], [0.18, 0.16, 0.16], [0.85, 0.75, 0.55]][i % 4], sad = FAIR_COLS[i % 6];
+          const gal = Math.sin(ph * 5 + i * 1.3) * 0.5;
+          box(m, [-0.25, 0.55, -0.7], [0.25, 1.05, 0.6], coat);                       // body
+          box(m, [-0.18, 0.9, -1.0], [0.18, 1.55, -0.62], coat);                      // neck
+          box(m, [-0.16, 1.4, -1.35], [0.16, 1.7, -0.85], coat);                      // head
+          box(m, [-0.2, 1.05, -0.25], [0.2, 1.12, 0.25], sad);                        // saddle
+          box(m, [-0.06, 1.1, -0.95], [0.06, 1.62, -0.5], [0.2, 0.15, 0.12]);         // mane
+          box(m, [-0.06, 0.6, 0.6], [0.06, 1.0, 0.85], [0.2, 0.15, 0.12]);            // tail
+          for (const [x, z, s] of [[-0.18, -0.55, 1], [0.1, -0.55, 1], [-0.18, 0.45, -1], [0.1, 0.45, -1]]) {
+            const lm = XF.chain(m, XF.t(x + 0.04, 0.6, z), XF.rx(gal * s));
+            box(lm, [-0.04, -0.55, -0.05], [0.04, 0, 0.05], coat);
+          }
+          void rideMe;
+        }
+      }
+    }
+    // ---- the drop tower's ring of seats ----
+    {
+      const T = FAIR_TOWER, tc = this.now() % TOWER_CYCLE, y = this.towerY(tc), cx = S.x + T.a + 0.5, cz = S.z + T.b + 0.5;
+      if (Math.hypot(cx - cp[0], cz - cp[2]) < 220) {
+        ER.lightAt(cx, S.F + y + 1, cz + 3);
+        box(at(cx, S.F + y, cz), [-2.0, 1.2, -2.0], [2.0, 1.7, 2.0], [0.2, 0.2, 0.24]);
+        box(at(cx, S.F + y, cz), [-2.05, 1.7, -2.05], [2.05, 1.85, 2.05], [0.95, 0.75, 0.1], night);
+        for (let i = 0; i < 12; i++) {
+          const o = this.towerSeat(S, i, y), yaw = Math.atan2(o.out[0], o.out[2]);
+          const m = XF.chain(at(o.x, o.y, o.z), XF.ry(yaw));
+          const c = FAIR_COLS[i % 6];
+          box(m, [-0.42, 0.35, -0.55], [0.42, 1.8, -0.35], c);        // back
+          box(m, [-0.42, 0.25, -0.4], [0.42, 0.45, 0.25], c);          // seat
+          if (!(this.seat && this.seat.kind === 'tower' && this.seat.i === i)) { box(m, [-0.35, 1.0, -0.35], [-0.2, 1.75, 0.15], [0.25, 0.25, 0.28]); box(m, [0.2, 1.0, -0.35], [0.35, 1.75, 0.15], [0.25, 0.25, 0.28]); }
+          else box(m, [-0.3, 0.55, 0.12], [0.3, 0.65, 0.3], [0.9, 0.8, 0.1]);
+          box(m, [-0.08, -0.4, -0.1], [0.08, 0.25, 0.1], [0.4, 0.4, 0.42]);
+        }
+      }
+    }
+    // ---- the coaster: track and trains ----
+    {
+      const C = Coaster.build(), ox = S.x + 0.5, oz = S.z + 0.5, oy = S.F;
+      const cxl = cp[0] - ox, czl = cp[2] - oz;
+      if (Math.hypot(cxl - 32, czl + 30) < 240) {
+        const n = C.n;
+        ER.lightAt(ox + 30, oy + 6, oz - 20);
+        for (let i = 0; i < n; i += 2) {
+          const j = (i + 2) % n, p = C.pos[i], q = C.pos[j];
+          if (Math.abs(p[0] - cxl) > 150 || Math.abs(p[2] - czl) > 150) continue;
+          const o = [ox + p[0], oy + p[1], oz + p[2]], o2 = [ox + q[0], oy + q[1], oz + q[2]];
+          const r = C.R[i], u = C.U[i], r2 = C.R[j], u2 = C.U[j];
+          const side = (k, dy, rr, uu) => [0, 1, 2].map((a) => (k === 0 ? o : o2)[a] + (k === 0 ? r : r2)[a] * rr + (k === 0 ? u : u2)[a] * uu);
+          beam(side(0, 0, -0.55, 0), side(1, 0, -0.55, 0), 0.16, [0.85, 0.87, 0.9]);
+          beam(side(0, 0, 0.55, 0), side(1, 0, 0.55, 0), 0.16, [0.85, 0.87, 0.9]);
+          beam(side(0, 0, 0, -0.45), side(1, 0, 0, -0.45), 0.34, [0.1, 0.62, 0.72]);
+          if (i % 4 === 0) { const m = frameM(o, r, u, C.T[i]); box(m, [-0.6, -0.45, -0.07], [0.6, -0.05, 0.07], [0.3, 0.3, 0.33]); }
+          if (C.pts[i].k === 2 && i % 4 === 0) { const m = frameM(o, r, u, C.T[i]); box(m, [-0.12, -0.02, -0.2], [0.12, 0.06, 0.2], [0.25, 0.25, 0.25]); }
+          if (night && i % 12 === 0) { const m = frameM(o, r, u, C.T[i]); box(m, [-0.08, -0.62, -0.08], [0.08, -0.5, 0.08], FAIR_COLS[(i / 12) % 6 | 0], true); }
+        }
+        // the train
+        const st = C.at(this.now() % C.cycle);
+        for (let c = 0; c < COASTER_CARS; c++) {
+          const f = C.frame(st.s - c * COASTER_GAP - 1.1);
+          const o = [ox + f.p[0], oy + f.p[1], oz + f.p[2]];
+          ER.lightAt(o[0], o[1] + 1, o[2]);
+          const m = frameM(o, f.r, f.u, f.t), col = c === 0 ? [0.92, 0.18, 0.2] : [0.95, 0.75, 0.15];
+          box(m, [-0.75, 0.05, -1.15], [0.75, 0.55, 1.15], [0.2, 0.2, 0.22]);                       // chassis
+          box(m, [-0.78, 0.35, -1.2], [0.78, 1.05, -0.95], col); box(m, [-0.78, 0.35, 0.95], [0.78, 1.05, 1.2], col);
+          box(m, [-0.8, 0.35, -1.2], [-0.65, 1.0, 1.2], col); box(m, [0.65, 0.35, -1.2], [0.8, 1.0, 1.2], col);
+          for (const z of [-0.55, 0.4]) {
+            box(m, [-0.6, 0.55, z - 0.3], [0.6, 0.7, z + 0.2], [0.15, 0.15, 0.18]);                   // seat
+            box(m, [-0.6, 0.7, z - 0.35], [0.6, 1.35, z - 0.22], [0.15, 0.15, 0.18]);                 // back
+            box(m, [-0.55, 1.05, z + 0.15], [0.55, 1.15, z + 0.3], [0.9, 0.9, 0.2]);                   // lap bar
+          }
+          if (c === 0) { box(m, [-0.75, 0.3, 1.2], [0.75, 0.9, 1.6], col); box(m, [-0.5, 0.45, 1.6], [-0.2, 0.65, 1.62], [1, 1, 0.8], true); box(m, [0.2, 0.45, 1.6], [0.5, 0.65, 1.62], [1, 1, 0.8], true); }
+          for (const x of [-0.6, 0.6]) for (const z of [-0.8, 0.8]) box(m, [x - 0.12, -0.15, z - 0.2], [x + 0.12, 0.1, z + 0.2], [0.35, 0.35, 0.38]);
+        }
+      }
+    }
+    ER.ov = 0; ER.color = [1, 1, 1];
+  },
+};
+
+PIC_BUILTIN.fair_sign = { w: 10, h: 3, draw(g, W, H) {
+  const grd = g.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, '#2a0f4f'); grd.addColorStop(1, '#6b1a6b');
+  g.fillStyle = grd; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 44; i++) {
+    const t = i / 44, x = t < 0.5 ? t * 2 * W : (1 - (t - 0.5) * 2) * W, y = t < 0.5 ? H * 0.06 : H * 0.94;
+    g.fillStyle = i % 2 ? '#ffe27a' : '#ff8a3d'; g.beginPath(); g.arc(x, y, H * 0.03, 0, 7); g.fill();
+  }
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `${H * 0.34}px serif`; g.fillText('\ud83c\udfa1', W * 0.08, H * 0.48); g.fillText('\ud83c\udfa2', W * 0.92, H * 0.48);
+  g.fillStyle = '#fff'; g.font = `900 ${H * 0.25}px Arial`;
+  g.shadowColor = '#ff4fd8'; g.shadowBlur = H * 0.06;
+  g.fillText(ED('PARC D\'ATRACCIONS', 'FUNFAIR'), W / 2, H * 0.4);
+  g.shadowBlur = 0; g.fillStyle = '#ffd24a'; g.font = `800 ${H * 0.12}px Arial`;
+  g.fillText(ED('MUNTANYA RUSSA \u00b7 N\u00d2RIA \u00b7 CAVALLETS \u00b7 TORRE \u00b7 GLOBUS', 'COASTER \u00b7 WHEEL \u00b7 CAROUSEL \u00b7 DROP TOWER \u00b7 BALLOONS'), W / 2, H * 0.72);
+} };
+SYNTH.chain_clack = (ctx, o, t) => { Sound.noise(ctx, o, t, 0.05, { type: 'bandpass', freq: 2400, q: 4, gain: 0.25 }); Sound.tone(ctx, o, t, 0.04, { wave: 'square', f0: 180, gain: 0.04 }); };
+SYNTH.coaster_rush = (ctx, o, t) => { Sound.noise(ctx, o, t, 0.6, { type: 'lowpass', freq: 700, gain: 0.28, attack: 0.08 }); Sound.noise(ctx, o, t, 0.5, { type: 'bandpass', freq: 160, q: 2, gain: 0.25 }); };
+SYNTH.tower_drop = (ctx, o, t) => { Sound.noise(ctx, o, t, 2.4, { type: 'bandpass', freq: 500, freqEnd: 2600, q: 1.5, gain: 0.35, attack: 0.2 }); };
+SYNTH.music_box = (ctx, o, t) => { Sound.tone(ctx, o, t, 0.9, { wave: 'triangle', f0: 1046, gain: 0.07 }); Sound.tone(ctx, o, t, 0.5, { wave: 'sine', f0: 2093, gain: 0.025 }); };
+
+{
+  // the ticket machines inside the fair open the nearest ride
+  const use = Act.useItem;
+  Act.useItem = function (initial) {
+    const t = this.target, b = t && t.block, S = Fair.site();
+    if (initial && b && S && b.id === B.TICKET_MACHINE && Fair.inside(b.pos, 1)) {
+      const a = b.pos[0] - S.x, bb = b.pos[2] - S.z;
+      const spots = [['coaster', FAIR_STATION.a1 + 2, FAIR_STATION.b + 5], ['wheel', FAIR_WHEEL.a + 3, FAIR_WHEEL.b + 4], ['carousel', FAIR_CAROUSEL.a + 2, FAIR_CAROUSEL.b + FAIR_CAROUSEL.R + 2], ['tower', FAIR_TOWER.a + 2, FAIR_TOWER.b + 6], ['balloon', FAIR_BALLOONS.a, FAIR_BALLOONS.b + 10]];
+      let best = null, bd = 12;
+      for (const [k, x, z] of spots) { const d = Math.hypot(a - x, bb - z); if (d < bd) { bd = d; best = k; } }
+      if (best === 'balloon') Balloons.open(); else if (best) Fair.open(best); else Fair.menu();
+      this.swingHand();
+      return true;
+    }
+    return use.call(this, initial);
+  };
+  // riding: the seat moves you; Shift / Space to get off where the ride allows it
+  const upd = Player.prototype.update;
+  Player.prototype.update = function (dt, input) {
+    if (this !== G.player || !Fair.seat) return upd.call(this, dt, input);
+    const k = input && input.keys;
+    if (k && (k.has('ShiftLeft') || k.has('ShiftRight'))) { if (!Fair.exitT || G.time - Fair.exitT > 0.6) { Fair.exitT = G.time; Fair.exitKey(); } }
+    this.vel[0] = this.vel[1] = this.vel[2] = 0;
+    this.onGround = true; this.sneaking = false; this.sprinting = false; this.fallStart = null;
+  };
+  const dmg = Stats.prototype.damage;
+  Stats.prototype.damage = function (amount, src) { if (Fair.seat && src && (src.type === 'fall' || src.type === 'suffocate' || src.type === 'wall')) return; return dmg.call(this, amount, src); };
+  const die = Stats.prototype.die;
+  Stats.prototype.die = function (src) { Fair.seat = null; Fair.wait = null; return die.call(this, src); };
+  const fu = Furniture.update;
+  Furniture.update = function (dt) { fu.call(this, dt); try { Fair.update(dt || 0.016); } catch (e) { console.warn('Blocklands: fair', e); } };
+  const wr = Weather.render;
+  Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Fair.render(cp); } catch (e) { console.warn('Blocklands: fair render', e); } return r; };
+  PC.add({ key: 'fair', icon: '\ud83c\udfa1', name: ED('Fira', 'Funfair'), run() { Fair.menu(); } });
+}
+</script>
+<script>
+'use strict';
+// Hot-air balloons. Three wait inflated on the field of the funfair (fair_gen.js); a flight costs
+// BALLOON_PRICE. In the basket: Space opens the burner (the air inside heats up and you climb),
+// let go and it cools and you sink; the wind carries you (it turns slowly and blows harder up
+// high); WASD only nudge. Land anywhere, Shift to climb out (up in the air: a parachute). The
+// balloon stays where you left it until you walk away; nothing is saved.
+
+const BALLOON_PRICE = 40;
+{
+  const WICKER = [0.62, 0.45, 0.25], DK = [0.3, 0.22, 0.14], ROPE = [0.85, 0.8, 0.7];
+  const BANDS = [[0.92, 0.2, 0.22], [0.98, 0.62, 0.12], [0.98, 0.86, 0.2], [0.3, 0.75, 0.35], [0.2, 0.55, 0.92], [0.55, 0.3, 0.85]];
+  const parts = [
+    // the basket: wicker walls, a darker rim, the floor
+    [-0.85, 0, -0.85, 0.85, 0.12, 0.85, 'white', { c: DK }],
+    [-0.85, 0.12, -0.85, 0.85, 1.05, -0.72, 'white', { c: WICKER }], [-0.85, 0.12, 0.72, 0.85, 1.05, 0.85, 'white', { c: WICKER }],
+    [-0.85, 0.12, -0.72, -0.72, 1.05, 0.72, 'white', { c: WICKER }], [0.72, 0.12, -0.72, 0.85, 1.05, 0.72, 'white', { c: WICKER }],
+    [-0.9, 1.05, -0.9, 0.9, 1.17, 0.9, 'white', { c: DK }],
+    // uprights to the burner frame, the burner, the ropes up to the envelope's mouth
+    [-0.8, 1.17, -0.8, -0.72, 3.3, -0.72, 'metal'], [0.72, 1.17, -0.8, 0.8, 3.3, -0.72, 'metal'], [-0.8, 1.17, 0.72, -0.72, 3.3, 0.8, 'metal'], [0.72, 1.17, 0.72, 0.8, 3.3, 0.8, 'metal'],
+    [-0.8, 3.3, -0.8, 0.8, 3.42, 0.8, 'metal'], [-0.32, 3.2, -0.32, 0.32, 3.75, 0.32, 'hullDark'],
+    [-1.3, 3.42, -0.05, -0.75, 4.9, 0.05, 'white', { c: ROPE }], [0.75, 3.42, -0.05, 1.3, 4.9, 0.05, 'white', { c: ROPE }],
+    [-0.05, 3.42, -1.3, 0.05, 4.9, -0.75, 'white', { c: ROPE }], [-0.05, 3.42, 0.75, 0.05, 4.9, 1.3, 'white', { c: ROPE }],
+  ];
+  // the envelope: slices of an upside-down teardrop, each an octagon of three boxes, in colour bands
+  const prof = (t) => t < 0.72 ? 1.2 + (4.3 - 1.2) * Math.sin(t / 0.72 * Math.PI / 2) : 4.3 * Math.sqrt(Math.max(0, 1 - Math.pow((t - 0.72) / 0.3, 2))) + 0.4;
+  const Y0 = 4.9, Y1 = 15.2, N = 16;
+  for (let i = 0; i < N; i++) {
+    const y0 = Y0 + (Y1 - Y0) * i / N, y1 = Y0 + (Y1 - Y0) * (i + 1) / N, r = prof((i + 0.5) / N), c = BANDS[Math.floor(i / 3) % BANDS.length];
+    const col = i % 3 === 1 ? [0.97, 0.96, 0.92] : c;
+    parts.push([-r, y0, -r * 0.42, r, y1, r * 0.42, 'white', { c: col }], [-r * 0.42, y0, -r, r * 0.42, y1, r, 'white', { c: col }], [-r * 0.74, y0, -r * 0.74, r * 0.74, y1, r * 0.74, 'white', { c: col }]);
+  }
+  parts.push([-0.6, Y1, -0.6, 0.6, Y1 + 0.25, 0.6, 'white', { c: [0.92, 0.2, 0.22] }]);
+  RIDE_KINDS.balloon = {
+    item: I.AVE_TICKET, name: 'Hot-air balloon', type: 'air', max: 8, rev: 0, acc: 0, brake: 0, steer: 0, base: 8, step: 1.05, h: 16, len: 2, w: 2,
+    seat: [0, 0.9, 0], eye: [0, 1.75, 0], cam: 18, sit: false, hide: false, paintDefault: 0,
+    parts, hit: [[-0.9, 0, -0.9, 0.9, 1.2, 0.9], [-4.3, 5, -4.3, 4.3, 15, 4.3]],
+  };
+  RIDE_KEYS.push('balloon');
+  const d = RIDE_KINDS.balloon;
+  d.key = 'balloon';
+  d.model = d.parts.map(([x0, y0, z0, x1, y1, z1, sw, o = {}]) => ({ box: [x0, y0, z0, x1, y1, z1], sw, o }));
+}
+
+const Balloons = {
+  parked: [], burnT: 0, hudT: 0,
+  field() { const S = Fair.site(); return S ? { x: S.x + FAIR_BALLOONS.a + 0.5, y: S.F, z: S.z + FAIR_BALLOONS.b + 0.5 } : null; },
+  wind(y) {
+    const t = Date.now() / 1000;
+    const a = Math.sin(t / 97) * 2.2 + Math.cos(t / 41) * 0.6 + y * 0.012;
+    const s = clamp(1.2 + (y - 60) * 0.045, 0.6, 6.5) * (Weather.kind === 'storm' ? 1.8 : 1);
+    return [Math.cos(a) * s, Math.sin(a) * s, a];
+  },
+  update(dt) {
+    const F = this.field(), p = G.player;
+    // the three waiting on the field, when you are near
+    const near = F && Math.hypot(F.x - p.pos[0], F.z - p.pos[2]) < 180;
+    this.parked = this.parked.filter((v) => !v.removed && v.parked);
+    if (near && this.parked.length < 3 && !this.spawned) {
+      this.spawned = true;
+      for (let i = 0; i < 3; i++) {
+        const a = i / 3 * Math.PI * 2 + 0.4, v = Rides.spawn('balloon', F.x + Math.cos(a) * 4.2, F.y, F.z + Math.sin(a) * 4.2, a, 0);
+        v.scripted = true; v.balloon = true; v.parked = true; v.heat = 0.4; v.vy = 0; v.home = [v.pos[0], v.pos[1], v.pos[2]]; v.onGround = true;
+        this.parked.push(v);
+      }
+    }
+    if (!near && this.spawned) { for (const v of this.parked) v.removed = true; this.parked = []; this.spawned = false; }
+    for (const v of Vehicles.list) {
+      if (!v.balloon || v.removed) continue;
+      if (v.parked) {
+        // tethered: a slow bob and sway
+        const t = G.time + v.home[0];
+        v.pos = [v.home[0], v.home[1] + 0.06 + Math.sin(t * 0.8) * 0.05, v.home[2]]; v.roll = Math.sin(t * 0.6) * 0.02; v.pitch = Math.cos(t * 0.5) * 0.02;
+        v.basis();
+        continue;
+      }
+      if (G.vehicle !== v) {
+        this.fly(v, dt, null);
+        if (Math.hypot(v.pos[0] - p.pos[0], v.pos[2] - p.pos[2]) > 220) v.removed = true;
+      }
+    }
+    this.hud();
+  },
+  // the physics of one balloon; input null = nobody in it
+  fly(v, dt, input) {
+    const burn = !!(input && input.keys && input.keys.has('Space'));
+    v.burning = burn;
+    v.heat = clamp((v.heat || 0) + (burn ? 0.32 : -0.055) * dt, 0, 1);
+    const target = (v.heat - 0.42) * 7;
+    v.vy += (target - v.vy) * Math.min(1, dt * 0.7);
+    const [wx, wz] = this.wind(v.pos[1]);
+    let hx = v.onGround ? 0 : wx, hz = v.onGround ? 0 : wz;
+    if (input && input.keys && !v.onGround) {
+      const k = input.keys, yaw = G.player.yaw, f = [-Math.sin(yaw), -Math.cos(yaw)], r = [Math.cos(yaw), -Math.sin(yaw)];
+      const mf = (k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0), mr = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0);
+      hx += (f[0] * mf + r[0] * mr) * 1.6; hz += (f[1] * mf + r[1] * mr) * 1.6;
+    }
+    v.vel[0] += (hx - v.vel[0]) * Math.min(1, dt * 0.5);
+    v.vel[2] += (hz - v.vel[2]) * Math.min(1, dt * 0.5);
+    const w = G.world, solid = (x, y, z) => { const id = w.getBlock(Math.floor(x), Math.floor(y), Math.floor(z)); return id > 0 && BLOCK_SOLID[id] && !IS_LIQUID(id); };
+    // up and down: the ground (or a roof) under the basket stops you
+    let ny = v.pos[1] + v.vy * dt;
+    const under = [[0, 0], [0.8, 0.8], [-0.8, 0.8], [0.8, -0.8], [-0.8, -0.8]].some(([a, b]) => solid(v.pos[0] + a, ny - 0.02, v.pos[2] + b));
+    const water = IS_LIQUID(w.getBlock(Math.floor(v.pos[0]), Math.floor(ny + 0.1), Math.floor(v.pos[2])));
+    if (v.vy < 0 && (under || water)) { ny = water ? Math.floor(ny + 0.1) + 0.9 : Math.floor(ny - 0.02) + 1; v.vy = 0; if (!v.onGround) { v.onGround = true; sfx('place_1', v.pos, 0.6, 0.6); } }
+    else if (v.vy > 0.05 || !under) v.onGround = v.vy <= 0 && under;
+    if (v.vy > 0 && solid(v.pos[0], ny + 15.5, v.pos[2])) { v.vy = -0.5; ny = v.pos[1]; }
+    ny = Math.min(ny, 250);
+    // sideways: a wall at basket or envelope height stops the drift
+    const nx = v.pos[0] + v.vel[0] * dt, nz = v.pos[2] + v.vel[2] * dt;
+    const blocked = [0.5, 1, 6, 10].some((h) => solid(nx + Math.sign(v.vel[0]) * (h > 2 ? 4 : 0.9), ny + h, v.pos[2]) || solid(v.pos[0], ny + h, nz + Math.sign(v.vel[2]) * (h > 2 ? 4 : 0.9)));
+    if (!blocked && !v.onGround) { v.pos[0] = nx; v.pos[2] = nz; } else { v.vel[0] *= 0.5; v.vel[2] *= 0.5; }
+    v.pos[1] = ny;
+    v.speed = Math.hypot(v.vel[0], v.vel[2]);
+    // a gentle sway with the wind
+    v.roll = Math.sin(G.time * 0.7) * 0.03 + (v.vel[0] - wx) * 0.01; v.pitch = Math.cos(G.time * 0.5) * 0.03;
+    v.yaw += Math.sin(G.time * 0.1) * 0.02 * dt;
+    v.basis();
+    if (burn) {
+      const f = v.toWorld([0, 3.9, 0]);
+      for (let i = 0; i < 2; i++) Particles.flame(f[0] + rand(-0.15, 0.15), f[1] + rand(0, 0.4), f[2] + rand(-0.15, 0.15));
+    }
+  },
+  open(v) {
+    const F = this.field();
+    if (!F) { G.ui.toast('Balloons fly from the funfair'); return; }
+    const q = GPanel.open({ title: ED('Globus aerost\u00e0tic', 'Hot-air balloon'), icon: '\ud83c\udf88', sub: Fair.name() + ' \u00b7 ' + CITY, width: 440, cls: 'gp-fair' });
+    q.body.innerHTML = `<div class="fr-card"><div class="fr-hero">\ud83c\udf88</div><p>Fly wherever the wind takes you. Land anywhere.</p>
+      <div class="fr-keys"><div><kbd>Space</kbd> burner: climb</div><div>let go: cool down and sink</div><div><kbd>W A S D</kbd> a little nudge</div><div><kbd>V</kbd> camera \u00b7 <kbd>Shift</kbd> climb out</div></div>
+      <button class="gp-btn ok fr-go">${G.mode === 'creative' ? '' : '\ud83e\ude99 ' + BALLOON_PRICE + ' \u00b7 '}Take off</button></div>`;
+    q.body.querySelector('.fr-go').addEventListener('click', () => {
+      if (G.vehicle || Fair.seat) { G.ui.toast('You are already on a ride'); return; }
+      if (!Shops.pay(BALLOON_PRICE)) { G.ui.toast('\ud83e\ude99 A flight costs ' + BALLOON_PRICE + ' coins'); sfx('gate_no', null, 0.6, 1); return; }
+      q.close();
+      let b = v && !v.removed && v.parked ? v : null;
+      if (!b) {
+        const p = G.player.pos;
+        b = this.parked.slice().sort((a, c) => Math.hypot(a.pos[0] - p[0], a.pos[2] - p[2]) - Math.hypot(c.pos[0] - p[0], c.pos[2] - p[2]))[0];
+      }
+      if (!b) { b = Rides.spawn('balloon', F.x, F.y, F.z, 0, 0); b.scripted = true; b.balloon = true; b.vy = 0; }
+      b.parked = false; b.heat = 0.5; b.vy = 0; b.onGround = true;
+      this.parked = this.parked.filter((x) => x !== b);
+      boardBalloon.call(Vehicles, b);
+      const pr = G.prog || (G.prog = {});
+      pr.balloon = (pr.balloon || 0) + 1;
+      G.ui.banner('\ud83c\udf88', 'Hold Space to fire the burner and climb');
+    });
+  },
+  hud() {
+    const v = G.vehicle;
+    let el = $('balloonHud');
+    document.body.classList.toggle('balloon', !!(v && v.balloon));
+    if (!v || !v.balloon) { if (el) el.classList.remove('show'); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'balloonHud'; document.body.append(el); }
+    const [wx, wz, a] = this.wind(v.pos[1]), ground = Math.max(0, Math.round(v.pos[1] - G.world.gen.height(Math.floor(v.pos[0]), Math.floor(v.pos[2])) - 1));
+    const dirs = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'], dir = dirs[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8];
+    el.innerHTML = `<div class="bl-row"><b>${ground} m</b><span>${v.vy > 0.3 ? '\u25b2 climbing' : v.vy < -0.3 ? '\u25bc sinking' : v.onGround ? 'on the ground' : 'floating'}</span></div>
+      <div class="bl-heat"><i style="width:${Math.round(v.heat * 100)}%"></i></div>
+      <div class="bl-row"><small>\ud83c\udf2c\ufe0f ${dir} \u00b7 ${Math.round(Math.hypot(wx, wz) * 3.6)} km/h</small><small>${v.burning ? '\ud83d\udd25 burner' : 'Space: burner'}</small></div>`;
+    el.classList.add('show');
+  },
+};
+SYNTH.burner = (ctx, o, t) => { Sound.noise(ctx, o, t, 0.4, { type: 'bandpass', freq: 380, q: 0.7, gain: 0.35, attack: 0.03 }); Sound.noise(ctx, o, t, 0.4, { type: 'highpass', freq: 2500, gain: 0.06 }); };
+
+const boardBalloon = Vehicles.board;
+{
+  Vehicles.board = function (v) {
+    if (v && v.balloon && v.parked) { Balloons.open(v); return; }
+    return boardBalloon.call(this, v);
+  };
+  const ser = Vehicles.serialize;
+  Vehicles.serialize = function () { const keep = this.list; this.list = keep.filter((v) => !v.balloon); try { return ser.call(this); } finally { this.list = keep; } };
+  const pk = Vehicles.pickUp;
+  Vehicles.pickUp = function (v) { if (v && v.balloon) return; return pk.call(this, v); };
+  const hit = Vehicles.hit;
+  if (hit) Vehicles.hit = function (v) { if (v && v.balloon) return; return hit.call(this, v); };
+  const idle = Ride.prototype.updateIdle;
+  Ride.prototype.updateIdle = function (dt) { if (this.balloon) return; return idle.call(this, dt); };
+  const pilot = Rides.pilot;
+  Rides.pilot = function (v, dt, input, horn) {
+    if (!v.balloon) return pilot.call(this, v, dt, input, horn);
+    Balloons.fly(v, dt, input);
+    const p = G.player, at = v.toWorld([0, 0.14, 0]);
+    p.pos = at; p.vel = [0, 0, 0]; p.onGround = true; p.fallStart = null; p.landed = 0;
+    p.inWater = p.eyeInWater = p.inLava = p.eyeInLava = false;
+    this.stopMotor();
+    Balloons.burnT -= dt;
+    if (v.burning && Balloons.burnT <= 0) { sfx('burner', v.pos, 0.55, 1); Balloons.burnT = 0.34; }
+  };
+  const dis = Rides.dismount;
+  Rides.dismount = function (v, forced) {
+    if (!v.balloon) return dis.call(this, v, forced);
+    dis.call(this, v, forced);
+    const p = G.player;
+    if (!v.onGround) { p.pos = v.toWorld([1.4, 0.3, 0]); p.vel = [0, 0, 0]; p.parachute = true; G.ui.toast('Out of the basket: parachute open'); liftOutOfBlocks(p); }
+    v.heat = Math.min(v.heat, 0.3);
+  };
+  const rb = Rides.board;
+  Rides.board = function (v) {
+    if (!v || !v.balloon) return rb.call(this, v);
+    const toast = G.ui.toast;
+    G.ui.toast = () => {};
+    try { rb.call(this, v); } finally { G.ui.toast = toast; }
+    G.ui.toast('Space burner (climb) \u00b7 let go to sink \u00b7 WASD nudge \u00b7 V camera \u00b7 Shift climb out', 6000);
+  };
+  const fu = Furniture.update;
+  Furniture.update = function (dt) { fu.call(this, dt); try { Balloons.update(dt || 0.016); } catch (e) { console.warn('Blocklands: balloons', e); } };
+}
+</script>
+<script>
+'use strict';
 // Classes at STUCOM (the school edition only). School runs 8:00-14:30 of game time in periods
 // of an hour with a break at 11:00; each day of the week has its own timetable and each subject
 // its teacher and classroom: Programaci\u00f3 with Noelia, Projectes with Laura Ta\u00f1\u00e1, Sistemes with
@@ -43972,6 +45034,8 @@ function frame(now) {
       cam = { pos: [eye[0], eye[1] + 5, eye[2]], yaw: G.titleYaw, pitch: -0.1 + Math.sin(G.time * 0.05) * 0.04, roll: 0, fov: 70 };
     } else if (G.vehicle) {
       cam = Vehicles.camera(dt);
+    } else if (typeof Fair !== 'undefined' && Fair.seat) {
+      cam = Fair.camera(dt);
     } else {
       const eye = p.eyePos();
       let roll = st.hurtTilt * 0.13;
@@ -44000,7 +45064,7 @@ function frame(now) {
     if (!paused) DimAir.update(dt, cam.pos, dim);
     Sound.setListener(cam.pos, cam.yaw);
     const thirdPerson = (Photo.on ? Photo.away() : (typeof Architect !== 'undefined' && Architect.on) || G.view) && !G.vehicle && !G.onTitle && !st.dead && !G.sleeping;
-    const showHand = !Photo.on && !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle && !thirdPerson;
+    const showHand = !Photo.on && !G.hudHidden && !st.dead && !G.sleeping && !G.onTitle && !thirdPerson && !(typeof Fair !== 'undefined' && Fair.seat);
     let self = null;
     if (thirdPerson) {
       const sp = Math.hypot(p.vel[0], p.vel[2]);

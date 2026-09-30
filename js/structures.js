@@ -1037,7 +1037,8 @@ function placeStructures(g, chunk) {
   const plans = structuresIn(g, x0, z0, x0 + CS - 1, z0 + CS - 1);
   const ave = typeof aveChunk === 'function' ? aveChunk(g, x0, z0) : null;
   const space = typeof spaceChunk === 'function' ? spaceChunk(g, x0, z0) : null;
-  if (!plans.length && !ave && !space) return;
+  const fair = typeof fairChunk === 'function' ? fairChunk(g, x0, z0) : null;
+  if (!plans.length && !ave && !space && !fair) return;
   const W = structWriter(chunk);
   for (const p of plans) for (const piece of p.pieces) {
     const b = piece.box;
@@ -1047,4 +1048,5 @@ function placeStructures(g, chunk) {
   // the high-speed line runs further out than any plan reaches (ave_gen.js)
   if (ave) ave(W);
   if (space) space(W);
+  if (fair) fair(W);
 }
