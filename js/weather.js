@@ -3,7 +3,7 @@
 // the snowy peaks place) fall around the camera as particles; storms add lightning bolts,
 // thunder and flashes. Events: meteor showers on clear nights and eruptions of the volcano.
 
-const WEATHER_KINDS = ['clear', 'rain', 'storm', 'snow', 'fog'];
+const WEATHER_KINDS = ['clear', 'rain', 'storm', 'snow', 'fog', 'hail'];
 
 const Weather = {
   kind: 'clear', amount: 0, timer: 90,
@@ -16,7 +16,7 @@ const Weather = {
   rainFx: 0,       // how much rain the camera sees falling right now (0 under a roof)
 
   // 0..1 overcast strength the renderer uses
-  get overcast() { return this.amount * (this.kind === 'storm' ? 1 : this.kind === 'fog' ? 0.3 : 0.8); },
+  get overcast() { return this.amount * (this.kind === 'storm' || this.kind === 'hail' ? 1 : this.kind === 'fog' ? 0.3 : 0.8); },
   get mist() { return this.kind === 'fog' ? this.amount : 0; },
 
   set(kind, silent) {
@@ -24,7 +24,7 @@ const Weather = {
     if (kind === this.kind) return;
     this.kind = kind;
     this.timer = rand(150, 420);
-    if (!silent && G.ui && kind !== 'clear') G.ui.toast({ rain: '🌧️ It started raining', storm: '⛈️ A storm is coming', snow: '❄️ It is snowing', fog: '🌫️ Fog rolls in' }[kind]);
+    if (!silent && G.ui && kind !== 'clear') G.ui.toast({ rain: '🌧️ It started raining', storm: '⛈️ A storm is coming', snow: '❄️ It is snowing', fog: '🌫️ Fog rolls in', hail: '🧊 Hail! Find a roof' }[kind]);
   },
 
   // Is the column around (x, z) cold enough for snow?
@@ -46,7 +46,7 @@ const Weather = {
       this.timer -= dt;
       if (this.timer <= 0) {
         const r = Math.random();
-        this.set(this.kind !== 'clear' ? 'clear' : r < 0.45 ? 'rain' : r < 0.7 ? 'storm' : r < 0.84 ? 'snow' : 'fog');
+        this.set(this.kind !== 'clear' ? 'clear' : r < 0.42 ? 'rain' : r < 0.65 ? 'storm' : r < 0.8 ? 'snow' : r < 0.92 ? 'fog' : 'hail');
       }
     }
     const on = this.kind !== 'clear';
@@ -55,10 +55,12 @@ const Weather = {
     const p = cam.pos;
     const snow = this.kind === 'snow' || (wet && this.cold(p[0], p[2]));
     this.snowing = wet && snow;
-    if (this.amount > 0.05 && wet) this.precipitate(dt, p, snow);
-    const raining = wet && !snow ? this.amount : 0;
+    if (this.kind === 'hail') { if (this.amount > 0.05) this.hail(dt, p); }
+    else if (this.amount > 0.05 && wet) this.precipitate(dt, p, snow);
+    const raining = wet && !snow && this.kind !== 'hail' ? this.amount : 0;
     this.wetness = clamp(this.wetness + (raining > 0.3 ? dt / 25 : -dt / 150), 0, 1);
-    this.snowCover = clamp(this.snowCover + (this.snowing && this.amount > 0.3 ? dt / 60 : -dt / 90), 0, 1);
+    const winter = typeof Calendar !== 'undefined' && Calendar.season().k === 'winter';
+    this.snowCover = clamp(this.snowCover + (this.snowing && this.amount > 0.3 ? dt / (winter ? 25 : 60) : -dt / 90), 0, 1);
     const covered = G.eyeSky < 0.3 ? 0 : 1;
     this.rainFx += (raining * covered * (this.kind === 'storm' ? 1 : 0.7) - this.rainFx) * (1 - Math.exp(-dt * 3));
     this.storm(dt, p);
@@ -70,7 +72,8 @@ const Weather = {
   // Rain streaks or snow flakes spawned in a box around the camera, stopped by roofs.
   precipitate(dt, p, snow) {
     const w = G.world;
-    const n = Math.floor((snow ? 420 : 900) * this.amount * dt * (this.kind === 'storm' ? 1.5 : 1));
+    const winter = snow && typeof Calendar !== 'undefined' && Calendar.season().k === 'winter';
+    const n = Math.floor((snow ? (winter ? 900 : 420) : 900) * this.amount * dt * (this.kind === 'storm' ? 1.5 : 1));
     for (let i = 0; i < n; i++) {
       const x = p[0] + rand(-18, 18), z = p[2] + rand(-18, 18);
       const top = w.surfaceHeight(Math.floor(x), Math.floor(z));
@@ -87,6 +90,27 @@ const Weather = {
         Particles.add(Particles.base(x, y, z, { vx: wind, vy: rand(-28, -21), vz: wind * 0.4, life: l, max: l, size: rand(0.012, 0.02),
           layer: T.p_smoke, r: 1.25 * b, g: 1.35 * b, b: 1.5 * b, blend: true, drag: 1, streak: rand(0.035, 0.055), splash: true }));
       }
+    }
+  },
+
+  // Hail: white stones that bounce, rattle and hurt a little outdoors in survival.
+  precipHail: 0, hailHurt: 0,
+  hail(dt, p) {
+    const w = G.world, n = Math.floor(260 * this.amount * dt);
+    for (let i = 0; i < n; i++) {
+      const x = p[0] + rand(-14, 14), z = p[2] + rand(-14, 14), top = w.surfaceHeight(Math.floor(x), Math.floor(z)), y = p[1] + rand(5, 14);
+      if (top >= 0 && top + 1 > y) continue;
+      const l = 1.6;
+      Particles.add(Particles.base(x, y, z, { vx: rand(-0.5, 0.5), vy: -rand(16, 22), vz: rand(-0.5, 0.5), life: l, max: l, size: rand(0.06, 0.1),
+        layer: T.p_smoke, r: 1.7, g: 1.75, b: 1.85, blend: true, grav: 20, drag: 1, collide: true, bounce: 0.35 }));
+    }
+    const outside = G.eyeSky >= 0.3 && !G.vehicle;
+    this.precipHail -= dt;
+    if (this.precipHail <= 0) { this.precipHail = 0.12; if (outside) sfx('hail_tick', null, 0.25 * this.amount, rand(0.8, 1.3)); }
+    this.hailHurt -= dt;
+    if (outside && this.amount > 0.6 && this.hailHurt <= 0 && G.mode === 'survival' && !G.dimension) {
+      this.hailHurt = 3;
+      G.stats.damage(1, { type: 'generic' });
     }
   },
 

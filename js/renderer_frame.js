@@ -137,7 +137,7 @@ Object.assign(Renderer.prototype, {
     this.setU(prog, 'uSkyScale', '1f', A.skyScale);
     this.setU(prog, 'uNight', '1f', A.night);
     // street lamps and lit windows: on from dusk, and on dark stormy days
-    this.setU(prog, 'uLampsOn', '1f', Math.max(A.night, clamp(((A.weather || 0) - 0.55) * 2.5, 0, 1)) * (A.dim ? 0 : 1));
+    this.setU(prog, 'uLampsOn', '1f', Math.max(A.night, clamp(((A.weather || 0) - 0.55) * 2.5, 0, 1)) * (A.dim ? 0 : 1) * (1 - (G.blackout || 0)));
     this.setU(prog, 'uNightL', '2f', NIGHT_LAYERS[0], NIGHT_LAYERS[1]);
     const SE = this.season || NO_DIM;
     this.setU(prog, 'uSeason', '4f', SE[0], SE[1], SE[2], A.dim ? 0 : SE[3]);

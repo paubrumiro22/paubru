@@ -13,7 +13,7 @@ const SETTINGS_UI = [
   { key: 'godrays', group: 'effects', label: 'Sun rays', hint: 'Light beams through trees and clouds.', type: 'check' },
   { key: 'bloom', group: 'effects', label: 'Bloom', hint: 'Glow around bright lights.', type: 'check' },
   { key: 'fxaa', group: 'effects', label: 'Anti-aliasing', hint: 'Smooths jagged edges (FXAA).', type: 'check' },
-  { key: 'weather', group: 'world', label: 'Weather', hint: 'Rain, storms, snow where it is cold, and fog.', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow'], ['fog', 'Fog']] },
+  { key: 'weather', group: 'world', label: 'Weather', hint: 'Rain, storms, snow where it is cold, and fog.', type: 'select', options: [['auto', 'Changes by itself'], ['clear', 'Clear'], ['rain', 'Rain'], ['storm', 'Storm'], ['snow', 'Snow'], ['fog', 'Fog'], ['hail', 'Hail']] },
   { key: 'events', group: 'world', label: 'World events', hint: 'Meteor showers on clear nights and volcano eruptions.', type: 'check' },
   { key: 'physics', group: 'world', label: 'Physics', hint: 'Realistic: built blocks need support and collapse without it, blasts throw debris, felled trees topple, ice slides.', type: 'select', options: [['realistic', 'Realistic'], ['classic', 'Classic']] },
   { key: 'pvp', group: 'world', label: 'Player fights (PvP)', hint: 'Online: other players can hit you, and you them. Off, nobody can hurt you.', type: 'check' },
