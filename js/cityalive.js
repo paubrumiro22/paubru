@@ -359,8 +359,13 @@ const CityEvents = {
       return;
     }
     f.t += dt;
-    for (let i = 0; i < 3; i++) if (Math.random() < dt * 30 * f.hp / 100) Particles.flame(f.x + rand(-1.2, 1.2), f.y + rand(-0.5, 1.5), f.z + rand(-1.2, 1.2));
-    if (Math.random() < dt * 8) Particles.smoke(f.x, f.y + 2, f.z, 3, 1.5, true);
+    // big licking flames out of the window and a column of dark smoke
+    const fk = clamp(f.hp / 100, 0.2, 1);
+    for (let i = 0; i < 4; i++) if (Math.random() < dt * 30 * fk) {
+      const l = rand(0.5, 1.0);
+      Particles.add(Particles.base(f.x + rand(-1.5, 1.5), f.y + rand(-0.8, 0.6), f.z + rand(-1.5, 1.5), { vx: rand(-0.3, 0.3), vy: rand(1.2, 2.6), vz: rand(-0.3, 0.3), life: l, max: l, size: rand(0.28, 0.55) * fk + 0.1, layer: T.p_flame, glow: true, drag: 0.96, shrink: true, collide: false }));
+    }
+    if (Math.random() < dt * 14) Particles.smoke(f.x + rand(-1, 1), f.y + 2.2, f.z + rand(-1, 1), 3, 1.2, true);
     if (f.truck && !f.truck.parked && Math.hypot(f.truck.v.pos[0] - f.x, f.truck.v.pos[2] - f.z) < 30) { f.truck.parked = true; f.truck.speed = 0; }
     if (f.truck && f.truck.parked) f.hp -= dt * 0.35;       // the firefighters work too
     if (f.hp <= 0 || f.t > 240) {
@@ -472,11 +477,13 @@ const CityEvents = {
       // tongues of flame licking out of the window, shrinking as the fire dies down
       const k = clamp(f.hp / 100, 0.15, 1);
       for (let i = 0; i < 9; i++) {
-        const ph = G.time * (5 + i) + i * 1.7, h = (1.2 + 1.6 * Math.abs(Math.sin(ph))) * k;
-        const ox = Math.sin(i * 2.3) * 1.3 * k, oz = Math.cos(i * 1.7) * 1.3 * k;
-        const m = XF.t(f.x + ox - cp[0], f.y - 0.8 - cp[1], f.z + oz - cp[2]);
+        const ph = G.time * (5 + i) + i * 1.7, h = (0.9 + 1.9 * Math.abs(Math.sin(ph))) * k;
+        const ox = Math.sin(i * 2.3 + G.time * 0.7) * 1.7 * k, oz = Math.cos(i * 1.7 + G.time * 0.5) * 1.7 * k;
+        const m = XF.chain(XF.t(f.x + ox - cp[0], f.y - 0.8 - cp[1], f.z + oz - cp[2]), XF.ry(i * 0.8 + G.time * 2));
         const col = i % 3 === 0 ? [1, 0.85, 0.3] : i % 3 === 1 ? [1, 0.45, 0.08] : [0.95, 0.22, 0.05];
-        B0(m, [-0.35 * k, 0, -0.35 * k], [0.35 * k, h, 0.35 * k], 0, 0, 0, col, true);
+        const w = (0.12 + 0.1 * Math.abs(Math.sin(ph * 1.3))) * k;
+        B0(m, [-w, 0, -w], [w, h, w], 0, 0, 0, col, true);
+        B0(m, [-w * 0.6, h, -w * 0.6], [w * 0.6, h * 1.25, w * 0.6], 0, 0, 0, [1, 0.9, 0.5], true);
       }
     }
     if (c && c.kind === 'race') {
