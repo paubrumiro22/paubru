@@ -95,7 +95,7 @@ Juego voxel estilo Minecraft, **original** (texturas, pieles de mobs y sonidos g
 - Local: `python -m http.server 5190` en esta carpeta, o abrir `index.html`.
 - `node build.js` genera `dist/blocklands.html`: un solo archivo sin `<html>/<head>/<body>` (el host de artifacts de claude.ai añade el esqueleto) y **solo ASCII** (escapa acentos y emojis), porque el host puede no declarar charset. Allí `confirm()`/`alert()` no funcionan y el pointer lock puede fallar: por eso existe el modo "free cursor" (arrastrar para mirar, mantener quieto para picar).
 - Regenerar `dist/` después de cualquier cambio en `index.html` o `js/`.
-- Web pública: https://blocklands.vercel.app (proyecto `blocklands` de Vercel, conectado a este repo: cada push a `main` se despliega solo; sirve `index.html` + `js/` de la raíz, no `dist/`).
+- Web pública: https://jordilands.vercel.app (también sigue funcionando blocklands.vercel.app) (proyecto `blocklands` de Vercel, conectado a este repo: cada push a `main` se despliega solo; sirve `index.html` + `js/` de la raíz, no `dist/`).
 - Pruebas: Playwright global con Chromium (`--use-angle=swiftshader`). Es lento (varios segundos por frame a 1280×720): bajar nubes/SSR/sombras y la distancia de render para capturas.
 
 ## Rendimiento (medido en una GPU AMD integrada, 1280×720, antes de la supervivencia)
