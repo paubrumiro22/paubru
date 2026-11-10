@@ -586,8 +586,8 @@ SYNTH.music_box = (ctx, o, t) => { Sound.tone(ctx, o, t, 0.9, { wave: 'triangle'
   const die = Stats.prototype.die;
   Stats.prototype.die = function (src) { Fair.seat = null; Fair.wait = null; return die.call(this, src); };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Fair.update(dt || 0.016); } catch (e) { console.warn('Blocklands: fair', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Fair.update(dt || 0.016); } catch (e) { console.warn('JordiLands: fair', e); } };
   const wr = Weather.render;
-  Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Fair.render(cp); } catch (e) { console.warn('Blocklands: fair render', e); } return r; };
+  Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Fair.render(cp); } catch (e) { console.warn('JordiLands: fair render', e); } return r; };
   PC.add({ key: 'fair', icon: '🎡', name: ED('Fira', 'Funfair'), run() { Fair.menu(); } });
 }

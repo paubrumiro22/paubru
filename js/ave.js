@@ -317,7 +317,7 @@ const boardAve = Vehicles.board;
     return use.call(this, initial);
   };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Ave.update(dt || 0.016); Ave.updateHud(); } catch (e) { console.warn('Blocklands: AVE', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Ave.update(dt || 0.016); Ave.updateHud(); } catch (e) { console.warn('JordiLands: AVE', e); } };
   PC.add({ key: 'ave', icon: '🚄', name: 'AVE', run() { Ave.open(); } });
   const run = Commands.run;
   Commands.run = function (text) { if (/^\/(ave|train|tren)\b/i.test(text)) { Ave.find(); return; } return run.call(this, text); };

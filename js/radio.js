@@ -16,7 +16,7 @@ Object.assign(MOODS, {
   radio_news: { root: 55, scale: 'major', bpm: 70, progs: [[0, 4, 5, 3]], parts: { pad: 0.45, piano: 0.3 }, rest: null, bars: [8, 8] },
 });
 const RADIO_STATIONS = [
-  { k: 'pop', mood: 'radio_pop', icon: '🎤', name: 'Blocklands Pop', fm: '98.1' },
+  { k: 'pop', mood: 'radio_pop', icon: '🎤', name: 'JordiLands Pop', fm: '98.1' },
   { k: 'chill', mood: 'radio_chill', icon: '🌙', name: 'Chill FM', fm: '101.4' },
   { k: 'classic', mood: 'radio_classic', icon: '🎻', name: ED('Clàssica', 'Classical'), fm: '93.7' },
   { k: 'rumba', mood: 'radio_rumba', icon: '💃', name: ED('Ràdio Rumba', 'Rumba Radio'), fm: '105.9' },
@@ -197,7 +197,7 @@ const Voice = {
       Radio.update(dt || 0.016); Voice.update();
       if (Radio.chip) Radio.chip.classList.toggle('show', !!Radio.station() && !G.onTitle);
       else if (Radio.station()) Radio.drawChip();
-    } catch (e) { console.warn('Blocklands: radio', e); }
+    } catch (e) { console.warn('JordiLands: radio', e); }
   };
   PC.add({ key: 'radio', icon: '📻', name: ED('Ràdio', 'Radio'), run() { Radio.open(); } });
   PC.add({ key: 'voice', icon: '🎙️', name: ED('Veu', 'Voice'), run() { Voice.open(); } });

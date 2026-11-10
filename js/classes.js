@@ -212,7 +212,7 @@ if (!CG) {
     return use.call(this, initial);
   };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Classes.update(dt || 0.016); } catch (e) { console.warn('Blocklands: classes', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Classes.update(dt || 0.016); } catch (e) { console.warn('JordiLands: classes', e); } };
   PC.add({ key: 'report', icon: '📋', name: 'Butlletí', run() { Classes.report(); } });
   PC.add({ key: 'timetable', icon: '🗓️', name: 'Horari', run() {
     const q = GPanel.open({ title: 'Horari', sub: 'DAM 1r · STUCOM', icon: '🗓️', cls: 'gp-tt', width: 640 });

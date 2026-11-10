@@ -1,5 +1,5 @@
 'use strict';
-// Island cruise: the Blocklands Star, a white cruise ship with three decks of cabins, a pool on
+// Island cruise: the JordiLands Star, a white cruise ship with three decks of cabins, a pool on
 // top, lifeboats and a red funnel, lies at anchor off every port (sea.js finds the ports). Buy a
 // cruise at the ferry office or with the Cruise app: you are taken aboard, it sails out and
 // calls at the islands and the beach, three minutes ashore at each (the horn warns you, the app
@@ -115,7 +115,7 @@ const Cruise = {
       if (G.vehicle) Vehicles.dismount(true);
       if (!this.v || this.v.removed) { const A = this.anchorOf(port); this.ship(A.x, A.z, A.yaw); }
       this.aboard();
-      G.ui.banner('🛳️', 'Welcome aboard the Blocklands Star! Next stop: ' + stops[0].name);
+      G.ui.banner('🛳️', 'Welcome aboard the JordiLands Star! Next stop: ' + stops[0].name);
       sfx('horn', this.v.pos, 1.3, 0.35);
       Airport.fade(false);
     }, 900);
@@ -182,7 +182,7 @@ const Cruise = {
       if (G.vehicle) Vehicles.dismount(true);
       this.trip = null;
       this.land(T.port);
-      G.ui.banner('🛳️', 'Back at ' + (T.port.name || 'the port') + ' · thank you for sailing with the Blocklands Star');
+      G.ui.banner('🛳️', 'Back at ' + (T.port.name || 'the port') + ' · thank you for sailing with the JordiLands Star');
       Airport.fade(false);
     }, 1200);
   },
@@ -213,7 +213,7 @@ const Cruise = {
   open() {
     const T = this.trip, e = GPanel.esc;
     if (!T && !Ferry.port) { Ferry.find(); return; }
-    const q = GPanel.open({ title: 'Blocklands Star', sub: T ? 'Island cruise · stop ' + Math.min(T.i + 1, T.stops.length) + ' of ' + T.stops.length : 'Island cruise from ' + (Ferry.port.name || 'the port'), icon: '🛳️', cls: 'gp-cruise', width: 520 });
+    const q = GPanel.open({ title: 'JordiLands Star', sub: T ? 'Island cruise · stop ' + Math.min(T.i + 1, T.stops.length) + ' of ' + T.stops.length : 'Island cruise from ' + (Ferry.port.name || 'the port'), icon: '🛳️', cls: 'gp-cruise', width: 520 });
     if (T && T.phase === 'ashore') {
       const left = Math.max(0, Math.ceil(CRUISE_ASHORE - T.t));
       q.body.innerHTML = `<div class="cr-card"><div class="cr-big">⏱️ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</div><p>The ship sails ${T.i + 1 < T.stops.length ? 'on to <b>' + e(T.stops[T.i + 1].name) + '</b>' : 'home to <b>' + e(T.port.name || 'the port') + '</b>'} when the time is up.</p>
@@ -229,7 +229,7 @@ const Cruise = {
     const port = this.port || Ferry.port, stops = port ? this.route(port) : [], e = GPanel.esc;
     const el = document.createElement('div');
     el.className = 'cr-offer';
-    el.innerHTML = `<div class="cr-ship">🛳️</div><div class="cr-txt"><b>Island cruise · Blocklands Star</b><span>${stops.map((s) => s.icon + ' ' + e(s.name)).join(' → ')} → ⚓ back here · ${Math.round(CRUISE_ASHORE / 60)} min ashore at each stop · pool deck</span></div>
+    el.innerHTML = `<div class="cr-ship">🛳️</div><div class="cr-txt"><b>Island cruise · JordiLands Star</b><span>${stops.map((s) => s.icon + ' ' + e(s.name)).join(' → ')} → ⚓ back here · ${Math.round(CRUISE_ASHORE / 60)} min ashore at each stop · pool deck</span></div>
       <button class="gp-btn ok" ${stops.length ? '' : 'disabled'}>🪙 ${CRUISE_PRICE}</button>`;
     el.querySelector('button').addEventListener('click', () => { const top = GPanel.top(); if (top) top.close(); this.book(); });
     host.append(el);
@@ -243,7 +243,7 @@ const Cruise = {
     let line;
     if (T.phase === 'ashore') { const left = Math.max(0, Math.ceil(CRUISE_ASHORE - T.t)); line = `Ashore at ${GPanel.esc(next.name)} · all aboard in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} · 📱 Cruise`; }
     else line = (next ? 'Sailing to ' + GPanel.esc(next.name) : 'Sailing home') + ' · ' + Math.round(T.speed * 1.94 * 1.6) + ' knots';
-    el.innerHTML = `<b>🛳️ Blocklands Star</b><span>${line}</span><div class="cr-dots">${T.stops.map((s, i) => `<i class="${i < T.i ? 'done' : i === T.i ? 'now' : ''}">${s.icon}</i>`).join('<u></u>')}<u></u><i class="${T.i >= T.stops.length ? 'now' : ''}">⚓</i></div>`;
+    el.innerHTML = `<b>🛳️ JordiLands Star</b><span>${line}</span><div class="cr-dots">${T.stops.map((s, i) => `<i class="${i < T.i ? 'done' : i === T.i ? 'now' : ''}">${s.icon}</i>`).join('<u></u>')}<u></u><i class="${T.i >= T.stops.length ? 'now' : ''}">⚓</i></div>`;
     el.classList.add('show');
   },
 };
@@ -280,6 +280,6 @@ const boardCruise = Vehicles.board;
     if (q && Ferry.port && q.wrap.querySelector('.gp-t').textContent.startsWith('Ferry')) Cruise.card(q.body);
   };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Cruise.update(dt || 0.016); Cruise.updateHud(); } catch (e) { console.warn('Blocklands: cruise', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Cruise.update(dt || 0.016); Cruise.updateHud(); } catch (e) { console.warn('JordiLands: cruise', e); } };
   PC.add({ key: 'cruise', icon: '🛳️', name: ED('Creuer', 'Cruise'), run() { Cruise.open(); } });
 }

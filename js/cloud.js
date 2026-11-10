@@ -31,7 +31,7 @@ const Cloud = {
   },
 
   failed(e) {
-    console.warn('Blocklands: cloud', e);
+    console.warn('JordiLands: cloud', e);
     // a missing table means the one-time setup has not been run
     this.state = e && (e.status === 404 || /PGRST205|42P01|does not exist/.test(e.body || '')) ? 'setup' : 'offline';
     this.refresh();

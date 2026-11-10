@@ -201,6 +201,6 @@ const Mayor = {
   const ad = Airport.dests;
   Airport.dests = function () { const l = ad.call(this); return Mayor.policy() === 'transit' ? l.map((d) => ({ ...d, price: Math.ceil(d.price / 2) })) : l; };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Mayor.update(dt || 0.016); } catch (e) { console.warn('Blocklands: mayor', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Mayor.update(dt || 0.016); } catch (e) { console.warn('JordiLands: mayor', e); } };
   PC.add({ key: 'cityhall', icon: '🏛️', name: ED('Ajuntament', 'City Hall'), run() { Mayor.open(); } });
 }

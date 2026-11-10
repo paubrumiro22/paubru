@@ -1,6 +1,6 @@
 'use strict';
 // Shops in the Galeries STUCOM (built by district.js under the square, off the Universitat metro
-// landing): the SuperBloc supermarket, Forn Can Pau, Mobles Blocklands, the car showroom and the
+// landing): the SuperBloc supermarket, Forn Can Pau, Mobles JordiLands, the car showroom and the
 // kiosk. Right-click a shopkeeper or a till to open the shop: a catalogue with prices in coins,
 // a basket, and a "Sell" tab where the supermarket and the bakery buy your crops and food.
 // Bakery goods are new foods (croissant, ensaïmada, coca, cookie...). During Sant Joan the coca is
@@ -29,7 +29,7 @@ const SHOPS = {
   forn: { name: 'Forn Can Pau', icon: '🥐', tag: 'Forn de pa', color: '#b5652a',
     sell: [[I.BREAD, 3], [I.CROISSANT, 3], [I.ENSAIMADA, 4], [I.COCA, 10], [I.COOKIE, 1], [I.PA_TOMAQUET, 5], [I.SANDWICH, 7], [I.CHOCOLATE, 2]],
     buy: [[I.WHEAT, 1.5], [B.SUGAR_CANE, 1], [I.EGG, 1]] },
-  mobles: { name: 'Mobles Blocklands', icon: '🛋️', tag: 'Mobles', color: '#e0782a', sell: [], buy: [] },
+  mobles: { name: 'Mobles JordiLands', icon: '🛋️', tag: 'Mobles', color: '#e0782a', sell: [], buy: [] },
   cotxes: { name: 'Motor ' + CITY, icon: '🚗', tag: 'Concessionari', color: '#1e2432',
     sell: [[I.BIKE, 60], [I.CAR, 400], [I.BOAT, 180], [I.BUS, 900], [I.HELI, 1600], [I.CART, 90]], buy: [] },
   quiosc: { name: 'Quiosc de la Plaça', icon: '📰', tag: 'Quiosc', color: '#2a6ce0',
@@ -237,7 +237,7 @@ SYNTH.shop_till = (ctx, o, t) => {
   };
   sign('super', plate(['#e3262f', '#a8141c'], '#fff', 'SuperBloc', 'SUPERMERCAT · obert cada dia', '🛒'));
   sign('forn', plate(['#f3e2c4', '#d9b98a'], '#6a3a14', 'Forn Can Pau', 'PA · PASTISSERIA · DES DE 1924', '🥐'));
-  sign('mobles', plate(['#ff9a3c', '#d9651a'], '#fff', 'Mobles', 'BLOCKLANDS · la teva casa', '🛋️'));
+  sign('mobles', plate(['#ff9a3c', '#d9651a'], '#fff', 'Mobles', 'JORDILANDS · la teva casa', '🛋️'));
   sign('cotxes', plate(['#2a3244', '#10141c'], '#e8edf5', 'Motor ' + CITY, ED('CONCESSIONARI OFICIAL', 'OFFICIAL DEALER'), '🚗'));
   sign('quiosc', plate(['#2f7df0', '#1a55b8'], '#fff', 'Quiosc', 'PREMSA · BEGUDES · TARGETES', '📰'));
   PIC_BUILTIN.shop_galeries = { w: 3, h: 1, draw: plate(['#141a26', '#0a0e16'], '#ffd34d', 'Galeries', '← BOTIGUES · SHOPS', '🛍️') };

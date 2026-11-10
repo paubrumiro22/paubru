@@ -22,7 +22,7 @@ const Crazy = {
     if (!CG) return;
     const S = window.CrazyGames && window.CrazyGames.SDK;
     if (!S) return;
-    try { await S.init(); } catch (e) { console.warn('Blocklands: CrazyGames SDK', e); return; }
+    try { await S.init(); } catch (e) { console.warn('JordiLands: CrazyGames SDK', e); return; }
     this.sdk = S; this.ready = true;
     this.cloudOn = !!S.data;
     this.call(() => S.game.loadingStart());
@@ -78,7 +78,7 @@ const Crazy = {
         try { storageSet(k, JSON.parse(await this.unb64(b64))); local[k] = t; } catch (e) { /* damaged: keep the local one */ }
       }
       this.setCloudT(local);
-    } catch (e) { console.warn('Blocklands: cloud pull', e); } finally { this.pulling = false; }
+    } catch (e) { console.warn('JordiLands: cloud pull', e); } finally { this.pulling = false; }
   },
   queue: new Set(), pushT: 0,
   wrote(key) {
@@ -104,7 +104,7 @@ const Crazy = {
       }
       this.sdk.data.setItem('bl:meta', JSON.stringify(meta));
       this.setCloudT(local);
-    } catch (e) { console.warn('Blocklands: cloud push', e); }
+    } catch (e) { console.warn('JordiLands: cloud push', e); }
   },
 
   // is the game being played right now?
@@ -183,7 +183,7 @@ if (CG) {
   { const f = document.querySelector('#title .title-foot span'); if (f) f.innerHTML = 'Made by <b>Pau Bru</b>'; }
   {
     const r = $('creditsRoll');
-    if (r) r.innerHTML = `<h1 class="logo">BLOCK<span>LANDS</span></h1><div class="by">Made by</div><div class="who">PAU BRU</div>
+    if (r) r.innerHTML = `<h1 class="logo">JORDI<span>LANDS</span></h1><div class="by">Made by</div><div class="who">PAU BRU</div>
       <dl><dt>Idea, design and direction</dt><dd>Pau Bru</dd></dl>
       <dl><dt>The city</dt><dd>Blockton: skyscrapers, metro, buses, taxis, an airport, a mall and houses for sale</dd></dl>
       <dl><dt>Worlds and places</dt><dd>Paradise beach · Volcano · Oasis · Snowy peaks<br>Ancient forest · Red canyon · Archipelago · Flower meadow</dd></dl>

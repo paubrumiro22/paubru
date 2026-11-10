@@ -203,5 +203,5 @@ const boardBalloon = Vehicles.board;
     G.ui.toast('Space burner (climb) · let go to sink · WASD nudge · V camera · Shift climb out', 6000);
   };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Balloons.update(dt || 0.016); } catch (e) { console.warn('Blocklands: balloons', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Balloons.update(dt || 0.016); } catch (e) { console.warn('JordiLands: balloons', e); } };
 }

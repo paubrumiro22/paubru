@@ -315,7 +315,7 @@ const Mini = {
   const kp = Ents.keepable;
   Ents.keepable = function (m) { if (m.mgKid) return false; return kp.call(this, m); };
   const fu = Furniture.update;
-  Furniture.update = function (d) { fu.call(this, d); try { Mini.tick(d || 0.016); } catch (e) { console.warn('Blocklands: minigames', e); } };
+  Furniture.update = function (d) { fu.call(this, d); try { Mini.tick(d || 0.016); } catch (e) { console.warn('JordiLands: minigames', e); } };
   const wr = Weather.render;
   Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Mini.render(cp); } catch (e) { /* ignore */ } return r; };
   PC.add({ key: 'minigames', icon: '🎯', name: ED('Minijocs', 'Minigames'), run() { Mini.open(); } });

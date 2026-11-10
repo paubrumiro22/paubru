@@ -30,7 +30,7 @@ const SharedState = {
     if (!d || typeof d.k !== 'string' || d.k.length > 64 || !Number.isFinite(d.t)) return;
     if (d.t <= (this.times.get(d.k) || 0)) return;
     this.times.set(d.k, d.t);
-    try { this.apply(d.k, d.v === undefined ? null : d.v); } catch (e) { console.warn('Blocklands: shared state', e); }
+    try { this.apply(d.k, d.v === undefined ? null : d.v); } catch (e) { console.warn('JordiLands: shared state', e); }
   },
   apply(k, v) {
     if (k.startsWith('be:')) this.applyBE(Number(k.slice(3)), v);

@@ -1,5 +1,5 @@
 'use strict';
-// Aeroport STUCOM (district.js builds it east of the ring road). While you are near, Blocklands
+// Aeroport STUCOM (district.js builds it east of the ring road). While you are near, JordiLands
 // Air airliners land on the runway, taxi to the stand, wait and take off again. At a check-in
 // till (or with the airline staff) you buy a flight to any of the world's themed places: you
 // board the plane at the stand, it taxis out and takes off with you, and you land at the place
@@ -138,7 +138,7 @@ const Airport = {
     return pl ? 40 + Math.round(Math.min(6000, Math.hypot(p[0] - pl.x, p[2] - pl.z)) / 30) : 40;
   },
   openReturn() {
-    const q = GPanel.open({ title: 'Blocklands Air', sub: 'Return flight · to ' + CITY + ' Airport', icon: '✈️', cls: 'gp-shop', width: 520 });
+    const q = GPanel.open({ title: 'JordiLands Air', sub: 'Return flight · to ' + CITY + ' Airport', icon: '✈️', cls: 'gp-shop', width: 520 });
     q.wrap.querySelector('.gp').style.setProperty('--shop', '#d6202b');
     const pass = G.inv.count(I.BOARDING_PASS) > 0, price = this.homePrice();
     const where = G.prog && G.prog.trip ? (this.dests().find((d) => d.key === G.prog.trip) || null) : null;
@@ -158,7 +158,7 @@ const Airport = {
     const pl = this.plan();
     if (!pl) { G.ui.toast('Flights leave from the airport of ' + CITY); return; }
     if (this.away()) { this.openReturn(); return; }
-    const q = GPanel.open({ title: 'Blocklands Air', sub: 'Departures · ' + CITY + ' Airport', icon: '✈️', cls: 'gp-shop', width: 640 });
+    const q = GPanel.open({ title: 'JordiLands Air', sub: 'Departures · ' + CITY + ' Airport', icon: '✈️', cls: 'gp-shop', width: 640 });
     q.wrap.querySelector('.gp').style.setProperty('--shop', '#d6202b');
     const now = new Date();
     const list = this.dests();
@@ -189,7 +189,7 @@ const Airport = {
       this.step(F, 0);
       Vehicles.board(F.v);
       G.player.yaw = F.v.yaw + Math.PI + 0.7; G.player.pitch = -0.22;
-      G.ui.banner('✈️', 'Blocklands Air BA to ' + d.name + ' · fasten your seat belt');
+      G.ui.banner('✈️', 'JordiLands Air BA to ' + d.name + ' · fasten your seat belt');
       sfx('metro_chime', null, 0.8, 0.8);
       this.fade(false);
       void pl;
@@ -237,7 +237,7 @@ const Airport = {
       Vehicles.board(F.v);
       p.yaw = F.v.yaw + Math.PI + 0.7; p.pitch = -0.22;
       Net.teleported();
-      G.ui.banner('✈️', 'Blocklands Air · back to ' + CITY + ' · we are starting our approach');
+      G.ui.banner('✈️', 'JordiLands Air · back to ' + CITY + ' · we are starting our approach');
       sfx('metro_chime', null, 0.8, 0.8);
       this.fade(false);
     }, 1200);
@@ -296,7 +296,7 @@ PIC_BUILTIN.airport_sign = { w: 6, h: 2, draw(g, W, H) {
   g.fillStyle = grd; g.fillRect(0, 0, W, H);
   g.font = `${H * 0.6}px serif`; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillText('✈️', H * 0.55, H * 0.5);
   g.textAlign = 'left'; g.fillStyle = '#fff'; g.font = `900 ${H * 0.36}px Arial`; g.fillText(ED('AEROPORT', 'AIRPORT'), H * 1.1, H * 0.36);
-  g.fillStyle = '#ffcc33'; g.font = `900 ${H * 0.26}px Arial`; g.fillText(CITY.toUpperCase() + ' · BLOCKLANDS AIR', H * 1.12, H * 0.72);
+  g.fillStyle = '#ffcc33'; g.font = `900 ${H * 0.26}px Arial`; g.fillText(CITY.toUpperCase() + ' · JORDILANDS AIR', H * 1.12, H * 0.72);
 } };
 sprite('i_boarding_pass', (d) => {
   sprRect(d, 3, 9, 29, 24, [246, 246, 240]); sprRect(d, 3, 9, 29, 13, [214, 32, 43]);

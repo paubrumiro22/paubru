@@ -80,7 +80,7 @@ const Net = {
         const room = await Promise.race([window.claude.use('room'), new Promise((r) => setTimeout(() => r(null), 12000))]);
         if (room) { this.room = room; this.kind = 'room'; this.available = true; this.refreshUI(); return; }
       }
-    } catch (e) { console.warn('Blocklands: room unavailable', e); }
+    } catch (e) { console.warn('JordiLands: room unavailable', e); }
     // anywhere else: tabs of this browser
     if (typeof BroadcastChannel !== 'undefined') {
       this.kind = 'local';
@@ -230,7 +230,7 @@ const Net = {
     try {
       mod = await loadTrystero();
     } catch (e) {
-      console.warn('Blocklands: could not load the networking library', e);
+      console.warn('JordiLands: could not load the networking library', e);
       if (token === this.p2pToken && !Relay.joined) { this.statusText = 'Offline: could not reach the network (you can keep playing, it saves here)'; this.refreshUI(); }
       return;
     }
@@ -271,7 +271,7 @@ const Net = {
       this.statusText = 'Online';
       this.sendPresence(true);
     } catch (e) {
-      console.warn('Blocklands: could not open the server', e);
+      console.warn('JordiLands: could not open the server', e);
       this.statusText = 'Offline: could not open the connection (you can keep playing, it saves here)';
     }
     this.refreshUI();

@@ -181,7 +181,7 @@ const Crews = {
     return apply.call(this, k, v);
   };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Crews.update(dt || 0.016); } catch (e) { console.warn('Blocklands: crews', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Crews.update(dt || 0.016); } catch (e) { console.warn('JordiLands: crews', e); } };
   const wr = Weather.render;
   Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Crews.render(cp); } catch (e) { /* ignore */ } return r; };
   PC.add({ key: 'crews', icon: '🚩', name: ED('Colles', 'Crews'), run() { Crews.open(); } });

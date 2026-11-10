@@ -325,7 +325,7 @@ const boardRocket = Vehicles.board;
     return use.call(this, initial);
   };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Rocket.update(dt || 0.016); } catch (e) { console.warn('Blocklands: rocket', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Rocket.update(dt || 0.016); } catch (e) { console.warn('JordiLands: rocket', e); } };
   const wr = Weather.render;
   Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Rocket.render(cp); } catch (e) { /* ignore */ } return r; };
   PC.add({ key: 'space', icon: '🚀', name: ED('Espai', 'Space'), run() { Rocket.open(); } });

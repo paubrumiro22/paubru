@@ -1,4 +1,4 @@
--- Blocklands: always-on servers. Run this once in Supabase → SQL Editor → New query → Run.
+-- JordiLands: always-on servers. Run this once in Supabase → SQL Editor → New query → Run.
 -- It is safe to run again.
 
 create table if not exists public.bl_servers (

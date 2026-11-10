@@ -49,8 +49,8 @@ function showError(title, err) {
 }
 // Boot and the frame loop report their own failures; stray errors from input handlers or the
 // hosting page are logged instead of stopping the game.
-window.addEventListener('error', (e) => console.warn('Blocklands:', e.error || e.message));
-window.addEventListener('unhandledrejection', (e) => console.warn('Blocklands:', e.reason));
+window.addEventListener('error', (e) => console.warn('JordiLands:', e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => console.warn('JordiLands:', e.reason));
 $('reloadBtn').addEventListener('click', () => location.reload());
 
 // ---------- settings ----------
@@ -1152,7 +1152,7 @@ function updateDebug() {
   const facing = dirs[((Math.round(p.yaw / (Math.PI / 2)) % 4) + 4) % 4];
   const L = G.world.getLight(x, Math.floor(p.pos[1] + 0.5), z);
   $('debug').textContent = [
-    'Blocklands  ' + G.fps.toFixed(0) + ' fps (' + G.frameMs.toFixed(1) + ' ms)',
+    'JordiLands  ' + G.fps.toFixed(0) + ' fps (' + G.frameMs.toFixed(1) + ' ms)',
     'XYZ ' + p.pos.map((v) => v.toFixed(2)).join(' / ') + '   chunk ' + (x >> 4) + ', ' + (z >> 4),
     'Facing ' + facing + '   biome ' + biome.toLowerCase() + '   ' + (p.flying ? 'flying' : p.onGround ? 'grounded' : 'airborne') + (p.inWater ? ' (water)' : ''),
     'Light sky ' + (L >> 4) + ' block ' + (L & 15) + '   mode ' + G.mode + '   difficulty ' + G.difficulty,
@@ -1214,7 +1214,7 @@ async function boot() {
     G.lastTime = performance.now();
     requestAnimationFrame(frame);
   } catch (e) {
-    showError('Blocklands could not start', e);
+    showError('JordiLands could not start', e);
   }
 }
 

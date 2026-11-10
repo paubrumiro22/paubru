@@ -154,7 +154,7 @@ const Photo = {
     x.font = '600 ' + Math.round(H * 0.022) + 'px system-ui, sans-serif';
     x.fillStyle = 'rgba(255,255,255,0.55)';
     x.textAlign = 'right';
-    x.fillText('BLOCKLANDS', W - H * 0.03, H - H * 0.03 - (F.bars ? Math.max(0, (H - W / 2.39) / 2) : 0));
+    x.fillText('JORDILANDS', W - H * 0.03, H - H * 0.03 - (F.bars ? Math.max(0, (H - W / 2.39) / 2) : 0));
     c.toBlob((blob) => {
       if (!blob) return;
       const a = document.createElement('a');

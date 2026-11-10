@@ -80,7 +80,7 @@ const Metro = {
   route(N) {
     let R = this.routes.get(N.n);
     if (R && R.N === N) return R;
-    try { R = this.build(N); } catch (e) { console.warn('Blocklands: metro route', e); R = null; }
+    try { R = this.build(N); } catch (e) { console.warn('JordiLands: metro route', e); R = null; }
     if (R) R.N = N;
     this.routes.set(N.n, R);
     return R;

@@ -728,7 +728,7 @@ function schoolUpgrade(W, x0, Z, set, sz, F, floors, roof, out) {
 // ---------------------------------------------------------------- Galeries STUCOM ----
 // Under the west half of the square, level with the metro landing it opens off: a terrazzo
 // arcade (u -12..-10) with shops either side behind glass fronts and lit signs. West: the
-// SuperBloc supermarket and Mobles Blocklands. East: Forn Can Pau (bakery), the car showroom and a
+// SuperBloc supermarket and Mobles JordiLands. East: Forn Can Pau (bakery), the car showroom and a
 // kiosk. The shop logic (shopkeepers, tills, catalogues, the cars on show) is in shops.js.
 const MALL_SHOPS = [
   { key: 'super', u0: -21, v0: -14, u1: -14, v1: -1, front: -13, door: [-8, -7], keeper: [-15, -4], till: [-15, -3], color: 14 },
@@ -783,7 +783,7 @@ function buildMall(W, g, D) {
   for (let u = -20; u <= -15; u++) for (const y of [P, P + 1]) set(u, y, -14, B.SHELF_DRINKS, 5);
   for (let u = -16; u <= -15; u++) set(u, P, -3, B.KITCHEN_COUNTER, 4);
   set(-16, P + 1, -3, B.AIR);
-  // ---- Mobles Blocklands: a showroom of rooms ----
+  // ---- Mobles JordiLands: a showroom of rooms ----
   const M = (u, v, id, f) => set(u, P, v, id, f);
   M(-21, 3, B.SOFA_RED, 1); M(-21, 4, B.SOFA_RED, 1); M(-21, 5, B.SOFA_RED, 1); M(-19, 4, B.COFFEE_TABLE, 1);
   for (let u = -20; u <= -18; u++) for (let v = 3; v <= 5; v++) if (!(u === -19 && v === 4)) M(u, v, B.RUG_RED, 0);

@@ -1,4 +1,4 @@
-<title>Blocklands</title>
+<title>JordiLands</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Figtree:wght@400;600;700&display=swap">
@@ -1251,7 +1251,7 @@
 
 <div id="loading" class="overlay">
   <div class="panel" style="width:min(460px,100%)">
-    <div class="brand"><h1>BLOCK<span>LANDS</span></h1></div>
+    <div class="brand"><h1>JORDI<span>LANDS</span></h1></div>
     <p class="tagline">Generating terrain and compiling shaders&#x2026;</p>
     <div class="bar"><div id="loadBar"></div></div>
     <div id="loadStatus">Starting</div>
@@ -1260,7 +1260,7 @@
 
 <div id="title" class="overlay title hidden">
   <div class="title-inner">
-    <h1 class="logo">BLOCK<span>LANDS</span></h1>
+    <h1 class="logo">JORDI<span>LANDS</span></h1>
     <p class="subtitle">Survive &#xb7; Build &#xb7; Explore &#xb7; Fly</p>
     <div class="title-buttons">
       <button id="tPlay" class="primary"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12.5-7.5z"/></svg><span id="tPlayLabel">Play</span></button>
@@ -1274,13 +1274,13 @@
     </div>
     <div class="tworld" id="tWorld"></div>
   </div>
-  <footer class="title-foot"><span>Creado por <b>Pau Bru</b></span><span>Blocklands 3.0</span></footer>
+  <footer class="title-foot"><span>Creado por <b>Pau Bru</b></span><span>JordiLands 3.0</span></footer>
 </div>
 
 <div id="credits" class="overlay hidden">
   <button class="credits-close" id="creditsClose">Close</button>
   <div class="roll" id="creditsRoll">
-    <h1 class="logo">BLOCK<span>LANDS</span></h1>
+    <h1 class="logo">JORDI<span>LANDS</span></h1>
     <div class="by">Creado por</div>
     <div class="who">PAU BRU</div>
     <dl><dt>Idea, dise&#xf1;o y direcci&#xf3;n</dt><dd>Pau Bru</dd></dl>
@@ -1333,7 +1333,7 @@
   <div class="panel opt" role="dialog" aria-label="Options">
     <header class="opt-head">
       <div class="opt-title">
-        <h1 class="opt-logo">BLOCK<span>LANDS</span></h1>
+        <h1 class="opt-logo">JORDI<span>LANDS</span></h1>
         <div class="opt-world"><span class="dot" id="optWorldDot"></span><span id="optWorldText"></span></div>
       </div>
       <div class="opt-actions">
@@ -1560,7 +1560,7 @@
 </div>
 <div id="errorBox" class="overlay hidden">
   <div class="panel">
-    <div class="brand"><h1>BLOCK<span>LANDS</span></h1></div>
+    <div class="brand"><h1>JORDI<span>LANDS</span></h1></div>
     <p class="tagline" id="errorTitle">Something went wrong.</p>
     <pre id="errorText"></pre>
     <button id="reloadBtn">Reload</button>
@@ -10877,7 +10877,7 @@ function schoolUpgrade(W, x0, Z, set, sz, F, floors, roof, out) {
 // ---------------------------------------------------------------- Galeries STUCOM ----
 // Under the west half of the square, level with the metro landing it opens off: a terrazzo
 // arcade (u -12..-10) with shops either side behind glass fronts and lit signs. West: the
-// SuperBloc supermarket and Mobles Blocklands. East: Forn Can Pau (bakery), the car showroom and a
+// SuperBloc supermarket and Mobles JordiLands. East: Forn Can Pau (bakery), the car showroom and a
 // kiosk. The shop logic (shopkeepers, tills, catalogues, the cars on show) is in shops.js.
 const MALL_SHOPS = [
   { key: 'super', u0: -21, v0: -14, u1: -14, v1: -1, front: -13, door: [-8, -7], keeper: [-15, -4], till: [-15, -3], color: 14 },
@@ -10932,7 +10932,7 @@ function buildMall(W, g, D) {
   for (let u = -20; u <= -15; u++) for (const y of [P, P + 1]) set(u, y, -14, B.SHELF_DRINKS, 5);
   for (let u = -16; u <= -15; u++) set(u, P, -3, B.KITCHEN_COUNTER, 4);
   set(-16, P + 1, -3, B.AIR);
-  // ---- Mobles Blocklands: a showroom of rooms ----
+  // ---- Mobles JordiLands: a showroom of rooms ----
   const M = (u, v, id, f) => set(u, P, v, id, f);
   M(-21, 3, B.SOFA_RED, 1); M(-21, 4, B.SOFA_RED, 1); M(-21, 5, B.SOFA_RED, 1); M(-19, 4, B.COFFEE_TABLE, 1);
   for (let u = -20; u <= -18; u++) for (let v = 3; v <= 5; v++) if (!(u === -19 && v === 4)) M(u, v, B.RUG_RED, 0);
@@ -13681,7 +13681,7 @@ const ChunkWorkers = {
       if (!this.ok) this.shutdown();
       return this.ok;
     } catch (e) {
-      console.warn('Blocklands: chunk workers unavailable, generating on the main thread', e);
+      console.warn('JordiLands: chunk workers unavailable, generating on the main thread', e);
       this.shutdown();
       return false;
     }
@@ -13694,7 +13694,7 @@ const ChunkWorkers = {
   },
 
   fail(e) {
-    console.warn('Blocklands: a chunk worker failed, falling back to the main thread', e && e.message);
+    console.warn('JordiLands: a chunk worker failed, falling back to the main thread', e && e.message);
     this.shutdown();
     this.reset();
   },
@@ -23559,7 +23559,7 @@ const Net = {
         const room = await Promise.race([window.claude.use('room'), new Promise((r) => setTimeout(() => r(null), 12000))]);
         if (room) { this.room = room; this.kind = 'room'; this.available = true; this.refreshUI(); return; }
       }
-    } catch (e) { console.warn('Blocklands: room unavailable', e); }
+    } catch (e) { console.warn('JordiLands: room unavailable', e); }
     // anywhere else: tabs of this browser
     if (typeof BroadcastChannel !== 'undefined') {
       this.kind = 'local';
@@ -23709,7 +23709,7 @@ const Net = {
     try {
       mod = await loadTrystero();
     } catch (e) {
-      console.warn('Blocklands: could not load the networking library', e);
+      console.warn('JordiLands: could not load the networking library', e);
       if (token === this.p2pToken && !Relay.joined) { this.statusText = 'Offline: could not reach the network (you can keep playing, it saves here)'; this.refreshUI(); }
       return;
     }
@@ -23750,7 +23750,7 @@ const Net = {
       this.statusText = 'Online';
       this.sendPresence(true);
     } catch (e) {
-      console.warn('Blocklands: could not open the server', e);
+      console.warn('JordiLands: could not open the server', e);
       this.statusText = 'Offline: could not open the connection (you can keep playing, it saves here)';
     }
     this.refreshUI();
@@ -24463,7 +24463,7 @@ const Cloud = {
   },
 
   failed(e) {
-    console.warn('Blocklands: cloud', e);
+    console.warn('JordiLands: cloud', e);
     // a missing table means the one-time setup has not been run
     this.state = e && (e.status === 404 || /PGRST205|42P01|does not exist/.test(e.body || '')) ? 'setup' : 'offline';
     this.refresh();
@@ -24691,10 +24691,10 @@ const Relay = {
       if (!m || m.topic !== this.topic) return;
       if (m.event === 'phx_reply' && m.ref === this.joinRef) {
         this.joined = !!(m.payload && m.payload.status === 'ok');
-        if (this.joined) { this.retry = 0; Net.relayUp(); } else { console.warn('Blocklands: relay refused', m.payload); ws.close(); }
+        if (this.joined) { this.retry = 0; Net.relayUp(); } else { console.warn('JordiLands: relay refused', m.payload); ws.close(); }
       } else if (m.event === 'broadcast' && m.payload && typeof m.payload.event === 'string') {
         const fn = this.handlers[m.payload.event];
-        if (fn && m.payload.payload && typeof m.payload.payload === 'object') try { fn(m.payload.payload); } catch (err) { console.warn('Blocklands: relay message', err); }
+        if (fn && m.payload.payload && typeof m.payload.payload === 'object') try { fn(m.payload.payload); } catch (err) { console.warn('JordiLands: relay message', err); }
       } else if (m.event === 'phx_error' || m.event === 'phx_close') ws.close();
     };
     ws.onerror = () => {};
@@ -27980,7 +27980,7 @@ const Metro = {
   route(N) {
     let R = this.routes.get(N.n);
     if (R && R.N === N) return R;
-    try { R = this.build(N); } catch (e) { console.warn('Blocklands: metro route', e); R = null; }
+    try { R = this.build(N); } catch (e) { console.warn('JordiLands: metro route', e); R = null; }
     if (R) R.N = N;
     this.routes.set(N.n, R);
     return R;
@@ -30019,7 +30019,7 @@ const Photo = {
     x.font = '600 ' + Math.round(H * 0.022) + 'px system-ui, sans-serif';
     x.fillStyle = 'rgba(255,255,255,0.55)';
     x.textAlign = 'right';
-    x.fillText('BLOCKLANDS', W - H * 0.03, H - H * 0.03 - (F.bars ? Math.max(0, (H - W / 2.39) / 2) : 0));
+    x.fillText('JORDILANDS', W - H * 0.03, H - H * 0.03 - (F.bars ? Math.max(0, (H - W / 2.39) / 2) : 0));
     c.toBlob((blob) => {
       if (!blob) return;
       const a = document.createElement('a');
@@ -32139,7 +32139,7 @@ const MetroNet = {
     if (this.key !== key) { this.key = key; this.cache = null; this.gen.clear(); this.dirty = true; }
     if (this.dirty || now - this.t > 20000) {
       this.dirty = false; this.t = now;
-      try { this.cache = this.traceAll(); } catch (e) { console.warn('Blocklands: metro trace', e); this.cache = []; }
+      try { this.cache = this.traceAll(); } catch (e) { console.warn('JordiLands: metro trace', e); this.cache = []; }
     }
     return this.cache || [];
   },
@@ -33509,7 +33509,7 @@ const SharedState = {
     if (!d || typeof d.k !== 'string' || d.k.length > 64 || !Number.isFinite(d.t)) return;
     if (d.t <= (this.times.get(d.k) || 0)) return;
     this.times.set(d.k, d.t);
-    try { this.apply(d.k, d.v === undefined ? null : d.v); } catch (e) { console.warn('Blocklands: shared state', e); }
+    try { this.apply(d.k, d.v === undefined ? null : d.v); } catch (e) { console.warn('JordiLands: shared state', e); }
   },
   apply(k, v) {
     if (k.startsWith('be:')) this.applyBE(Number(k.slice(3)), v);
@@ -35869,7 +35869,7 @@ const People = {
 <script>
 'use strict';
 // Shops in the Galeries STUCOM (built by district.js under the square, off the Universitat metro
-// landing): the SuperBloc supermarket, Forn Can Pau, Mobles Blocklands, the car showroom and the
+// landing): the SuperBloc supermarket, Forn Can Pau, Mobles JordiLands, the car showroom and the
 // kiosk. Right-click a shopkeeper or a till to open the shop: a catalogue with prices in coins,
 // a basket, and a "Sell" tab where the supermarket and the bakery buy your crops and food.
 // Bakery goods are new foods (croissant, ensa\u00efmada, coca, cookie...). During Sant Joan the coca is
@@ -35898,7 +35898,7 @@ const SHOPS = {
   forn: { name: 'Forn Can Pau', icon: '\ud83e\udd50', tag: 'Forn de pa', color: '#b5652a',
     sell: [[I.BREAD, 3], [I.CROISSANT, 3], [I.ENSAIMADA, 4], [I.COCA, 10], [I.COOKIE, 1], [I.PA_TOMAQUET, 5], [I.SANDWICH, 7], [I.CHOCOLATE, 2]],
     buy: [[I.WHEAT, 1.5], [B.SUGAR_CANE, 1], [I.EGG, 1]] },
-  mobles: { name: 'Mobles Blocklands', icon: '\ud83d\udecb\ufe0f', tag: 'Mobles', color: '#e0782a', sell: [], buy: [] },
+  mobles: { name: 'Mobles JordiLands', icon: '\ud83d\udecb\ufe0f', tag: 'Mobles', color: '#e0782a', sell: [], buy: [] },
   cotxes: { name: 'Motor ' + CITY, icon: '\ud83d\ude97', tag: 'Concessionari', color: '#1e2432',
     sell: [[I.BIKE, 60], [I.CAR, 400], [I.BOAT, 180], [I.BUS, 900], [I.HELI, 1600], [I.CART, 90]], buy: [] },
   quiosc: { name: 'Quiosc de la Pla\u00e7a', icon: '\ud83d\udcf0', tag: 'Quiosc', color: '#2a6ce0',
@@ -36106,7 +36106,7 @@ SYNTH.shop_till = (ctx, o, t) => {
   };
   sign('super', plate(['#e3262f', '#a8141c'], '#fff', 'SuperBloc', 'SUPERMERCAT \u00b7 obert cada dia', '\ud83d\uded2'));
   sign('forn', plate(['#f3e2c4', '#d9b98a'], '#6a3a14', 'Forn Can Pau', 'PA \u00b7 PASTISSERIA \u00b7 DES DE 1924', '\ud83e\udd50'));
-  sign('mobles', plate(['#ff9a3c', '#d9651a'], '#fff', 'Mobles', 'BLOCKLANDS \u00b7 la teva casa', '\ud83d\udecb\ufe0f'));
+  sign('mobles', plate(['#ff9a3c', '#d9651a'], '#fff', 'Mobles', 'JORDILANDS \u00b7 la teva casa', '\ud83d\udecb\ufe0f'));
   sign('cotxes', plate(['#2a3244', '#10141c'], '#e8edf5', 'Motor ' + CITY, ED('CONCESSIONARI OFICIAL', 'OFFICIAL DEALER'), '\ud83d\ude97'));
   sign('quiosc', plate(['#2f7df0', '#1a55b8'], '#fff', 'Quiosc', 'PREMSA \u00b7 BEGUDES \u00b7 TARGETES', '\ud83d\udcf0'));
   PIC_BUILTIN.shop_galeries = { w: 3, h: 1, draw: plate(['#141a26', '#0a0e16'], '#ffd34d', 'Galeries', '\u2190 BOTIGUES \u00b7 SHOPS', '\ud83d\udecd\ufe0f') };
@@ -38867,7 +38867,7 @@ SYNTH.cash_up = (ctx, o, t) => { Sound.tone(ctx, o, t, 0.12, { wave: 'triangle',
     const off = Lift.offer;
     Lift.offer = function (x, z, stops, cur) {
       off.call(this, x, z, stops, cur);
-      try { if (Flats.tower(x, z, stops)) Flats.decorate(this.panel, x, z, stops, cur); } catch (e) { console.warn('Blocklands: flats', e); }
+      try { if (Flats.tower(x, z, stops)) Flats.decorate(this.panel, x, z, stops, cur); } catch (e) { console.warn('JordiLands: flats', e); }
     };
   }
   const kp = Ents.keepable;
@@ -38914,7 +38914,7 @@ SYNTH.cash_up = (ctx, o, t) => { Sound.tone(ctx, o, t, 0.12, { wave: 'triangle',
   Furniture.update = function (dt) {
     fu.call(this, dt);
     const d = dt || 0.016;
-    try { Flats.update(); Biz.update(d); Rent.update(d); } catch (e) { console.warn('Blocklands: business', e); }
+    try { Flats.update(); Biz.update(d); Rent.update(d); } catch (e) { console.warn('JordiLands: business', e); }
   };
   const wr = Weather.render;
   Weather.render = function (...a) { const r = wr.apply(this, a); try { Biz.drawTags(); } catch (e) { /* ignore */ } return r; };
@@ -38926,7 +38926,7 @@ SYNTH.cash_up = (ctx, o, t) => { Sound.tone(ctx, o, t, 0.12, { wave: 'triangle',
 </script>
 <script>
 'use strict';
-// Aeroport STUCOM (district.js builds it east of the ring road). While you are near, Blocklands
+// Aeroport STUCOM (district.js builds it east of the ring road). While you are near, JordiLands
 // Air airliners land on the runway, taxi to the stand, wait and take off again. At a check-in
 // till (or with the airline staff) you buy a flight to any of the world's themed places: you
 // board the plane at the stand, it taxis out and takes off with you, and you land at the place
@@ -39065,7 +39065,7 @@ const Airport = {
     return pl ? 40 + Math.round(Math.min(6000, Math.hypot(p[0] - pl.x, p[2] - pl.z)) / 30) : 40;
   },
   openReturn() {
-    const q = GPanel.open({ title: 'Blocklands Air', sub: 'Return flight \u00b7 to ' + CITY + ' Airport', icon: '\u2708\ufe0f', cls: 'gp-shop', width: 520 });
+    const q = GPanel.open({ title: 'JordiLands Air', sub: 'Return flight \u00b7 to ' + CITY + ' Airport', icon: '\u2708\ufe0f', cls: 'gp-shop', width: 520 });
     q.wrap.querySelector('.gp').style.setProperty('--shop', '#d6202b');
     const pass = G.inv.count(I.BOARDING_PASS) > 0, price = this.homePrice();
     const where = G.prog && G.prog.trip ? (this.dests().find((d) => d.key === G.prog.trip) || null) : null;
@@ -39085,7 +39085,7 @@ const Airport = {
     const pl = this.plan();
     if (!pl) { G.ui.toast('Flights leave from the airport of ' + CITY); return; }
     if (this.away()) { this.openReturn(); return; }
-    const q = GPanel.open({ title: 'Blocklands Air', sub: 'Departures \u00b7 ' + CITY + ' Airport', icon: '\u2708\ufe0f', cls: 'gp-shop', width: 640 });
+    const q = GPanel.open({ title: 'JordiLands Air', sub: 'Departures \u00b7 ' + CITY + ' Airport', icon: '\u2708\ufe0f', cls: 'gp-shop', width: 640 });
     q.wrap.querySelector('.gp').style.setProperty('--shop', '#d6202b');
     const now = new Date();
     const list = this.dests();
@@ -39116,7 +39116,7 @@ const Airport = {
       this.step(F, 0);
       Vehicles.board(F.v);
       G.player.yaw = F.v.yaw + Math.PI + 0.7; G.player.pitch = -0.22;
-      G.ui.banner('\u2708\ufe0f', 'Blocklands Air BA to ' + d.name + ' \u00b7 fasten your seat belt');
+      G.ui.banner('\u2708\ufe0f', 'JordiLands Air BA to ' + d.name + ' \u00b7 fasten your seat belt');
       sfx('metro_chime', null, 0.8, 0.8);
       this.fade(false);
       void pl;
@@ -39164,7 +39164,7 @@ const Airport = {
       Vehicles.board(F.v);
       p.yaw = F.v.yaw + Math.PI + 0.7; p.pitch = -0.22;
       Net.teleported();
-      G.ui.banner('\u2708\ufe0f', 'Blocklands Air \u00b7 back to ' + CITY + ' \u00b7 we are starting our approach');
+      G.ui.banner('\u2708\ufe0f', 'JordiLands Air \u00b7 back to ' + CITY + ' \u00b7 we are starting our approach');
       sfx('metro_chime', null, 0.8, 0.8);
       this.fade(false);
     }, 1200);
@@ -39223,7 +39223,7 @@ PIC_BUILTIN.airport_sign = { w: 6, h: 2, draw(g, W, H) {
   g.fillStyle = grd; g.fillRect(0, 0, W, H);
   g.font = `${H * 0.6}px serif`; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillText('\u2708\ufe0f', H * 0.55, H * 0.5);
   g.textAlign = 'left'; g.fillStyle = '#fff'; g.font = `900 ${H * 0.36}px Arial`; g.fillText(ED('AEROPORT', 'AIRPORT'), H * 1.1, H * 0.36);
-  g.fillStyle = '#ffcc33'; g.font = `900 ${H * 0.26}px Arial`; g.fillText(CITY.toUpperCase() + ' \u00b7 BLOCKLANDS AIR', H * 1.12, H * 0.72);
+  g.fillStyle = '#ffcc33'; g.font = `900 ${H * 0.26}px Arial`; g.fillText(CITY.toUpperCase() + ' \u00b7 JORDILANDS AIR', H * 1.12, H * 0.72);
 } };
 sprite('i_boarding_pass', (d) => {
   sprRect(d, 3, 9, 29, 24, [246, 246, 240]); sprRect(d, 3, 9, 29, 13, [214, 32, 43]);
@@ -40307,7 +40307,7 @@ const boardAve = Vehicles.board;
     return use.call(this, initial);
   };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Ave.update(dt || 0.016); Ave.updateHud(); } catch (e) { console.warn('Blocklands: AVE', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Ave.update(dt || 0.016); Ave.updateHud(); } catch (e) { console.warn('JordiLands: AVE', e); } };
   PC.add({ key: 'ave', icon: '\ud83d\ude84', name: 'AVE', run() { Ave.open(); } });
   const run = Commands.run;
   Commands.run = function (text) { if (/^\/(ave|train|tren)\b/i.test(text)) { Ave.find(); return; } return run.call(this, text); };
@@ -40315,7 +40315,7 @@ const boardAve = Vehicles.board;
 </script>
 <script>
 'use strict';
-// Island cruise: the Blocklands Star, a white cruise ship with three decks of cabins, a pool on
+// Island cruise: the JordiLands Star, a white cruise ship with three decks of cabins, a pool on
 // top, lifeboats and a red funnel, lies at anchor off every port (sea.js finds the ports). Buy a
 // cruise at the ferry office or with the Cruise app: you are taken aboard, it sails out and
 // calls at the islands and the beach, three minutes ashore at each (the horn warns you, the app
@@ -40431,7 +40431,7 @@ const Cruise = {
       if (G.vehicle) Vehicles.dismount(true);
       if (!this.v || this.v.removed) { const A = this.anchorOf(port); this.ship(A.x, A.z, A.yaw); }
       this.aboard();
-      G.ui.banner('\ud83d\udef3\ufe0f', 'Welcome aboard the Blocklands Star! Next stop: ' + stops[0].name);
+      G.ui.banner('\ud83d\udef3\ufe0f', 'Welcome aboard the JordiLands Star! Next stop: ' + stops[0].name);
       sfx('horn', this.v.pos, 1.3, 0.35);
       Airport.fade(false);
     }, 900);
@@ -40498,7 +40498,7 @@ const Cruise = {
       if (G.vehicle) Vehicles.dismount(true);
       this.trip = null;
       this.land(T.port);
-      G.ui.banner('\ud83d\udef3\ufe0f', 'Back at ' + (T.port.name || 'the port') + ' \u00b7 thank you for sailing with the Blocklands Star');
+      G.ui.banner('\ud83d\udef3\ufe0f', 'Back at ' + (T.port.name || 'the port') + ' \u00b7 thank you for sailing with the JordiLands Star');
       Airport.fade(false);
     }, 1200);
   },
@@ -40529,7 +40529,7 @@ const Cruise = {
   open() {
     const T = this.trip, e = GPanel.esc;
     if (!T && !Ferry.port) { Ferry.find(); return; }
-    const q = GPanel.open({ title: 'Blocklands Star', sub: T ? 'Island cruise \u00b7 stop ' + Math.min(T.i + 1, T.stops.length) + ' of ' + T.stops.length : 'Island cruise from ' + (Ferry.port.name || 'the port'), icon: '\ud83d\udef3\ufe0f', cls: 'gp-cruise', width: 520 });
+    const q = GPanel.open({ title: 'JordiLands Star', sub: T ? 'Island cruise \u00b7 stop ' + Math.min(T.i + 1, T.stops.length) + ' of ' + T.stops.length : 'Island cruise from ' + (Ferry.port.name || 'the port'), icon: '\ud83d\udef3\ufe0f', cls: 'gp-cruise', width: 520 });
     if (T && T.phase === 'ashore') {
       const left = Math.max(0, Math.ceil(CRUISE_ASHORE - T.t));
       q.body.innerHTML = `<div class="cr-card"><div class="cr-big">\u23f1\ufe0f ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</div><p>The ship sails ${T.i + 1 < T.stops.length ? 'on to <b>' + e(T.stops[T.i + 1].name) + '</b>' : 'home to <b>' + e(T.port.name || 'the port') + '</b>'} when the time is up.</p>
@@ -40545,7 +40545,7 @@ const Cruise = {
     const port = this.port || Ferry.port, stops = port ? this.route(port) : [], e = GPanel.esc;
     const el = document.createElement('div');
     el.className = 'cr-offer';
-    el.innerHTML = `<div class="cr-ship">\ud83d\udef3\ufe0f</div><div class="cr-txt"><b>Island cruise \u00b7 Blocklands Star</b><span>${stops.map((s) => s.icon + ' ' + e(s.name)).join(' \u2192 ')} \u2192 \u2693 back here \u00b7 ${Math.round(CRUISE_ASHORE / 60)} min ashore at each stop \u00b7 pool deck</span></div>
+    el.innerHTML = `<div class="cr-ship">\ud83d\udef3\ufe0f</div><div class="cr-txt"><b>Island cruise \u00b7 JordiLands Star</b><span>${stops.map((s) => s.icon + ' ' + e(s.name)).join(' \u2192 ')} \u2192 \u2693 back here \u00b7 ${Math.round(CRUISE_ASHORE / 60)} min ashore at each stop \u00b7 pool deck</span></div>
       <button class="gp-btn ok" ${stops.length ? '' : 'disabled'}>\ud83e\ude99 ${CRUISE_PRICE}</button>`;
     el.querySelector('button').addEventListener('click', () => { const top = GPanel.top(); if (top) top.close(); this.book(); });
     host.append(el);
@@ -40559,7 +40559,7 @@ const Cruise = {
     let line;
     if (T.phase === 'ashore') { const left = Math.max(0, Math.ceil(CRUISE_ASHORE - T.t)); line = `Ashore at ${GPanel.esc(next.name)} \u00b7 all aboard in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} \u00b7 \ud83d\udcf1 Cruise`; }
     else line = (next ? 'Sailing to ' + GPanel.esc(next.name) : 'Sailing home') + ' \u00b7 ' + Math.round(T.speed * 1.94 * 1.6) + ' knots';
-    el.innerHTML = `<b>\ud83d\udef3\ufe0f Blocklands Star</b><span>${line}</span><div class="cr-dots">${T.stops.map((s, i) => `<i class="${i < T.i ? 'done' : i === T.i ? 'now' : ''}">${s.icon}</i>`).join('<u></u>')}<u></u><i class="${T.i >= T.stops.length ? 'now' : ''}">\u2693</i></div>`;
+    el.innerHTML = `<b>\ud83d\udef3\ufe0f JordiLands Star</b><span>${line}</span><div class="cr-dots">${T.stops.map((s, i) => `<i class="${i < T.i ? 'done' : i === T.i ? 'now' : ''}">${s.icon}</i>`).join('<u></u>')}<u></u><i class="${T.i >= T.stops.length ? 'now' : ''}">\u2693</i></div>`;
     el.classList.add('show');
   },
 };
@@ -40596,7 +40596,7 @@ const boardCruise = Vehicles.board;
     if (q && Ferry.port && q.wrap.querySelector('.gp-t').textContent.startsWith('Ferry')) Cruise.card(q.body);
   };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Cruise.update(dt || 0.016); Cruise.updateHud(); } catch (e) { console.warn('Blocklands: cruise', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Cruise.update(dt || 0.016); Cruise.updateHud(); } catch (e) { console.warn('JordiLands: cruise', e); } };
   PC.add({ key: 'cruise', icon: '\ud83d\udef3\ufe0f', name: ED('Creuer', 'Cruise'), run() { Cruise.open(); } });
 }
 </script>
@@ -40942,7 +40942,7 @@ for (const [k, draw] of Object.entries(TEACHER_FACES)) PIC_BUILTIN['face_' + k] 
 </script>
 <script>
 'use strict';
-// "Support Blocklands": a button on the title screen (and an app on the phone) that opens a small
+// "Support JordiLands": a button on the title screen (and an app on the phone) that opens a small
 // card to buy Pau a coffee. The game stays free and without ads; donations are optional and never
 // unlock anything. Set SUPPORT.kofi (the Ko-fi page name) and/or SUPPORT.paypal (a paypal.me
 // name) to switch the buttons on; until then the card says it is coming soon.
@@ -40963,11 +40963,11 @@ const Support = {
     const tiers = [['\u2615', 'A coffee', 3], ['\ud83e\udd50', 'Coffee & croissant', 5], ['\ud83c\udf55', 'A pizza for the dev nights', 10]];
     const el = this.el = document.createElement('div');
     el.id = 'supportUI';
-    el.innerHTML = `<div class="sp-card" role="dialog" aria-label="Support Blocklands">
+    el.innerHTML = `<div class="sp-card" role="dialog" aria-label="Support JordiLands">
       <button class="sp-x" aria-label="Close">\u2715</button>
       <div class="sp-cup"><svg viewBox="0 0 64 64"><path class="sp-steam" d="M24 8c-3 4 3 6 0 10M32 5c-3 4 3 7 0 11M40 8c-3 4 3 6 0 10"/><path d="M12 24h36v14a16 16 0 0 1-16 16h-4a16 16 0 0 1-16-16z" fill="#fff"/><path d="M48 28h4a7 7 0 0 1 0 14h-5" fill="none" stroke="#fff" stroke-width="4"/><path d="M16 30h28v6a12 12 0 0 1-12 12h-4a12 12 0 0 1-12-12z" fill="#ff7a59"/><path d="M26 36c0-3 6-3 6 1 0-4 6-4 6-1 0 4-6 8-6 8s-6-4-6-8z" fill="#fff"/></svg></div>
-      <h2>Support Blocklands</h2>
-      <p>Blocklands is free, with no ads and nothing to buy. If you enjoy it, you can buy Pau a coffee: it keeps the servers and the new updates going.</p>
+      <h2>Support JordiLands</h2>
+      <p>JordiLands is free, with no ads and nothing to buy. If you enjoy it, you can buy Pau a coffee: it keeps the servers and the new updates going.</p>
       <div class="sp-tiers">${tiers.map(([i, n, eur]) => `<a class="sp-tier${on ? '' : ' off'}" data-eur="${eur}" target="_blank" rel="noopener"><i>${i}</i><b>${eur} \u20ac</b><span>${n}</span></a>`).join('')}</div>
       <div class="sp-row">${on ? '' : '<span class="sp-soon">Donations open very soon \u2728</span>'}
         ${SUPPORT.kofi ? `<a class="sp-btn kofi" href="${this.url('kofi')}" target="_blank" rel="noopener">\u2615 Ko-fi</a>` : ''}
@@ -40996,7 +40996,7 @@ const Support = {
   if (foot) {
     const b = document.createElement('button');
     b.id = 'tSupport';
-    b.innerHTML = '<span>\u2615</span> Support Blocklands';
+    b.innerHTML = '<span>\u2615</span> Support JordiLands';
     b.addEventListener('click', () => Support.open());
     foot.insertBefore(b, foot.lastElementChild);
   }
@@ -42092,7 +42092,7 @@ const Crews = {
     return apply.call(this, k, v);
   };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Crews.update(dt || 0.016); } catch (e) { console.warn('Blocklands: crews', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Crews.update(dt || 0.016); } catch (e) { console.warn('JordiLands: crews', e); } };
   const wr = Weather.render;
   Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Crews.render(cp); } catch (e) { /* ignore */ } return r; };
   PC.add({ key: 'crews', icon: '\ud83d\udea9', name: ED('Colles', 'Crews'), run() { Crews.open(); } });
@@ -42416,7 +42416,7 @@ const Mini = {
   const kp = Ents.keepable;
   Ents.keepable = function (m) { if (m.mgKid) return false; return kp.call(this, m); };
   const fu = Furniture.update;
-  Furniture.update = function (d) { fu.call(this, d); try { Mini.tick(d || 0.016); } catch (e) { console.warn('Blocklands: minigames', e); } };
+  Furniture.update = function (d) { fu.call(this, d); try { Mini.tick(d || 0.016); } catch (e) { console.warn('JordiLands: minigames', e); } };
   const wr = Weather.render;
   Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Mini.render(cp); } catch (e) { /* ignore */ } return r; };
   PC.add({ key: 'minigames', icon: '\ud83c\udfaf', name: ED('Minijocs', 'Minigames'), run() { Mini.open(); } });
@@ -42626,7 +42626,7 @@ const Mayor = {
   const ad = Airport.dests;
   Airport.dests = function () { const l = ad.call(this); return Mayor.policy() === 'transit' ? l.map((d) => ({ ...d, price: Math.ceil(d.price / 2) })) : l; };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Mayor.update(dt || 0.016); } catch (e) { console.warn('Blocklands: mayor', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Mayor.update(dt || 0.016); } catch (e) { console.warn('JordiLands: mayor', e); } };
   PC.add({ key: 'cityhall', icon: '\ud83c\udfdb\ufe0f', name: ED('Ajuntament', 'City Hall'), run() { Mayor.open(); } });
 }
 </script>
@@ -42649,7 +42649,7 @@ Object.assign(MOODS, {
   radio_news: { root: 55, scale: 'major', bpm: 70, progs: [[0, 4, 5, 3]], parts: { pad: 0.45, piano: 0.3 }, rest: null, bars: [8, 8] },
 });
 const RADIO_STATIONS = [
-  { k: 'pop', mood: 'radio_pop', icon: '\ud83c\udfa4', name: 'Blocklands Pop', fm: '98.1' },
+  { k: 'pop', mood: 'radio_pop', icon: '\ud83c\udfa4', name: 'JordiLands Pop', fm: '98.1' },
   { k: 'chill', mood: 'radio_chill', icon: '\ud83c\udf19', name: 'Chill FM', fm: '101.4' },
   { k: 'classic', mood: 'radio_classic', icon: '\ud83c\udfbb', name: ED('Cl\u00e0ssica', 'Classical'), fm: '93.7' },
   { k: 'rumba', mood: 'radio_rumba', icon: '\ud83d\udc83', name: ED('R\u00e0dio Rumba', 'Rumba Radio'), fm: '105.9' },
@@ -42830,7 +42830,7 @@ const Voice = {
       Radio.update(dt || 0.016); Voice.update();
       if (Radio.chip) Radio.chip.classList.toggle('show', !!Radio.station() && !G.onTitle);
       else if (Radio.station()) Radio.drawChip();
-    } catch (e) { console.warn('Blocklands: radio', e); }
+    } catch (e) { console.warn('JordiLands: radio', e); }
   };
   PC.add({ key: 'radio', icon: '\ud83d\udcfb', name: ED('R\u00e0dio', 'Radio'), run() { Radio.open(); } });
   PC.add({ key: 'voice', icon: '\ud83c\udf99\ufe0f', name: ED('Veu', 'Voice'), run() { Voice.open(); } });
@@ -43164,7 +43164,7 @@ const boardRocket = Vehicles.board;
     return use.call(this, initial);
   };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Rocket.update(dt || 0.016); } catch (e) { console.warn('Blocklands: rocket', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Rocket.update(dt || 0.016); } catch (e) { console.warn('JordiLands: rocket', e); } };
   const wr = Weather.render;
   Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Rocket.render(cp); } catch (e) { /* ignore */ } return r; };
   PC.add({ key: 'space', icon: '\ud83d\ude80', name: ED('Espai', 'Space'), run() { Rocket.open(); } });
@@ -43759,9 +43759,9 @@ SYNTH.music_box = (ctx, o, t) => { Sound.tone(ctx, o, t, 0.9, { wave: 'triangle'
   const die = Stats.prototype.die;
   Stats.prototype.die = function (src) { Fair.seat = null; Fair.wait = null; return die.call(this, src); };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Fair.update(dt || 0.016); } catch (e) { console.warn('Blocklands: fair', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Fair.update(dt || 0.016); } catch (e) { console.warn('JordiLands: fair', e); } };
   const wr = Weather.render;
-  Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Fair.render(cp); } catch (e) { console.warn('Blocklands: fair render', e); } return r; };
+  Weather.render = function (cp, ...a) { const r = wr.call(this, cp, ...a); try { Fair.render(cp); } catch (e) { console.warn('JordiLands: fair render', e); } return r; };
   PC.add({ key: 'fair', icon: '\ud83c\udfa1', name: ED('Fira', 'Funfair'), run() { Fair.menu(); } });
 }
 </script>
@@ -43971,7 +43971,7 @@ const boardBalloon = Vehicles.board;
     G.ui.toast('Space burner (climb) \u00b7 let go to sink \u00b7 WASD nudge \u00b7 V camera \u00b7 Shift climb out', 6000);
   };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Balloons.update(dt || 0.016); } catch (e) { console.warn('Blocklands: balloons', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Balloons.update(dt || 0.016); } catch (e) { console.warn('JordiLands: balloons', e); } };
 }
 </script>
 <script>
@@ -44189,7 +44189,7 @@ if (!CG) {
     return use.call(this, initial);
   };
   const fu = Furniture.update;
-  Furniture.update = function (dt) { fu.call(this, dt); try { Classes.update(dt || 0.016); } catch (e) { console.warn('Blocklands: classes', e); } };
+  Furniture.update = function (dt) { fu.call(this, dt); try { Classes.update(dt || 0.016); } catch (e) { console.warn('JordiLands: classes', e); } };
   PC.add({ key: 'report', icon: '\ud83d\udccb', name: 'Butllet\u00ed', run() { Classes.report(); } });
   PC.add({ key: 'timetable', icon: '\ud83d\uddd3\ufe0f', name: 'Horari', run() {
     const q = GPanel.open({ title: 'Horari', sub: 'DAM 1r \u00b7 STUCOM', icon: '\ud83d\uddd3\ufe0f', cls: 'gp-tt', width: 640 });
@@ -44252,8 +44252,8 @@ function showError(title, err) {
 }
 // Boot and the frame loop report their own failures; stray errors from input handlers or the
 // hosting page are logged instead of stopping the game.
-window.addEventListener('error', (e) => console.warn('Blocklands:', e.error || e.message));
-window.addEventListener('unhandledrejection', (e) => console.warn('Blocklands:', e.reason));
+window.addEventListener('error', (e) => console.warn('JordiLands:', e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => console.warn('JordiLands:', e.reason));
 $('reloadBtn').addEventListener('click', () => location.reload());
 
 // ---------- settings ----------
@@ -45355,7 +45355,7 @@ function updateDebug() {
   const facing = dirs[((Math.round(p.yaw / (Math.PI / 2)) % 4) + 4) % 4];
   const L = G.world.getLight(x, Math.floor(p.pos[1] + 0.5), z);
   $('debug').textContent = [
-    'Blocklands  ' + G.fps.toFixed(0) + ' fps (' + G.frameMs.toFixed(1) + ' ms)',
+    'JordiLands  ' + G.fps.toFixed(0) + ' fps (' + G.frameMs.toFixed(1) + ' ms)',
     'XYZ ' + p.pos.map((v) => v.toFixed(2)).join(' / ') + '   chunk ' + (x >> 4) + ', ' + (z >> 4),
     'Facing ' + facing + '   biome ' + biome.toLowerCase() + '   ' + (p.flying ? 'flying' : p.onGround ? 'grounded' : 'airborne') + (p.inWater ? ' (water)' : ''),
     'Light sky ' + (L >> 4) + ' block ' + (L & 15) + '   mode ' + G.mode + '   difficulty ' + G.difficulty,
@@ -45417,7 +45417,7 @@ async function boot() {
     G.lastTime = performance.now();
     requestAnimationFrame(frame);
   } catch (e) {
-    showError('Blocklands could not start', e);
+    showError('JordiLands could not start', e);
   }
 }
 
@@ -45620,7 +45620,7 @@ const Crazy = {
     if (!CG) return;
     const S = window.CrazyGames && window.CrazyGames.SDK;
     if (!S) return;
-    try { await S.init(); } catch (e) { console.warn('Blocklands: CrazyGames SDK', e); return; }
+    try { await S.init(); } catch (e) { console.warn('JordiLands: CrazyGames SDK', e); return; }
     this.sdk = S; this.ready = true;
     this.cloudOn = !!S.data;
     this.call(() => S.game.loadingStart());
@@ -45676,7 +45676,7 @@ const Crazy = {
         try { storageSet(k, JSON.parse(await this.unb64(b64))); local[k] = t; } catch (e) { /* damaged: keep the local one */ }
       }
       this.setCloudT(local);
-    } catch (e) { console.warn('Blocklands: cloud pull', e); } finally { this.pulling = false; }
+    } catch (e) { console.warn('JordiLands: cloud pull', e); } finally { this.pulling = false; }
   },
   queue: new Set(), pushT: 0,
   wrote(key) {
@@ -45702,7 +45702,7 @@ const Crazy = {
       }
       this.sdk.data.setItem('bl:meta', JSON.stringify(meta));
       this.setCloudT(local);
-    } catch (e) { console.warn('Blocklands: cloud push', e); }
+    } catch (e) { console.warn('JordiLands: cloud push', e); }
   },
 
   // is the game being played right now?
@@ -45781,7 +45781,7 @@ if (CG) {
   { const f = document.querySelector('#title .title-foot span'); if (f) f.innerHTML = 'Made by <b>Pau Bru</b>'; }
   {
     const r = $('creditsRoll');
-    if (r) r.innerHTML = `<h1 class="logo">BLOCK<span>LANDS</span></h1><div class="by">Made by</div><div class="who">PAU BRU</div>
+    if (r) r.innerHTML = `<h1 class="logo">JORDI<span>LANDS</span></h1><div class="by">Made by</div><div class="who">PAU BRU</div>
       <dl><dt>Idea, design and direction</dt><dd>Pau Bru</dd></dl>
       <dl><dt>The city</dt><dd>Blockton: skyscrapers, metro, buses, taxis, an airport, a mall and houses for sale</dd></dl>
       <dl><dt>Worlds and places</dt><dd>Paradise beach \u00b7 Volcano \u00b7 Oasis \u00b7 Snowy peaks<br>Ancient forest \u00b7 Red canyon \u00b7 Archipelago \u00b7 Flower meadow</dd></dl>

@@ -96,7 +96,7 @@ const MetroNet = {
     if (this.key !== key) { this.key = key; this.cache = null; this.gen.clear(); this.dirty = true; }
     if (this.dirty || now - this.t > 20000) {
       this.dirty = false; this.t = now;
-      try { this.cache = this.traceAll(); } catch (e) { console.warn('Blocklands: metro trace', e); this.cache = []; }
+      try { this.cache = this.traceAll(); } catch (e) { console.warn('JordiLands: metro trace', e); this.cache = []; }
     }
     return this.cache || [];
   },

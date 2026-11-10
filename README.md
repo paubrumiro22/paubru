@@ -1,4 +1,4 @@
-# Blocklands
+# JordiLands
 
 Un juego de bloques para el navegador, al estilo Minecraft pero con gráficos y contenido propios: cielo con dispersión atmosférica real, ciclo día/noche, sombras suaves, agua con reflejos y refracción, nubes volumétricas, rayos de luz y bloom. Todo está hecho con WebGL2 y JavaScript puro, sin librerías; las texturas (32×32), los mobs y los sonidos se generan por código.
 

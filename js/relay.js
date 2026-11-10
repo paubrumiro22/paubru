@@ -48,10 +48,10 @@ const Relay = {
       if (!m || m.topic !== this.topic) return;
       if (m.event === 'phx_reply' && m.ref === this.joinRef) {
         this.joined = !!(m.payload && m.payload.status === 'ok');
-        if (this.joined) { this.retry = 0; Net.relayUp(); } else { console.warn('Blocklands: relay refused', m.payload); ws.close(); }
+        if (this.joined) { this.retry = 0; Net.relayUp(); } else { console.warn('JordiLands: relay refused', m.payload); ws.close(); }
       } else if (m.event === 'broadcast' && m.payload && typeof m.payload.event === 'string') {
         const fn = this.handlers[m.payload.event];
-        if (fn && m.payload.payload && typeof m.payload.payload === 'object') try { fn(m.payload.payload); } catch (err) { console.warn('Blocklands: relay message', err); }
+        if (fn && m.payload.payload && typeof m.payload.payload === 'object') try { fn(m.payload.payload); } catch (err) { console.warn('JordiLands: relay message', err); }
       } else if (m.event === 'phx_error' || m.event === 'phx_close') ws.close();
     };
     ws.onerror = () => {};

@@ -900,7 +900,7 @@ SYNTH.cash_up = (ctx, o, t) => { Sound.tone(ctx, o, t, 0.12, { wave: 'triangle',
     const off = Lift.offer;
     Lift.offer = function (x, z, stops, cur) {
       off.call(this, x, z, stops, cur);
-      try { if (Flats.tower(x, z, stops)) Flats.decorate(this.panel, x, z, stops, cur); } catch (e) { console.warn('Blocklands: flats', e); }
+      try { if (Flats.tower(x, z, stops)) Flats.decorate(this.panel, x, z, stops, cur); } catch (e) { console.warn('JordiLands: flats', e); }
     };
   }
   const kp = Ents.keepable;
@@ -947,7 +947,7 @@ SYNTH.cash_up = (ctx, o, t) => { Sound.tone(ctx, o, t, 0.12, { wave: 'triangle',
   Furniture.update = function (dt) {
     fu.call(this, dt);
     const d = dt || 0.016;
-    try { Flats.update(); Biz.update(d); Rent.update(d); } catch (e) { console.warn('Blocklands: business', e); }
+    try { Flats.update(); Biz.update(d); Rent.update(d); } catch (e) { console.warn('JordiLands: business', e); }
   };
   const wr = Weather.render;
   Weather.render = function (...a) { const r = wr.apply(this, a); try { Biz.drawTags(); } catch (e) { /* ignore */ } return r; };

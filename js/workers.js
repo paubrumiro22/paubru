@@ -75,7 +75,7 @@ const ChunkWorkers = {
       if (!this.ok) this.shutdown();
       return this.ok;
     } catch (e) {
-      console.warn('Blocklands: chunk workers unavailable, generating on the main thread', e);
+      console.warn('JordiLands: chunk workers unavailable, generating on the main thread', e);
       this.shutdown();
       return false;
     }
@@ -88,7 +88,7 @@ const ChunkWorkers = {
   },
 
   fail(e) {
-    console.warn('Blocklands: a chunk worker failed, falling back to the main thread', e && e.message);
+    console.warn('JordiLands: a chunk worker failed, falling back to the main thread', e && e.message);
     this.shutdown();
     this.reset();
   },
